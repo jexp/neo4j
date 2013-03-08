@@ -32,6 +32,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.neo4j.graphdb.DynamicRelationshipType;
@@ -51,6 +52,12 @@ public class NodeManagerTest
     public void init()
     {
         db = new ImpermanentGraphDatabase();
+    }
+    
+    @After
+    public void stop()
+    {
+        db.shutdown();
     }
 
     @Test
