@@ -260,10 +260,10 @@ public class LuceneDataSource extends LogBackedXaDataSource
 
         XaCommandFactory cf = new LuceneCommandFactory();
         XaTransactionFactory tf = new LuceneTransactionFactory();
-        DependencyResolver dummy = new DependencyResolver()
+        DependencyResolver dummy = new DependencyResolver.Adapter()
         {
             @Override
-            public <T> T resolveDependency( Class<T> type ) throws IllegalArgumentException
+            public <T> T resolveDependency( Class<T> type, SelectionStrategy<T> selector )
             {
                 return (T) LuceneDataSource.this.config;
             }
