@@ -27,6 +27,7 @@ public class LinkBlock
 {
     private static final int HEADER_SIZE = 8+8+4+4;
     private final Enc128 encoder = new Enc128();
+    private final SignedEnc128 signedEncoder = new SignedEnc128();
     private final Type type;
     private final ByteBuffer buffer;
     private int idCount;
@@ -50,7 +51,7 @@ public class LinkBlock
         // Ids
         long previousRelId = relAndNodeIdPairs[0][0], previousRelNodeDelta = relAndNodeIdPairs[0][1] - previousRelId;
         encoder.encode( buffer, previousRelId );
-        encoder.encode( buffer, previousRelNodeDelta );
+        signedEncoder.encode( buffer, previousRelNodeDelta );
         for ( int i = 1; i < relAndNodeIdPairs.length; i++ )
         {
             long[] pair = relAndNodeIdPairs[i];
@@ -58,7 +59,7 @@ public class LinkBlock
             long relNodeDelta = pair[1]-pair[0];
             long derivativeRelNodeDelta = relNodeDelta-previousRelNodeDelta;
             encoder.encode( buffer, relDelta );
-            encoder.encode( buffer, derivativeRelNodeDelta );
+            signedEncoder.encode( buffer, derivativeRelNodeDelta );
             previousRelId = pair[0];
             previousRelNodeDelta = relNodeDelta;
         }
@@ -72,12 +73,12 @@ public class LinkBlock
         buffer.position( HEADER_SIZE );
         
         target[0][0] = encoder.decode( buffer );
-        target[0][1] = target[0][0] + encoder.decode( buffer );
+        target[0][1] = target[0][0] + signedEncoder.decode( buffer );
         for ( int i = 1; i < target.length; i++ )
         {
             long relDelta = encoder.decode( buffer );
             long relId = target[i-1][0] + relDelta;
-            long derivativeRelNodeDelta = encoder.decode( buffer );
+            long derivativeRelNodeDelta = signedEncoder.decode( buffer );
             long previousRelNodeDelta = target[i-1][1] - target[i-1][0];
             target[i][0] = relId;
             target[i][1] = previousRelNodeDelta + relId + derivativeRelNodeDelta;

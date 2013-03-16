@@ -60,6 +60,25 @@ public class LinkBlockTest
         }
     }
 
+    @Test
+    public void setManyNegativeDeltaPairs() throws Exception
+    {
+        // GIVEN
+        LinkBlock block = new LinkBlock( LinkBlock.Type.LARGE );
+        long[][] expected = idPairs( 10, 5, 10000 );
+        block.set( expected );
+        System.out.println( block );
+        
+        // WHEN
+        long[][] read = new long[expected.length][2];
+        block.get( read );
+        
+        for ( int i = 0; i < read.length; i++ )
+        {
+            assertArrayEquals( "At index " + i, expected[i], read[i] );
+        }
+    }
+
     private long[][] idPairs( long firstRelId, long firstNodeId, int count )
     {
         long result[][] = new long[count][2];
