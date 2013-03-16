@@ -20,6 +20,7 @@
 package org.neo4j.helpers;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
@@ -77,6 +78,19 @@ public class LinkBlockTest
         {
             assertArrayEquals( "At index " + i, expected[i], read[i] );
         }
+    }
+
+    @Test
+    public void testFindNodeForRelId() throws Exception {
+        LinkBlock block = new LinkBlock( LinkBlock.Type.SMALL );
+        long[][] expected = idPairs( 10, 5, 50 );
+        block.set( expected );
+        assertEquals(-1, block.getNodeIdForRelId(0));
+        assertEquals(-1, block.getNodeIdForRelId(9));
+        assertEquals(-1, block.getNodeIdForRelId(60));
+        assertEquals(5, block.getNodeIdForRelId(10));
+        assertEquals(6, block.getNodeIdForRelId(11));
+        assertEquals(54, block.getNodeIdForRelId(59));
     }
 
     private long[][] idPairs( long firstRelId, long firstNodeId, int count )

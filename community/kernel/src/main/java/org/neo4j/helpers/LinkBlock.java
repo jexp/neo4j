@@ -86,6 +86,27 @@ public class LinkBlock
     }
     
     // TODO method for looking up a node for a relationship
+    public long getNodeIdForRelId(long targetReldId) {
+        if (targetReldId > lastRelId || targetReldId < firstRelId) return -1;
+
+        buffer.position( HEADER_SIZE );
+        
+        long prevRelId = encoder.decode( buffer );
+        long prevNodeId = prevRelId + signedEncoder.decode( buffer );
+        if (targetReldId==prevRelId) return prevNodeId;
+        for ( int i = 1; i < idCount; i++ )
+        {
+            long relDelta = encoder.decode( buffer );
+            long relId = prevRelId + relDelta;
+            long derivativeRelNodeDelta = signedEncoder.decode( buffer );
+            long previousRelNodeDelta = prevNodeId - prevRelId;
+            prevRelId = relId;
+            prevNodeId = previousRelNodeDelta + relId + derivativeRelNodeDelta;
+            if (targetReldId==prevRelId) return prevNodeId;
+        }
+        return -1; // todo throw not found exception?
+    }
+    
     
     private static final Comparator<long[]> SORTER = new Comparator<long[]>()
     {
