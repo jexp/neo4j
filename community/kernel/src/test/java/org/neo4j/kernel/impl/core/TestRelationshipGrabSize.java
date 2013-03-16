@@ -164,7 +164,6 @@ public class TestRelationshipGrabSize
     @Test
     public void createRelationshipAfterClearedCache()
     {
-        // Assumes relationship grab size 100
         beginTx();
         Node node1 = db.createNode();
         Node node2 = db.createNode();

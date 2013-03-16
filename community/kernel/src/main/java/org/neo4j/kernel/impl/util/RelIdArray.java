@@ -146,16 +146,37 @@ public class RelIdArray implements SizeOf
         if ( lastBlock == null )
         {
             ByteBuffer newLastBlock = null;
-            newLastBlock = ByteBuffer.allocate( 20 );
+            newLastBlock = allocateBuffer( 20 );
             direction.setLastBlock( this, newLastBlock );
             lastBlock = newLastBlock;
         }
         add( lastBlock, id, direction );
     }
     
+    private ByteBuffer allocateBuffer( int i )
+    {
+        ByteBuffer result = ByteBuffer.allocate( i );
+        return result;
+    }
+
+    private String idsAsString( ByteBuffer buffer )
+    {
+        ByteBuffer buf = buffer.duplicate();
+        buf.position( 0 );
+        buf.limit( buffer.position() );
+        StringBuilder ids = new StringBuilder();
+        int i = 0;
+        while ( buf.hasRemaining() )
+        {
+            ids.append( "," + enc128.decode( buf ) );
+            i++;
+        }
+        return "(" + i + ") " + ids.toString();
+    }
+
     private void add( ByteBuffer buffer, long id, DirectionWrapper direction )
     {
-        buffer = ensureBufferSpace( buffer, 1, direction );
+        buffer = ensureBufferSpace( buffer, 5, direction );
         enc128.encode( buffer, id );
     }
     
@@ -182,7 +203,7 @@ public class RelIdArray implements SizeOf
     private void addAll( ByteBuffer target, ByteBuffer source, DirectionWrapper direction )
     {
         target = ensureBufferSpace( target, source.capacity(), direction );
-        target.put( newBufferForReading( source ) );
+        target.put( newBufferForReading( source, 0 ) );
     }
 
     public RelIdArray addAll( RelIdArray source )
@@ -226,7 +247,7 @@ public class RelIdArray implements SizeOf
 
     private ByteBuffer copy( ByteBuffer buffer, int newSize )
     {
-        ByteBuffer newBuffer = ByteBuffer.allocate( newSize );
+        ByteBuffer newBuffer = allocateBuffer( newSize );
         ByteBuffer reader = buffer.duplicate();
         reader.flip();
         newBuffer.put( reader );
@@ -379,143 +400,12 @@ public class RelIdArray implements SizeOf
         }
     }
     
-//    public static abstract class IdBlock implements SizeOf
-//    {
-//        // First element is the actual length w/o the slack
-//        private int[] ids = new int[3];
-//        
-//        /**
-//         * @return a copy of itself. The copy is also shrunk so that there's no
-//         * slack in the id array.
-//         */
-//        IdBlock copy()
-//        {
-//            IdBlock copy = copyInstance();
-//            int length = length();
-//            copy.ids = new int[length+1];
-//            System.arraycopy( ids, 0, copy.ids, 0, length+1 );
-//            return copy;
-//        }
-//        
-//        public int size()
-//        {
-//            return withObjectOverhead( withReference( withArrayOverhead( 4*ids.length ) ) );
-//        }
-//        
-//        /**
-//         * @return a shrunk version of itself. It returns itself if there is
-//         * no need to shrink it or a {@link #copy()} if there is slack in the array.
-//         */
-//        IdBlock shrink()
-//        {
-//            return length() == ids.length-1 ? this : copy();
-//        }
-//        
-//        /**
-//         * Upgrades to a {@link HighIdBlock} if this is a {@link LowIdBlock}.
-//         */
-//        abstract IdBlock upgradeIfNeeded();
-//        
-//        int length()
-//        {
-//            return ids[0];
-//        }
-//
-//        IdBlock getPrev()
-//        {
-//            return null;
-//        }
-//        
-//        abstract void setPrev( IdBlock prev );
-//        
-//        protected abstract IdBlock copyInstance();
-//
-//        // Assume id has same high bits
-//        void add( int id )
-//        {
-//            int length = ensureSpace( 1 );
-//            ids[length+1] = id;
-//            ids[0] = length+1;
-//        }
-//        
-//        int ensureSpace( int delta )
-//        {
-//            int length = length();
-//            int newLength = length+delta;
-//            if ( newLength >= ids.length-1 )
-//            {
-//                int calculatedLength = ids.length*2;
-//                if ( newLength > calculatedLength )
-//                {
-//                    calculatedLength = newLength*2;
-//                }
-//                int[] newIds = new int[calculatedLength];
-//                System.arraycopy( ids, 0, newIds, 0, length+1 );
-//                ids = newIds;
-//            }
-//            return length;
-//        }
-//        
-//        void addAll( IdBlock block )
-//        {
-//            int otherBlockLength = block.length();
-//            int length = ensureSpace( otherBlockLength+1 );
-//            System.arraycopy( block.ids, 1, ids, length+1, otherBlockLength );
-//            ids[0] = otherBlockLength+length;
-//        }
-//        
-//        long get( int index )
-//        {
-//            assert index >= 0 && index < length();
-//            return transform( ids[index+1] );
-//        }
-//        
-//        abstract long transform( int id );
-//        
-//        void set( long id, int index )
-//        {
-//            // Assume same high bits
-//            ids[index+1] = (int) id;
-//        }
-//        
-//        abstract long getHighBits();
-//    }
-    
-    private static class IteratorState
-    {
-        private ByteBuffer block;
-        
-        public IteratorState( ByteBuffer block, int relativePosition )
-        {
-            this.block = newBufferForReading( block );
-            // TODO use relativePosition?
-        }
-        
-        boolean hasNext()
-        {
-            return block.hasRemaining();
-        }
-        
-        /*
-         * Only called if hasNext returns true
-         */
-        long next()
-        {
-            return enc128.decode( block );
-        }
-
-        public void update( ByteBuffer lastBlock )
-        {
-            this.block = lastBlock;
-        }
-    }
-    
-    private static ByteBuffer newBufferForReading( ByteBuffer buffer )
+    private static ByteBuffer newBufferForReading( ByteBuffer buffer, int pos )
     {
         if ( buffer == null )
             return buffer;
         ByteBuffer result = buffer.duplicate();
-        result.position( 0 );
+        result.position( pos );
         result.limit( buffer.position() );
         return result;
     }
@@ -525,8 +415,8 @@ public class RelIdArray implements SizeOf
         private final DirectionWrapper[] directions;
         private int directionPosition = -1;
         private DirectionWrapper currentDirection;
-        private IteratorState currentState;
-        private final IteratorState[] states;
+        private ByteBuffer currentState;
+        private final ByteBuffer[] states;
         
         private long nextElement;
         private boolean nextElementDetermined;
@@ -536,7 +426,7 @@ public class RelIdArray implements SizeOf
         {
             this.ids = ids;
             this.directions = directions;
-            this.states = new IteratorState[directions.length];
+            this.states = new ByteBuffer[directions.length];
             
             // Find the initial block which isn't null. There can be directions
             // which have a null block currently, but could potentially be set
@@ -550,7 +440,7 @@ public class RelIdArray implements SizeOf
             
             if ( block != null )
             {
-                currentState = new IteratorState( block, 0 );
+                currentState = newBufferForReading( block, 0 );
                 states[directionPosition] = currentState;
             }
         }
@@ -580,7 +470,7 @@ public class RelIdArray implements SizeOf
                 {
                     if ( states[i] != null )
                     {
-                        states[i].update( directions[i].getLastBlock( ids ) );
+                        states[i] = newBufferForReading( directions[i].getLastBlock( ids ), states[i].position() );
                     }
                 }
             }
@@ -597,19 +487,14 @@ public class RelIdArray implements SizeOf
             
             while ( true )
             {
-                if ( currentState != null && currentState.hasNext() )
+                if ( currentState != null && currentState.hasRemaining() )
                 {
-                    nextElement = currentState.next();
+                    nextElement = enc128.decode( currentState );
                     nextElementDetermined = true;
                     return true;
                 }
-                else
-                {
-                    if ( !nextBlock() )
-                    {
-                        break;
-                    }
-                }
+                else if ( !nextBlock() )
+                    break;
             }
             
             // Keep this false since the next call could come after we've loaded
@@ -631,7 +516,7 @@ public class RelIdArray implements SizeOf
             while ( directionPosition+1 < directions.length )
             {
                 currentDirection = directions[++directionPosition];
-                IteratorState nextState = states[directionPosition];
+                ByteBuffer nextState = states[directionPosition];
                 if ( nextState != null )
                 {
                     currentState = nextState;
@@ -640,7 +525,7 @@ public class RelIdArray implements SizeOf
                 ByteBuffer block = currentDirection.getLastBlock( ids );
                 if ( block != null )
                 {
-                    currentState = new IteratorState( block, 0 );
+                    currentState = newBufferForReading( block, 0 );
                     states[directionPosition] = currentState;
                     return true;
                 }
@@ -721,7 +606,7 @@ public class RelIdArray implements SizeOf
         if ( buffer == null )
             return;
         
-        ByteBuffer newBuffer = ByteBuffer.allocate( buffer.capacity() );
+        ByteBuffer newBuffer = allocateBuffer( buffer.capacity() );
         for ( RelIdIteratorImpl iterator = (RelIdIteratorImpl) direction.iterator( this ); iterator.hasNext(); )
         {
             long value = iterator.next();
@@ -741,6 +626,19 @@ public class RelIdArray implements SizeOf
      */
     public boolean couldBeNeedingUpdate()
     {
-        return false;
+        return true;
+    }
+    
+    @Override
+    public String toString()
+    {
+        String result = getClass().getSimpleName() + "[type:" + type + "]";
+        if ( outIds != null )
+            result += "\nout:" + idsAsString( outIds );
+        if ( inIds != null )
+            result += "\nin:" + idsAsString( inIds );
+        if ( getLastLoopBlock() != null )
+            result += "\nloop:" + idsAsString( getLastLoopBlock() );
+        return result;
     }
 }
