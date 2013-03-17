@@ -27,7 +27,7 @@ import java.util.Collection;
 import java.util.NoSuchElementException;
 
 import org.neo4j.graphdb.Direction;
-import org.neo4j.helpers.Enc128;
+import org.neo4j.helpers.idcompression.UnsignedLongBase128Encoder;
 import org.neo4j.kernel.impl.cache.SizeOf;
 
 /**
@@ -41,7 +41,7 @@ import org.neo4j.kernel.impl.cache.SizeOf;
  */
 public class RelIdArray implements SizeOf
 {
-    private static final Enc128 enc128 = new Enc128();
+    private static final UnsignedLongBase128Encoder enc128 = new UnsignedLongBase128Encoder();
     
     private static final DirectionWrapper[] DIRECTIONS_FOR_OUTGOING =
             new DirectionWrapper[] { DirectionWrapper.OUTGOING, DirectionWrapper.BOTH };

@@ -17,15 +17,22 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.helpers;
+package org.neo4j.helpers.idcompression;
 
 import java.nio.ByteBuffer;
 
-public class Enc128
+/**
+ Implements Base-128 Encoding for signed values, similar to: http://en.wikipedia.org/wiki/Variable-length_quantity
+ Encodes long values into a minimal sequence of blocks, at most 10 blocks.
+ Writes blocks of 7 bits of the original value starting from the LSB.
+ Uses the most-significant-bit as identifier if there is another block following (0 if last block, 1 otherwise)
+ If the value is negative, it negates the number and performs the normal algorithm. 
+ But then uses only 6 bits for the LAST block and stores an 1 into bit 7 for negative values.
+ Uses the buffers, current position to read and write.
+ */
+public class SignedLongBase128Encoder implements LongEncoder
 {
 
-    public static final int BITMASK = 0b0111_1111;
-    public static final int NEXT_BLOCK_FLAG = 0b1000_0000;
     public static final int SHIFT_COUNT = 7;
 
     /**
@@ -34,21 +41,25 @@ public class Enc128
      * @param value
      * @return number of bytes used for the encoded value
      */
+    @Override
     public int encode( ByteBuffer target, long value )
     {
-        assert value >= 0 : "Invalid value " + value;
-        
         int startPosition = target.position();
+        byte NEGATIVE_MASK=0;
+        if (value<0) {
+            value = -value;
+            NEGATIVE_MASK=0b0100_0000;
+        }
         while ( true )
         {
-            if ( value <= BITMASK)
+            if ( value <= 63 )
             {
-                target.put( (byte) value );
+                target.put( (byte) (value & 0b0111_1111 | NEGATIVE_MASK));
                 break;
             }
             else
             {
-                byte thisByte = (byte) ( NEXT_BLOCK_FLAG | (byte) (value& BITMASK) );
+                byte thisByte = (byte) ( 0b1000_0000 | (byte) (value & 0b0111_1111) );
                 target.put( thisByte );
                 value >>>= SHIFT_COUNT;
             }
@@ -56,6 +67,7 @@ public class Enc128
         return target.position() - startPosition;
     }
     
+    @Override
     public long decode( ByteBuffer source )
     {
         long result = 0;
@@ -63,14 +75,19 @@ public class Enc128
         while ( true )
         {
             long thisByte = source.get();
-            if ( (thisByte & NEXT_BLOCK_FLAG) == 0 )
+            if ( (thisByte & 0b1000_0000) == 0 )
             {
-                result |= (thisByte << shiftCount);
+                if ( (thisByte & 0b0100_0000) != 0 ) {
+                    result |= ((thisByte & 0b0011_1111) << shiftCount);
+                    result = -result;
+                } else {
+                    result |= (thisByte << shiftCount);
+                }
                 return result;
             }
             else
             {
-                result |= ((thisByte& BITMASK) << shiftCount);
+                result |= ((thisByte& 0b0111_1111) << shiftCount);
                 shiftCount += SHIFT_COUNT;
             }
         }

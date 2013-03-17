@@ -17,14 +17,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.helpers;
+package org.neo4j.helpers.idcompression;
 
 import java.nio.ByteBuffer;
 
-public class SignedEnc128
-{
-
-    public static final int SHIFT_COUNT = 7;
+/**
+ Implements Base-128 Encoding for unsigned values, similar to: http://en.wikipedia.org/wiki/Variable-length_quantity
+ Encodes long values into a minimal sequence of blocks, at most 10 blocks.
+ Writes blocks of 7 bits of the original value starting from the LSB
+ Uses the most-significant-bit as identifier if there is another block following (0 if last block, 1 otherwise)
+ Uses the buffers, current position to read and write.
+ */
+public class UnsignedLongBase128Encoder implements LongEncoder {
 
     /**
      * 
@@ -32,32 +36,31 @@ public class SignedEnc128
      * @param value
      * @return number of bytes used for the encoded value
      */
-    public int encode( ByteBuffer target, long value )
+    @Override
+    public int encode(ByteBuffer target, long value)
     {
+        assert value >= 0 : "Invalid value " + value;
+        
         int startPosition = target.position();
-        byte NEGATIVE_MASK=0;
-        if (value<0) {
-            value = -value;
-            NEGATIVE_MASK=0b0100_0000;
-        }
         while ( true )
         {
-            if ( value <= 63 )
+            if ( value <= 0b0111_1111)
             {
-                target.put( (byte) (value & 0b0111_1111 | NEGATIVE_MASK));
+                target.put( (byte) value );
                 break;
             }
             else
             {
-                byte thisByte = (byte) ( 0b1000_0000 | (byte) (value & 0b0111_1111) );
+                byte thisByte = (byte) ( 0b1000_0000 | (byte) (value& 0b0111_1111) );
                 target.put( thisByte );
-                value >>>= SHIFT_COUNT;
+                value >>>= 7;
             }
         }
         return target.position() - startPosition;
     }
     
-    public long decode( ByteBuffer source )
+    @Override
+    public long decode(ByteBuffer source)
     {
         long result = 0;
         int shiftCount = 0;
@@ -66,18 +69,13 @@ public class SignedEnc128
             long thisByte = source.get();
             if ( (thisByte & 0b1000_0000) == 0 )
             {
-                if ( (thisByte & 0b0100_0000) != 0 ) {
-                    result |= ((thisByte & 0b0011_1111) << shiftCount);
-                    result = -result;
-                } else {
-                    result |= (thisByte << shiftCount);
-                }
+                result |= (thisByte << shiftCount);
                 return result;
             }
             else
             {
                 result |= ((thisByte& 0b0111_1111) << shiftCount);
-                shiftCount += SHIFT_COUNT;
+                shiftCount += 7;
             }
         }
     }

@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.helpers;
+package org.neo4j.helpers.idcompression;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -26,8 +26,8 @@ import java.util.Comparator;
 public class LinkBlock
 {
     private static final int HEADER_SIZE = 8+8+4+4;
-    private final Enc128 encoder = new Enc128();
-    private final SignedEnc128 signedEncoder = new SignedEnc128();
+    private final UnsignedLongBase128Encoder encoder = new UnsignedLongBase128Encoder();
+    private final SignedLongBase128Encoder signedEncoder = new SignedLongBase128Encoder();
     private final Type type;
     private final ByteBuffer buffer;
     private int idCount;
