@@ -22,13 +22,13 @@ package org.neo4j.helpers.idcompression;
 import java.nio.ByteBuffer;
 
 /**
- Implements Base-128 Encoding for signed values, similar to: http://en.wikipedia.org/wiki/Variable-length_quantity
- Encodes long values into a minimal sequence of blocks, at most 10 blocks.
- Writes blocks of 7 bits of the original value starting from the LSB.
- Uses the most-significant-bit as identifier if there is another block following (0 if last block, 1 otherwise)
- If the value is negative, it negates the number and performs the normal algorithm. 
- But then uses only 6 bits for the LAST block and stores an 1 into bit 7 for negative values.
- Uses the buffers, current position to read and write.
+ * Implements Base-128 Encoding for signed values, similar to: http://en.wikipedia.org/wiki/Variable-length_quantity
+ * Encodes long values into a minimal sequence of blocks, at most 10 blocks.
+ * Writes blocks of 7 bits of the original value starting from the LSB.
+ * Uses the most-significant-bit as identifier if there is another block following (0 if last block, 1 otherwise)
+ * If the value is negative, it negates the number and performs the normal algorithm.
+ * But then uses only 6 bits for the LAST block and stores an 1 into bit 7 for negative values.
+ * Uses the buffers, current position to read and write.
  */
 public class SignedLongBase128Encoder implements LongEncoder
 {
@@ -36,7 +36,6 @@ public class SignedLongBase128Encoder implements LongEncoder
     public static final int SHIFT_COUNT = 7;
 
     /**
-     * 
      * @param target
      * @param value
      * @return number of bytes used for the encoded value
@@ -45,28 +44,28 @@ public class SignedLongBase128Encoder implements LongEncoder
     public int encode( ByteBuffer target, long value )
     {
         int startPosition = target.position();
-        byte NEGATIVE_MASK=0;
-        if (value<0) {
+        byte NEGATIVE_MASK = 0;
+        if ( value < 0 )
+        {
             value = -value;
-            NEGATIVE_MASK=0b0100_0000;
+            NEGATIVE_MASK = 0b0100_0000;
         }
         while ( true )
         {
             if ( value <= 63 )
             {
-                target.put( (byte) (value & 0b0111_1111 | NEGATIVE_MASK));
+                target.put( (byte) (value & 0b0111_1111 | NEGATIVE_MASK) );
                 break;
-            }
-            else
+            } else
             {
-                byte thisByte = (byte) ( 0b1000_0000 | (byte) (value & 0b0111_1111) );
+                byte thisByte = (byte) (0b1000_0000 | (byte) (value & 0b0111_1111));
                 target.put( thisByte );
                 value >>>= SHIFT_COUNT;
             }
         }
         return target.position() - startPosition;
     }
-    
+
     @Override
     public long decode( ByteBuffer source )
     {
@@ -77,17 +76,18 @@ public class SignedLongBase128Encoder implements LongEncoder
             long thisByte = source.get();
             if ( (thisByte & 0b1000_0000) == 0 )
             {
-                if ( (thisByte & 0b0100_0000) != 0 ) {
+                if ( (thisByte & 0b0100_0000) != 0 )
+                {
                     result |= ((thisByte & 0b0011_1111) << shiftCount);
                     result = -result;
-                } else {
+                } else
+                {
                     result |= (thisByte << shiftCount);
                 }
                 return result;
-            }
-            else
+            } else
             {
-                result |= ((thisByte& 0b0111_1111) << shiftCount);
+                result |= ((thisByte & 0b0111_1111) << shiftCount);
                 shiftCount += SHIFT_COUNT;
             }
         }

@@ -30,7 +30,7 @@ public class LinkBlockTest
     public void setSinglePair() throws Exception
     {
         // GIVEN
-        LinkBlock block = new LinkBlock( LinkBlock.Type.SMALL );
+        LinkBlock block = new LinkBlock( BufferType.SMALL );
         long[][] expected = idPairs( 10, 10, 1 );
         block.set( expected );
         
@@ -46,7 +46,7 @@ public class LinkBlockTest
     public void setManyPairs() throws Exception
     {
         // GIVEN
-        LinkBlock block = new LinkBlock( LinkBlock.Type.LARGE );
+        LinkBlock block = new LinkBlock( BufferType.LARGE );
         long[][] expected = idPairs( 5, 10, 10000 );
         block.set( expected );
         System.out.println( block );
@@ -65,7 +65,7 @@ public class LinkBlockTest
     public void setManyNegativeDeltaPairs() throws Exception
     {
         // GIVEN
-        LinkBlock block = new LinkBlock( LinkBlock.Type.LARGE );
+        LinkBlock block = new LinkBlock( BufferType.LARGE );
         long[][] expected = idPairs( 10, 5, 10000 );
         block.set( expected );
         System.out.println( block );
@@ -82,7 +82,7 @@ public class LinkBlockTest
 
     @Test
     public void testFindNodeForRelId() throws Exception {
-        LinkBlock block = new LinkBlock( LinkBlock.Type.SMALL );
+        LinkBlock block = new LinkBlock( BufferType.SMALL );
         long[][] expected = idPairs( 10, 5, 50 );
         block.set( expected );
         assertEquals(-1, block.getNodeIdForRelId(0));

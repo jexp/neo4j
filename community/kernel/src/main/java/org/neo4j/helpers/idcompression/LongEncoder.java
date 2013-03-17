@@ -6,8 +6,9 @@ import java.nio.ByteBuffer;
  * @author mh
  * @since 17.03.13
  */
-public interface LongEncoder {
-    int encode(ByteBuffer target, long value);
+public interface LongEncoder
+{
+    int encode( ByteBuffer target, long value );
 
-    long decode(ByteBuffer source);
+    long decode( ByteBuffer source );
 }

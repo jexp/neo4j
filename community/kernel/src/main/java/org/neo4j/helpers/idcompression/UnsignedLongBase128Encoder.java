@@ -22,45 +22,44 @@ package org.neo4j.helpers.idcompression;
 import java.nio.ByteBuffer;
 
 /**
- Implements Base-128 Encoding for unsigned values, similar to: http://en.wikipedia.org/wiki/Variable-length_quantity
- Encodes long values into a minimal sequence of blocks, at most 10 blocks.
- Writes blocks of 7 bits of the original value starting from the LSB
- Uses the most-significant-bit as identifier if there is another block following (0 if last block, 1 otherwise)
- Uses the buffers, current position to read and write.
+ * Implements Base-128 Encoding for unsigned values, similar to: http://en.wikipedia.org/wiki/Variable-length_quantity
+ * Encodes long values into a minimal sequence of blocks, at most 10 blocks.
+ * Writes blocks of 7 bits of the original value starting from the LSB
+ * Uses the most-significant-bit as identifier if there is another block following (0 if last block, 1 otherwise)
+ * Uses the buffers, current position to read and write.
  */
-public class UnsignedLongBase128Encoder implements LongEncoder {
+public class UnsignedLongBase128Encoder implements LongEncoder
+{
 
     /**
-     * 
      * @param target
      * @param value
      * @return number of bytes used for the encoded value
      */
     @Override
-    public int encode(ByteBuffer target, long value)
+    public int encode( ByteBuffer target, long value )
     {
         assert value >= 0 : "Invalid value " + value;
-        
+
         int startPosition = target.position();
         while ( true )
         {
-            if ( value <= 0b0111_1111)
+            if ( value <= 0b0111_1111 )
             {
                 target.put( (byte) value );
                 break;
-            }
-            else
+            } else
             {
-                byte thisByte = (byte) ( 0b1000_0000 | (byte) (value& 0b0111_1111) );
+                byte thisByte = (byte) (0b1000_0000 | (byte) (value & 0b0111_1111));
                 target.put( thisByte );
                 value >>>= 7;
             }
         }
         return target.position() - startPosition;
     }
-    
+
     @Override
-    public long decode(ByteBuffer source)
+    public long decode( ByteBuffer source )
     {
         long result = 0;
         int shiftCount = 0;
@@ -71,10 +70,9 @@ public class UnsignedLongBase128Encoder implements LongEncoder {
             {
                 result |= (thisByte << shiftCount);
                 return result;
-            }
-            else
+            } else
             {
-                result |= ((thisByte& 0b0111_1111) << shiftCount);
+                result |= ((thisByte & 0b0111_1111) << shiftCount);
                 shiftCount += 7;
             }
         }
