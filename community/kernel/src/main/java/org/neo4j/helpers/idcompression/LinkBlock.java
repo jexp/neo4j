@@ -42,6 +42,9 @@ public class LinkBlock
         lastRelId = relAndNodeIdPairs[relAndNodeIdPairs.length - 1][0];
         idCount = relAndNodeIdPairs.length;
 
+        relIdDeltaBuffer.toggleMode();
+        nodeIdDeltaBuffer.toggleMode();
+
         // Header
         relIdDeltaBuffer.store( lastRelId );
         relIdDeltaBuffer.store( idCount );
@@ -89,7 +92,6 @@ public class LinkBlock
         }
     }
 
-    // TODO method for looking up a node for a relationship
     public long getNodeIdForRelId( long targetReldId )
     {
         if ( targetReldId > lastRelId )
