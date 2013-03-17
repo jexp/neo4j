@@ -19,66 +19,70 @@
  */
 package org.neo4j.helpers.idcompression;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Comparator;
 
 public class LinkBlock
 {
-    private static final int HEADER_SIZE = 8 + 8 + 4 + 4;
-    private final UnsignedLongBase128Encoder encoder = new UnsignedLongBase128Encoder();
-    private final SignedLongBase128Encoder signedEncoder = new SignedLongBase128Encoder();
-    private final BufferType type;
-    private final ByteBuffer buffer;
     private int idCount;
-    private long firstRelId, lastRelId;
+    private long lastRelId;
+    private CompressedIdBuffer relIdDeltaBuffer;
+    private CompressedIdBuffer nodeIdDeltaBuffer;
 
     public LinkBlock( BufferType type )
     {
-        this.type = type;
-        this.buffer = type.allocateBuffer();
+        this.relIdDeltaBuffer = new CompressedIdBuffer( type, true );
+        this.nodeIdDeltaBuffer = new CompressedIdBuffer( type, false );
     }
 
     public void set( long[][] relAndNodeIdPairs )
     {
         Arrays.sort( relAndNodeIdPairs, SORTER );
 
+        lastRelId = relAndNodeIdPairs[relAndNodeIdPairs.length - 1][0];
+        idCount = relAndNodeIdPairs.length;
+
         // Header
-        buffer.putLong( (firstRelId = relAndNodeIdPairs[0][0]) );
-        buffer.putLong( (lastRelId = relAndNodeIdPairs[relAndNodeIdPairs.length - 1][0]) );
-        buffer.putInt( (idCount = relAndNodeIdPairs.length) );
+        relIdDeltaBuffer.store( lastRelId );
+        relIdDeltaBuffer.store( idCount );
 
         // Ids
-        long previousRelId = relAndNodeIdPairs[0][0], previousRelNodeDelta = relAndNodeIdPairs[0][1] - previousRelId;
-        encoder.encode( buffer, previousRelId );
-        signedEncoder.encode( buffer, previousRelNodeDelta );
+        long previousRelId = relAndNodeIdPairs[0][0];
+        long previousRelNodeDelta = relAndNodeIdPairs[0][1] - previousRelId;
+        relIdDeltaBuffer.store( previousRelId );
+        nodeIdDeltaBuffer.store( previousRelNodeDelta );
         for ( int i = 1; i < relAndNodeIdPairs.length; i++ )
         {
             long[] pair = relAndNodeIdPairs[i];
             long relDelta = pair[0] - previousRelId;
             long relNodeDelta = pair[1] - pair[0];
             long derivativeRelNodeDelta = relNodeDelta - previousRelNodeDelta;
-            encoder.encode( buffer, relDelta );
-            signedEncoder.encode( buffer, derivativeRelNodeDelta );
+            relIdDeltaBuffer.store( relDelta );
+            nodeIdDeltaBuffer.store( derivativeRelNodeDelta );
             previousRelId = pair[0];
             previousRelNodeDelta = relNodeDelta;
         }
+        relIdDeltaBuffer.flush();
+        nodeIdDeltaBuffer.flush();
     }
 
     public void get( long[][] target )
     {
         assert target.length >= idCount;
 
+        relIdDeltaBuffer.toggleMode();
+        nodeIdDeltaBuffer.toggleMode();
         // Header
-        buffer.position( HEADER_SIZE );
+        relIdDeltaBuffer.read();
+        relIdDeltaBuffer.read();
 
-        target[0][0] = encoder.decode( buffer );
-        target[0][1] = target[0][0] + signedEncoder.decode( buffer );
+        target[0][0] = relIdDeltaBuffer.read();
+        target[0][1] = target[0][0] + nodeIdDeltaBuffer.read();
         for ( int i = 1; i < target.length; i++ )
         {
-            long relDelta = encoder.decode( buffer );
+            long relDelta = relIdDeltaBuffer.read();
             long relId = target[i - 1][0] + relDelta;
-            long derivativeRelNodeDelta = signedEncoder.decode( buffer );
+            long derivativeRelNodeDelta = nodeIdDeltaBuffer.read();
             long previousRelNodeDelta = target[i - 1][1] - target[i - 1][0];
             target[i][0] = relId;
             target[i][1] = previousRelNodeDelta + relId + derivativeRelNodeDelta;
@@ -88,24 +92,29 @@ public class LinkBlock
     // TODO method for looking up a node for a relationship
     public long getNodeIdForRelId( long targetReldId )
     {
-        if ( targetReldId > lastRelId || targetReldId < firstRelId )
+        if ( targetReldId > lastRelId )
         {
             return -1;
         }
 
-        buffer.position( HEADER_SIZE );
+        relIdDeltaBuffer.toggleMode();
+        nodeIdDeltaBuffer.toggleMode();
 
-        long prevRelId = encoder.decode( buffer );
-        long prevNodeId = prevRelId + signedEncoder.decode( buffer );
+        // skip header
+        relIdDeltaBuffer.read();
+        relIdDeltaBuffer.read();
+
+        long prevRelId = relIdDeltaBuffer.read();
+        long prevNodeId = prevRelId + nodeIdDeltaBuffer.read();
         if ( targetReldId == prevRelId )
         {
             return prevNodeId;
         }
         for ( int i = 1; i < idCount; i++ )
         {
-            long relDelta = encoder.decode( buffer );
+            long relDelta = relIdDeltaBuffer.read();
             long relId = prevRelId + relDelta;
-            long derivativeRelNodeDelta = signedEncoder.decode( buffer );
+            long derivativeRelNodeDelta = nodeIdDeltaBuffer.read();
             long previousRelNodeDelta = prevNodeId - prevRelId;
             prevRelId = relId;
             prevNodeId = previousRelNodeDelta + relId + derivativeRelNodeDelta;
@@ -130,6 +139,6 @@ public class LinkBlock
     @Override
     public String toString()
     {
-        return getClass().getSimpleName() + "[" + buffer + "]";
+        return getClass().getSimpleName() + "{ RelIdDeltas: " + relIdDeltaBuffer + " , NodeIdDeltas: " + nodeIdDeltaBuffer + "}";
     }
 }

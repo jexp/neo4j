@@ -112,12 +112,7 @@ public class CompressedIdBuffer
     @Override
     public String toString()
     {
-        return "CompressedIdBuffer stored ids "+stored+" bytes "+ getPosition() +" ByteBuffer size: "+buffer.capacity();
-    }
-
-    int getPosition()
-    {
-        return buffer.position()- BufferType.HEADER;
+        return String.format( "CompressedIdBuffer stored ids %d bytes used %d ByteBuffer size: %d bytes/id %.10f", stored, bytes, buffer.capacity(), getBytesPerValue() );
     }
 
     int getStored()

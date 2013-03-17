@@ -68,7 +68,7 @@ public class LinkBlockTest
         LinkBlock block = new LinkBlock( BufferType.LARGE );
         long[][] expected = idPairs( 10, 5, 10000 );
         block.set( expected );
-        System.out.println( block );
+        System.out.println( "Stored " +expected.length+" rel-node blocks " + block );
         
         // WHEN
         long[][] read = new long[expected.length][2];
