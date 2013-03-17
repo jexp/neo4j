@@ -75,10 +75,10 @@ public class CompressedIdBufferTest
     @Test
     public void testPerformance() throws Exception
     {
-        CompressedIdBuffer buffer = new CompressedIdBuffer( BufferType.HUGE, true );
+        CompressedIdBuffer buffer = new CompressedIdBuffer( BufferType.LARGE, true );
         int counter=0;
         long t = System.currentTimeMillis();
-        for ( long i = 0; i < 100_000_000; i++ )
+        for ( long i = 0; i < 10_000_000; i++ )
         {
             long value = i % 10000;
             if ( value % 10 == 0 )
