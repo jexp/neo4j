@@ -127,12 +127,9 @@ public class SubGraphExporter
 
     private void appendRelationships( PrintWriter out )
     {
-        for ( Node node : graph.getNodes() )
+        for ( Relationship rel : graph.getRelationships() )
         {
-            for ( Relationship rel : node.getRelationships( Direction.OUTGOING ) )
-            {
-                appendRelationship( out, rel );
-            }
+            appendRelationship( out, rel );
         }
     }
 
