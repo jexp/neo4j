@@ -33,15 +33,15 @@ trait Literals extends Parser
     | EscapedIdentifier
   ) memoMismatches
 
-  private def IdentifierString : Rule1[String] = {
+  private def IdentifierString : Rule1[String] = rule("an identifier") {
     group((Letter | ch('_')) ~ zeroOrMore(IdentifierCharacter)) ~> (_.toString) ~ !(IdentifierCharacter)
   }
 
-  def EscapedIdentifier : Rule1[ast.Identifier] = rule {
+  def EscapedIdentifier : Rule1[ast.Identifier] = rule("an identifier") {
     EscapedIdentifierString ~>> token ~~> ast.Identifier
   }
 
-  private def EscapedIdentifierString : Rule1[String] = {
+  private def EscapedIdentifierString : Rule1[String] = rule("an identifier") {
     ((oneOrMore(
       ch('`') ~ zeroOrMore(!ch('`') ~ ANY) ~> (_.toString) ~ ch('`')
     ) memoMismatches) ~~> (_.reduce(_ + '`' + _)))
@@ -72,9 +72,9 @@ trait Literals extends Parser
 
   def RangeLiteral : Rule1[ast.Range] = rule (
       group(
-          (UnsignedIntegerLiteral ~~> (Some(_)) ~ WS | EMPTY ~ push(None)) ~
-          ".." ~
-          (WS ~ UnsignedIntegerLiteral ~~> (Some(_)) | EMPTY ~ push(None))
+        optional(UnsignedIntegerLiteral ~ WS) ~
+        ".." ~
+        optional(WS ~ UnsignedIntegerLiteral)
       ) ~>> token ~~> ast.Range
     | UnsignedIntegerLiteral ~~> (l => ast.Range(Some(l), Some(l), l.token))
   )
