@@ -20,6 +20,7 @@
 package org.neo4j.kernel.api.properties;
 
 import java.lang.reflect.Array;
+import java.util.Arrays;
 
 class PropertyConversion
 {
@@ -29,21 +30,21 @@ class PropertyConversion
         {
             return Property.stringProperty( propertyKeyId, (String) value );
         }
-        if ( value instanceof Object[] )
+        if ( value instanceof Integer )
         {
-            return arrayProperty( propertyKeyId, (Object[]) value );
+            return Property.intProperty( propertyKeyId, (Integer) value );
         }
         if ( value instanceof Long )
         {
             return Property.longProperty( propertyKeyId, (Long) value );
         }
-        if ( value instanceof Integer )
-        {
-            return Property.intProperty( propertyKeyId, (Integer) value );
-        }
         if ( value instanceof Boolean )
         {
             return Property.booleanProperty( propertyKeyId, (Boolean) value );
+        }
+        if ( value instanceof Object[] )
+        {
+            return arrayProperty( propertyKeyId, (Object[]) value );
         }
         if ( value instanceof Double )
         {
@@ -113,54 +114,149 @@ class PropertyConversion
     {
         if ( value instanceof String[] )
         {
-            return Property.stringArrayProperty( propertyKeyId, copy( value, new String[value.length] ) );
-        }
-        if ( value instanceof Byte[] )
-        {
-            return Property.byteArrayProperty( propertyKeyId, copy( value, new byte[value.length] ) );
-        }
-        if ( value instanceof Long[] )
-        {
-            return Property.longArrayProperty( propertyKeyId, copy( value, new long[value.length] ) );
+            return Property.stringArrayProperty( propertyKeyId, checkNull(
+                    (String[]) value.clone() ) );
         }
         if ( value instanceof Integer[] )
         {
-            return Property.intArrayProperty( propertyKeyId, copy( value, new int[value.length] ) );
-        }
-        if ( value instanceof Double[] )
-        {
-            return Property.doubleArrayProperty( propertyKeyId, copy( value, new double[value.length] ) );
-        }
-        if ( value instanceof Float[] )
-        {
-            return Property.floatArrayProperty( propertyKeyId, copy( value, new float[value.length] ) );
+            return Property.intArrayProperty( propertyKeyId,
+                    copy( (Integer[]) value ) );
         }
         if ( value instanceof Boolean[] )
         {
-            return Property.booleanArrayProperty( propertyKeyId, copy( value, new boolean[value.length] ) );
+            return Property.booleanArrayProperty( propertyKeyId,
+                    copy( (Boolean[])value ) );
+        }
+        if ( value instanceof Long[] )
+        {
+            return Property.longArrayProperty( propertyKeyId,
+                    copy( (Long[]) value ) );
+        }
+        if ( value instanceof Byte[] )
+        {
+            return Property.byteArrayProperty( propertyKeyId,
+                    copy( (Byte[]) value ) );
+        }
+        if ( value instanceof Double[] )
+        {
+            return Property.doubleArrayProperty( propertyKeyId,
+                    copy( (Double[])value ) );
+        }
+        if ( value instanceof Float[] )
+        {
+            return Property.floatArrayProperty( propertyKeyId,
+                    copy( (Float[])value ) );
         }
         if ( value instanceof Character[] )
         {
-            return Property.charArrayProperty( propertyKeyId, copy( value, new char[value.length] ) );
+            return Property.charArrayProperty( propertyKeyId,
+                    copy( (Character[])value ) );
         }
         if ( value instanceof Short[] )
         {
-            return Property.shortArrayProperty( propertyKeyId, copy( value, new short[value.length] ) );
+            return Property.shortArrayProperty( propertyKeyId,
+                    copy( (Short[])value ) );
         }
         throw new IllegalArgumentException(
                 String.format( "%s[] is not a supported property value type",
                                value.getClass().getComponentType().getName() ) );
     }
 
-    private static <T> T copy( Object[] value, T target )
+    private static <T> T[] checkNull( T[] values )
     {
-        for ( int i = 0; i < value.length; i++ )
+        for ( T value : values )
         {
-            if ( value[i] == null )
-            {
-                throw new IllegalArgumentException( "Property array value elements may not be null." );
-            }
-            Array.set( target, i, value[i] );
+            checkNull( value );
+        }
+        return values;
+    }
+
+    private static <T> T checkNull( T t )
+    {
+        if ( t == null )
+        {
+            throw new IllegalArgumentException( "Property array value elements may not be null." );
+        }
+        return t;
+    }
+
+    private static byte[] copy( Byte[] value )
+    {
+        int size = value.length;
+        byte[] target = new byte[size];
+        for ( int i = 0; i < size; i++ )
+        {
+            target[i] = checkNull( value[i] );
+        }
+        return target;
+    }
+    private static long[] copy( Long[] value )
+    {
+        int size = value.length;
+        long[] target = new long[size];
+        for ( int i = 0; i < size; i++ )
+        {
+            target[i] = checkNull( value[i] );
+        }
+        return target;
+    }
+    private static int[] copy( Integer[] value )
+    {
+        int size = value.length;
+        int[] target = new int[size];
+        for ( int i = 0; i < size; i++ )
+        {
+            target[i] = checkNull( value[i] );
+        }
+        return target;
+    }
+    private static boolean[] copy( Boolean[] value )
+    {
+        int size = value.length;
+        boolean[] target = new boolean[size];
+        for ( int i = 0; i < size; i++ )
+        {
+            target[i] = checkNull( value[i] );
+        }
+        return target;
+    }
+    private static short[] copy( Short[] value )
+    {
+        int size = value.length;
+        short[] target = new short[size];
+        for ( int i = 0; i < size; i++ )
+        {
+            target[i] = checkNull( value[i] );
+        }
+        return target;
+    }
+    private static double[] copy( Double[] value )
+    {
+        int size = value.length;
+        double[] target = new double[size];
+        for ( int i = 0; i < size; i++ )
+        {
+            target[i] = checkNull( value[i] );
+        }
+        return target;
+    }
+    private static float[] copy( Float[] value )
+    {
+        int size = value.length;
+        float[] target = new float[size];
+        for ( int i = 0; i < size; i++ )
+        {
+            target[i] = checkNull( value[i] );
+        }
+        return target;
+    }
+    private static char[] copy( Character[] value )
+    {
+        int size = value.length;
+        char[] target = new char[size];
+        for ( int i = 0; i < size; i++ )
+        {
+            target[i] = checkNull( value[i] );
         }
         return target;
     }
