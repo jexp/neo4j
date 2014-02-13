@@ -35,13 +35,10 @@ import java.net.URL
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-object CypherParserTest {
-  val cypherParser = CypherParser()
-}
-import CypherParserTest._
-
 @RunWith(classOf[JUnitRunner])
 class CypherParserTest extends FunSuite with Matchers {
+  import ParserFixture._
+
   test("shouldParseEasiestPossibleQuery") {
     expectAST(
       "start s = NODE(1) return s",
@@ -2883,7 +2880,7 @@ class CypherParserTest extends FunSuite with Matchers {
   }
 
   test("compile query integration test") {
-    val q = cypherParser.parseToQuery("create (a1) create (a2) create (a3) create (a4) create (a5) create (a6) create (a7)").asInstanceOf[commands.Query]
+    val q = parser.parseToQuery("create (a1) create (a2) create (a3) create (a4) create (a5) create (a6) create (a7)").asInstanceOf[commands.Query]
     assert(q.tail.nonEmpty, "wasn't compacted enough")
     val compacted = q.compact
 
@@ -2900,7 +2897,7 @@ class CypherParserTest extends FunSuite with Matchers {
   }
 
   test("compile query integration test 2") {
-    val q = cypherParser.parseToQuery("create (a1) create (a2) create (a3) with a1 create (a4) return a1, a4").asInstanceOf[commands.Query]
+    val q = parser.parseToQuery("create (a1) create (a2) create (a3) with a1 create (a4) return a1, a4").asInstanceOf[commands.Query]
     val compacted = q.compact
     var lastQ = compacted
 
@@ -2968,7 +2965,7 @@ class CypherParserTest extends FunSuite with Matchers {
 
 
   private def expectAST(query: String, expectedQuery: AbstractQuery) {
-    val ast = cypherParser.parseToQuery(query)
+    val ast = parser.parseToQuery(query)
     try {
       assertThat(query, ast, equalTo(expectedQuery))
     } catch {
