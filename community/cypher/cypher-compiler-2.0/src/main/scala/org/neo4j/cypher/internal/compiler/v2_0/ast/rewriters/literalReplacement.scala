@@ -22,21 +22,21 @@ package org.neo4j.cypher.internal.compiler.v2_0.ast.rewriters
 import org.neo4j.cypher.internal.compiler.v2_0._
 import ast._
 
-case class ExtractParameters(replaceableLiterals: Map[(Any, InputPosition), Parameter]) extends Rewriter {
-  def apply(term: Any): Option[Any] = rewriter.apply(term)
+object literalReplacement {
+  case class ExtractParameterRewriter(replaceableLiterals: Map[(Any, InputPosition), Parameter]) extends Rewriter {
+    def apply(term: Any): Option[Any] = rewriter.apply(term)
 
-  private val rewriter: Rewriter = Rewriter.lift {
-    case l: Literal =>
-      replaceableLiterals.get((l.value, l.position)).getOrElse(l)
+    private val rewriter: Rewriter = Rewriter.lift {
+      case l: Literal =>
+        replaceableLiterals.get((l.value, l.position)).getOrElse(l)
+    }
   }
-}
 
-object ExtractParameters {
   private val literalMatcher: PartialFunction[Any, Map[(Any, InputPosition), ast.Parameter] => Map[(Any, InputPosition), ast.Parameter]] = {
     case l: ast.Literal => _ + ((l.value, l.position) -> ast.Parameter(s"  AUTO${l.position.offset}")(l.position))
   }
 
-  def prepare(term: ASTNode): (Rewriter, Map[String, Any]) = {
+  def apply(term: ASTNode): (Rewriter, Map[String, Any]) = {
     val replaceableLiterals = term.foldt(Map.empty[(Any,InputPosition), ast.Parameter]) {
       case u: ast.SetClause =>
         (acc, _) => u.fold(acc)(literalMatcher)
@@ -56,7 +56,7 @@ object ExtractParameters {
         (acc, _) => w.fold(acc)(literalMatcher)
     }
 
-    (ExtractParameters(replaceableLiterals), replaceableLiterals.map {
+    (ExtractParameterRewriter(replaceableLiterals), replaceableLiterals.map {
       case (l, p) => (p.name, l._1)
     })
   }
