@@ -36,6 +36,13 @@ object Foldable {
         init
       any.children.foldLeft(acc)((a, t) => t.fold(a)(f))
     }
+
+    def foldt[R](init: R)(f: PartialFunction[Any, (R, R => R) => R]): R = {
+      if (f.isDefinedAt(any))
+        f(any)(init, any.children.foldLeft(_)((a, t) => t.foldt(a)(f)))
+      else
+        any.children.foldLeft(init)((a, t) => t.foldt(a)(f))
+    }
   }
 }
 

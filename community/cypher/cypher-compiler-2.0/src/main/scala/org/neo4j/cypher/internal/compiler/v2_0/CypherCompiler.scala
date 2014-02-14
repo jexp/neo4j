@@ -38,7 +38,7 @@ case class CypherCompiler(graph: GraphDatabaseService, queryCache: (Object, => O
   def prepare(query: String, context: PlanContext): (ExecutionPlan,Map[String,Any]) = {
     val statement = parser.parse(query)
 
-   val (extractParameters, extractedParameters) = ExtractParameters.prepare(statement)
+   val (extractParameters, extractedParameters) = literalReplacement(statement)
    val rewrittenStatement = statement.rewrite(bottomUp(
      extractParameters
    )).asInstanceOf[ast.Statement]
