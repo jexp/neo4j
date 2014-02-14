@@ -32,30 +32,32 @@ case class ExtractParameters(replaceableLiterals: Map[(Any, InputPosition), Para
 }
 
 object ExtractParameters {
-
-  private val literalMatcher: PartialFunction[Any, Map[(Any,InputPosition), ast.Parameter] => Map[(Any,InputPosition), ast.Parameter]] = {
+  private val literalMatcher: PartialFunction[Any, Map[(Any, InputPosition), ast.Parameter] => Map[(Any, InputPosition), ast.Parameter]] = {
     case l: ast.Literal => _ + ((l.value, l.position) -> ast.Parameter(s"  AUTO${l.position.offset}")(l.position))
   }
 
-  def prepare(statement: ast.Statement): (Rewriter, Map[String, Any]) = {
-    val replaceableLiterals = statement.fold(Map.empty[(Any,InputPosition), ast.Parameter]) {
-      case n: ast.NodePattern =>
-        acc => n.properties.fold(Map.empty[(Any,InputPosition), ast.Parameter])(_.fold(acc)(literalMatcher))
-      case r: ast.RelationshipPattern =>
-        acc => r.properties.fold(Map.empty[(Any,InputPosition), ast.Parameter])(_.fold(acc)(literalMatcher))
-      case u: ast.UpdateClause =>
-        acc => u.fold(acc)(literalMatcher)
-      case w: ast.Where =>
-        acc => w.fold(acc)(literalMatcher)
+  def prepare(term: ASTNode): (Rewriter, Map[String, Any]) = {
+    val replaceableLiterals = term.foldt(Map.empty[(Any,InputPosition), ast.Parameter]) {
+      case u: ast.SetClause =>
+        (acc, _) => u.fold(acc)(literalMatcher)
       case r: ast.Return =>
-        acc => r.fold(acc)(literalMatcher)
+        (acc, _) => r.fold(acc)(literalMatcher)
       case w: ast.With =>
-        acc => w.fold(acc)(literalMatcher)
+        (acc, _) => w.fold(acc)(literalMatcher)
+      case _: ast.Match | _: ast.Create | _: ast.CreateUnique | _: ast.Merge =>
+        (acc, children) => children(acc)
+      case _: ast.Clause =>
+        (acc, _) => acc
+      case n: ast.NodePattern =>
+        (acc, _) => n.properties.fold(Map.empty[(Any,InputPosition), ast.Parameter])(_.fold(acc)(literalMatcher))
+      case r: ast.RelationshipPattern =>
+        (acc, _) => r.properties.fold(Map.empty[(Any,InputPosition), ast.Parameter])(_.fold(acc)(literalMatcher))
+      case w: ast.Where =>
+        (acc, _) => w.fold(acc)(literalMatcher)
     }
 
     (ExtractParameters(replaceableLiterals), replaceableLiterals.map {
       case (l, p) => (p.name, l._1)
-      }
-    )
+    })
   }
 }
