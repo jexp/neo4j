@@ -21,10 +21,10 @@ package org.neo4j.cypher.internal.compiler.v2_0
 
 object Foldable {
   implicit class TreeAny(val any: Any) extends AnyVal {
-    def children: IndexedSeq[Any] = any match {
-      case p: Product => p.productIterator.toVector
-      case s: Seq[_] => s.toVector
-      case _ => Vector.empty
+    def children: Iterator[Any] = any match {
+      case p: Product => p.productIterator
+      case s: Seq[_] => s.toIterator
+      case _ => Iterator.empty
     }
   }
 

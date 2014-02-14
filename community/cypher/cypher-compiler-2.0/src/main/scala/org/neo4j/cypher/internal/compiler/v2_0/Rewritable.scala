@@ -38,7 +38,7 @@ object Rewritable {
   implicit class DuplicatableAny(val any: Any) extends AnyVal {
     def dup(rewriter: Any => Any): Any = any match {
       case p: Product =>
-        val terms = p.children
+        val terms = p.children.toSeq
         val rewrittenTerms = terms.map(rewriter)
         if (terms == rewrittenTerms)
           p
@@ -58,11 +58,11 @@ object Rewritable {
   }
 
   implicit class DuplicatableProduct(val product: Product) extends AnyVal {
-    def dup(children: IndexedSeq[AnyRef]): Product = product match {
+    def dup(children: Seq[AnyRef]): Product = product match {
       case a: Rewritable =>
         a.dup(children)
       case _ =>
-        copyConstructor.invoke(product, children: _*).asInstanceOf[Product]
+        copyConstructor.invoke(product, children.toSeq: _*).asInstanceOf[Product]
     }
 
     def copyConstructor: Method = {
@@ -77,7 +77,7 @@ object Rewritable {
 }
 
 trait Rewritable {
-  def dup(children: IndexedSeq[AnyRef]): this.type
+  def dup(children: Seq[AnyRef]): this.type
 }
 
 case class topDown(rewriters: Rewriter*) extends Rewriter {
