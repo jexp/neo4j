@@ -19,6 +19,9 @@
  */
 package org.neo4j.cypher.internal.compiler.v2_0
 
+import java.lang.reflect.Method
+import scala.collection.mutable.{HashMap => MutableHashMap}
+
 object Rewriter {
   implicit class LiftedRewriter(f: (Any => Option[Any])) extends Rewriter {
     def apply(term: Any): Option[Any] = f.apply(term)
@@ -40,7 +43,7 @@ object Rewritable {
         if (terms == rewrittenTerms)
           p
         else
-          p.dup(rewrittenTerms)
+          p.dup(rewrittenTerms.map(_.asInstanceOf[AnyRef]))
       case s: IndexedSeq[_] =>
         s.map(rewriter)
       case s: Seq[_] =>
@@ -50,13 +53,21 @@ object Rewritable {
     }
   }
 
+  private val productCopyConstructors = new ThreadLocal[MutableHashMap[Class[_], Method]]() {
+    override def initialValue: MutableHashMap[Class[_], Method] = new MutableHashMap[Class[_], Method]
+  }
+
   implicit class DuplicatableProduct(val product: Product) extends AnyVal {
-    def dup(children: IndexedSeq[Any]): Product = product match {
+    def dup(children: IndexedSeq[AnyRef]): Product = product match {
       case a: Rewritable =>
         a.dup(children)
       case _ =>
-        val constructor = product.getClass.getMethods.find(_.getName == "copy").get
-        constructor.invoke(product, children.map(_.asInstanceOf[AnyRef]): _*).asInstanceOf[Product]
+        copyConstructor.invoke(product, children: _*).asInstanceOf[Product]
+    }
+
+    def copyConstructor: Method = {
+      val productClass = product.getClass
+      productCopyConstructors.get.getOrElseUpdate(productClass, productClass.getMethods.find(_.getName == "copy").get)
     }
   }
 
@@ -66,7 +77,7 @@ object Rewritable {
 }
 
 trait Rewritable {
-  def dup(children: IndexedSeq[Any]): this.type
+  def dup(children: IndexedSeq[AnyRef]): this.type
 }
 
 case class topDown(rewriters: Rewriter*) extends Rewriter {

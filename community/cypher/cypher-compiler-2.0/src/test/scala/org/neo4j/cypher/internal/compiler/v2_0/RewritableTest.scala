@@ -26,23 +26,23 @@ import org.scalatest.junit.JUnitRunner
 object RewritableTest {
   trait Exp extends Product with Rewritable
   case class Val(int: Int) extends Exp {
-    def dup(children: IndexedSeq[Any]): this.type =
+    def dup(children: IndexedSeq[AnyRef]): this.type =
       Val(children(0).asInstanceOf[Int]).asInstanceOf[this.type]
   }
   case class Add(lhs: Exp, rhs: Exp) extends Exp {
-    def dup(children: IndexedSeq[Any]): this.type =
+    def dup(children: IndexedSeq[AnyRef]): this.type =
       Add(children(0).asInstanceOf[Exp], children(1).asInstanceOf[Exp]).asInstanceOf[this.type]
   }
   case class Sum(args: Seq[Exp]) extends Exp {
-    def dup(children: IndexedSeq[Any]): this.type =
+    def dup(children: IndexedSeq[AnyRef]): this.type =
       Sum(children(0).asInstanceOf[Seq[Exp]]).asInstanceOf[this.type]
   }
   case class Pos(latlng: (Exp, Exp)) extends Exp {
-    def dup(children: IndexedSeq[Any]): this.type =
+    def dup(children: IndexedSeq[AnyRef]): this.type =
       Pos(children(0).asInstanceOf[(Exp, Exp)]).asInstanceOf[this.type]
   }
   case class Options(args: Seq[(Exp, Exp)]) extends Exp {
-    def dup(children: IndexedSeq[Any]): this.type =
+    def dup(children: IndexedSeq[AnyRef]): this.type =
       Options(children(0).asInstanceOf[Seq[(Exp, Exp)]]).asInstanceOf[this.type]
   }
 }

@@ -22,15 +22,16 @@ package org.neo4j.cypher.internal.compiler.v2_0.ast
 import org.neo4j.cypher.internal.compiler.v2_0._
 
 trait ASTNode extends Product with Foldable with Rewritable {
+  import Rewritable._
   def position: InputPosition
 
-  def dup(children: IndexedSeq[Any]): this.type = {
-    val constructor = this.getClass.getMethods.find(_.getName == "copy").get
+  def dup(children: IndexedSeq[AnyRef]): this.type = {
+    val constructor = this.copyConstructor
     val params = constructor.getParameterTypes
     val args = if ((params.length == children.length + 1) && params.last.isAssignableFrom(classOf[InputPosition]))
-      children.map(_.asInstanceOf[AnyRef]) :+ this.position
+      children :+ this.position
     else
-      children.map(_.asInstanceOf[AnyRef])
+      children
     constructor.invoke(this, args: _*).asInstanceOf[this.type]
   }
 }
