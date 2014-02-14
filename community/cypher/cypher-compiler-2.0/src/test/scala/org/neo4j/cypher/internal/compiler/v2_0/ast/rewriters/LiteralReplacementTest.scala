@@ -79,7 +79,7 @@ class LiteralReplacementTest extends FunSuite {
 
     val (rewriter, _) = literalReplacement(original)
 
-    val result = original.rewrite(bottomUp(rewriter))
+    val result = original.rewrite(bottomUpExpressions(rewriter))
     assert(result === expected)
   }
 }
