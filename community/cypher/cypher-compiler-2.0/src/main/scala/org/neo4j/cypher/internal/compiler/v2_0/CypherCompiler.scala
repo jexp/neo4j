@@ -20,6 +20,7 @@
 package org.neo4j.cypher.internal.compiler.v2_0
 
 import ast.convert.StatementConverters._
+import ast.rewriters._
 import commands.AbstractQuery
 import executionplan.{ExecutionPlanBuilder, ExecutionPlan}
 import executionplan.verifiers.HintVerifier
@@ -34,19 +35,27 @@ case class CypherCompiler(graph: GraphDatabaseService, queryCache: (Object, => O
   val verifiers = Seq(HintVerifier)
 
   @throws(classOf[SyntaxException])
-  def prepare(query: String, context: PlanContext): ExecutionPlan = {
+  def prepare(query: String, context: PlanContext): (ExecutionPlan,Map[String,Any]) = {
     val statement = parser.parse(query)
-    statement.semanticCheck(SemanticState.clean).errors.map { error =>
-      throw new SyntaxException(s"${error.msg} (${error.position})", query, error.position.offset)
-    }
 
-    queryCache(statement, {
-      val parsedQuery = ReattachAliasedExpressions(statement.asQuery.setQueryText(query))
+   val (extractParameters, extractedParameters) = ExtractParameters.prepare(statement)
+   val rewrittenStatement = statement.rewrite(bottomUp(
+     extractParameters
+   )).asInstanceOf[ast.Statement]
+
+  val plan = queryCache(rewrittenStatement, {
+      // check original statement, not rewritten one
+      statement.semanticCheck(SemanticState.clean).errors.map { error =>
+        throw new SyntaxException(s"${error.msg} (${error.position})", query, error.position.offset)
+      }
+      val parsedQuery = ReattachAliasedExpressions(rewrittenStatement.asQuery.setQueryText(query))
       parsedQuery.verifySemantics()
       verify(parsedQuery)
       val planBuilder = new ExecutionPlanBuilder(graph)
       planBuilder.build(context, parsedQuery)
     }).asInstanceOf[ExecutionPlan]
+
+    (plan, extractedParameters)
   }
 
   def verify(query: AbstractQuery) {
