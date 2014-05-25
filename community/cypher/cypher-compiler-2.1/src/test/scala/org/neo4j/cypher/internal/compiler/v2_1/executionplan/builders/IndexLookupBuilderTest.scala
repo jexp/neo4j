@@ -23,10 +23,15 @@ import org.junit.Test
 import org.neo4j.cypher.IndexHintException
 import org.neo4j.cypher.internal.compiler.v2_1.executionplan.PartiallySolvedQuery
 import org.neo4j.cypher.internal.compiler.v2_1.commands._
-import org.neo4j.cypher.internal.compiler.v2_1.commands.expressions.Identifier
+import org.neo4j.cypher.internal.compiler.v2_1.commands.expressions._
 import org.neo4j.cypher.internal.compiler.v2_1.commands.values.{KeyToken, TokenType}
 import org.neo4j.cypher.internal.compiler.v2_1.commands.values.TokenType._
+import org.neo4j.cypher.internal.compiler.v2_1.commands.SingleQueryExpression
+import org.neo4j.cypher.internal.compiler.v2_1.commands.SchemaIndex
 import org.neo4j.cypher.internal.compiler.v2_1.commands.expressions.Literal
+import org.neo4j.cypher.internal.compiler.v2_1.commands.Equals
+import org.neo4j.cypher.internal.compiler.v2_1.commands.expressions.Identifier
+import org.neo4j.cypher.internal.compiler.v2_1.commands.HasLabel
 import org.neo4j.cypher.internal.compiler.v2_1.commands.expressions.Property
 
 class IndexLookupBuilderTest extends BuilderTest {
@@ -102,13 +107,63 @@ class IndexLookupBuilderTest extends BuilderTest {
     val plan = assertAccepts(q)
 
     //THEN
-    assert(plan.query.start === Seq(Unsolved(SchemaIndex(identifier, label1, property, AnyIndex, Some(valueExpression)))))
+    assert(plan.query.start === Seq(Unsolved(SchemaIndex(identifier, label1, property, AnyIndex, Some(SingleQueryExpression(valueExpression))))))
     val a = plan.query.where.toSet
     val b = Set(Solved(label1Predicate), Unsolved(label2Predicate), Solved(propertyPredicate))
     assert(a === b)
   }
 
-  private def test(identifier: String, label: String, property: String, predicate: Equals, valueExpression: Literal) {
+  @Test def should_accept_a_query_with_index_hints_on_in() {
+    //GIVEN
+    val identifier = "id"
+    val label = "label"
+    val property = "prop"
+    val collectionExpression = Collection(Literal(42),Literal(43))
+    val predicate = AnyInCollection(collectionExpression,"_identifier_",Equals(Property(Identifier(identifier), PropertyKey(property)),Identifier("_identifier_")))
+
+
+    test(identifier, label, property, predicate, ManyQueryExpression(collectionExpression))
+  }
+
+  @Test def should_accept_a_query_with_index_hints_on_in_with_collection_containing_duplicates() {
+    //GIVEN
+    val identifier = "id"
+    val label = "label"
+    val property = "prop"
+    val collectionExpression = Collection(Literal(42),Literal(42))
+    val predicate = AnyInCollection(collectionExpression,"_identifier_",Equals(Property(Identifier(identifier), PropertyKey(property)),Identifier("_identifier_")))
+
+
+    test(identifier, label, property, predicate, ManyQueryExpression(collectionExpression))
+  }
+
+  @Test def should_accept_a_query_with_index_hints_on_in_with_null() {
+    //GIVEN
+    val identifier = "id"
+    val label = "label"
+    val property = "prop"
+    val collectionExpression = Null()
+    val predicate = AnyInCollection(collectionExpression,"_identifier_",Equals(Property(Identifier(identifier), PropertyKey(property)),Identifier("_identifier_")))
+
+    test(identifier, label, property, predicate, ManyQueryExpression(collectionExpression))
+  }
+
+  @Test def should_accept_a_query_with_index_hints_on_in_with_empty_collection() {
+    //GIVEN
+    val identifier = "id"
+    val label = "label"
+    val property = "prop"
+    val collectionExpression = Collection()
+    val predicate = AnyInCollection(collectionExpression,"_identifier_",Equals(Property(Identifier(identifier), PropertyKey(property)),Identifier("_identifier_")))
+
+    test(identifier, label, property, predicate, ManyQueryExpression(collectionExpression))
+  }
+
+  private def test(identifier: String, label: String, property: String, predicate: Equals, expression: Expression) {
+    test(identifier, label,property,predicate,SingleQueryExpression(expression))
+  }
+
+  private def test(identifier: String, label: String, property: String, predicate: Predicate, queryExpression: QueryExpression) {
     val labelPredicate = HasLabel(Identifier(identifier), KeyToken.Unresolved(label, TokenType.Label))
 
     val q = PartiallySolvedQuery().copy(
@@ -120,7 +175,7 @@ class IndexLookupBuilderTest extends BuilderTest {
     val plan = assertAccepts(q)
 
     //THEN
-    assert(plan.query.start === Seq(Unsolved(SchemaIndex(identifier, label, property, AnyIndex, Some(valueExpression)))))
+    assert(plan.query.start === Seq(Unsolved(SchemaIndex(identifier, label, property, AnyIndex, Some(queryExpression)))))
     assert(plan.query.where.toSet === Set(Solved(predicate), Solved(labelPredicate)))
   }
 }
