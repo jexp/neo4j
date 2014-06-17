@@ -30,7 +30,7 @@ trait CreateTempFileTestSupport extends CypherTestSupport {
 
   override protected def stopTest(): Unit = {
     try {
-      files.foreach(_.delete())
+//      files.foreach(_.delete())
     } finally {
       super.stopTest()
     }
@@ -41,6 +41,12 @@ trait CreateTempFileTestSupport extends CypherTestSupport {
 
   def createCSVTempFileURL(filename: String = "cypher", dir: String = null)(f: PrintWriter => Unit): String =
     createTempFileURL(filename, ".csv")(f)
+
+  def createJSONTempFileURL(f: PrintWriter => Unit): String =
+    createJSONTempFileURL()(f)
+
+  def createJSONTempFileURL(filename: String = "cypher", dir: String = null)(f: PrintWriter => Unit): String =
+    createTempFileURL(filename, ".json")(f)
 
   def createTempFile(name: String, ext: String, f: PrintWriter => Unit): String = synchronized {
     withTempFileWriter(name, ext)(f).toAbsolute.path

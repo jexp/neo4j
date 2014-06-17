@@ -278,6 +278,8 @@ abstract class DocumentingTestBase extends JUnitSuite with DocumentationHelper w
         fail(s"Expected the test to throw an exception: $expectedException")
       }
 
+      println(docQuery)
+
       dumpToFile(dir, writer, title, docQuery, optionalResultExplanation, text, result, consoleData)
       if (graphvizExecutedAfter) {
         dumpGraphViz(dir, graphvizOptions.trim)
@@ -317,7 +319,7 @@ abstract class DocumentingTestBase extends JUnitSuite with DocumentationHelper w
   var parameters: Map[String, Any] = null
   var preparationQueries: List[String] = List()
 
-  protected val baseUrl = System.getProperty("remote-csv-upload")
+  protected val baseUrl = System.getProperty("remote-file-upload")
   var filePaths: Map[String, String] = Map.empty
   var urls: Map[String, String] = Map.empty
 

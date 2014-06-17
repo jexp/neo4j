@@ -22,19 +22,32 @@ package org.neo4j.cypher.internal.compiler.v2_1.executionplan
 import org.neo4j.cypher.internal.compiler.v2_1.pipes.ExternalResource
 import org.neo4j.cypher.internal.compiler.v2_1.spi.QueryContext
 import java.net.URL
-import org.neo4j.cypher.{CypherException, LoadCsvStatusWrapCypherException}
+import org.neo4j.cypher.{LoadJsonStatusWrapCypherException, CypherException, LoadCsvStatusWrapCypherException}
 
 class LoadCsvPeriodicCommitObserver(batchRowCount: Long, resources: ExternalResource, queryContext: QueryContext)
   extends ExternalResource with ((CypherException) => CypherException) {
 
   val updateCounter = new UpdateCounter
   var outerLoadCSVIterator: Option[LoadCsvIterator] = None
+  var outerLoadJSONIterator: Option[LoadJsonIterator] = None
 
   def getCsvIterator(url: URL, fieldTerminator: Option[String] = None): Iterator[Array[String]] = {
     val innerIterator = resources.getCsvIterator(url, fieldTerminator)
     if (outerLoadCSVIterator.isEmpty) {
       val iterator = new LoadCsvIterator(url, innerIterator)(onNext())
       outerLoadCSVIterator = Some(iterator)
+      iterator
+    } else {
+      innerIterator
+    }
+  }
+
+
+  override def getJsonIterator(url: URL): Iterator[Map[String, Any]] = {
+    val innerIterator = resources.getJsonIterator(url)
+    if (outerLoadJSONIterator.isEmpty) {
+      val iterator = new LoadJsonIterator(url, innerIterator)(onNext())
+      outerLoadJSONIterator = Some(iterator)
       iterator
     } else {
       innerIterator
@@ -48,11 +61,23 @@ class LoadCsvPeriodicCommitObserver(batchRowCount: Long, resources: ExternalReso
 
   private def commitAndRestartTx() {
     queryContext.commitAndRestartTx()
-    outerLoadCSVIterator.foreach(_.notifyCommit())
+    outerLoadCSVIterator match {
+      case Some(iterator) => outerLoadCSVIterator.foreach(_.notifyCommit())
+      case None =>
+    }
+    outerLoadJSONIterator match {
+      case Some(iterator) => outerLoadJSONIterator.foreach(_.notifyCommit())
+      case None =>
+    }
   }
 
-  def apply(e: CypherException): CypherException = outerLoadCSVIterator match {
-    case Some(iterator) => new LoadCsvStatusWrapCypherException(iterator.msg, e)
-    case _ => e
+  def apply(e: CypherException): CypherException = {
+    outerLoadCSVIterator match {
+      case Some(iterator) => new LoadCsvStatusWrapCypherException(iterator.msg, e)
+      case _ => outerLoadJSONIterator match {
+        case Some(iterator) => new LoadJsonStatusWrapCypherException(iterator.msg, e)
+        case _ => e
+      }
+    }
   }
 }

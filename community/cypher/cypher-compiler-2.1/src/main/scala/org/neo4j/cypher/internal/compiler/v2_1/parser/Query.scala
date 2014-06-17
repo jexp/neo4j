@@ -20,16 +20,17 @@
 package org.neo4j.cypher.internal.compiler.v2_1.parser
 
 import org.neo4j.cypher.internal.compiler.v2_1.ast
+import org.neo4j.cypher.internal.compiler.v2_1.planner.RegularQueryProjection
 import org.parboiled.scala._
 
 trait Query extends Parser
   with Clauses
   with Base {
 
-  def Query: Rule1[ast.Query] = (
-      RegularQuery
-    | BulkImportQuery
-  )
+  def Query: Rule1[ast.Query] = rule {
+    RegularQuery |
+    group(optional(PeriodicCommitHint ~ WS) ~~ SingleQuery) ~~>> ((hint, query) => ast.Query(hint, query))
+  }
 
   def RegularQuery: Rule1[ast.Query] = rule {
     SingleQuery ~ zeroOrMore(WS ~ Union) ~~>> (ast.Query(None, _))
@@ -39,16 +40,17 @@ trait Query extends Parser
     oneOrMore(Clause, separator = WS) ~~>> (ast.SingleQuery(_))
   }
 
-  def BulkImportQuery: Rule1[ast.Query] = rule {
-    group(PeriodicCommitHint ~ WS ~ LoadCSVQuery) ~~>> ((hint, query) => ast.Query(Some(hint), query))
-  }
-
   def LoadCSVQuery: Rule1[ast.SingleQuery] = rule {
     LoadCSV ~ WS ~ zeroOrMore(Clause, separator = WS) ~~>> ((loadCSV, tail) => ast.SingleQuery(Seq(loadCSV) ++ tail))
   }
 
+  def LoadJSONQuery: Rule1[ast.SingleQuery] = rule {
+    LoadJSON ~ WS ~ zeroOrMore(Clause, separator = WS) ~~>> ((loadJson, tail) => ast.SingleQuery(Seq(loadJson) ++ tail))
+  }
+
   def Clause: Rule1[ast.Clause] = (
-      LoadCSV
+      LoadJSON
+    | LoadCSV
     | Start
     | Match
     | Unwind

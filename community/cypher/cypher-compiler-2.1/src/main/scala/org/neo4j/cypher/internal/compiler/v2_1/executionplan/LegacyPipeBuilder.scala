@@ -126,6 +126,7 @@ The Neo4j Team""")
     def myBuilders: Seq[PlanBuilder] = Seq(
       new UnwindBuilder,
       new LoadCSVBuilder,
+      new LoadJSONBuilder,
       new PredicateRewriter,
       new KeyTokenResolver,
       new IndexLookupBuilder,
@@ -141,6 +142,7 @@ The Neo4j Team""")
       new FilterBuilder,
       new NamedPathBuilder,
       new LoadCSVBuilder,
+      new LoadJSONBuilder,
       new StartPointBuilder,
       new MatchBuilder,
       new ShortestPathBuilder

@@ -90,3 +90,52 @@ class LoadCSVPipe(source: Pipe,
 
 }
 
+class LoadJSONPipe(source: Pipe,
+                  urlExpression: Expression,
+                  identifier: String)(implicit pipeMonitor: PipeMonitor)
+  extends PipeWithSource(source, pipeMonitor) {
+  private val protocolWhiteList: Seq[String] = Seq("file", "http", "https", "ftp")
+
+  protected def checkURL(urlString: String, context: QueryContext): URL = {
+    val url: URL = try {
+      new URL(urlString)
+    } catch {
+      case e: java.net.MalformedURLException =>
+        throw new LoadExternalResourceException(s"Invalid URL specified (${e.getMessage})", null)
+    }
+
+    val protocol = url.getProtocol
+    if (!protocolWhiteList.contains(protocol)) {
+      throw new LoadExternalResourceException(s"Unsupported URL protocol: $protocol", null)
+    }
+    if (url.getProtocol == "file" && !context.hasLocalFileAccess) {
+      throw new LoadExternalResourceException("Accessing local files not allowed by the configuration")
+    }
+    url
+  }
+
+  protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
+    input.flatMap(context => {
+      implicit val s = state
+      val url = checkURL(urlExpression(context).asInstanceOf[String], state.query)
+
+      val iterator: Iterator[Map[String,Any]] = state.resources.getJsonIterator(url)
+
+      iterator.map {
+        value => {
+          println(value)
+          context.newWith(identifier -> value)
+        }
+      }
+    })
+  }
+
+  def planDescription: PlanDescription =
+    source.planDescription.andThen(this, "LoadCSV", IntroducedIdentifier(identifier))
+
+  def symbols: SymbolTable = source.symbols.add(identifier, MapType.instance)
+
+  override def readsFromDatabase = false
+
+}
+

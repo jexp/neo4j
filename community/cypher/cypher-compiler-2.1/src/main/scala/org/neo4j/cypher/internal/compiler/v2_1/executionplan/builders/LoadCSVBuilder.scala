@@ -21,9 +21,12 @@ package org.neo4j.cypher.internal.compiler.v2_1.executionplan.builders
 
 import org.neo4j.cypher.internal.compiler.v2_1.executionplan.{ExecutionPlanInProgress, PlanBuilder}
 import org.neo4j.cypher.internal.compiler.v2_1.spi.PlanContext
-import org.neo4j.cypher.internal.compiler.v2_1.pipes.{PipeMonitor, HasHeaders, NoHeaders, LoadCSVPipe}
-import org.neo4j.cypher.internal.compiler.v2_1.commands.LoadCSV
+import org.neo4j.cypher.internal.compiler.v2_1.pipes._
+import org.neo4j.cypher.internal.compiler.v2_1.commands.{LoadJSON, LoadCSV}
 import org.neo4j.cypher.LoadExternalResourceException
+import org.neo4j.cypher.internal.compiler.v2_1.commands.LoadCSV
+import org.neo4j.cypher.internal.compiler.v2_1.executionplan.ExecutionPlanInProgress
+import org.neo4j.cypher.internal.compiler.v2_1.commands.LoadJSON
 
 class LoadCSVBuilder extends PlanBuilder {
   def canWorkWith(plan: ExecutionPlanInProgress, ctx: PlanContext)(implicit pipeMonitor: PipeMonitor): Boolean = {
@@ -41,6 +44,26 @@ class LoadCSVBuilder extends PlanBuilder {
     plan.copy(
       query = plan.query.copy(start = plan.query.start.replace(Unsolved(item), Solved(item))),
       pipe = new LoadCSVPipe(plan.pipe, if (item.withHeaders) HasHeaders else NoHeaders, item.url, item.identifier, item.fieldTerminator)
+    )
+  }
+}
+
+class LoadJSONBuilder extends PlanBuilder {
+  def canWorkWith(plan: ExecutionPlanInProgress, ctx: PlanContext)(implicit pipeMonitor: PipeMonitor): Boolean = {
+    findLoadJSONItem(plan).isDefined
+  }
+
+  private def findLoadJSONItem(plan: ExecutionPlanInProgress): Option[LoadJSON] = {
+    plan.query.start.collectFirst {
+      case Unsolved(item: LoadJSON) => item
+    }
+  }
+
+  def apply(plan: ExecutionPlanInProgress, ctx: PlanContext)(implicit pipeMonitor: PipeMonitor): ExecutionPlanInProgress = {
+    val item: LoadJSON = findLoadJSONItem(plan).get
+    plan.copy(
+      query = plan.query.copy(start = plan.query.start.replace(Unsolved(item), Solved(item))),
+      pipe = new LoadJSONPipe(plan.pipe, item.url, item.identifier)
     )
   }
 }

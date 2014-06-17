@@ -43,7 +43,7 @@
     <version-package>cypher.internal.docs</version-package>
     <docs-plugin.skip>false</docs-plugin.skip>
     <attach-docs-phase>verify</attach-docs-phase>
-    <remote-csv-upload>http://docs.neo4j.org/chunked/${project.version}/csv</remote-csv-upload>
+    <remote-file-upload>http://docs.neo4j.org/chunked/${project.version}/files</remote-file-upload>
   </properties>
 
   <dependencies>
@@ -120,7 +120,7 @@
                             <includeProjectDependencies>false</includeProjectDependencies>
                             <arguments>
                                 <argument>${project.build.directory}/docs/parsed-graphgists</argument>
-                                <argument>${remote-csv-upload}</argument>
+                                <argument>${remote-file-upload}</argument>
                                 <argument>${project.build.directory}/../src/docs/graphgists</argument>
                             </arguments>
                         </configuration>
@@ -142,7 +142,7 @@
               <artifactId>maven-surefire-plugin</artifactId>
               <configuration>
                <systemPropertyVariables>
-                 <remote-csv-upload>${remote-csv-upload}/</remote-csv-upload>
+                 <remote-file-upload>${remote-file-upload}/</remote-file-upload>
                </systemPropertyVariables>
               </configuration>
             </plugin>

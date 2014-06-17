@@ -20,30 +20,31 @@
 package org.neo4j.cypher.docgen
 
 import java.io.{PrintWriter, File}
+import scala.util.parsing.json.JSONObject
+import org.codehaus.jackson.map.ObjectMapper
+import org.codehaus.jackson.JsonNode
 
-object URIHelper {
-  def urify(file: File): String = file.toURI.toURL.toString.replace("\\", "\\\\")
-}
 
-class CsvFile(fileName: String, delimiter: Char = ',')(implicit csvFilesDir: File) {
+class JsonFile(fileName: String)(implicit jsonFilesDir: File) {
 
   import URIHelper._
 
-  def withContents(lines: Seq[String]*): String = {
-    val csvFile = withContentsF(lines:_*)
-    urify(csvFile)
+  def withContents(document: String): String = {
+    val jsonFile = withContentsF(document)
+    urify(jsonFile)
   }
 
-  def withContentsF(lines: Seq[String]*): File = {
-    val csvFile = new File(csvFilesDir, fileName)
-    val writer = new PrintWriter(csvFile, "UTF-8")
-    lines.foreach(line => {
-      writer.println(line.map(s => '"' + s + '"').mkString(delimiter.toString))
-    })
+  def withContentsF(document: String): File = {
+    val jsonFile = new File(jsonFilesDir, fileName)
+    val writer = new PrintWriter(jsonFile, "UTF-8")
+
+    val mapper = new ObjectMapper()
+    val tree = mapper.readTree(document)
+    val pretty = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(tree)
+
+    writer.print(pretty)
     writer.flush()
     writer.close()
-    csvFile
+    jsonFile
   }
 }
-
-

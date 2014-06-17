@@ -1,0 +1,17 @@
+[[query-load-json]]
+Load JSON
+========
+
+[NOTE]
++LOAD JSON+ is intended to be used for an initial data import or for creating demonstration datasets.
+
++LOAD JSON+ allows you to import data from JSON files.
+It is required to specify an identifier for the JSON data using +AS+.
+
+See the examples for further details.
+
+include::import-data-from-a-json-file.asciidoc[]
+
+include::import-data-from-a-json-file-containing-multiple-json-documents.asciidoc[]
+
+include::import-data-from-multiple-json-files.asciidoc[]

@@ -60,10 +60,10 @@ class LoadCSVTest extends DocumentingTestBase with QueryStatisticsTestSupport {
   )
 
   filePaths = Map(
-    "%ARTIST%" -> CsvFile.urify(artist),
-    "%ARTIS_WITH_HEADER%" -> CsvFile.urify(artistWithHeaders),
-    "%ARTIST_WITH_FIELD_DELIMITER%" -> CsvFile.urify(artistFieldTerminator),
-    "%ARTIST_WITH_ESCAPE_CHAR%" -> CsvFile.urify(artistsWithEscapeChar)
+    "%ARTIST%" -> URIHelper.urify(artist),
+    "%ARTIS_WITH_HEADER%" -> URIHelper.urify(artistWithHeaders),
+    "%ARTIST_WITH_FIELD_DELIMITER%" -> URIHelper.urify(artistFieldTerminator),
+    "%ARTIST_WITH_ESCAPE_CHAR%" -> URIHelper.urify(artistsWithEscapeChar)
   )
 
   urls = Map(

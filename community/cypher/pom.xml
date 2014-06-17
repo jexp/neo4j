@@ -297,7 +297,6 @@
         <groupId>org.codehaus.jackson</groupId>
         <artifactId>jackson-mapper-asl</artifactId>
         <version>1.9.7</version>
-        <scope>test</scope>
       </dependency>
       <dependency>
         <groupId>org.parboiled</groupId>

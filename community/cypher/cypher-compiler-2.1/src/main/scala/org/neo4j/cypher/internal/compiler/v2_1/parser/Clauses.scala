@@ -30,6 +30,13 @@ trait Clauses extends Parser
 
   def Clause: Rule1[ast.Clause]
 
+  def LoadJSON: Rule1[ast.LoadJSON] = rule("LOAD JSON") {
+    keyword("LOAD JSON") ~~
+      keyword("FROM") ~~ (StringLiteral | Parameter) ~~
+      keyword("AS") ~~ Identifier  ~~>>
+      (ast.LoadJSON(_, _))
+  }
+
   def LoadCSV: Rule1[ast.LoadCSV] = rule("LOAD CSV") {
       keyword("LOAD CSV") ~~
       group(keyword("WITH HEADERS") ~ push(true) | push(false)) ~~

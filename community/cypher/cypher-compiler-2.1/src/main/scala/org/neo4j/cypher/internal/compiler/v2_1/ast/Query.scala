@@ -29,11 +29,15 @@ case class Query(periodicCommitHint: Option[PeriodicCommitHint], part: QueryPart
     periodicCommitHint.semanticCheck chain
     when(periodicCommitHint.nonEmpty && !part.containsUpdates) {
       SemanticError("Cannot use periodic commit in a non-updating query", periodicCommitHint.get.position)
+    } chain
+    when(periodicCommitHint.nonEmpty && !part.containsLoadStatement) {
+      SemanticError("Cannot use periodic commit without exactly one LOAD clause", periodicCommitHint.get.position)
     }
 }
 
 sealed trait QueryPart extends ASTNode with SemanticCheckable {
   def containsUpdates:Boolean
+  def containsLoadStatement:Boolean
 }
 
 case class SingleQuery(clauses: Seq[Clause])(val position: InputPosition) extends QueryPart {
@@ -44,6 +48,12 @@ case class SingleQuery(clauses: Seq[Clause])(val position: InputPosition) extend
       case _: UpdateClause => true
       case _               => false
     }
+
+  def containsLoadStatement : Boolean =  1 == clauses.count {
+    case _: LoadJSON => true
+    case _: LoadCSV => true
+    case _ => false
+  }
 
   def semanticCheck: SemanticCheck =
     checkOrder chain
@@ -119,6 +129,7 @@ sealed trait Union extends QueryPart {
   def query: SingleQuery
 
   def containsUpdates:Boolean = part.containsUpdates || query.containsUpdates
+  def containsLoadStatement:Boolean = part.containsLoadStatement || query.containsLoadStatement
 
   def semanticCheck: SemanticCheck =
     checkUnionAggregation chain

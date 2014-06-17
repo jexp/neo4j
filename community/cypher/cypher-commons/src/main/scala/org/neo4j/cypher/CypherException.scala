@@ -138,3 +138,6 @@ class LoadExternalResourceException(message: String, cause: Throwable = null) ex
 class LoadCsvStatusWrapCypherException(extraInfo: String, cause: CypherException) extends CypherException(s"${cause.getMessage} (${extraInfo})", cause) {
   val status = cause.status
 }
+class LoadJsonStatusWrapCypherException(extraInfo: String, cause: CypherException) extends CypherException(s"${cause.getMessage} (${extraInfo})", cause) {
+  val status = cause.status
+}

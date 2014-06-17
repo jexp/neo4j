@@ -19,15 +19,43 @@
  */
 package org.neo4j.cypher.internal.compiler.v2_1.spi
 
-import java.net.{CookieHandler, CookieManager, CookiePolicy, URL}
+import java.net._
 import java.io._
+import java.util.zip.{DeflaterInputStream, GZIPInputStream}
 import au.com.bytecode.opencsv.CSVReader
 import org.neo4j.cypher.internal.compiler.v2_1.TaskCloser
-import org.neo4j.cypher.LoadExternalResourceException
+import org.neo4j.cypher.{CypherTypeException, LoadJsonStatusWrapCypherException, LoadExternalResourceException}
 import org.neo4j.cypher.internal.compiler.v2_1.pipes.ExternalResource
+import org.codehaus.jackson.map.ObjectMapper
+import scala.util.parsing.json._
+import collection.JavaConverters._
+import org.codehaus.jackson.{JsonParser, JsonToken, JsonFactory}
+import java.util
+import org.codehaus.jackson.`type`.TypeReference
+import scala.collection.AbstractIterator
 
+//todo rename to DataResources
 object CSVResources {
   val DEFAULT_FIELD_TERMINATOR: Char = ','
+
+  val mapper = new ObjectMapper()
+
+  val jsonFactory = new JsonFactory(mapper)
+
+  val mapTypeReference = new TypeReference[util.Map[String, Object]]() {}
+
+  def asScalaRecursive(value : Any) : Any = value match {
+    case x:java.util.Map[String, Any] => x.asScala.transform((key, value) => asScalaRecursive(value) ).toMap
+    case x:java.lang.Iterable[Any] => x.asScala.map(asScalaRecursive)
+    case x => x
+  }
+
+  def readValue(parser:JsonParser) : Map[String,Any] = {
+    val value = asScalaRecursive(parser.readValueAs(mapTypeReference))
+    parser.nextToken()
+    value.asInstanceOf[Map[String,Any]]
+  }
+
 }
 
 class CSVResources(cleaner: TaskCloser) extends ExternalResource {
@@ -62,10 +90,44 @@ class CSVResources(cleaner: TaskCloser) extends ExternalResource {
       val con = url.openConnection()
       con.setConnectTimeout(connectionTimeout)
       con.setReadTimeout(readTimeout)
-      con.getInputStream()
+      val stream = con.getInputStream()
+      con.getContentEncoding match {
+        case "gzip" => new GZIPInputStream(stream)
+        case "deflate" => new DeflaterInputStream(stream)
+        case _ => stream
+      }
     } catch {
       case e: IOException =>
         throw new LoadExternalResourceException(s"Couldn't load the external resource at: $url", e)
+    }
+  }
+
+  def getJsonIterator(url: URL): Iterator[Map[String, Any]] = {
+
+    val inputStream = openStream(url)
+    val reader = new BufferedReader(new InputStreamReader(inputStream))
+
+    cleaner.addTask((_) => {
+      reader.close()
+    })
+
+    val parser = CSVResources.jsonFactory.createJsonParser(reader)
+    val token = parser.nextToken()
+
+    token match {
+      case JsonToken.START_ARRAY => {
+        parser.nextToken()
+        new Iterator[Map[String, Any]] {
+          def hasNext = parser.getCurrentToken match {
+            case JsonToken.START_OBJECT => true
+            case JsonToken.END_ARRAY => false
+            case x => throw new CypherTypeException("Unexpected token while parsing json stream " + x  + ". LOAD JSON only supports JSON objects and arrays thereof.")
+          }
+          def next() = CSVResources.readValue(parser)
+        }
+      }
+      case JsonToken.START_OBJECT => Iterator.single(CSVResources.readValue(parser))
+      case x => throw new CypherTypeException("Unexpected token while parsing json stream " + x)
     }
   }
 }

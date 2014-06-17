@@ -84,17 +84,18 @@ class PeriodicCommitHintTest extends FunSuite with Positional {
     val result: SemanticCheckResult = query.semanticCheck(SemanticState.clean)
 
     // Then
-    assert(result.errors.size === 1)
+    assert(result.errors.size === 2)
     assert(result.errors.head.msg === "Cannot use periodic commit in a non-updating query")
     assert(result.errors.head.position === periodicCommitPos)
   }
 
-  test("queries with periodic commit and updates are OK") {
+  test("queries with periodic commit and updates but not using the LOAD clause are not OK") {
 
     // Given USING PERIODIC COMMIT CREATE ()
 
     val value: SignedIntegerLiteral = SignedDecimalIntegerLiteral("1")(pos)
-    val hint = PeriodicCommitHint(Some(value))(pos)
+    val periodicCommitPos: InputPosition = pos
+    val hint = PeriodicCommitHint(Some(value))(periodicCommitPos)
     val nodePattern = NodePattern(None,Seq.empty,None,false)(pos)
     val pattern = Pattern(Seq(EveryPath(nodePattern)))(pos)
     val create = Create(pattern)(pos)
@@ -104,6 +105,31 @@ class PeriodicCommitHintTest extends FunSuite with Positional {
     // When
     val result: SemanticCheckResult = query.semanticCheck(SemanticState.clean)
 
+    // Then
+    assert(result.errors.size === 1)
+    assert(result.errors.head.msg === "Cannot use periodic commit without exactly one LOAD clause")
+    assert(result.errors.head.position === periodicCommitPos)
+  }
+  test("queries with periodic commit, a LOAD clause and updates are OK") {
+
+    // Given USING PERIODIC COMMIT CREATE ()
+
+    val value: SignedIntegerLiteral = SignedDecimalIntegerLiteral("1")(pos)
+    val periodicCommitPos: InputPosition = pos
+    val hint = PeriodicCommitHint(Some(value))(periodicCommitPos)
+    val url = StringLiteral("http://localhost/test.csv")(pos)
+    val row = Identifier("data")(pos)
+    val loadCsv = LoadCSV(withHeaders = false, url,row,None)(pos)
+    val nodePattern = NodePattern(None,Seq.empty,None,naked = false)(pos)
+    val pattern = Pattern(Seq(EveryPath(nodePattern)))(pos)
+    val create = Create(pattern)(pos)
+    val queryPart = SingleQuery(Seq(loadCsv, create))(pos)
+    val query = Query(Some(hint), queryPart)(pos)
+
+    // When
+    val result: SemanticCheckResult = query.semanticCheck(SemanticState.clean)
+
+    println(result.errors)
     // Then
     assert(result.errors.size === 0)
   }

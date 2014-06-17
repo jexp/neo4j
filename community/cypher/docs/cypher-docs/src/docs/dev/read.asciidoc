@@ -27,3 +27,10 @@ include::ql/aggregation/index.asciidoc[]
 :leveloffset: 2
 
 include::ql/load-csv/index.asciidoc[]
+
+:leveloffset: 2
+
+include::ql/load-json/index.asciidoc[]
+
+
+

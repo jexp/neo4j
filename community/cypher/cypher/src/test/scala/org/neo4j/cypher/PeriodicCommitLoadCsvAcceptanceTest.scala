@@ -43,6 +43,7 @@ class PeriodicCommitLoadCsvAcceptanceTest
     // when executing 5 updates
     val e = intercept[CypherException](execute(queryText))
 
+    println(e.getMessage)
     // then
     e.getMessage should include("on line 3. Possibly the last row committed during import is line 2. Note that this information might not be accurate.")
   }

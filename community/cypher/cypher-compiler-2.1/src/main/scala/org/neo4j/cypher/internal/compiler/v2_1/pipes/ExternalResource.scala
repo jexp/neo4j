@@ -23,4 +23,5 @@ import java.net.URL
 
 trait ExternalResource {
   def getCsvIterator(url: URL, fieldTerminator: Option[String] = None): Iterator[Array[String]]
+  def getJsonIterator(url: URL): Iterator[Map[String,Any]]
 }

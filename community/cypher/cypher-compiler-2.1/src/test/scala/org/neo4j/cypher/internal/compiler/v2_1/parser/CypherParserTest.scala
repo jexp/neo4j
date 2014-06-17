@@ -3096,10 +3096,6 @@ class CypherParserTest extends CypherFunSuite {
     )
   }
 
-  test("should reject a periodic commit query not followed by LOAD CSV") {
-    intercept[SyntaxException](parser.parse("USING PERIODIC COMMIT CREATE ()"))
-  }
-
   test("should reject a periodic commit query followed by LOAD CSV and a union") {
     intercept[SyntaxException](parser.parse("USING PERIODIC COMMIT LOAD CSV  FROM 'file:///tmp/foo.csv' AS line CREATE x UNION MATCH n RETURN n"))
   }

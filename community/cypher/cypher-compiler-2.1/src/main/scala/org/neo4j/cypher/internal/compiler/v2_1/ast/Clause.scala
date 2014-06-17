@@ -79,6 +79,17 @@ case class LoadCSV(withHeaders: Boolean, urlString: Expression, identifier: Iden
   }
 }
 
+case class LoadJSON(urlString: Expression, identifier: Identifier)(val position: InputPosition) extends Clause with SemanticChecking {
+  val name = "LOAD JSON"
+
+  def semanticCheck: SemanticCheck =
+    urlString.semanticCheck(Expression.SemanticContext.Simple) chain
+    urlString.expectType(CTString.covariant) chain
+    typeCheck
+
+  private def typeCheck: SemanticCheck = identifier.declare(CTMap)
+}
+
 case class Start(items: Seq[StartItem], where: Option[Where])(val position: InputPosition) extends Clause {
   val name = "START"
 

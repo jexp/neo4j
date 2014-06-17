@@ -127,6 +127,11 @@ case class LoadCSV(withHeaders: Boolean, url: Expression, identifier: String, fi
   def identifiers: Seq[(String, CypherType)] = Seq(identifierName -> (if (withHeaders) CTMap else CTCollection(CTAny)))
 }
 
+case class LoadJSON(url: Expression, identifier: String) extends StartItem(identifier, Seq.empty)
+  with ReadOnlyStartItem {
+  def identifiers: Seq[(String, CypherType)] = Seq(identifierName -> CTMap)
+}
+
 case class Unwind(expression: Expression, identifier: String) extends StartItem(identifier, Seq(Arguments.IntroducedIdentifier(identifier)))
   with ReadOnlyStartItem {
   def identifiers: Seq[(String, CypherType)] = Seq(identifierName -> CTAny)
