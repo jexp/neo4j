@@ -216,7 +216,7 @@
       <scope>provided</scope>
     </dependency>
   </dependencies>
-
+  
   <build>
     <resources>
       <resource>
@@ -404,7 +404,7 @@
         <executions>
           <execution>
             <id>parse-cypherdoc</id>
-            <phase>compile</phase>
+            <phase>none</phase>
             <goals><goal>java</goal></goals>
             <configuration>
               <mainClass>org.neo4j.doc.cypherdoc.Main</mainClass>
@@ -451,7 +451,12 @@
           <dependency>
             <groupId>org.neo4j.doc</groupId>
             <artifactId>neo4j-graphgist</artifactId>
-            <version>${neo4j.version}</version>
+            <version>${project.version}</version>
+          </dependency>
+          <dependency>
+            <groupId>org.hsqldb</groupId>
+            <artifactId>hsqldb</artifactId>
+            <version>${hsqldb.version}</version>
           </dependency>
         </dependencies>
       </plugin>

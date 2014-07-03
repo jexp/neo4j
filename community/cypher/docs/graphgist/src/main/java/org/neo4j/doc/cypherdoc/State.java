@@ -20,6 +20,7 @@
 package org.neo4j.doc.cypherdoc;
 
 import java.io.File;
+import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,16 +31,22 @@ class State
 {
     final ExecutionEngine engine;
     final GraphDatabaseService database;
+    final Connection sqlDatabase;
     final File parentDirectory;
     final String url;
     final List<String> knownFiles = new ArrayList<>();
 
     Result latestResult;
+    Result testedResult;
+    Result latestSqlResult;
+    Result testedSqlResult;
 
-    State( ExecutionEngine engine, GraphDatabaseService database, File parentDirectory, String url )
+    State( ExecutionEngine engine, GraphDatabaseService database, Connection sqlConnection, File parentDirectory,
+            String url )
     {
         this.engine = engine;
         this.database = database;
+        this.sqlDatabase = sqlConnection;
         this.parentDirectory = parentDirectory;
         this.url = url.endsWith( "/" ) ? url : url + "/";
     }

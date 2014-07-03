@@ -244,11 +244,7 @@ public class AsciidocHelper
 
     public static String createSqlSnippet( final String query )
     {
-        String[] keywordsToBreakOn = new String[]{"select", "from", "where",
-                "skip", "limit", "order by", "asc", "ascending", "desc",
-                "descending", "join", "group by"};
-        String[] unbreakableKeywords = new String[]{};
-        return createLanguageSnippet( query, "sql", keywordsToBreakOn, unbreakableKeywords );
+        return createAsciiDocSnippet( "sql", query );
     }
 
     private static String createLanguageSnippet( String query,

@@ -20,6 +20,9 @@
 package org.neo4j.doc.cypherdoc;
 
 import java.io.File;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -65,11 +68,13 @@ public class BlockTest
             "----" );
 
     @Before
-    public void setup()
+    public void setup() throws SQLException
     {
         database = new TestGraphDatabaseFactory().newImpermanentDatabase();
         engine = new ExecutionEngine( database );
-        state = new State( engine, database, null, "" );
+        Connection conn = DriverManager.getConnection( "jdbc:hsqldb:mem:graphgisttests;shutdown=true" );
+        conn.setAutoCommit( true );
+        state = new State( engine, database, conn, null, "" );
     }
 
     @After
@@ -120,7 +125,7 @@ public class BlockTest
     public void queryWithTestFailure()
     {
         Block block = Block.getBlock( ADAM_QUERY );
-        assertThat( block.type, sameInstance( BlockType.QUERY ) );
+        assertThat( block.type, sameInstance( BlockType.CYPHER ) );
         block.process( state );
         block = Block.getBlock( Arrays.asList( COMMENT_BLOCK, "Nobody", COMMENT_BLOCK ) );
         expectedException.expect( TestFailureException.class );
@@ -218,7 +223,7 @@ public class BlockTest
                 "LOAD CSV FROM \"my_file.csv\" AS line",
                 "RETURN line;",
                 "----" );
-        Block block = new Block( myQuery, BlockType.QUERY );
+        Block block = new Block( myQuery, BlockType.CYPHER );
         ExecutionEngine engine = mock( ExecutionEngine.class );
         ArgumentCaptor<String> fileQuery = ArgumentCaptor.forClass( String.class );
         ArgumentCaptor<String> httpQuery = ArgumentCaptor.forClass( String.class );
@@ -228,7 +233,7 @@ public class BlockTest
 
         when( engine.prettify( httpQuery.capture() ) ).
                 thenReturn( "apa" );
-        state = new State( engine, database, new File( "/dev/null" ), "http://myurl" );
+        state = new State( engine, database, null, new File( "/dev/null" ), "http://myurl" );
         state.knownFiles.add( "my_file.csv" );
 
 

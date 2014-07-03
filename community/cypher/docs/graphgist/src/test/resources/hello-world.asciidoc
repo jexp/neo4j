@@ -37,3 +37,10 @@ Adam
 1 row
 ////
 
+[source,sql]
+----
+VALUES(0)
+----
+
+// sqltable
+

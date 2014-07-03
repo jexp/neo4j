@@ -23,6 +23,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -129,25 +134,59 @@ enum BlockType
             return isACommentWith( block, "table" );
         }
     },
+    SQL_TABLE
+    {
+        @Override
+        String process( Block block, State state )
+        {
+            return AsciidocHelper.createQueryResultSnippet( state.latestSqlResult.text );
+        }
+
+        @Override
+        boolean isA( List<String> block )
+        {
+            return isACommentWith( block, "sqltable" );
+        }
+    },
     TEST
     {
         @Override
         String process( Block block, State state )
         {
+            if ( state.latestResult == null && state.latestSqlResult == null )
+            {
+                throw new IllegalArgumentException( "Nothing to test" );
+            }
             List<String> tests = block.lines.subList( 1, block.lines.size() - 1 );
-            String result = state.latestResult.text;
+            boolean checkCypherResults = state.latestResult != null && state.latestResult != state.testedResult;
+            boolean checkSqlResults = state.latestSqlResult != null && state.latestSqlResult != state.testedSqlResult;
+            String result = checkCypherResults ? state.latestResult.text : null;
+            String sqlResult = checkSqlResults ? state.latestSqlResult.text : null;
             List<String> failures = new ArrayList<>();
+            List<String> sqlFailures = new ArrayList<>();
             for ( String test : tests )
             {
-                if ( !result.contains( test ) )
+                if ( result != null && !result.contains( test ) )
                 {
                     failures.add( test );
+                }
+                if ( sqlResult != null && !sqlResult.contains( test ) )
+                {
+                    sqlFailures.add( test );
                 }
             }
             if ( !failures.isEmpty() )
             {
                 throw new TestFailureException( state.latestResult, failures );
             }
+            if ( !sqlFailures.isEmpty() )
+            {
+                throw new TestFailureException( state.latestSqlResult, sqlFailures );
+            }
+
+            state.testedResult = state.latestResult;
+            state.testedSqlResult = state.latestSqlResult;
+
             return "";
         }
 
@@ -157,70 +196,35 @@ enum BlockType
             return isACommentWith( block, "//" );
         }
     },
-    QUERY
+    CYPHER
     {
         @Override
         boolean isA( List<String> block )
         {
-            String first = block.get( 0 );
-            if ( first.charAt( 0 ) != '[' )
-            {
-                return false;
-            }
-            if ( first.contains( "source" ) && first.contains( "cypher" ) )
-            {
-                return true;
-            }
-            if ( block.size() > 4 && first.startsWith( "[[" ) )
-            {
-                String second = block.get( 1 );
-                if ( second.contains( "source" ) && second.contains( "cypher" ) )
-                {
-                    return true;
-                }
-            }
-            return false;
+            return isCodeBlock( "cypher", block );
         }
 
         @Override
         String process( Block block, State state )
         {
-            List<String> queryLines = new ArrayList<>();
-            boolean queryStarted = false;
-            for ( String line : block.lines )
+            List<String> statements = getCodeBlockContent( block );
+            List<String> prettifiedStatements = new ArrayList<>();
+            String webQuery = null;
+            String fileQuery = null;
+            for ( String query : statements )
             {
-                if ( !queryStarted )
+                webQuery = query;
+                fileQuery = query;
+                for ( String file : state.knownFiles )
                 {
-                    if ( line.startsWith( CODE_BLOCK ) )
-                    {
-                        queryStarted = true;
-                    }
+                    File absolutePath = new File( state.parentDirectory, file );
+                    String fileUrl = absolutePath.toURI().toString();
+                    fileQuery = fileQuery.replace( file, fileUrl );
+                    webQuery = webQuery.replace( file, state.url + file );
                 }
-                else
-                {
-                    if ( line.startsWith( CODE_BLOCK ) )
-                    {
-                        break;
-                    }
-                    else
-                    {
-                        queryLines.add( line );
-                    }
-                }
+                state.latestResult = new Result( fileQuery, state.engine.profile( fileQuery ) );
+                prettifiedStatements.add( state.engine.prettify( webQuery ) );
             }
-            String query = StringUtils.join( queryLines, CypherDoc.EOL );
-            String webQuery = query;
-            String fileQuery = query;
-            for ( String file : state.knownFiles )
-            {
-                File absolutePath = new File( state.parentDirectory, file );
-                String fileUrl = absolutePath.toURI().toString();
-                fileQuery = fileQuery.replace( file, fileUrl );
-                webQuery = webQuery.replace( file, state.url + file );
-            }
-
-            state.latestResult = new Result( fileQuery, state.engine.profile( fileQuery ) );
-            String prettifiedQuery = state.engine.prettify( webQuery );
 
             try ( Transaction tx = state.database.beginTx() )
             {
@@ -229,8 +233,29 @@ enum BlockType
             }
 
 
-            return AsciidocHelper.createCypherSnippetFromPreformattedQuery( prettifiedQuery ) + CypherDoc.EOL +
-                    CypherDoc.EOL;
+            return AsciidocHelper.createCypherSnippetFromPreformattedQuery( StringUtils.join( prettifiedStatements,
+                    CypherDoc.EOL ) ) + CypherDoc.EOL + CypherDoc.EOL;
+        }
+    },
+    SQL
+    {
+        @Override
+        boolean isA( List<String> block )
+        {
+            return isCodeBlock( "sql", block );
+        }
+
+        @Override
+        String process( Block block, State state )
+        {
+            List<String> statements = getCodeBlockContent( block );
+            for ( String query : statements )
+            {
+                String result = executeSql( query, state.sqlDatabase );
+                state.latestSqlResult = new Result( query, result );
+            }
+            String printQuery = StringUtils.join( statements, CypherDoc.EOL );
+            return AsciidocHelper.createSqlSnippet( printQuery ) + CypherDoc.EOL + CypherDoc.EOL;
         }
     },
     GRAPH
@@ -334,6 +359,10 @@ enum BlockType
     };
 
     private static final String CODE_BLOCK = "----";
+    private static final int COLUMN_MAX_WIDTH = 25;
+    private static final String LINE_SEGMENT = new String( new char[COLUMN_MAX_WIDTH] ).replace( '\0', '-' );
+    private static final String SPACE_SEGMENT = new String( new char[COLUMN_MAX_WIDTH] ).replace( '\0', ' ' );
+
 
     abstract boolean isA( List<String> block );
 
@@ -343,5 +372,117 @@ enum BlockType
     {
         String first = block.get( 0 );
         return first.startsWith( "//" + command ) || first.startsWith( "// " + command );
+    }
+
+    private static boolean isCodeBlock( String language, List<String> block )
+    {
+        String first = block.get( 0 );
+        if ( first.charAt( 0 ) != '[' )
+        {
+            return false;
+        }
+        if ( first.contains( "source" ) && first.contains( language ) )
+        {
+            return true;
+        }
+        if ( block.size() > 4 && first.startsWith( "[[" ) )
+        {
+            String second = block.get( 1 );
+            if ( second.contains( "source" ) && second.contains( language ) )
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static List<String> getCodeBlockContent( Block block )
+    {
+        List<String> statements = new ArrayList<>();
+        List<String> queryLines = new ArrayList<>();
+        boolean queryStarted = false;
+        for ( String line : block.lines )
+        {
+            if ( !queryStarted )
+            {
+                if ( line.startsWith( CODE_BLOCK ) )
+                {
+                    queryStarted = true;
+                }
+            }
+            else
+            {
+                if ( line.startsWith( CODE_BLOCK ) )
+                {
+                    break;
+                }
+                else
+                {
+                    queryLines.add( line );
+                    if ( line.endsWith( ";" ) )
+                    {
+                        statements.add( StringUtils.join( queryLines, CypherDoc.EOL ) );
+                        queryLines.clear();
+                    }
+                }
+            }
+        }
+        if ( queryLines.size() > 0 )
+        {
+            statements.add( StringUtils.join( queryLines, CypherDoc.EOL ) );
+        }
+        return statements;
+    }
+
+    private static String executeSql( String sql, Connection sqldb )
+    {
+        StringBuilder builder = new StringBuilder( 512 );
+        try (Statement statement = sqldb.createStatement())
+        {
+            if ( statement.execute( sql ) )
+            {
+                try (ResultSet result = statement.getResultSet())
+                {
+                    ResultSetMetaData meta = result.getMetaData();
+                    int rowCount = 0;
+                    int columnCount = meta.getColumnCount();
+                    String line = new String( new char[columnCount] ).replace( "\0", "+" + LINE_SEGMENT ) + "+\n";
+                    builder.append( line );
+
+                    for ( int i = 1; i <= columnCount; i++ )
+                    {
+                        String output = meta.getColumnLabel( i );
+                        printColumn( builder, output );
+                    }
+                    builder.append( "|\n" ).append( line );
+                    while ( result.next() )
+                    {
+                        rowCount++;
+                        for ( int i = 1; i <= columnCount; i++ )
+                        {
+                            String output = result.getString( i );
+                            printColumn( builder, output );
+                        }
+                        builder.append( "|\n" );
+                    }
+
+                    builder.append( line ).append( rowCount ).append( " rows\n" );
+                }
+            }
+        }
+        catch ( SQLException sqlException )
+        {
+            throw new RuntimeException( sqlException );
+        }
+        return builder.toString();
+    }
+
+    private static void printColumn( StringBuilder builder, String value )
+    {
+        if ( value == null )
+        {
+            value = "<null>";
+        }
+        builder.append( "| " ).append( value ).append( SPACE_SEGMENT.substring( value.length() + 1 ) );
     }
 }

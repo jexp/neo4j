@@ -41,4 +41,11 @@ class Result
         }
         profile = profileText;
     }
+
+    public Result( String query, String text )
+    {
+        this.query = query;
+        this.text = text;
+        this.profile = "";
+    }
 }
