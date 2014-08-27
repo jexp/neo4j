@@ -315,7 +315,9 @@ So far we've returned only nodes, relationships, or paths directly via their ide
 But the +RETURN+ clause can actually return any number of expressions.
 But what are actually expressions in Cypher?
 
-The simplest expressions are literal values like numbers, strings and arrays as +[1,2,3]+, and maps like +{name:"Tom Hanks",born:1964, movies:["Forrest Gump", ...], count:13}+.
+The simplest expressions are literal values like numbers, strings and arrays as +[1,2,3]+, 
+and maps like +{name:"Tom Hanks",born:1964, movies:["Forrest Gump", ...], count:13}+.
+
 You can access individual properties of any node, relationship, or map with a dot-syntax like +n.name+. 
 Individual elements or slices of arrays can be retrieved with subscripts like +names[0]+ or +movies[1..-1]+.
 Each function evaluation like +length(array)+, +toInt("12")+, +substring("2014-07-01",0,4)+, or +coalesce(p.nickname,"n/a")+ is also an expression.
@@ -325,7 +327,7 @@ Predicates that you'd use in +WHERE+ count as boolean expressions.
 Of course simpler expressions can be composed and concatenated to form more complex expressions.
 
 By default the expression itself will be used as label for the column, in many cases you want to alias that with a more understandable name using +expression AS alias+.
-You can later on refer to that column using its alias.
+You can later on refer to that column using its alias name.
 
 [source,cypher]
 ----
@@ -339,7 +341,39 @@ If you're interested in unique results you can use the +DISTINCT+ keyword after 
 
 == Aggregating Information
 
-// especially collect
+In many cases you want to aggregate or group the data that you encounter while traversing patterns in your graph.
+In Cypher aggregation happens in the +RETURN+ clause while computing your final results.
+Many common aggregation functions are supported, e.g. +count+, +sum+, +avg+, +min+, and +max+, but there are several more.
+
+Counting the number of people in your database could be achieved by this:
+
+[source,cypher]
+----
+MATCH (:Person)
+RETURN count(*) as people
+----
+
+//table
+
+Please note that +null+ values are skipped during aggregation.
+For aggregating only unique values use +distinct+, like in +count(distinct role)+.
+
+Aggregation in Cypher just works.
+You specify which result columns you want to aggregate and *Cypher will use all non-aggregated columns as grouping keys*.
+
+Aggregation affects which data is still visible in ordering or later query parts.
+
+To find out, how often an actor and director worked together, you'd run this statement:
+
+[source,cypher]
+----
+MATCH (actor:Person)-[:ACTED_IN]->(movie:Movie)<-[:DIRECTED]-(director:Person)
+RETURN actor,director,count(*) as collaborations
+----
+
+//table
+
+Frequently you want to sort and paginate after aggregating a +count(x)+.
 
 == Ordering and Pagination
 
@@ -351,6 +385,7 @@ You cannot order by things that you can't infer from the information you return.
 This is especially important with aggregation and +DISTINCT+ return values as both remove the visibility of data that is aggregated.
 
 Pagination is a straightforward use of +SKIP {offset} LIMIT {count}+.
+
 A common pattern is to aggregate for a count (score or frequency), order by it and only return the top-n entries.
 
 For instance to find the most prolific actors you could do:
@@ -410,6 +445,7 @@ RETURN p,type(r) as rel,m
 //table
 
 
+<<<<<<< HEAD
 === Chaining statements with WITH
 
 In Cypher it's possible to chain fragments of statements together, much like you would do within a data-flow pipeline.
@@ -491,6 +527,82 @@ RETURN movie, extract(c2 IN filter(c1 IN cast WHERE c1.name =~ "A.*") | c2.roles
 
 //table
 
+=== Chaining statemetns with WITH
+
+If you wanted to filter by an aggregated value you would have to use +HAVING+ in other query languages.
+That's a is a single purpose clause for filtering aggregated information.
+But as we already have +WHERE+ as a filtering clause, why are we not able to use that?
+
+In Cypher it is possible to chain fragments of statements together, much like you would do within a data-flow pipeline.
+Each fragment works on the inputs of the previous one and its results can feed into the next one.
+
+You use the +WITH+ clause to combine the individual parts and declare which data flows from one to the other.
++WITH+ is very much like +RETURN+ only that it doesn't finish a query but prepares the input for the next part.
+You can use the same expressions, aggregations, ordering and pagination as in the +RETURN+ clause.
+
+The only difference is that you _have to_ alias all columns as they would otherwise not be accessible with an identifier.
+Every column that you don't declare in your +WITH+ clause is not available in subsequent query parts.
+
+=== List predicates
+
+When using lists and arrays in comparisions you can use predicates like +value IN list+ or +ANY(x IN list WHERE x = value)+.
+There are list predicates to satisfy conditions for +ALL+, +ANY+, +NONE+ and +SINGLE+ elements.
+
+[source,cypher]
+----
+MATCH path = (:Person)-->(:Movie)<--(:Person)
+WHERE ALL(r in rels(path) WHERE type(r) = 'ACTED_IN')
+AND   ANY(n in nodes(path) WHERE n.name = 'Clint Eastwood')
+RETURN path
+----
+
+//table
+
+=== List processing
+
+Oftentimes you want to process lists to +filter+, aggregate (+reduce+) or transform (+extract+) their values.
+Those transformations can be done within Cypher or in the calling code.
+This kind of list-processing can reduce the amount of data handled and returned, so it might make sense to do it within your statement.
+
+A simple, non-graph example would be:
+
+[source,cypher]
+----
+WITH range(1,10) as numbers
+WITH extract(n in numbers | n*n) as squares
+WITH filter(n in squares WHERE n > 25) as large_squares
+RETURN reduce( a = 0, n in large_squares | a + n ) as sum_large_squares
+----
+
+//table
+
+In a graph-query you can filter or aggregate collected values instead or work on array properties.
+
+[source,cypher]
+----
+MATCH (m:Movie)<-[r:ACTED_IN]-(a:Person)
+WITH m.title as movie, collect({name: a.name, roles: r.roles}) as cast
+RETURN movie, extract(c2 IN filter(c1 IN cast WHERE c1.name =~ "A.*") | c2.roles )
+----
+
+//table
+
+Cypher offers to create and consume more complex data structures out of the box. 
+As already mentioned you can create literal lists (+[1,2,3]+) and maps (+{name: value}+) within your statement.
+
+There is a number of functions to work with lists, from simple ones like +length(list)+ that returns the size of a list to 
+
+[source,cypher]
+----
+MATCH (m:Movie)<-[:ACTED_IN]-(a:Person)
+RETURN m.title as movie, collect(a.name)[0..5] as five_of_cast
+----
+
+//table
+
+You can also access individual elements or slices of a list quickly with +list[1]+ or +list[5..-5]+.
+Other functions to access parts of a list are +head(list)+, +tail(list)+ and +last(list)+.
+
 === UNWIND
 
 Sometimes you have collected information into a list, but want to use each element individually as a row.
@@ -513,8 +625,6 @@ RETURN m.title as movie, collect(a.name) as cast
 
 //table
 
-// maps and collections, how to use them, collection-functions, UNWIND etc.
-
 == Indexes and Constraints
 
 Labels allow you to group nodes, and add indexes or constraints to them.
@@ -530,6 +640,7 @@ You would create an index like this: +CREATE INDEX ON :Movie(title)+
 === Unique Constraints
 
 You can also specify unique constraints that guarantee uniqueness of a certain property on nodes with a specific label.
+
 These constraints are also used by the +MERGE+ clause to make certain that a node only exists once.
 
 A constraint definition would look like this: +CREATE CONSTRAINT ON (p:Person) ASSERT p.name IS UNIQUE+.
@@ -537,12 +648,15 @@ A constraint definition would look like this: +CREATE CONSTRAINT ON (p:Person) A
 == Loading Data
 
 As you've seen you can not only query data expressively but also create data with Cypher statements.
+
 Naturally in most cases you wouldn't want to write or generate huge statements to generate your data but instead use an existing data source that you pass into your statement and which is used to drive the graph generation process.
+
 That process not only includes creating completely new data but also integrating with existing structures and updating your graph.
 
 === Parameters
 
 In general we recommend passing in varying literal values from the outside as named parameters.
+
 This allows Cypher to reuse existing execution plans for the statements.
 
 Of course you can also pass in parameters for data to be imported. 
@@ -568,7 +682,6 @@ FOREACH (role IN movie.cast |
 == Importing Data
 
 //load csv
-//parameters
 
 == Programmatic Use
 
