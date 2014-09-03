@@ -311,14 +311,12 @@ There are also more advanced ways of filtering like collection-predicates which 
 
 == Returning Results
 
-So far we've returned only nodes, relationships, or paths directly via their identifiers. 
+So far we've returned only nodes, relationships, or paths directly via their identifiers.
 But the +RETURN+ clause can actually return any number of expressions.
 But what are actually expressions in Cypher?
 
-The simplest expressions are literal values like numbers, strings and arrays as +[1,2,3]+, 
-and maps like +{name:"Tom Hanks",born:1964, movies:["Forrest Gump", ...], count:13}+.
-
-You can access individual properties of any node, relationship, or map with a dot-syntax like +n.name+. 
+The simplest expressions are literal values like numbers, strings and arrays as +[1,2,3]+, and maps like +{name:"Tom Hanks",born:1964, movies:["Forrest Gump", ...], count:13}+.
+You can access individual properties of any node, relationship, or map with a dot-syntax like +n.name+.
 Individual elements or slices of arrays can be retrieved with subscripts like +names[0]+ or +movies[1..-1]+.
 Each function evaluation like +length(array)+, +toInt("12")+, +substring("2014-07-01",0,4)+, or +coalesce(p.nickname,"n/a")+ is also an expression.
 
@@ -327,7 +325,7 @@ Predicates that you'd use in +WHERE+ count as boolean expressions.
 Of course simpler expressions can be composed and concatenated to form more complex expressions.
 
 By default the expression itself will be used as label for the column, in many cases you want to alias that with a more understandable name using +expression AS alias+.
-You can later on refer to that column using its alias name.
+You can later on refer to that column using its alias.
 
 [source,cypher]
 ----
@@ -355,15 +353,15 @@ RETURN count(*) as people
 
 //table
 
-Please note that +null+ values are skipped during aggregation.
-For aggregating only unique values use +distinct+, like in +count(distinct role)+.
+Please note that +NULL+ values are skipped during aggregation.
+For aggregating only unique values use +DISTINCT+, like in +count(DISTINCT role)+.
 
 Aggregation in Cypher just works.
-You specify which result columns you want to aggregate and *Cypher will use all non-aggregated columns as grouping keys*.
+You specify which result columns you want to aggregate and _Cypher will use all non-aggregated columns as grouping keys_.
 
 Aggregation affects which data is still visible in ordering or later query parts.
 
-To find out, how often an actor and director worked together, you'd run this statement:
+To find out how often an actor and director worked together, you'd run this statement:
 
 [source,cypher]
 ----
@@ -381,7 +379,7 @@ Ordering works like in other query languages, with an +ORDER BY expression [ASC|
 The expression can be any expression discussed before as long as it is computable from the returned information.
 
 So for instance if you return +person.name+ you can still +ORDER BY person.age+ as both are accessible from the +person+ reference.
-You cannot order by things that you can't infer from the information you return. 
+You cannot order by things that you can't infer from the information you return.
 This is especially important with aggregation and +DISTINCT+ return values as both remove the visibility of data that is aggregated.
 
 Pagination is a straightforward use of +SKIP {offset} LIMIT {count}+.
@@ -444,9 +442,7 @@ RETURN p,type(r) as rel,m
 
 //table
 
-
-<<<<<<< HEAD
-=== Chaining statements with WITH
+=== Use WITH to chain statements
 
 In Cypher it's possible to chain fragments of statements together, much like you would do within a data-flow pipeline.
 Each fragment works on the output from the previous one and its results can feed into the next one.
@@ -454,6 +450,9 @@ Each fragment works on the output from the previous one and its results can feed
 You use the +WITH+ clause to combine the individual parts and declare which data flows from one to the other.
 +WITH+ is very much like +RETURN+ with the difference that it doesn't finish a query but prepares the input for the next part.
 You can use the same expressions, aggregations, ordering and pagination as in the +RETURN+ clause.
+
+The only difference is that you _have to_ alias all columns as they would otherwise not be accessible with an identifier.
+Every column that you don't declare in your +WITH+ clause is not available in subsequent query parts.
 
 // Maybe use this in the SQL -> Cypher chapter instead? I here, I think it just disturbs the flow.
 //If you want to filter by an aggregated value you would have to use +HAVING+ in other query languages.
@@ -464,7 +463,7 @@ You can use the same expressions, aggregations, ordering and pagination as in th
 
 == Utilizing data structures
 
-Cypher can create and consume more complex data structures out of the box. 
+Cypher can create and consume more complex data structures out of the box.
 As already mentioned you can create literal lists (+[1,2,3]+) and maps (+{name: value}+) within a statement.
 
 There is a number of functions that work with lists, from simple ones like +length(list)+ that returns the size of a list to 
@@ -484,14 +483,14 @@ Other functions to access parts of a list are +head(list)+, +tail(list)+ and +la
 
 === List predicates
 
-When using lists and arrays in comparisons you can use predicates like +value IN list+ or +ANY(x IN list WHERE x = value)+.
-There are list predicates to satisfy conditions for +ALL+, +ANY+, +NONE+ and +SINGLE+ elements.
+When using lists and arrays in comparisons you can use predicates like +value IN list+ or +any(x IN list WHERE x = value)+.
+There are list predicates to satisfy conditions for +all+, +any+, +none+ and +single+ elements.
 
 [source,cypher]
 ----
 MATCH path = (:Person)-->(:Movie)<--(:Person)
-WHERE ALL(r in rels(path) WHERE type(r) = 'ACTED_IN')
-AND   ANY(n in nodes(path) WHERE n.name = 'Clint Eastwood')
+WHERE all(r in rels(path) WHERE type(r) = 'ACTED_IN')
+AND any(n in nodes(path) WHERE n.name = 'Clint Eastwood')
 RETURN path
 ----
 
@@ -517,66 +516,6 @@ RETURN reduce( a = 0, n in large_squares | a + n ) as sum_large_squares
 
 In a graph-query you can filter or aggregate collected values instead or work on array properties.
 // need to be rephrased somehow
-
-[source,cypher]
-----
-MATCH (m:Movie)<-[r:ACTED_IN]-(a:Person)
-WITH m.title as movie, collect({name: a.name, roles: r.roles}) as cast
-RETURN movie, extract(c2 IN filter(c1 IN cast WHERE c1.name =~ "A.*") | c2.roles )
-----
-
-//table
-
-=== Chaining statemetns with WITH
-
-If you wanted to filter by an aggregated value you would have to use +HAVING+ in other query languages.
-That's a is a single purpose clause for filtering aggregated information.
-But as we already have +WHERE+ as a filtering clause, why are we not able to use that?
-
-In Cypher it is possible to chain fragments of statements together, much like you would do within a data-flow pipeline.
-Each fragment works on the inputs of the previous one and its results can feed into the next one.
-
-You use the +WITH+ clause to combine the individual parts and declare which data flows from one to the other.
-+WITH+ is very much like +RETURN+ only that it doesn't finish a query but prepares the input for the next part.
-You can use the same expressions, aggregations, ordering and pagination as in the +RETURN+ clause.
-
-The only difference is that you _have to_ alias all columns as they would otherwise not be accessible with an identifier.
-Every column that you don't declare in your +WITH+ clause is not available in subsequent query parts.
-
-=== List predicates
-
-When using lists and arrays in comparisions you can use predicates like +value IN list+ or +ANY(x IN list WHERE x = value)+.
-There are list predicates to satisfy conditions for +ALL+, +ANY+, +NONE+ and +SINGLE+ elements.
-
-[source,cypher]
-----
-MATCH path = (:Person)-->(:Movie)<--(:Person)
-WHERE ALL(r in rels(path) WHERE type(r) = 'ACTED_IN')
-AND   ANY(n in nodes(path) WHERE n.name = 'Clint Eastwood')
-RETURN path
-----
-
-//table
-
-=== List processing
-
-Oftentimes you want to process lists to +filter+, aggregate (+reduce+) or transform (+extract+) their values.
-Those transformations can be done within Cypher or in the calling code.
-This kind of list-processing can reduce the amount of data handled and returned, so it might make sense to do it within your statement.
-
-A simple, non-graph example would be:
-
-[source,cypher]
-----
-WITH range(1,10) as numbers
-WITH extract(n in numbers | n*n) as squares
-WITH filter(n in squares WHERE n > 25) as large_squares
-RETURN reduce( a = 0, n in large_squares | a + n ) as sum_large_squares
-----
-
-//table
-
-In a graph-query you can filter or aggregate collected values instead or work on array properties.
 
 [source,cypher]
 ----
@@ -678,8 +617,6 @@ FOREACH (role IN movie.cast |
    MERGE (a)-[:ACTED_IN {roles:role.characters}]->(m)
 )
 ----
-
-== Importing Data
 
 //load csv
 
