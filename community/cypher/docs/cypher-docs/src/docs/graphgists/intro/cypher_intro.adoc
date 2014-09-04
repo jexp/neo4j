@@ -114,12 +114,13 @@ RETURN p
 
 If we want to create more than one element, we can separate them with commas or use multiple +CREATE+ statements.
 
-We can of course also create more complex structures, like an +ACTED_IN+ relationship with information about the character.
+We can of course also create more complex structures, like an +ACTED_IN+ relationship with information about the character, or +DIRECTED+ ones for the director.
 
 [source,cypher]
 ----
-CREATE (p:Person {name:"Tom Hanks", born:1956})-[r:ACTED_IN {roles:["Forrest"]}]->(m:Movie {title:"Forrest Gump",released:1994})
-RETURN p,r,m
+CREATE (a:Person {name:"Tom Hanks", born:1956})-[r:ACTED_IN {roles:["Forrest"]}]->(m:Movie {title:"Forrest Gump",released:1994})
+CREATE (d:Person {name:"Robert Zemeckis", born:1951})-[:DIRECTED]->(m)
+RETURN a,d,r,m
 ----
 
 //graph_result
@@ -606,6 +607,10 @@ In your Cypher statement you can then iterate over those values (e.g. with +UNWI
 For instance to create a movie graph from JSON data structures pulled from an API you could use:
 
 ----
+[{title:"Stardust", released:2007, cast: [{actor:{name:"Robert de Niro",born:1943},characters:["Captain Shakespeare"]},
+                                          {actor:{name:"Michelle Pfeiffer",born:1958},characters:["Lamia"]}]}
+,...
+]
 ----
 
 [source,cypher]
@@ -618,9 +623,89 @@ FOREACH (role IN movie.cast |
 )
 ----
 
-//load csv
+== Importing CSV
+
+Cypher provides an elegant built-in way to import tabular CSV data into more complex graph structures.
+
+The +LOAD CSV+ clause parses a local or remote file into a stream of rows which represent maps (with headers) or lists.
+Then you can use whatever Cypher operations you want to apply to either create nodes or relationships or to merge with existing graph structures.
+
+As CSV files usually represent either node- or relationship-lists, you run multiple passes to create nodes and relationships separately.
+
+[source,cypher]
+----
+LOAD CSV WITH HEADERS FROM "http://docs.neo4j.org/chunked/stable/csv/import/movies.csv" AS line 
+CREATE (m:Movie {id:line.id,title:line.title, released:toInt(line.year)});
+
+LOAD CSV WITH HEADERS FROM "http://docs.neo4j.org/chunked/stable/csv/import/persons.csv" AS line 
+MERGE (a:Person {id:line.id}) ON CREATE SET a.name=line.name;
+
+LOAD CSV WITH HEADERS FROM "http://docs.neo4j.org/chunked/stable/csv/import/roles.csv" AS line 
+MATCH (m:Movie {id:line.movieId})
+MATCH (a:Person {id:line.personId})
+CREATE (a)-[:ACTED_IN {roles:[line.role]}]->(m);
+----
+
+//graph
+
+If your file contains denormalized data, you can either run the same file with multiple passes and simple operations as shown above or you might have to use MERGE to create entities uniquely.
+
+For our use-case we can import the data using a CSV structure like this:
+
+[source,csv]
+----
+title;released;actor;born;characters
+Back to the Future;1985;Michael J. Fox;1961;Marty McFly
+Back to the Future;1985;Christopher Lloyd;1938;Dr. Emmet Brown
+...
+----
+
+[source,cypher]
+----
+LOAD CSV WITH HEADERS FROM "http://server/movie_actor_roles.csv" AS line FIELDTERMINATOR ";"
+MERGE (m:Movie {title:line.title}) ON CREATE SET m.released = toInt(line.released)
+MERGE (a:Person {name:line.actor}) ON CREATE SET a.born = toInt(line.born)
+MERGE (a)-[:ACTED_IN {roles:split(line.characters,",") }]->(m)
+----
+
+//graph
+
+If you import a large amount of data (more than 10000 rows), it is recommended to prefix your +LOAD CSV+ clause with a +PERIODIC COMMIT+ hint, 
+which allows Cypher to regularly commit the import transactions to avoid memory churn for large transaction-states.
 
 == Programmatic Use
+
+The most direct way to use Cypher programmatically is to execute a HTTP-POST operation against the transactional Cypher endpoint.
+With each request you can send a large number of statements with parameters to the server.
+For immediate execution you can use the `/db/data/transaction/commit` endpoint with a JSON payload like this:
+
+----
+curl -i -H accept:application/json -H content-type:application/json -XPOST http://localhost:7474/db/data/transaction/commit \
+  -d '{"statements":[{"statement":"CREATE (p:Person {name:{name},born:{born}}) RETURN p","parameters":{"name":"Keanu Reeves","born":1964}}]}'
+
+# results
+{"results":[{"columns":["p"],"data":[{"row":[{"name":"Keanu Reeves","born":1964}]}]}],"errors":[]}
+----
+
+In the payload you can add as many "statement" objects in the "statements" list.
+
+For larger use-cases that span multiple requests but whose read-write-read-write operations should be executed within the same transactional scope you'd use the
+endpoint `/db/data/transaction` and would get a transaction URL as the `Location`-Header that you can continue to write to and read from.
+At the end you either commit the whole transaction by POSTing to the (also returned) commit URL or by issuing a DELETE request against your transactional endpoint.
+
+
+----
+curl -i -H accept:application/json -H content-type:application/json -XPOST http://localhost:7474/db/data/transaction \
+  -d '{"statements":[{"statement":"CREATE (p:Person {name:{name},born:{born}}) RETURN p","parameters":{"name":"Clint Eastwood","born":1930}}]}'
+
+# results
+HTTP/1.1 201 Created
+Location: http://localhost:7474/db/data/transaction/261
+
+{"commit":"http://localhost:7474/db/data/transaction/261/commit","transaction":{"expires":"Wed, 03 Sep 2014 23:26:51 +0000"},"errors":[],
+ "results":[{"columns":["p"],"data":[{"row":[{"name":"Clint Eastwood","born":1930}]}]}]}
+----
+
 
 
 
