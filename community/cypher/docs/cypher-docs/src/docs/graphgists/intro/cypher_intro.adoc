@@ -6,7 +6,9 @@ It was developed at Neo Technology for creating and querying graph data.
 
 If you want to keep a reference on your side while reading, please see the http://docs.neo4j.org/refcard/{neo4j-version}[Cypher Refcard].
 
-== It's all about Patterns
+== Graphs, Patterns and Cypher
+
+=== It's all about Patterns
 
 Graphs thrive on patterns, each graph is a connected structure which consists of many different patterns.
 
@@ -26,7 +28,7 @@ They are used to describe graph structures you want to create or information you
 // maybe start with that here?
 // it's important to understand that a pattern node can be zero to any number of db nodes when the pattern is used.
 
-== Cypher Concepts
+=== Cypher Concepts
 
 Cypher is a textual, declarative query language, much like SQL for relational databases, but for graphs.
 It doesn't instruct the database to run certain operations but instead describes the things you want to create or find.
@@ -75,14 +77,16 @@ path = (:Person)-[:ACTED_IN]->(:Movie)
 This path variable would contain 2 nodes and the connecting relationship for each such pattern found or created.
 There are a number of functions to access details of a path, including +nodes(path)+, +rels(path)+, and +length(path)+.
 
-== Clauses
+=== Clauses
 
 Cypher statements consist of individual _clauses_ which are their building blocks.
 There are clauses that can create and match patterns in the graph but also filter, project, sort or paginate results or connect/compose partial statements.
 We will use Cypher clauses to compose more complex statements that express what we want to know or create. 
 Neo4j then figures out how to achieve that in an efficient manner.
 
-== Creating Data
+== Patterns in Practice
+
+=== Creating Data
 
 We'll start by looking into the clause(s) that allow us to create data.
 
@@ -131,7 +135,7 @@ The movie graph sample in the Neo4j Browser is one example of a large set of +CR
 In most cases, we want to connect new data to existing structures.
 This requires that we know how to find existing patterns in our graph data, which we will look at next.
 
-== Matching Patterns
+=== Matching Patterns
 
 Matching patterns is a task for the +MATCH+ statement. 
 We pass the same patterns we've used so far to +MATCH+ to describe what we're looking for. 
@@ -182,7 +186,7 @@ Of course this only lists his role as _Forrest_ in _Forrest Gump_ because that's
 
 But now we know enough to connect new nodes to existing ones and can combine +MATCH+ and +CREATE+ to attach structures to the graph.
 
-== Attaching Structures
+=== Attaching Structures
 
 To extend the graph with new information, we first have to match the existing connection points and then attach the newly created nodes with relationships.
 Adding _Cloud Atlas_ as new movie for _Tom Hanks_ could be achieved like this:
@@ -206,7 +210,7 @@ If that's not intended, please move the create statement before the +MATCH+, cha
 
 // not sure about the last sentence above
 
-== Completing Patterns
+=== Completing Patterns
 
 Whenever we get data from external systems or are not sure if certain information already exists in the graph, we want to be able to express a repeatable (idempotent) update operation.
 In Cypher +MERGE+ has this function. 
@@ -265,7 +269,9 @@ RETURN y,m10,m11
 
 Here the two months are not checked against globally but only in the context of the year _2014_.
 
-== Filtering Results
+== Getting the Results You Want
+
+=== Filtering Results
 
 So far we've matched patterns in the graph and always returned all results we found.
 Quite often there are conditions in play for what we want to see.
@@ -311,13 +317,13 @@ Here we find actors, because they sport an +ACTED_IN+ relationship but then skip
 
 There are also more advanced ways of filtering like collection-predicates which we will look at later on.
 
-== Returning Results
+=== Returning Results
 
 So far we've returned only nodes, relationships, or paths directly via their identifiers.
 But the +RETURN+ clause can actually return any number of expressions.
 But what are actually expressions in Cypher?
 
-The simplest expressions are literal values like numbers, strings and arrays as +[1,2,3]+, and maps like +{name:"Tom Hanks",born:1964, movies:["Forrest Gump", ...], count:13}+.
+The simplest expressions are literal values like numbers, strings and arrays as +[1,2,3]+, and maps like +{name:"Tom Hanks", born:1964, movies:["Forrest Gump", ...], count:13}+.
 You can access individual properties of any node, relationship, or map with a dot-syntax like +n.name+.
 Individual elements or slices of arrays can be retrieved with subscripts like +names[0]+ or +movies[1..-1]+.
 Each function evaluation like +length(array)+, +toInt("12")+, +substring("2014-07-01",0,4)+, or +coalesce(p.nickname,"n/a")+ is also an expression.
@@ -339,7 +345,7 @@ RETURN p, p.name AS name, upper(p.name), coalesce(p.nickname,"n/a") AS nickname,
 
 If you're interested in unique results you can use the +DISTINCT+ keyword after +RETURN+ to indicate that.
 
-== Aggregating Information
+=== Aggregating Information
 
 In many cases you want to aggregate or group the data that you encounter while traversing patterns in your graph.
 In Cypher aggregation happens in the +RETURN+ clause while computing your final results.
@@ -375,7 +381,7 @@ RETURN actor,director,count(*) as collaborations
 
 Frequently you want to sort and paginate after aggregating a +count(x)+.
 
-== Ordering and Pagination
+=== Ordering and Pagination
 
 Ordering works like in other query languages, with an +ORDER BY expression [ASC|DESC]+ clause.
 The expression can be any expression discussed before as long as it is computable from the returned information.
@@ -402,7 +408,7 @@ LIMIT 10;
 
 // also that you can order by things you return or which are computable from what you return
 
-== Collecting Aggregation
+=== Collecting Aggregation
 
 The most helpful aggregation function is +collect+, which, as the name says, collects all aggregated values into a _real_ array or list.
 This comes very handy in many situations as you don't loose the detail information while aggregating.
@@ -422,9 +428,9 @@ RETURN m.title as movie, collect(a.name) as cast, count(*) as actors
 
 The lists created by collect can either be used from the client consuming the Cypher results or directly within a statement with any of the collection functions or predicates.
 
-== Building Larger Statements
+== How to Compose Large Statements
 
-=== Combining statements with UNION
+=== Combine statements with UNION
 
 A Cypher statement is usually quite compact.
 Expressing references between nodes as visual patterns makes them easy to understand.
@@ -444,7 +450,7 @@ RETURN p,type(r) as rel,m
 
 //table
 
-=== Use WITH to chain statements
+=== Use WITH to Chain Statements
 
 In Cypher it's possible to chain fragments of statements together, much like you would do within a data-flow pipeline.
 Each fragment works on the output from the previous one and its results can feed into the next one.
@@ -463,7 +469,7 @@ Every column that you don't declare in your +WITH+ clause is not available in su
 
 // example to go here
 
-== Utilizing data structures
+== Utilizing Data Structures
 
 Cypher can create and consume more complex data structures out of the box.
 As already mentioned you can create literal lists (+[1,2,3]+) and maps (+{name: value}+) within a statement.
@@ -483,7 +489,7 @@ RETURN m.title as movie, collect(a.name)[0..5] as five_of_cast
 You can also access individual elements or slices of a list quickly with +list[1]+ or +list[5..-5]+.
 Other functions to access parts of a list are +head(list)+, +tail(list)+ and +last(list)+.
 
-=== List predicates
+=== List Predicates
 
 When using lists and arrays in comparisons you can use predicates like +value IN list+ or +any(x IN list WHERE x = value)+.
 There are list predicates to satisfy conditions for +all+, +any+, +none+ and +single+ elements.
@@ -498,7 +504,7 @@ RETURN path
 
 //table
 
-=== List processing
+=== List Processing
 
 Oftentimes you want to process lists to +filter+, aggregate (+reduce+) or transform (+extract+) their values.
 Those transformations can be done within Cypher or in the calling code.
@@ -523,7 +529,7 @@ In a graph-query you can filter or aggregate collected values instead or work on
 ----
 MATCH (m:Movie)<-[r:ACTED_IN]-(a:Person)
 WITH m.title as movie, collect({name: a.name, roles: r.roles}) as cast
-RETURN movie, extract(c2 IN filter(c1 IN cast WHERE c1.name =~ "A.*") | c2.roles )
+RETURN movie, extract(c2 IN filter(c1 IN cast WHERE c1.name =~ "T.*") | c2.roles )
 ----
 
 //table
@@ -544,7 +550,7 @@ RETURN m.title as movie, collect(a.name)[0..5] as five_of_cast
 You can also access individual elements or slices of a list quickly with +list[1]+ or +list[5..-5]+.
 Other functions to access parts of a list are +head(list)+, +tail(list)+ and +last(list)+.
 
-=== UNWIND
+=== Unwind Lists
 
 Sometimes you have collected information into a list, but want to use each element individually as a row.
 For instance, you might want to further match patterns in the graph.
@@ -624,7 +630,7 @@ FOREACH (role IN movie.cast |
 )
 ----
 
-== Importing CSV
+=== Importing CSV
 
 Cypher provides an elegant built-in way to import tabular CSV data into graph structures.
 
