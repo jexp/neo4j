@@ -7,7 +7,7 @@ We'll start by looking into the clause(s) that allow us to create data.
 To add data, we just use the patterns we already know. 
 By providing patterns we can specify what graph structures, labels and attributes we would like to make part of our graph. 
 
-Obviously the simplest clause is called +CREATE+. 
+Obviously the simplest clause is called `CREATE`. 
 It will just go ahead and directly create the patterns that you specify.
 
 For the patterns we've looked at so far this could look like this:
@@ -21,7 +21,7 @@ CREATE (:Movie {title:"The Matrix",released:1997})
 
 If we execute this statement, Cypher returns the number of changes, in this case adding 1 node, 1 label and 2 properties.
 
-If case we also want to return the created data we can add a +RETURN+ clause, which refers to the identifier we've assigned to our pattern elements.
+If case we also want to return the created data we can add a `RETURN` clause, which refers to the identifier we've assigned to our pattern elements.
 
 [source,cypher]
 ----
@@ -31,9 +31,9 @@ RETURN p
 
 //graph_result
 
-If we want to create more than one element, we can separate them with commas or use multiple +CREATE+ statements.
+If we want to create more than one element, we can separate them with commas or use multiple `CREATE` statements.
 
-We can of course also create more complex structures, like an +ACTED_IN+ relationship with information about the character, or +DIRECTED+ ones for the director.
+We can of course also create more complex structures, like an `ACTED_IN` relationship with information about the character, or `DIRECTED` ones for the director.
 
 [source,cypher]
 ----
@@ -44,20 +44,20 @@ RETURN a,d,r,m
 
 //graph_result
 
-The movie graph sample in the Neo4j Browser is one example of a large set of +CREATE+ statements that create a complete graph.
+The movie graph sample in the Neo4j Browser is one example of a large set of `CREATE` statements that create a complete graph.
 
 In most cases, we want to connect new data to existing structures.
 This requires that we know how to find existing patterns in our graph data, which we will look at next.
 
 == Matching Patterns
 
-Matching patterns is a task for the +MATCH+ statement. 
-We pass the same patterns we've used so far to +MATCH+ to describe what we're looking for. 
+Matching patterns is a task for the `MATCH` statement. 
+We pass the same patterns we've used so far to `MATCH` to describe what we're looking for. 
 It is a similar to _by example_ queries, only that our examples also include the structures.
 
-NOTE: A +MATCH+ statement will search for the patterns we specify and return *one row per successful pattern match*.
+NOTE: A `MATCH` statement will search for the patterns we specify and return *one row per successful pattern match*.
 
-To find the data we've created so far, we can start looking for all nodes labeled with the +Movie+ label.
+To find the data we've created so far, we can start looking for all nodes labeled with the `Movie` label.
 
 [source,cypher]
 ----
@@ -94,11 +94,11 @@ RETURN m.title, r.roles
 // table
 
 In this case we only returned the properties of the nodes and relationships that we were interested in. 
-You can access them everywhere via a dot notation +identifer.property+. 
+You can access them everywhere via a dot notation `identifer.property`. 
 
 Of course this only lists his role as _Forrest_ in _Forrest Gump_ because that's all data that we've added.
 
-But now we know enough to connect new nodes to existing ones and can combine +MATCH+ and +CREATE+ to attach structures to the graph.
+But now we know enough to connect new nodes to existing ones and can combine `MATCH` and `CREATE` to attach structures to the graph.
 
 == Attaching Structures
 
@@ -114,24 +114,24 @@ RETURN p,r,m
 ----
 
 It is important to remember that we can assign identifiers to both nodes and relationships and use them later on, no matter if they were created or matched.
-It is possible to attach both node and relationship in a single +CREATE+ clause.
+It is possible to attach both node and relationship in a single `CREATE` clause.
 For readability it helps to split them up though.
 
-A tricky aspect of the combination of +MATCH+ and +CREATE+ is that we get one row per matched pattern.
+A tricky aspect of the combination of `MATCH` and `CREATE` is that we get one row per matched pattern.
 This causes subsequent create statements to be executed for each row.
 In many cases that is what you want.
-If that's not intended, please move the create statement before the +MATCH+, change the cardinality of the query with means discussed later or use the _get or create_ semantics of the next clause: +MERGE+.
+If that's not intended, please move the create statement before the `MATCH`, change the cardinality of the query with means discussed later or use the _get or create_ semantics of the next clause: `MERGE`.
 
 // not sure about the last sentence above
 
 == Completing Patterns
 
 Whenever we get data from external systems or are not sure if certain information already exists in the graph, we want to be able to express a repeatable (idempotent) update operation.
-In Cypher +MERGE+ has this function. 
-It acts like a combination of +MATCH+ _or_ +CREATE+, that checks for the existence of data first before creating it.
-Again: you specify a pattern with +MERGE+ to be found or created. 
-Usually, as with +MATCH+ you only want to include the key property to look for in your core pattern.
-+MERGE+ allows you to provide additional properties you want to set +ON CREATE+.
+In Cypher `MERGE` has this function. 
+It acts like a combination of `MATCH` _or_ `CREATE`, that checks for the existence of data first before creating it.
+Again: you specify a pattern with `MERGE` to be found or created. 
+Usually, as with `MATCH` you only want to include the key property to look for in your core pattern.
+`MERGE` allows you to provide additional properties you want to set `ON CREATE`.
 
 If we wouldn't know if our graph already contained _Cloud Atlas_ we could merge it in again.
 
@@ -143,14 +143,14 @@ RETURN m
 
 //table
 
-In any case we get a result, either the data (potentially more than one row) that was already in the graph or a single, newly created +Movie+ node.
+In any case we get a result, either the data (potentially more than one row) that was already in the graph or a single, newly created `Movie` node.
 
-So foremost +MERGE+ makes sure that you can't create duplicate information or structures, but it comes with the cost of needing to check first for existing matches.
+So foremost `MERGE` makes sure that you can't create duplicate information or structures, but it comes with the cost of needing to check first for existing matches.
 Especially on large graphs it can be costly to scan a large set of labeled nodes for a certain property.
 You can alleviate some of that by creating supporting indexes or constraints, which we'll discuss later.
-But it's not for free, so whenever you're sure to not create duplicate data use +CREATE+ over +MERGE+
+But it's not for free, so whenever you're sure to not create duplicate data use `CREATE` over `MERGE`
 
-+MERGE+ can also assert that a relationship is only created once. 
+`MERGE` can also assert that a relationship is only created once. 
 For that to work you *have to pass in* both nodes from a previous pattern match.
 
 [source,cypher]
@@ -165,9 +165,9 @@ RETURN p,r,m
 //table
 
 In case the direction of your relationship is arbitrary, you can leave off the arrow tip.
-+MERGE+ will then check for the relationship in either direction, and if not found create a new, directed relationship.
+`MERGE` will then check for the relationship in either direction, and if not found create a new, directed relationship.
 
-If you choose to pass in only one node externally, +MERGE+ offers an interesting functionality.
+If you choose to pass in only one node externally, `MERGE` offers an interesting functionality.
 It will then only match within the direct neighborhood of the provided node for the given pattern, and, if not found create it.
 This can come in very handy for creating tree structures.
 

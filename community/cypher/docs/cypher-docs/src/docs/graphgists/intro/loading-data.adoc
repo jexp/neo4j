@@ -15,7 +15,7 @@ This allows Cypher to reuse existing execution plans for the statements.
 Of course you can also pass in parameters for data to be imported. 
 Those can be scalar values, maps, lists or even lists of maps.
 
-In your Cypher statement you can then iterate over those values (e.g. with +UNWIND+) to create your graph structures.
+In your Cypher statement you can then iterate over those values (e.g. with `UNWIND`) to create your graph structures.
 
 For instance to create a movie graph from JSON data structures pulled from an API you could use:
 
@@ -26,7 +26,7 @@ For instance to create a movie graph from JSON data structures pulled from an AP
 ]
 ----
 
-[source,cypher]
+[source]
 ----
 UNWIND {movies} as movie
 MERGE (m:Movie {title:movie.title}) ON CREATE SET m.released = movie.released
@@ -40,19 +40,17 @@ FOREACH (role IN movie.cast |
 
 Cypher provides an elegant built-in way to import tabular CSV data into graph structures.
 
-The +LOAD CSV+ clause parses a local or remote file into a stream of rows which represent maps (with headers) or lists.
+The `LOAD CSV` clause parses a local or remote file into a stream of rows which represent maps (with headers) or lists.
 Then you can use whatever Cypher operations you want to apply to either create nodes or relationships or to merge with existing graph structures.
 
 As CSV files usually represent either node- or relationship-lists, you run multiple passes to create nodes and relationships separately.
 
-[source,cypher]
+[source]
 ----
 LOAD CSV WITH HEADERS FROM "http://docs.neo4j.org/chunked/stable/csv/import/movies.csv" AS line 
 CREATE (m:Movie {id:line.id,title:line.title, released:toInt(line.year)});
-
 LOAD CSV WITH HEADERS FROM "http://docs.neo4j.org/chunked/stable/csv/import/persons.csv" AS line 
 MERGE (a:Person {id:line.id}) ON CREATE SET a.name=line.name;
-
 LOAD CSV WITH HEADERS FROM "http://docs.neo4j.org/chunked/stable/csv/import/roles.csv" AS line 
 MATCH (m:Movie {id:line.movieId})
 MATCH (a:Person {id:line.personId})
@@ -72,7 +70,7 @@ Back to the Future;1985;Michael J. Fox;1961;Marty McFly
 Back to the Future;1985;Christopher Lloyd;1938;Dr. Emmet Brown
 ----
 
-[source,cypher]
+[source]
 ----
 LOAD CSV WITH HEADERS FROM "http://server/movie_actor_roles.csv" AS line FIELDTERMINATOR ";"
 MERGE (m:Movie {title:line.title}) ON CREATE SET m.released = toInt(line.released)
@@ -82,7 +80,7 @@ MERGE (a)-[:ACTED_IN {roles:split(line.characters,",") }]->(m)
 
 //graph
 
-If you import a large amount of data (more than 10000 rows), it is recommended to prefix your +LOAD CSV+ clause with a +PERIODIC COMMIT+ hint.
+If you import a large amount of data (more than 10000 rows), it is recommended to prefix your `LOAD CSV` clause with a `PERIODIC COMMIT` hint.
 This allows Neo4j to regularly commit the import transactions to avoid memory churn for large transaction-states.
 
 

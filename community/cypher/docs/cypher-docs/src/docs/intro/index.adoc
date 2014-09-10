@@ -12,33 +12,33 @@ The guide will help you:
 
 If you want to keep a reference on your side while reading, please see the http://docs.neo4j.org/refcard/{neo4j-version}[Cypher Refcard].
 
-:leveloffset: 1
+:leveloffset: 2
 
 include::graphs-patterns-cypher.adoc[]
 
-:leveloffset: 1
+:leveloffset: 2
 
-include::patterns-in-practice.adoc[]
+include::../parsed-graphgists/intro/patterns-in-practice.adoc[]
 
-:leveloffset: 1
+:leveloffset: 2
 
-include::getting-the-results-you-want.adoc[]
+include::../parsed-graphgists/intro/getting-the-results-you-want.adoc[]
 
-:leveloffset: 1
+:leveloffset: 2
 
-include::compose-statements.adoc[]
+include::../parsed-graphgists/intro/compose-statements.adoc[]
 
-:leveloffset: 1
+:leveloffset: 2
 
-include::data-structures.adoc[]
+include::../parsed-graphgists/intro/data-structures.adoc[]
 
-:leveloffset: 1
+:leveloffset: 2
 
 include::indexes-and-constraints.adoc[]
 
-:leveloffset: 1
+:leveloffset: 2
 
-include::loading-data.adoc[]
+include::../parsed-graphgists/intro/loading-data.adoc[]
 
 :leveloffset: 1
 

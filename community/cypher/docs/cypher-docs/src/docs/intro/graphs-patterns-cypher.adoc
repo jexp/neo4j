@@ -16,10 +16,6 @@ We are well versed in detecting patterns not only in our daily lives but also in
 Cypher is all about patterns.
 They are used to describe graph structures you want to create or information you want to find.
 
-// we need to describe the distinction between pattern nodes vs database nodes, same with rels.
-// maybe start with that here?
-// it's important to understand that a pattern node can be zero to any number of db nodes when the pattern is used.
-
 == Cypher Concepts
 
 Cypher is a textual, declarative query language, much like SQL for relational databases, but for graphs.
@@ -44,6 +40,7 @@ The freely chosen properties of that node, +title+ and +released+ are represente
 They are listed as keys/value pairs within curly braces.
 
 // +--+ would be even simpler, right?
+
 To ``draw'' the arrow of your pattern, you would just use the appropriate symbols, which, in the simplest case is +-->+.
 If you have more information about that relationship, like a relationship type or properties on it, you can include them in square brackets.
 
@@ -58,6 +55,15 @@ Like with node labels, the relationship-type +ACTED_IN+ is added as a symbol, pr
 As with nodes you can use identifiers, in this case +role+, to refer to the relationship in later parts of the statement.
 You use the same notation for relationship properties as for node properties.
 In this case we went with an array property.
+
+[NOTE]
+.Pattern Nodes vs. Database Nodes
+====
+Note the difference between pattern nodes and database nodes.
+A pattern node is used to _describe_ a node that can exist zero, one or any number of times in the database.
+
+The same goes for relationships.
+====
 
 You can also assign the whole pattern to an identifier which then allows you to access each of the matched paths in the graph.
 This way you can for instance inspect them or use them in other expressions.
@@ -75,4 +81,6 @@ Cypher statements consist of individual _clauses_ which are their building block
 There are clauses that can create and match patterns in the graph but also filter, project, sort or paginate results or connect/compose partial statements.
 We will use Cypher clauses to compose more complex statements that express what we want to know or create. 
 Neo4j then figures out how to achieve that in an efficient manner.
+
+// maybe add an overview of the clauses here? /AN
 

@@ -1,9 +1,9 @@
 = Utilizing Data Structures
 
 Cypher can create and consume more complex data structures out of the box.
-As already mentioned you can create literal lists (+[1,2,3]+) and maps (+{name: value}+) within a statement.
+As already mentioned you can create literal lists (`[1,2,3]`) and maps (`{name: value}`) within a statement.
 
-There is a number of functions that work with lists, from simple ones like +length(list)+ that returns the size of a list to 
+There is a number of functions that work with lists, from simple ones like `length(list)` that returns the size of a list to 
 
 // missing content here
 
@@ -15,13 +15,13 @@ RETURN m.title as movie, collect(a.name)[0..5] as five_of_cast
 
 //table
 
-You can also access individual elements or slices of a list quickly with +list[1]+ or +list[5..-5]+.
-Other functions to access parts of a list are +head(list)+, +tail(list)+ and +last(list)+.
+You can also access individual elements or slices of a list quickly with `list[1]` or `list[5..-5]`.
+Other functions to access parts of a list are `head(list)`, `tail(list)` and `last(list)`.
 
 == List Predicates
 
-When using lists and arrays in comparisons you can use predicates like +value IN list+ or +any(x IN list WHERE x = value)+.
-There are list predicates to satisfy conditions for +all+, +any+, +none+ and +single+ elements.
+When using lists and arrays in comparisons you can use predicates like `value IN list` or `any(x IN list WHERE x = value)`.
+There are list predicates to satisfy conditions for `all`, `any`, `none` and `single` elements.
 
 [source,cypher]
 ----
@@ -35,7 +35,7 @@ RETURN path
 
 == List Processing
 
-Oftentimes you want to process lists to +filter+, aggregate (+reduce+) or transform (+extract+) their values.
+Oftentimes you want to process lists to `filter`, aggregate (`reduce`) or transform (`extract`) their values.
 Those transformations can be done within Cypher or in the calling code.
 This kind of list-processing can reduce the amount of data handled and returned, so it might make sense to do it within the Cypher statement.
 
@@ -64,9 +64,9 @@ RETURN movie, extract(c2 IN filter(c1 IN cast WHERE c1.name =~ "T.*") | c2.roles
 //table
 
 Cypher offers to create and consume more complex data structures out of the box. 
-As already mentioned you can create literal lists (+[1,2,3]+) and maps (+{name: value}+) within your statement.
+As already mentioned you can create literal lists (`[1,2,3]`) and maps (`{name: value}`) within your statement.
 
-There is a number of functions to work with lists, from simple ones like +length(list)+ that returns the size of a list to 
+There is a number of functions to work with lists, from simple ones like `length(list)` that returns the size of a list to 
 
 [source,cypher]
 ----
@@ -76,15 +76,15 @@ RETURN m.title as movie, collect(a.name)[0..5] as five_of_cast
 
 //table
 
-You can also access individual elements or slices of a list quickly with +list[1]+ or +list[5..-5]+.
-Other functions to access parts of a list are +head(list)+, +tail(list)+ and +last(list)+.
+You can also access individual elements or slices of a list quickly with `list[1]` or `list[5..-5]`.
+Other functions to access parts of a list are `head(list)`, `tail(list)` and `last(list)`.
 
 == Unwind Lists
 
 Sometimes you have collected information into a list, but want to use each element individually as a row.
 For instance, you might want to further match patterns in the graph.
 Or you passed in a collection of values but now want to create or match a node or relationship for each element.
-Then you can use the +UNWIND+ clause to unroll a list into a sequence of rows again.
+Then you can use the `UNWIND` clause to unroll a list into a sequence of rows again.
 
 For instance, a query to find the top 5-co-actors and then follow their movies and again list the cast for each of those movies:
 
