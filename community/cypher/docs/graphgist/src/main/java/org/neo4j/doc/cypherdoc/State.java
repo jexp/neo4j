@@ -22,7 +22,9 @@ package org.neo4j.doc.cypherdoc;
 import java.io.File;
 import java.sql.Connection;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.neo4j.cypher.javacompat.ExecutionEngine;
 import org.neo4j.graphdb.GraphDatabaseService;
@@ -35,6 +37,7 @@ class State
     final File parentDirectory;
     final String url;
     final List<String> knownFiles = new ArrayList<>();
+    final Map<String, Object> parameters = new HashMap<>();
 
     Result latestResult;
     Result testedResult;

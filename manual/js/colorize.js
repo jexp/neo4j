@@ -26,6 +26,8 @@ CodeMirror.colorize = (function() {
         mode = "text/x-sql";
       } else if (mode === "bash") {
         mode = "text/x-sh";
+      } else if (mode === "json") {
+        mode = "application/json";
       }
 
       var text = [];

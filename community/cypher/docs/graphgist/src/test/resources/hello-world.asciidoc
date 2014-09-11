@@ -25,10 +25,17 @@ Properties set: 1
 Let's find the node we created:
 
 // output
+[source,json]
+----
+{
+  "name": "Adam"
+}
+----
+
 [source,cypher]
 ----
 MATCH (person:Person)
-WHERE person.name = "Adam"
+WHERE person.name = {name}
 RETURN person;
 ----
 

@@ -19,12 +19,24 @@
  */
 package org.neo4j.doc.cypherdoc;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.endsWith;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.sameInstance;
+import static org.hamcrest.Matchers.startsWith;
+import static org.junit.Assume.assumeFalse;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.junit.After;
@@ -33,22 +45,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Matchers;
 import org.neo4j.cypher.javacompat.ExecutionEngine;
 import org.neo4j.cypher.javacompat.ExtendedExecutionResult;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.test.TestGraphDatabaseFactory;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.endsWith;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.sameInstance;
-import static org.hamcrest.Matchers.startsWith;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.junit.Assume.assumeFalse;
 
 public class BlockTest
 {
@@ -65,6 +67,21 @@ public class BlockTest
             "----",
             "CREATE (n:Person {name:\"Ad\" + \"am\"})",
             "RETURN n;",
+            "----" );
+    private static final List<String> NOEXEC_QUERY = Arrays.asList(
+            "[source, cypher, noexec=true]",
+            "----",
+            "CREATE RETURN n;",
+            "----" );
+    private static final List<String> PARAMS = Arrays.asList(
+            "[source, json]",
+            "----",
+            "{\"name\": \"Adam\"}",
+            "----" );
+    private static final List<String> ADAM_PARAMS_QUERY = Arrays.asList(
+            "[source, cypher]",
+            "----",
+            "RETURN {name} = 'Adam';",
             "----" );
 
     @Before
@@ -131,6 +148,40 @@ public class BlockTest
         expectedException.expect( TestFailureException.class );
         expectedException.expectMessage( containsString( "Query result doesn't contain the string" ) );
         block.process( state );
+    }
+
+    @Test
+    public void qurey_with_noexec()
+    {
+        Block block = Block.getBlock( NOEXEC_QUERY );
+        String result = block.process( state );
+        assertThat( result, containsString( "CREATE RETURN" ) );
+    }
+
+    @Test
+    public void query_with_parameters()
+    {
+        // given
+        Block paramsBlock = Block.getBlock( PARAMS );
+
+        // when
+        String paramsResult = paramsBlock.process( state );
+
+        // then
+        assertThat( paramsResult, allOf( containsString( "source,json" ), containsString( "name" ), containsString( "Adam" ) ) );
+        assertThat( (String) state.parameters.get( "name" ), equalTo( "Adam" ) );
+        assertThat( state.parameters.size(), equalTo( 1 ) );
+
+        // given
+        Block queryBlock = Block.getBlock( ADAM_PARAMS_QUERY );
+
+        // when
+        queryBlock.process( state );
+        String tableResult = Block.getBlock( Arrays.asList( "//table" ) ).process( state );
+
+        // then
+        assertThat( tableResult, containsString( "true" ) );
+        assertThat( state.parameters.size(), equalTo( 0 ) );
     }
 
     @Test
@@ -228,11 +279,12 @@ public class BlockTest
         ArgumentCaptor<String> fileQuery = ArgumentCaptor.forClass( String.class );
         ArgumentCaptor<String> httpQuery = ArgumentCaptor.forClass( String.class );
 
-        when( engine.profile( fileQuery.capture() ) ).
+        when( engine.profile( fileQuery.capture(), Matchers.eq( Collections.<String, Object>emptyMap() ) ) ).
                 thenReturn( mock( ExtendedExecutionResult.class ) );
 
         when( engine.prettify( httpQuery.capture() ) ).
                 thenReturn( "apa" );
+
         state = new State( engine, database, null, new File( "/dev/null" ), "http://myurl" );
         state.knownFiles.add( "my_file.csv" );
 

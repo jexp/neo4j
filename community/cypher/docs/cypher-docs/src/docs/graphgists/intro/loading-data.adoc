@@ -1,5 +1,9 @@
 = Loading Data
 
+//file:movies.csv
+//file:roles.csv
+//file:persons.csv
+
 As you've seen you can not only query data expressively but also create data with Cypher statements.
 
 Naturally in most cases you wouldn't want to write or generate huge statements to generate your data but instead use an existing data source that you pass into your statement and which is used to drive the graph generation process.
@@ -9,7 +13,6 @@ That process not only includes creating completely new data but also integrating
 == Parameters
 
 In general we recommend passing in varying literal values from the outside as named parameters.
-
 This allows Cypher to reuse existing execution plans for the statements.
 
 Of course you can also pass in parameters for data to be imported. 
@@ -19,14 +22,16 @@ In your Cypher statement you can then iterate over those values (e.g. with `UNWI
 
 For instance to create a movie graph from JSON data structures pulled from an API you could use:
 
+[source,json]
 ----
-[{title:"Stardust", released:2007, cast: [{actor:{name:"Robert de Niro",born:1943},characters:["Captain Shakespeare"]},
-                                          {actor:{name:"Michelle Pfeiffer",born:1958},characters:["Lamia"]}]}
-,...
+{
+ "movies": [{"title":"Stardust", "released":2007, "cast": [{"actor":{"name":"Robert de Niro", "born":1943}, "characters":["Captain Shakespeare"]},
+                                          {"actor":{"name":"Michelle Pfeiffer","born":1958},"characters":["Lamia"]}]}
 ]
+}
 ----
 
-[source]
+[source,cypher,noexec=true]
 ----
 UNWIND {movies} as movie
 MERGE (m:Movie {title:movie.title}) ON CREATE SET m.released = movie.released

@@ -28,6 +28,7 @@ It uses ASCII-art to visualize the typical circles for nodes with parentheses su
 
 To describe a node for a  "Movie" entity with a "title" and a "released"-year we would use a textual pattern like this:
 
+[source,cypher]
 ----
 (matrix:Movie {title:"The Matrix", released:1997})
 ----
@@ -47,6 +48,7 @@ If you have more information about that relationship, like a relationship type o
 For the movies domain, this could be the _ACTED_IN_ relationship. 
 So a basic fact or pattern in this domain would be:
 
+[source,cypher]
 ----
 (keanu:Person:Actor {name:"Keanu Reeves"}) -[role:ACTED_IN {roles : ["Neo"]}]-> (matrix:Movie {title:"The Matrix"})
 ----
@@ -68,6 +70,7 @@ The same goes for relationships.
 You can also assign the whole pattern to an identifier which then allows you to access each of the matched paths in the graph.
 This way you can for instance inspect them or use them in other expressions.
 
+[source,cypher]
 ----
 path = (:Person)-[:ACTED_IN]->(:Movie)
 ----

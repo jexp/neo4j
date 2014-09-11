@@ -54,7 +54,7 @@ public class CypherDocTest
         }
         assertThat( types, equalTo( Arrays.asList( BlockType.TITLE, BlockType.TEXT, BlockType.HIDE,
                 BlockType.SETUP, BlockType.CYPHER, BlockType.TEST, BlockType.TABLE, BlockType.GRAPH, BlockType.TEXT,
-                BlockType.OUTPUT, BlockType.CYPHER, BlockType.TEST, BlockType.SQL, BlockType.SQL_TABLE) ) );
+                BlockType.OUTPUT, BlockType.PARAMETERS, BlockType.CYPHER, BlockType.TEST, BlockType.SQL, BlockType.SQL_TABLE) ) );
     }
 
     @Test

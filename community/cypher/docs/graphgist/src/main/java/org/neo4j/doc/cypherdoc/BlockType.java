@@ -29,10 +29,13 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.StringUtils;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.map.ObjectWriter;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.visualization.asciidoc.AsciidocHelper;
 import org.neo4j.visualization.graphviz.AsciiDocSimpleStyle;
@@ -196,6 +199,41 @@ enum BlockType
             return isACommentWith( block, "//" );
         }
     },
+    PARAMETERS
+    {
+        @Override
+        boolean isA( List<String> block )
+        {
+            return isCodeBlock( "json", block );
+        }
+
+        @Override
+        String process( Block block, State state )
+        {
+            String json = getRawCodeBlockContent( block );
+            try
+            {
+                state.parameters.clear();
+                state.parameters.putAll( JSON_MAPPER.readValue( json, HashMap.class ) );
+            }
+            catch ( IOException e )
+            {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+            String prettifiedJson = null;
+            try
+            {
+                prettifiedJson = JSON_WRITER.writeValueAsString( state.parameters );
+            }
+            catch ( IOException e )
+            {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+            return "\n[source,json]\n----\n" + ( prettifiedJson == null ? json : prettifiedJson ) + "\n----\n\n";
+        }
+    },
     CYPHER
     {
         @Override
@@ -207,7 +245,8 @@ enum BlockType
         @Override
         String process( Block block, State state )
         {
-            List<String> statements = getCodeBlockContent( block );
+            boolean exec = !block.lines.get( 0 ).contains( "noexec" );
+            List<String> statements = getQueriesBlockContent( block );
             List<String> prettifiedStatements = new ArrayList<>();
             String webQuery = null;
             String fileQuery = null;
@@ -222,17 +261,23 @@ enum BlockType
                     fileQuery = fileQuery.replace( file, fileUrl );
                     webQuery = webQuery.replace( file, state.url + file );
                 }
-                state.latestResult = new Result( fileQuery, state.engine.profile( fileQuery ) );
-                prettifiedStatements.add( state.engine.prettify( webQuery ) );
+                if ( exec )
+                {
+                    state.latestResult = new Result( fileQuery, state.engine.profile( fileQuery, state.parameters ) );
+                    prettifiedStatements.add( state.engine.prettify( webQuery ) );
+                    try (Transaction tx = state.database.beginTx())
+                    {
+                        state.database.schema().awaitIndexesOnline( 2000, TimeUnit.MILLISECONDS );
+                        tx.success();
+                    }
+                }
+                else
+                {
+                    prettifiedStatements.add( webQuery );
+                }
             }
 
-            try ( Transaction tx = state.database.beginTx() )
-            {
-                state.database.schema().awaitIndexesOnline( 2000, TimeUnit.MILLISECONDS );
-                tx.success();
-            }
-
-
+            state.parameters.clear();
             return AsciidocHelper.createCypherSnippetFromPreformattedQuery( StringUtils.join( prettifiedStatements,
                     CypherDoc.EOL ) ) + CypherDoc.EOL + CypherDoc.EOL;
         }
@@ -248,7 +293,7 @@ enum BlockType
         @Override
         String process( Block block, State state )
         {
-            List<String> statements = getCodeBlockContent( block );
+            List<String> statements = getQueriesBlockContent( block );
             for ( String query : statements )
             {
                 String result = executeSql( query, state.sqlDatabase );
@@ -362,7 +407,8 @@ enum BlockType
     private static final int COLUMN_MAX_WIDTH = 25;
     private static final String LINE_SEGMENT = new String( new char[COLUMN_MAX_WIDTH] ).replace( '\0', '-' );
     private static final String SPACE_SEGMENT = new String( new char[COLUMN_MAX_WIDTH] ).replace( '\0', ' ' );
-
+    private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
+    private static final ObjectWriter JSON_WRITER = JSON_MAPPER.writerWithDefaultPrettyPrinter();
 
     abstract boolean isA( List<String> block );
 
@@ -396,7 +442,7 @@ enum BlockType
         return false;
     }
 
-    private static List<String> getCodeBlockContent( Block block )
+    private static List<String> getQueriesBlockContent( Block block )
     {
         List<String> statements = new ArrayList<>();
         List<String> queryLines = new ArrayList<>();
@@ -432,6 +478,34 @@ enum BlockType
             statements.add( StringUtils.join( queryLines, CypherDoc.EOL ) );
         }
         return statements;
+    }
+
+    private static String getRawCodeBlockContent( Block block )
+    {
+        List<String> lines = new ArrayList<>();
+        boolean codeStarted = false;
+        for ( String line : block.lines )
+        {
+            if ( !codeStarted )
+            {
+                if ( line.startsWith( CODE_BLOCK ) )
+                {
+                    codeStarted = true;
+                }
+            }
+            else
+            {
+                if ( line.startsWith( CODE_BLOCK ) )
+                {
+                    break;
+                }
+                else
+                {
+                    lines.add( line );
+                }
+            }
+        }
+        return StringUtils.join( lines, "\n" );
     }
 
     private static String executeSql( String sql, Connection sqldb )
