@@ -268,9 +268,14 @@ public class AsciidocHelper
         return limitChars( result );
     }
 
-    public static String createCypherSnippetFromPreformattedQuery( final String formattedQuery )
+    public static String createCypherSnippetFromPreformattedQuery( final String formattedQuery, boolean executable )
     {
-        return format( "[source,%s]\n----\n%s%s----\n", "cypher", wrapQuery( formattedQuery ),
+        return cypherSnippet( formattedQuery, ( executable ? "cypher" : "cypher-noexec" ) );
+    }
+
+    private static String cypherSnippet( final String formattedQuery, final String lang )
+    {
+        return format( "[source,%s]\n----\n%s%s----\n", lang, wrapQuery( formattedQuery ),
                 formattedQuery.endsWith( "\n" ) ? "" : "\n" );
     }
 

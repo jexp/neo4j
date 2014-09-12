@@ -32,13 +32,6 @@
     </dependency>
     <dependency>
       <groupId>org.neo4j</groupId>
-      <artifactId>neo4j-cypher-docs</artifactId>
-      <version>${neo4j.version}</version>
-      <type>test-jar</type>
-      <scope>compile</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.neo4j</groupId>
       <artifactId>neo4j-io</artifactId>
       <type>test-jar</type>
       <scope>compile</scope>

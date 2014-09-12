@@ -135,7 +135,7 @@ public class ComponentVersion extends Version
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>exec-maven-plugin</artifactId>
-          <version>1.3</version>
+          <version>1.3.2</version>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>

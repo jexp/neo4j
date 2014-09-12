@@ -110,19 +110,19 @@ enum BlockType
         }
     },
     PROFILE
-            {
-                @Override
-                String process( Block block, State state )
-                {
-                    return AsciidocHelper.createOutputSnippet( state.latestResult.profile );
-                }
+    {
+        @Override
+        String process( Block block, State state )
+        {
+            return AsciidocHelper.createOutputSnippet( state.latestResult.profile );
+        }
 
-                @Override
-                boolean isA( List<String> block )
-                {
-                    return isACommentWith( block, "profile" );
-                }
-            },
+        @Override
+        boolean isA( List<String> block )
+        {
+            return isACommentWith( block, "profile" );
+        }
+    },
     TABLE
     {
         @Override
@@ -278,8 +278,9 @@ enum BlockType
             }
 
             state.parameters.clear();
-            return AsciidocHelper.createCypherSnippetFromPreformattedQuery( StringUtils.join( prettifiedStatements,
-                    CypherDoc.EOL ) ) + CypherDoc.EOL + CypherDoc.EOL;
+            String cypher = StringUtils.join( prettifiedStatements, CypherDoc.EOL );
+            return AsciidocHelper.createCypherSnippetFromPreformattedQuery( cypher, exec ) + CypherDoc.EOL
+                   + CypherDoc.EOL;
         }
     },
     SQL

@@ -28,6 +28,9 @@ CodeMirror.colorize = (function() {
         mode = "text/x-sh";
       } else if (mode === "json") {
         mode = "application/json";
+      } else if (mode === "cypher-noexec") {
+        theme = " cm-s-neo";
+        mode = "cypher";
       }
 
       var text = [];
