@@ -3,6 +3,7 @@
 //file:movies.csv
 //file:roles.csv
 //file:persons.csv
+//file:movie_actor_roles.csv
 
 As you've seen you can not only query data expressively but also create data with Cypher statements.
 
@@ -50,13 +51,39 @@ Then you can use whatever Cypher operations you want to apply to either create n
 
 As CSV files usually represent either node- or relationship-lists, you run multiple passes to create nodes and relationships separately.
 
+.movies.csv
 [source]
 ----
-LOAD CSV WITH HEADERS FROM "http://docs.neo4j.org/chunked/stable/csv/import/movies.csv" AS line 
+include::../../graphgists/intro/movies.csv[]
+----
+
+[source,cypher]
+----
+LOAD CSV WITH HEADERS FROM "movies.csv" AS line 
 CREATE (m:Movie {id:line.id,title:line.title, released:toInt(line.year)});
-LOAD CSV WITH HEADERS FROM "http://docs.neo4j.org/chunked/stable/csv/import/persons.csv" AS line 
+----
+
+.persons.csv
+[source]
+----
+include::../../graphgists/intro/persons.csv[]
+----
+
+[source,cypher]
+----
+LOAD CSV WITH HEADERS FROM "persons.csv" AS line 
 MERGE (a:Person {id:line.id}) ON CREATE SET a.name=line.name;
-LOAD CSV WITH HEADERS FROM "http://docs.neo4j.org/chunked/stable/csv/import/roles.csv" AS line 
+----
+
+.roles.csv
+[source]
+----
+include::../../graphgists/intro/roles.csv[]
+----
+
+[source,cypher]
+----
+LOAD CSV WITH HEADERS FROM "roles.csv" AS line 
 MATCH (m:Movie {id:line.movieId})
 MATCH (a:Person {id:line.personId})
 CREATE (a)-[:ACTED_IN {roles:[line.role]}]->(m);
@@ -68,16 +95,15 @@ If your file contains denormalized data, you can either run the same file with m
 
 For our use-case we can import the data using a CSV structure like this:
 
-[source,csv]
+.movie_actor_roles.csv
+[source]
 ----
-title;released;actor;born;characters
-Back to the Future;1985;Michael J. Fox;1961;Marty McFly
-Back to the Future;1985;Christopher Lloyd;1938;Dr. Emmet Brown
+include::../../graphgists/intro/movie_actor_roles.csv[]
 ----
 
 [source]
 ----
-LOAD CSV WITH HEADERS FROM "http://server/movie_actor_roles.csv" AS line FIELDTERMINATOR ";"
+LOAD CSV WITH HEADERS FROM "movie_actor_roles.csv" AS line FIELDTERMINATOR ";"
 MERGE (m:Movie {title:line.title}) ON CREATE SET m.released = toInt(line.released)
 MERGE (a:Person {name:line.actor}) ON CREATE SET a.born = toInt(line.born)
 MERGE (a)-[:ACTED_IN {roles:split(line.characters,",") }]->(m)
