@@ -1,3 +1,4 @@
+[[cypher-intro-applications]]
 = Use Cypher in an application
 
 The most direct way to use Cypher programmatically is to execute a HTTP POST operation against the transactional Cypher endpoint.

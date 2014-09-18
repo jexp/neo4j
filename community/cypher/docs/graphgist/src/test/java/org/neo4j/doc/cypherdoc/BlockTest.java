@@ -46,8 +46,8 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Matchers;
-import org.neo4j.cypher.javacompat.ExecutionEngine;
 import org.neo4j.cypher.javacompat.ExtendedExecutionResult;
+import org.neo4j.cypher.javacompat.internal.RewindableExecutionEngine;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.test.TestGraphDatabaseFactory;
@@ -55,7 +55,7 @@ import org.neo4j.test.TestGraphDatabaseFactory;
 public class BlockTest
 {
     private GraphDatabaseService database;
-    private ExecutionEngine engine;
+    private RewindableExecutionEngine engine;
     private State state;
 
     @Rule
@@ -88,7 +88,7 @@ public class BlockTest
     public void setup() throws SQLException
     {
         database = new TestGraphDatabaseFactory().newImpermanentDatabase();
-        engine = new ExecutionEngine( database );
+        engine = new RewindableExecutionEngine( database );
         Connection conn = DriverManager.getConnection( "jdbc:hsqldb:mem:graphgisttests;shutdown=true" );
         conn.setAutoCommit( true );
         state = new State( engine, database, conn, null, "" );
@@ -275,7 +275,7 @@ public class BlockTest
                 "RETURN line;",
                 "----" );
         Block block = new Block( myQuery, BlockType.CYPHER );
-        ExecutionEngine engine = mock( ExecutionEngine.class );
+        RewindableExecutionEngine engine = mock( RewindableExecutionEngine.class );
         ArgumentCaptor<String> fileQuery = ArgumentCaptor.forClass( String.class );
         ArgumentCaptor<String> httpQuery = ArgumentCaptor.forClass( String.class );
 

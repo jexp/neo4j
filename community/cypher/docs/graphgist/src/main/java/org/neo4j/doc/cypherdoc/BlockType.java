@@ -315,45 +315,7 @@ enum BlockType
         @Override
         String process( Block block, State state )
         {
-            String first = block.lines.get( 0 );
-            String id = "";
-            if ( first.length() > 8 )
-            {
-                id = first.substring( first.indexOf( "graph" ) + 5 ).trim();
-                if ( id.indexOf( ':' ) != -1 )
-                {
-                    id = first.substring( first.indexOf( ':' ) + 1 ).trim();
-                }
-            }
-            GraphvizWriter writer = new GraphvizWriter(
-                    AsciiDocSimpleStyle.withAutomaticRelationshipTypeColors() );
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            try (Transaction tx = state.database.beginTx())
-            {
-                writer.emit( out, Walker.fullGraph( state.database ) );
-                tx.success();
-            }
-            catch ( IOException e )
-            {
-                e.printStackTrace();
-            }
-            StringBuilder output = new StringBuilder( 512 );
-            try
-            {
-                String dot = out.toString( "UTF-8" );
-                output.append( "[\"dot\", \"cypherdoc-" )
-                        .append( id )
-                        .append( '-' )
-                        .append( Integer.toHexString( dot.hashCode() ) )
-                        .append( ".svg\", \"neoviz\"]\n----\n" )
-                        .append( dot )
-                        .append( "----\n" );
-            }
-            catch ( UnsupportedEncodingException e )
-            {
-                e.printStackTrace();
-            }
-            return output.toString();
+            return writeGraph( block, state, false );
         }
     },
     CONSOLE
@@ -414,6 +376,49 @@ enum BlockType
     abstract boolean isA( List<String> block );
 
     abstract String process( Block block, State state );
+
+    private static String writeGraph( Block block, State state, boolean resultOnly )
+    {
+        String first = block.lines.get( 0 );
+        String id = "";
+        if ( first.length() > 8 )
+        {
+            id = first.substring( first.indexOf( "graph" ) + 5 ).trim();
+            if ( id.indexOf( ':' ) != -1 )
+            {
+                id = first.substring( first.indexOf( ':' ) + 1 ).trim();
+            }
+        }
+        GraphvizWriter writer = new GraphvizWriter(
+                AsciiDocSimpleStyle.withAutomaticRelationshipTypeColors() );
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try (Transaction tx = state.database.beginTx())
+        {
+            writer.emit( out, Walker.fullGraph( state.database ) );
+            tx.success();
+        }
+        catch ( IOException e )
+        {
+            e.printStackTrace();
+        }
+        StringBuilder output = new StringBuilder( 512 );
+        try
+        {
+            String dot = out.toString( "UTF-8" );
+            output.append( "[\"dot\", \"cypherdoc-" )
+                    .append( id )
+                    .append( '-' )
+                    .append( Integer.toHexString( dot.hashCode() ) )
+                    .append( ".svg\", \"neoviz\"]\n----\n" )
+                    .append( dot )
+                    .append( "----\n" );
+        }
+        catch ( UnsupportedEncodingException e )
+        {
+            e.printStackTrace();
+        }
+        return output.toString();
+    }
 
     private static boolean isACommentWith( List<String> block, String command )
     {

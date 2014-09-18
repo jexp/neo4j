@@ -1,3 +1,4 @@
+[[cypher-intro-patterns]]
 = Graphs, Patterns and Cypher
 
 == It's all about Patterns

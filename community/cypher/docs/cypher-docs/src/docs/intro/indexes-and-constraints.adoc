@@ -1,3 +1,4 @@
+[[cypher-intro-indexes-contraints]]
 = Indexes and Constraints
 
 Labels allow you to group nodes, and add indexes or constraints to them.

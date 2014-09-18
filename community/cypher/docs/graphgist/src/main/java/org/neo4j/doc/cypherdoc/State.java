@@ -26,12 +26,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.neo4j.cypher.javacompat.ExecutionEngine;
+import org.neo4j.cypher.javacompat.internal.RewindableExecutionEngine;
 import org.neo4j.graphdb.GraphDatabaseService;
 
 class State
 {
-    final ExecutionEngine engine;
+    final RewindableExecutionEngine engine;
     final GraphDatabaseService database;
     final Connection sqlDatabase;
     final File parentDirectory;
@@ -44,7 +44,8 @@ class State
     Result latestSqlResult;
     Result testedSqlResult;
 
-    State( ExecutionEngine engine, GraphDatabaseService database, Connection sqlConnection, File parentDirectory,
+    State( RewindableExecutionEngine engine, GraphDatabaseService database, Connection sqlConnection,
+            File parentDirectory,
             String url )
     {
         this.engine = engine;

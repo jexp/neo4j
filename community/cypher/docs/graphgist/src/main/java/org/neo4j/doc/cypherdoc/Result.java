@@ -19,6 +19,10 @@
  */
 package org.neo4j.doc.cypherdoc;
 
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
 import org.neo4j.cypher.javacompat.ExtendedExecutionResult;
 
 class Result
@@ -26,9 +30,15 @@ class Result
     final String query;
     final String text;
     final String profile;
+    final Set<Long> nodeIds = new HashSet<>();
+    final Set<Long> relationshipIds = new HashSet<>();
 
     public Result(String query, ExtendedExecutionResult result) {
         this.query = query;
+        for ( Map<String, Object> row : result )
+        {
+            // do something here
+        }
         text = result.dumpToString();
         String profileText;
         try

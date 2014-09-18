@@ -17,9 +17,13 @@ For the patterns we've looked at so far this could look like this:
 CREATE (:Movie {title:"The Matrix",released:1997})
 ----
 
-//graph
-
 If we execute this statement, Cypher returns the number of changes, in this case adding 1 node, 1 label and 2 properties.
+
+//table
+
+As we started out with an empty database, we now have a database with a single node in it:
+
+//graph
 
 If case we also want to return the created data we can add a `RETURN` clause, which refers to the identifier we've assigned to our pattern elements.
 

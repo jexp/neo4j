@@ -22,11 +22,12 @@ package org.neo4j.cypher.internal
 import org.neo4j.cypher.internal.compatability.ExecutionResultWrapperFor2_2
 import org.neo4j.cypher.internal.compiler.v2_2.PipeExecutionResult
 import org.neo4j.cypher.internal.compiler.v2_2.executionplan.InternalExecutionResult
-import org.neo4j.cypher.{ExecutionResult, InternalException}
+import org.neo4j.cypher.{ ExtendedExecutionResult, InternalException }
+import org.neo4j.cypher.ExecutionResult
 
 object RewindableExecutionResult {
   def apply(inner: InternalExecutionResult): InternalExecutionResult = inner match {
-    case other: PipeExecutionResult  =>
+    case other: PipeExecutionResult =>
       new PipeExecutionResult(other.result.toEager, other.columns, other.state, other.executionPlanBuilder, other.planType)
     case _ =>
       inner
@@ -34,6 +35,10 @@ object RewindableExecutionResult {
 
   def apply(in: ExecutionResult): InternalExecutionResult = in match {
     case ExecutionResultWrapperFor2_2(inner, _) => apply(inner)
-    case _                                      => throw new InternalException("Can't get the internal execution result of an older compiler")
+  }
+
+  def apply(in: ExtendedExecutionResult): ExecutionResultWrapperFor2_2 = in match {
+    case ExecutionResultWrapperFor2_2(inner, v) => ExecutionResultWrapperFor2_2(apply(inner), v)
+    case _ => throw new InternalException("Can't get the internal execution result of an older compiler")
   }
 }

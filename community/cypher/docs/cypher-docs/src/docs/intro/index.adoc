@@ -1,5 +1,5 @@
+[[cypher-getting-started]]
 = Introduction to Cypher
-:compat-mode:
 
 This friendly guide will introduce you to the Cypher query language, which is used by Neo4j.
 

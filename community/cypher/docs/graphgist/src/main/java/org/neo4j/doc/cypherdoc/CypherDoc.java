@@ -30,7 +30,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import org.neo4j.cypher.javacompat.ExecutionEngine;
+import org.neo4j.cypher.javacompat.internal.RewindableExecutionEngine;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.test.TestGraphDatabaseFactory;
 import org.neo4j.graphdb.mockfs.EphemeralFileSystemAbstraction;
@@ -74,7 +74,7 @@ public final class CypherDoc
         TestFailureException failure = null;
         try
         {
-            ExecutionEngine engine = new ExecutionEngine( database );
+            RewindableExecutionEngine engine = new RewindableExecutionEngine( database );
             conn = DriverManager.getConnection( "jdbc:hsqldb:mem:graphgist;shutdown=true" );
             conn.setAutoCommit( true );
             return executeBlocks( blocks, new State( engine, database, conn, parentDirectory, url ) );
