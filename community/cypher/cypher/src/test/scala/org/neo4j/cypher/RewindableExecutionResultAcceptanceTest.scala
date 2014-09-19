@@ -58,9 +58,9 @@ class RewindableExecutionResultAcceptanceTest extends ExecutionEngineFunSuite {
 
     val nodes = result.columnAs[Node]("n").toList
 
-    nodes should equal(List(a,b))
+    nodes should equal(List(a, b))
   }
 
-  private def rewindableExecutionResult(query: String): InternalExecutionResult =
+  private def rewindableExecutionResult(query: String): ExtendedExecutionResult =
     RewindableExecutionResult(eengine.execute(query))
 }

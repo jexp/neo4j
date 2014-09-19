@@ -25,14 +25,14 @@ import org.neo4j.cypher.internal.compiler.v2_2.planDescription
 import org.neo4j.cypher.internal.helpers.TxCounts
 import org.neo4j.cypher.internal.commons.CreateTempFileTestSupport
 import org.neo4j.cypher.internal.compiler.v2_2.commands.expressions.StringHelper.RichString
-import org.neo4j.cypher.internal.compiler.v2_2.planDescription.PlanDescription.Arguments.{DbHits, Rows}
+import org.neo4j.cypher.internal.compiler.v2_2.planDescription.PlanDescription.Arguments.{ DbHits, Rows }
 import org.neo4j.cypher.internal.compiler.v2_2.planDescription.Argument
 
 class ProfilerAcceptanceTest extends ExecutionEngineFunSuite with CreateTempFileTestSupport {
 
   test("match n where n-[:FOO]->() return *") {
     //GIVEN
-    relate( createNode(), createNode(), "FOO")
+    relate(createNode(), createNode(), "FOO")
 
     //WHEN
     val result = profile("cypher 2.2-cost match n where n-[:FOO]->() return *")
@@ -57,7 +57,7 @@ class ProfilerAcceptanceTest extends ExecutionEngineFunSuite with CreateTempFile
 
   test("match n where not n-[:FOO]->() return *") {
     //GIVEN
-    relate( createNode(), createNode(), "FOO")
+    relate(createNode(), createNode(), "FOO")
 
     //WHEN
     val result = profile("cypher 2.2-cost match n where not n-[:FOO]->() return *")
@@ -92,7 +92,6 @@ class ProfilerAcceptanceTest extends ExecutionEngineFunSuite with CreateTempFile
     assertRows(1)(result)("NodeById")
   }
 
-
   test("tracks number of graph accesses") {
     //GIVEN
     createNode("foo" -> "bar")
@@ -104,7 +103,6 @@ class ProfilerAcceptanceTest extends ExecutionEngineFunSuite with CreateTempFile
     assertDbHits(2)(result)("Extract")
     assertDbHits(1)(result)("NodeById")
   }
-
 
   test("no problem measuring creation") {
     //GIVEN
@@ -130,7 +128,6 @@ class ProfilerAcceptanceTest extends ExecutionEngineFunSuite with CreateTempFile
     assertRows(1)(result)("AllNodes")
     assertDbHits(2)(result)("AllNodes")
   }
-
 
   test("tracks optional matches") {
     //GIVEN
@@ -164,7 +161,7 @@ class ProfilerAcceptanceTest extends ExecutionEngineFunSuite with CreateTempFile
     result.executionPlanDescription()
   }
 
-  test ("should support profiling union queries") {
+  test("should support profiling union queries") {
     val result = profile("return 1 as A union return 2 as A")
     result.toSet should equal(Set(Map("A" -> 1), Map("A" -> 2)))
   }
@@ -206,10 +203,10 @@ class ProfilerAcceptanceTest extends ExecutionEngineFunSuite with CreateTempFile
     // then
 
     val expectedTxCount = 1 + // First tx used to compile the query
-                          1 + // Last tx to close it all down
-                          10  // One per 10 rows of CSV file
+      1 + // Last tx to close it all down
+      10 // One per 10 rows of CSV file
 
-    graph.txCounts-initialTxCounts should equal(TxCounts(commits = expectedTxCount))
+    graph.txCounts - initialTxCounts should equal(TxCounts(commits = expectedTxCount))
     result.executionPlanDescription().asJava should not equal null
     result.queryStatistics().containsUpdates should equal(true)
     result.queryStatistics().nodesCreated should equal(100)
@@ -224,14 +221,14 @@ class ProfilerAcceptanceTest extends ExecutionEngineFunSuite with CreateTempFile
 
   test("reports COST compiler when showing plan description") {
     val executionPlanDescription = eengine.execute("cypher 2.2-cost match n return n").executionPlanDescription()
-     println(executionPlanDescription.toString)
+    println(executionPlanDescription.toString)
     executionPlanDescription.toString should include("2.2-cost")
   }
 
   test("reports RULE compiler when showing plan description") {
     val executionPlanDescription = eengine.execute("cypher 2.2-cost create ()").executionPlanDescription()
 
-    executionPlanDescription.toString should not include("2.2-cost")
+    executionPlanDescription.toString should not include ("2.2-cost")
     executionPlanDescription.toString should include("2.2-rule")
   }
 
@@ -248,7 +245,7 @@ class ProfilerAcceptanceTest extends ExecutionEngineFunSuite with CreateTempFile
   }
 
   override def profile(q: String, params: (String, Any)*): InternalExecutionResult = {
-    val result = super.execute("profile " + q, params: _*)
+    val result = eengine.execute("profile " + q, params.toMap)
     assert(result.planDescriptionRequested, "result not marked with planDescriptionRequested")
     val planDescription: v2_2.planDescription.PlanDescription = result.executionPlanDescription()
     planDescription.toSeq.foreach {

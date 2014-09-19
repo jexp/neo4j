@@ -29,7 +29,7 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.kernel.impl.util.StringLogger;
 
 /**
- * To run a Cypher query, use this class.
+ * To run a Cypher query in internal Neo4j tests you can use this class.
  */
 public class RewindableExecutionEngine
 {
