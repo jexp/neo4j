@@ -20,15 +20,17 @@
 package org.neo4j.cypher
 
 import java.util.concurrent.TimeUnit
+
 import org.hamcrest.CoreMatchers._
 import org.junit.Assert._
 import org.neo4j.cypher.internal.RewindableExecutionResult
-import org.neo4j.cypher.internal.commons.{ CypherFunSuite, CypherTestSupport }
+import org.neo4j.cypher.internal.commons.{CypherFunSuite, CypherTestSupport}
 import org.neo4j.cypher.internal.compiler.v2_2.executionplan.InternalExecutionResult
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
-import scala.concurrent.{ Await, Future }
-import org.neo4j.cypher.internal.RewindableExecutionEngine
+import scala.concurrent.{Await, Future}
+
 
 case class ExpectedException[T <: Throwable](e: T) {
   def messageContains(s: String) = assertThat(e.getMessage, containsString(s))
@@ -50,12 +52,12 @@ trait ExecutionEngineTestSupport extends CypherTestSupport {
   def profile(q: String, params: (String, Any)*): ExtendedExecutionResult =
     RewindableExecutionResult(eengine.profile(q, params.toMap))
 
-  def runAndFail[T <: Throwable: Manifest](q: String): ExpectedException[T] =
+  def runAndFail[T <: Throwable : Manifest](q: String): ExpectedException[T] =
     ExpectedException(intercept[T](execute(q)))
 
-  def executeScalar[T](q: String, params: (String, Any)*): T = eengine.execute(q, params.toMap).toList match {
+  def executeScalar[T](q: String, params: (String, Any)*):T = eengine.execute(q, params.toMap).toList match {
     case m :: Nil =>
-      if (m.size != 1)
+      if (m.size!=1)
         fail(s"expected scalar value: $m")
       else
         m.head._2.asInstanceOf[T]

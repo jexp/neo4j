@@ -21,11 +21,11 @@ package org.neo4j.cypher
 
 import org.neo4j.cypher.internal.RewindableExecutionResult
 import org.neo4j.cypher.internal.compatability.ExecutionResultWrapperFor2_2
-import org.neo4j.cypher.internal.compiler.v2_2.executionplan.{ NewLogicalPlanSuccessRateMonitor, InternalExecutionResult }
+import org.neo4j.cypher.internal.compiler.v2_2.executionplan.{NewLogicalPlanSuccessRateMonitor, InternalExecutionResult}
 import org.neo4j.cypher.internal.compiler.v2_2.ast.Statement
 import org.neo4j.cypher.internal.commons.CypherTestSupport
-import org.neo4j.cypher.NewPlannerMonitor.{ NewQuerySeen, UnableToHandleQuery, NewPlannerMonitorCall }
-import java.io.{ PrintWriter, StringWriter }
+import org.neo4j.cypher.NewPlannerMonitor.{NewQuerySeen, UnableToHandleQuery, NewPlannerMonitorCall}
+import java.io.{PrintWriter, StringWriter}
 import org.neo4j.cypher.internal.compiler.v2_2.planner.CantHandleQueryException
 
 object NewPlannerMonitor {
@@ -63,7 +63,7 @@ class NewPlannerMonitor extends NewLogicalPlanSuccessRateMonitor {
 trait NewPlannerTestSupport extends CypherTestSupport {
   self: ExecutionEngineFunSuite =>
 
-  override def databaseConfig(): Map[String, String] = Map("cypher_parser_version" -> CypherVersion.v2_2_cost.name)
+  override def databaseConfig(): Map[String,String] = Map("cypher_parser_version" -> CypherVersion.v2_2_cost.name)
 
   val newPlannerMonitor = new NewPlannerMonitor
 
