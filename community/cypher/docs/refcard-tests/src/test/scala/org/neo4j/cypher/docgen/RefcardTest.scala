@@ -20,7 +20,7 @@
 package org.neo4j.cypher.docgen
 
 import org.neo4j.cypher.internal.RewindableExecutionResult
-import org.neo4j.cypher.internal.compiler.v2_2.executionplan.InternalExecutionResult
+import org.neo4j.cypher.ExtendedExecutionResult
 import org.neo4j.graphdb.index.Index
 import org.junit.Test
 import scala.collection.JavaConverters._
@@ -55,7 +55,7 @@ abstract class RefcardTest extends Assertions with DocumentationHelper with Grap
   def title: String
   def css: String
   def section: String = "refcard"
-  def assert(name: String, result: InternalExecutionResult)
+  def assert(name: String, result: ExtendedExecutionResult)
   def parameters(name: String): Map[String, Any] = Map()
   def graphDescription: List[String]
   def indexProps: List[String] = List()
@@ -64,7 +64,7 @@ abstract class RefcardTest extends Assertions with DocumentationHelper with Grap
   var filePaths: Map[String, String] = Map.empty
   var urls: Map[String, String] = Map.empty
 
-  def executeQuery(queryText: String, params: Map[String, Any])(implicit engine: ExecutionEngine): ExecutionResult = try {
+  def executeQuery(queryText: String, params: Map[String, Any])(implicit engine: ExecutionEngine): ExtendedExecutionResult = try {
     val query = replaceNodeIds(queryText)
 
     assert(filePaths.size == urls.size)
@@ -108,7 +108,7 @@ abstract class RefcardTest extends Assertions with DocumentationHelper with Grap
     queryPart
   }
 
-  def runQuery(query: String, possibleAssertion: Seq[String], parametersChoice: String): InternalExecutionResult = {
+  def runQuery(query: String, possibleAssertion: Seq[String], parametersChoice: String): ExtendedExecutionResult = {
     val result =
       db.inTx {
         if (parametersChoice == null) {
