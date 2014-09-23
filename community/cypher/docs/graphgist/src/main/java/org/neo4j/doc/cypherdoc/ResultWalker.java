@@ -24,50 +24,45 @@ import java.util.Set;
 
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
-import org.neo4j.graphdb.RelationshipType;
-import org.neo4j.graphdb.Transaction;
 import org.neo4j.walk.Visitor;
 import org.neo4j.walk.Walker;
 
 public class ResultWalker
 {
-    public static Walker result( State state, final RelationshipType... types )
+    public static Walker result( State state )
     {
         final Set<Node> nodes = new HashSet<>();
 
-        try (Transaction tx = state.database.beginTx())
+        for ( long nodeId : state.latestResult.nodeIds )
         {
-            for ( long nodeId : state.latestResult.nodeIds )
-            {
-                nodes.add( state.database.getNodeById( nodeId ) );
-            }
+            nodes.add( state.database.getNodeById( nodeId ) );
+        }
 
-            for ( long relationshipId : state.latestResult.relationshipIds )
-            {
-                Relationship rel = state.database.getRelationshipById( relationshipId );
-                nodes.add( rel.getStartNode() );
-                nodes.add( rel.getEndNode() );
-            }
+        for ( long relationshipId : state.latestResult.relationshipIds )
+        {
+            Relationship rel = state.database.getRelationshipById( relationshipId );
+            nodes.add( rel.getStartNode() );
+            nodes.add( rel.getEndNode() );
+        }
 
-            return new Walker()
+        return new Walker()
+        {
+            @Override
+            public <R, E extends Throwable> R accept( Visitor<R, E> visitor ) throws E
             {
-                @Override
-                public <R, E extends Throwable> R accept( Visitor<R, E> visitor ) throws E
+                for ( Node node : nodes )
                 {
-                    for ( Node node : nodes )
+                    visitor.visitNode( node );
+                    for ( Relationship relationship : node.getRelationships() )
                     {
-                        visitor.visitNode( node );
-                        for ( Relationship relationship : node.getRelationships() )
+                        if ( nodes.contains( relationship.getOtherNode( node ) ) )
                         {
-                            if ( nodes.contains( relationship.getOtherNode( node ) ) )
-                            {
-                                visitor.visitRelationship( relationship );
-                            }
+                            visitor.visitRelationship( relationship );
                         }
                     }
-                    return visitor.done();
                 }
-            };
-        }
+                return visitor.done();
+            }
+        };
     }
 }

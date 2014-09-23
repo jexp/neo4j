@@ -24,6 +24,11 @@ import java.util.Map;
 import java.util.Set;
 
 import org.neo4j.cypher.javacompat.ExtendedExecutionResult;
+import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.Path;
+import org.neo4j.graphdb.Relationship;
+import org.neo4j.graphdb.Transaction;
 
 class Result
 {
@@ -33,13 +38,14 @@ class Result
     final Set<Long> nodeIds = new HashSet<>();
     final Set<Long> relationshipIds = new HashSet<>();
 
-    public Result(String query, ExtendedExecutionResult result) {
+    public Result( String query, ExtendedExecutionResult result, GraphDatabaseService database )
+    {
         this.query = query;
-        for ( Map<String, Object> row : result )
-        {
-            // do something here
-        }
         text = result.dumpToString();
+        try (Transaction tx = database.beginTx())
+        {
+            extract( result );
+        }
         String profileText;
         try
         {
@@ -57,5 +63,44 @@ class Result
         this.query = query;
         this.text = text;
         this.profile = "";
+    }
+
+    private void extract( Iterable<?> source )
+    {
+        for ( Object item : source )
+        {
+            if ( item instanceof Node )
+            {
+                Node node = (Node) item;
+                nodeIds.add( node.getId() );
+            }
+            else if ( item instanceof Relationship )
+            {
+                Relationship relationship = (Relationship) item;
+                relationshipIds.add( relationship.getId() );
+                nodeIds.add( relationship.getStartNode().getId() );
+                nodeIds.add( relationship.getEndNode().getId() );
+            }
+            else if ( item instanceof Path )
+            {
+                Path path = (Path) item;
+                for ( Node node : path.nodes() )
+                {
+                    nodeIds.add( node.getId() );
+                }
+                for ( Relationship relationship : path.relationships() )
+                {
+                    relationshipIds.add( relationship.getId() );
+                }
+            }
+            else if ( item instanceof Map<?, ?> )
+            {
+                extract( ( (Map<?, ?>) item ).values() );
+            }
+            else if ( item instanceof Iterable<?> )
+            {
+                extract( (Iterable<?>) item );
+            }
+        }
     }
 }

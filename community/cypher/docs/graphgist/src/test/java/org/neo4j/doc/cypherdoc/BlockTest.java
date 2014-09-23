@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assume.assumeFalse;
@@ -49,7 +50,7 @@ import org.mockito.Matchers;
 import org.neo4j.cypher.javacompat.ExtendedExecutionResult;
 import org.neo4j.cypher.javacompat.internal.RewindableExecutionEngine;
 import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Transaction;
+import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.test.TestGraphDatabaseFactory;
 
 public class BlockTest
@@ -62,26 +63,17 @@ public class BlockTest
     public ExpectedException expectedException = ExpectedException.none();
 
     private static final String COMMENT_BLOCK = "////";
-    private static final List<String> ADAM_QUERY = Arrays.asList(
-            "[source, cypher]",
-            "----",
-            "CREATE (n:Person {name:\"Ad\" + \"am\"})",
-            "RETURN n;",
-            "----" );
-    private static final List<String> NOEXEC_QUERY = Arrays.asList(
-            "[source, cypher, noexec=true]",
-            "----",
-            "CREATE RETURN n;",
-            "----" );
-    private static final List<String> PARAMS = Arrays.asList(
-            "[source, json]",
-            "----",
-            "{\"name\": \"Adam\"}",
-            "----" );
-    private static final List<String> ADAM_PARAMS_QUERY = Arrays.asList(
-            "[source, cypher]",
-            "----",
-            "RETURN {name} = 'Adam';",
+    private static final List<String> ADAM_QUERY = Arrays.asList( "[source, cypher]", "----",
+            "CREATE (n:Person {name:\"Ad\" + \"am\"})", "RETURN n;", "----" );
+    private static final List<String> NOEXEC_QUERY = Arrays.asList( "[source, cypher, noexec=true]", "----",
+            "CREATE RETURN n;", "----" );
+    private static final List<String> PARAMS = Arrays.asList( "[source, json]", "----", "{\"name\": \"Adam\"}", "----" );
+    private static final List<String> ADAM_PARAMS_QUERY = Arrays.asList( "[source, cypher]", "----",
+            "RETURN {name} = 'Adam';", "----" );
+    private static final List<String> RETURN_ONE_QUERY = Arrays.asList( "[source, cypher]", "----",
+            "CREATE (n:Person {name:'Alice'}), (m:Person {name:'Bob'}) ", "RETURN m;", "----" );
+    private static final List<String> TWO_NODES_ONE_REL = Arrays.asList( "[source, cypher]", "----",
+            "CREATE (n:Person {name:'Alice'})-[r:KNOWS {since: 1998}]->(m:Person {name:'Bob'})", "RETURN n,m,r",
             "----" );
 
     @Before
@@ -139,6 +131,22 @@ public class BlockTest
     }
 
     @Test
+    public void query_produces_both_dump_and_nodes_and_rels()
+    {
+        // given
+        Block block = Block.getBlock( RETURN_ONE_QUERY );
+
+        // when
+        block.process( state );
+        Result result = state.latestResult;
+
+        // then
+        assertThat( result.text, containsString( "Bob" ) );
+        assertThat( result.nodeIds.size(), equalTo( 1 ) );
+        assertThat( result.relationshipIds.size(), equalTo( 0 ) );
+    }
+
+    @Test
     public void queryWithTestFailure()
     {
         Block block = Block.getBlock( ADAM_QUERY );
@@ -168,7 +176,8 @@ public class BlockTest
         String paramsResult = paramsBlock.process( state );
 
         // then
-        assertThat( paramsResult, allOf( containsString( "source,json" ), containsString( "name" ), containsString( "Adam" ) ) );
+        assertThat( paramsResult,
+                allOf( containsString( "source,json" ), containsString( "name" ), containsString( "Adam" ) ) );
         assertThat( (String) state.parameters.get( "name" ), equalTo( "Adam" ) );
         assertThat( state.parameters.size(), equalTo( 1 ) );
 
@@ -191,16 +200,51 @@ public class BlockTest
         Block block = Block.getBlock( Arrays.asList( "// graph:xyz" ) );
         assertThat( block.type, sameInstance( BlockType.GRAPH ) );
         String output;
-        try (Transaction transaction = database.beginTx())
-        {
-            output = block.process( state );
-            transaction.success();
-        }
+        output = block.process( state );
+
         assertThat(
                 output,
-                allOf( startsWith( "[\"dot\"" ), containsString( "Adam" ),
-                        containsString( "cypherdoc-xyz" ),
+                allOf( startsWith( "[\"dot\"" ), containsString( "Adam" ), containsString( "cypherdoc-xyz" ),
                         containsString( ".svg" ), containsString( "neoviz" ) ) );
+    }
+
+    @Test
+    public void graph_result_does_not_include_db()
+    {
+        // given
+        Block query = Block.getBlock( RETURN_ONE_QUERY );
+        Block graphResult = Block.getBlock( Arrays.asList( "//graph_result" ) );
+
+        // when
+        query.process( state );
+        String output = graphResult.process( state );
+
+        // then
+        assertThat( graphResult.type, sameInstance( BlockType.GRAPH_RESULT ) );
+        assertThat( output, containsString( "Bob" ) );
+        assertThat( output, not( containsString( "Alice" ) ) );
+    }
+
+    @Test
+    public void graph_result_includes_relationships()
+    {
+        // given
+        Block query = Block.getBlock( TWO_NODES_ONE_REL );
+        Block graphResult = Block.getBlock( Arrays.asList( "//graph_result" ) );
+
+        // when
+        query.process( state );
+        String output = graphResult.process( state );
+        Result result = state.latestResult;
+
+        // then
+        assertThat( graphResult.type, sameInstance( BlockType.GRAPH_RESULT ) );
+        assertThat(
+                output,
+                allOf( containsString( "Bob" ), containsString( "Alice" ), containsString( "KNOWS" ),
+                        containsString( "1998" ), containsString( "Person" ) ) );
+        assertThat( result.nodeIds.size(), equalTo( 2 ) );
+        assertThat( result.relationshipIds.size(), equalTo( 1 ) );
     }
 
     @Test
@@ -210,15 +254,12 @@ public class BlockTest
         Block block = Block.getBlock( Arrays.asList( "//graph" ) );
         assertThat( block.type, sameInstance( BlockType.GRAPH ) );
         String output;
-        try (Transaction transaction = database.beginTx())
-        {
-            output = block.process( state );
-            transaction.success();
-        }
+        output = block.process( state );
+
         assertThat(
-                output,
-                allOf( startsWith( "[\"dot\"" ), containsString( "Adam" ), containsString( "cypherdoc--" ),
-                        containsString( ".svg" ), containsString( "neoviz" ) ) );
+            output,
+            allOf( startsWith( "[\"dot\"" ), containsString( "Adam" ), containsString( "cypherdoc--" ),
+                    containsString( ".svg" ), containsString( "neoviz" ) ) );
     }
 
     @Test
@@ -229,10 +270,8 @@ public class BlockTest
         String output = block.process( state );
         assertThat(
                 output,
-                allOf( startsWith( "ifdef::" ), endsWith( "endif::[]"
-                                                          + CypherDoc.EOL ),
-                        containsString( "cypherdoc-console" ),
-                        containsString( "<p" ), containsString( "<simpara" ),
+                allOf( startsWith( "ifdef::" ), endsWith( "endif::[]" + CypherDoc.EOL ),
+                        containsString( "cypherdoc-console" ), containsString( "<p" ), containsString( "<simpara" ),
                         containsString( "html" ) ) );
     }
 
@@ -266,24 +305,23 @@ public class BlockTest
     @Test
     public void should_replace_filenames_in_queries()
     {
-        assumeFalse( System.getProperty("os.name").toLowerCase().startsWith( "win" ) );
+        assumeFalse( System.getProperty( "os.name" ).toLowerCase().startsWith( "win" ) );
         // given
-        List<String> myQuery = Arrays.asList(
-                "[source, cypher]",
-                "----",
-                "LOAD CSV FROM \"my_file.csv\" AS line",
-                "RETURN line;",
-                "----" );
+        List<String> myQuery = Arrays.asList( "[source, cypher]", "----", "LOAD CSV FROM \"my_file.csv\" AS line",
+                "RETURN line;", "----" );
         Block block = new Block( myQuery, BlockType.CYPHER );
         RewindableExecutionEngine engine = mock( RewindableExecutionEngine.class );
+        ExtendedExecutionResult result = mock( ExtendedExecutionResult.class );
+        ResourceIterator iterator = mock( ResourceIterator.class );
         ArgumentCaptor<String> fileQuery = ArgumentCaptor.forClass( String.class );
         ArgumentCaptor<String> httpQuery = ArgumentCaptor.forClass( String.class );
 
-        when( engine.profile( fileQuery.capture(), Matchers.eq( Collections.<String, Object>emptyMap() ) ) ).
-                thenReturn( mock( ExtendedExecutionResult.class ) );
+        when( engine.profile( fileQuery.capture(), Matchers.eq( Collections.<String, Object>emptyMap() ) ) ).thenReturn(
+                result );
 
-        when( engine.prettify( httpQuery.capture() ) ).
-                thenReturn( "apa" );
+        when( result.iterator() ).thenReturn( iterator );
+
+        when( engine.prettify( httpQuery.capture() ) ).thenReturn( "apa" );
 
         state = new State( engine, database, null, new File( "/dev/null" ), "http://myurl" );
         state.knownFiles.add( "my_file.csv" );

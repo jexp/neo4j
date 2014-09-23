@@ -263,7 +263,8 @@ enum BlockType
                 }
                 if ( exec )
                 {
-                    state.latestResult = new Result( fileQuery, state.engine.profile( fileQuery, state.parameters ) );
+                    state.latestResult = new Result( fileQuery, state.engine.profile( fileQuery, state.parameters ),
+                            state.database );
                     prettifiedStatements.add( state.engine.prettify( webQuery ) );
                     try (Transaction tx = state.database.beginTx())
                     {
@@ -302,6 +303,20 @@ enum BlockType
             }
             String printQuery = StringUtils.join( statements, CypherDoc.EOL );
             return AsciidocHelper.createSqlSnippet( printQuery ) + CypherDoc.EOL + CypherDoc.EOL;
+        }
+    },
+    GRAPH_RESULT
+    {
+        @Override
+        boolean isA( List<String> block )
+        {
+            return isACommentWith( block, "graph_result" );
+        }
+
+        @Override
+        String process( Block block, State state )
+        {
+            return writeGraph( block, state, true );
         }
     },
     GRAPH
@@ -388,13 +403,24 @@ enum BlockType
             {
                 id = first.substring( first.indexOf( ':' ) + 1 ).trim();
             }
+            else if ( id.startsWith( "_result" ) )
+            {
+                id = "result";
+            }
         }
         GraphvizWriter writer = new GraphvizWriter(
                 AsciiDocSimpleStyle.withAutomaticRelationshipTypeColors() );
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try (Transaction tx = state.database.beginTx())
         {
-            writer.emit( out, Walker.fullGraph( state.database ) );
+            if ( resultOnly )
+            {
+                writer.emit( out, ResultWalker.result( state ) );
+            }
+            else
+            {
+                writer.emit( out, Walker.fullGraph( state.database ) );
+            }
             tx.success();
         }
         catch ( IOException e )

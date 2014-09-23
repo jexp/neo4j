@@ -54,7 +54,8 @@ public class CypherDocTest
         }
         assertThat( types, equalTo( Arrays.asList( BlockType.TITLE, BlockType.TEXT, BlockType.HIDE,
                 BlockType.SETUP, BlockType.CYPHER, BlockType.TEST, BlockType.TABLE, BlockType.GRAPH, BlockType.TEXT,
-                BlockType.OUTPUT, BlockType.PARAMETERS, BlockType.CYPHER, BlockType.TEST, BlockType.SQL, BlockType.SQL_TABLE) ) );
+                BlockType.OUTPUT, BlockType.PARAMETERS, BlockType.CYPHER, BlockType.TEST, BlockType.GRAPH_RESULT,
+                BlockType.SQL, BlockType.SQL_TABLE) ) );
     }
 
     @Test
@@ -104,6 +105,8 @@ public class CypherDocTest
                         containsString( "<span class=\"setup-query\"></span>" ),
                         containsString( "<span class=\"query-output\"></span>" ),
                         containsString( "<simpara role=\"query-output\"></simpara>" ) ) );
+
+        assertThat( output, containsString( "cypherdoc-result" ) );
     }
 
     @Test

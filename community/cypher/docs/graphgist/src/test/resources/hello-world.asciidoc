@@ -44,6 +44,8 @@ Adam
 1 row
 ////
 
+//graph_result
+
 [source,sql]
 ----
 VALUES(0)
