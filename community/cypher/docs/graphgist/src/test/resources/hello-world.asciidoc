@@ -25,7 +25,7 @@ Properties set: 1
 Let's find the node we created:
 
 // output
-[source,json]
+[source,json,role=parameters]
 ----
 {
   "name": "Adam"

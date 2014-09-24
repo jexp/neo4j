@@ -204,7 +204,9 @@ enum BlockType
         @Override
         boolean isA( List<String> block )
         {
-            return isCodeBlock( "json", block );
+            String first = block.get( 0 );
+            return isCodeBlock( "json", block ) && first.contains( "role" )
+                   && first.contains( "parameters" );
         }
 
         @Override

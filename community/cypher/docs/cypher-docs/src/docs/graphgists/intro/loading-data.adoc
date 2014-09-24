@@ -23,7 +23,7 @@ In your Cypher statement you can then iterate over those values (e.g. with `UNWI
 
 For instance to create a movie graph from JSON data structures pulled from an API you could use:
 
-[source,json]
+[source,json,role=parameters]
 ----
 {
  "movies": [{"title":"Stardust", "released":2007, "cast": [{"actor":{"name":"Robert de Niro", "born":1943}, "characters":["Captain Shakespeare"]},

@@ -67,7 +67,8 @@ public class BlockTest
             "CREATE (n:Person {name:\"Ad\" + \"am\"})", "RETURN n;", "----" );
     private static final List<String> NOEXEC_QUERY = Arrays.asList( "[source, cypher, noexec=true]", "----",
             "CREATE RETURN n;", "----" );
-    private static final List<String> PARAMS = Arrays.asList( "[source, json]", "----", "{\"name\": \"Adam\"}", "----" );
+    private static final List<String> PARAMS = Arrays.asList( "[source, json, role=parameters]", "----",
+            "{\"name\": \"Adam\"}", "----" );
     private static final List<String> ADAM_PARAMS_QUERY = Arrays.asList( "[source, cypher]", "----",
             "RETURN {name} = 'Adam';", "----" );
     private static final List<String> RETURN_ONE_QUERY = Arrays.asList( "[source, cypher]", "----",
@@ -118,7 +119,7 @@ public class BlockTest
         Block block = Block.getBlock( ADAM_QUERY );
         block.process( state );
         assertThat( state.latestResult.text, containsString( "Adam" ) );
-        block = Block.getBlock( Arrays.asList( COMMENT_BLOCK, "Adam", COMMENT_BLOCK ) );
+        block = Block.getBlock( Arrays.asList( COMMENT_BLOCK, "Adam", "!Non-matching-string", COMMENT_BLOCK ) );
         assertThat( block.type, sameInstance( BlockType.TEST ) );
         block.process( state );
         block = Block.getBlock( Arrays.asList( "// table" ) );
