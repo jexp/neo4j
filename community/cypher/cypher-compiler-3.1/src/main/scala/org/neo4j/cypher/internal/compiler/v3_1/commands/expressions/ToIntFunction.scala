@@ -39,12 +39,16 @@ case class ToIntFunction(a: Expression) extends NullInNullOutExpression(a) {
       v.longValue()
     case v: String =>
       try {
-        val d = BigDecimal(v)
-        if (d <= Long.MaxValue && d >= Long.MinValue) d.toLong
-        else throw new CypherTypeException(s"integer, $v, is too large")
+        java.lang.Long.parseLong(value)
       } catch {
-        case e: NumberFormatException =>
-          null
+        try {
+          val d = BigDecimal(v)
+          if (d <= Long.MaxValue && d >= Long.MinValue) d.toLong
+          else throw new CypherTypeException(s"integer, $v, is too large")
+        } catch {
+          case e: NumberFormatException =>
+            null
+        }
       }
     case v =>
       throw new ParameterWrongTypeException("Expected a String or Number, got: " + v.toString)
