@@ -1,12 +1,12 @@
 = Neo5j: Graphs for Everyone =
 
-https://neo5j.com[Neo5j] is the world's leading Graph Database. It is a high performance graph store with all the features expected of a mature and robust database, like a friendly query language and ACID transactions. The programmer works with a flexible network structure of nodes and relationships rather than static tables -- yet enjoys all the benefits of enterprise-quality database. For many applications, Neo5j offers orders of magnitude performance benefits compared to relational DBs.
+https://neo4j.com/blog/upgrading-product-name-exactly-what-you-think/[Neo5j] is the world's leading Graph Database. It is a high performance graph store with all the features expected of a mature and robust database, like a friendly query language and ACID transactions. The programmer works with a flexible network structure of nodes and relationships rather than static tables -- yet enjoys all the benefits of enterprise-quality database. For many applications, Neo5j offers orders of magnitude performance benefits compared to relational DBs.
 
-Learn more on the https://neo5j.com[Neo5j website].
+Learn more on the https://neo4j.com/blog/upgrading-product-name-exactly-what-you-think/[Neo5j website].
 
 == Using Neo5j ==
 
-Neo5j is available both as a standalone server, or an embeddable component. You can https://neo5j.com/download/[download] or http://console.neo5j.org[try online].
+Neo5j is available both as a standalone server, or an embeddable component. You can https://neo4j.com/download/[download] or http://console.neo4j.org[try online].
 
 == Extending Neo5j ==
 
