@@ -28,12 +28,6 @@ import org.neo4j.cypher.internal.compiler.planner.logical.plans.AsPropertySeekab
 import org.neo4j.cypher.internal.compiler.planner.logical.plans.AsStringRangeSeekable
 import org.neo4j.cypher.internal.compiler.planner.logical.plans.AsValueRangeSeekable
 import org.neo4j.cypher.internal.compiler.planner.logical.plans.PropertySeekable
-import org.neo4j.cypher.internal.compiler.planner.logical.steps.index.EntityIndexLeafPlanner.IndexCompatiblePredicate
-import org.neo4j.cypher.internal.compiler.planner.logical.steps.index.EntityIndexLeafPlanner.IndexRequirement
-import org.neo4j.cypher.internal.compiler.planner.logical.steps.index.EntityIndexLeafPlanner.MultipleExactPredicate
-import org.neo4j.cypher.internal.compiler.planner.logical.steps.index.EntityIndexLeafPlanner.NonSeekablePredicate
-import org.neo4j.cypher.internal.compiler.planner.logical.steps.index.EntityIndexLeafPlanner.NotExactPredicate
-import org.neo4j.cypher.internal.compiler.planner.logical.steps.index.EntityIndexLeafPlanner.SingleExactPredicate
 import org.neo4j.cypher.internal.compiler.planner.logical.steps.index.IndexCompatiblePredicatesProvider.allPossibleRangeIndexRequirements
 import org.neo4j.cypher.internal.compiler.planner.logical.steps.index.IndexCompatiblePredicatesProvider.findExplicitCompatiblePredicates
 import org.neo4j.cypher.internal.expressions.Contains
@@ -69,7 +63,7 @@ trait IndexCompatiblePredicatesProvider {
    * @param semanticTable         semantic table
    * @param planContext           planContext to ask for indexes
    */
-  private[index] def findIndexCompatiblePredicates(
+  def findIndexCompatiblePredicates(
     predicates: Set[Expression],
     arguments: Set[LogicalVariable],
     semanticTable: SemanticTable,

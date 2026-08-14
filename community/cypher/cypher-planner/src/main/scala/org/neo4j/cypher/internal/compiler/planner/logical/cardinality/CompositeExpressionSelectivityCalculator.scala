@@ -37,11 +37,11 @@ import org.neo4j.cypher.internal.compiler.planner.logical.plans.AsStringRangeSee
 import org.neo4j.cypher.internal.compiler.planner.logical.plans.AsValueRangeSeekable
 import org.neo4j.cypher.internal.compiler.planner.logical.plans.PrefixRangeSeekable
 import org.neo4j.cypher.internal.compiler.planner.logical.schema.GraphSchemaOptimizations
-import org.neo4j.cypher.internal.compiler.planner.logical.steps.OrLeafPlanner.WhereClausePredicate
 import org.neo4j.cypher.internal.compiler.planner.logical.steps.index.IndexCompatiblePredicatesProviderContext
 import org.neo4j.cypher.internal.compiler.planner.logical.steps.index.IndexMatch
-import org.neo4j.cypher.internal.compiler.planner.logical.steps.index.NodeIndexLeafPlanner
-import org.neo4j.cypher.internal.compiler.planner.logical.steps.index.RelationshipIndexLeafPlanner
+import org.neo4j.cypher.internal.compiler.planner.logical.steps.leafplanner.OrLeafPlanner.WhereClausePredicate
+import org.neo4j.cypher.internal.compiler.planner.logical.steps.leafplanner.index.NodeIndexLeafPlanner
+import org.neo4j.cypher.internal.compiler.planner.logical.steps.leafplanner.index.RelationshipIndexLeafPlanner
 import org.neo4j.cypher.internal.expressions.Contains
 import org.neo4j.cypher.internal.expressions.ElementTypeName
 import org.neo4j.cypher.internal.expressions.EndsWith

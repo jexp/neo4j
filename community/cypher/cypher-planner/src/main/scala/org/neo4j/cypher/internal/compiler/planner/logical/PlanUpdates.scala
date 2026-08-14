@@ -21,8 +21,8 @@ package org.neo4j.cypher.internal.compiler.planner.logical
 
 import org.neo4j.cypher.internal.compiler.planner.logical.ordering.InterestingOrderConfig
 import org.neo4j.cypher.internal.compiler.planner.logical.steps.LogicalPlanProducer
-import org.neo4j.cypher.internal.compiler.planner.logical.steps.mergeNodeUniqueIndexSeekLeafPlanner
-import org.neo4j.cypher.internal.compiler.planner.logical.steps.mergeRelationshipUniqueIndexSeekLeafPlanner
+import org.neo4j.cypher.internal.compiler.planner.logical.steps.leafplanner.index.mergeNodeUniqueIndexSeekLeafPlanner
+import org.neo4j.cypher.internal.compiler.planner.logical.steps.leafplanner.index.mergeRelationshipUniqueIndexSeekLeafPlanner
 import org.neo4j.cypher.internal.expressions.ContainerIndex
 import org.neo4j.cypher.internal.expressions.PathExpression
 import org.neo4j.cypher.internal.expressions.Variable

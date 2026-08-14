@@ -20,7 +20,6 @@
 package org.neo4j.cypher.internal.compiler.planner.logical.idp
 
 import org.neo4j.cypher.internal.compiler.planner.logical.InterestingOrderSelectorHeuristic
-import org.neo4j.cypher.internal.compiler.planner.logical.LeafPlanFinder
 import org.neo4j.cypher.internal.compiler.planner.logical.LogicalPlanningContext
 import org.neo4j.cypher.internal.compiler.planner.logical.QueryPlannerKit
 import org.neo4j.cypher.internal.compiler.planner.logical.SortPlanner
@@ -32,7 +31,8 @@ import org.neo4j.cypher.internal.compiler.planner.logical.idp.expandSolverStep.p
 import org.neo4j.cypher.internal.compiler.planner.logical.idp.expandSolverStep.preFilterCandidatesByIntoVsAllHeuristic
 import org.neo4j.cypher.internal.compiler.planner.logical.ordering.InterestingOrderConfig
 import org.neo4j.cypher.internal.compiler.planner.logical.steps.BestPlans
-import org.neo4j.cypher.internal.compiler.planner.logical.steps.leafPlanOptions
+import org.neo4j.cypher.internal.compiler.planner.logical.steps.leafplanner.LeafPlanFinder
+import org.neo4j.cypher.internal.compiler.planner.logical.steps.leafplanner.leafPlanOptions
 import org.neo4j.cypher.internal.expressions.LogicalVariable
 import org.neo4j.cypher.internal.ir.NodeConnection
 import org.neo4j.cypher.internal.ir.PatternRelationship

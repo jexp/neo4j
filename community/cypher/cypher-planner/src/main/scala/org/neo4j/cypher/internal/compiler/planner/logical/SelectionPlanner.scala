@@ -20,8 +20,8 @@
 package org.neo4j.cypher.internal.compiler.planner.logical
 
 import org.neo4j.cypher.internal.compiler.planner.logical.ordering.InterestingOrderConfig
-import org.neo4j.cypher.internal.compiler.planner.logical.steps.FulltextSearchLeafPlanner
-import org.neo4j.cypher.internal.compiler.planner.logical.steps.VectorSearchLeafPlanner
+import org.neo4j.cypher.internal.compiler.planner.logical.steps.leafplanner.FulltextSearchLeafPlanner
+import org.neo4j.cypher.internal.compiler.planner.logical.steps.leafplanner.VectorSearchLeafPlanner
 import org.neo4j.cypher.internal.compiler.planner.logical.steps.planShortestRelationships
 import org.neo4j.cypher.internal.ir.FulltextSearchClause
 import org.neo4j.cypher.internal.ir.QueryGraph

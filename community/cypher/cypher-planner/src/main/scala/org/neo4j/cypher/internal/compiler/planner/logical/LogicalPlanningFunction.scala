@@ -22,10 +22,8 @@ package org.neo4j.cypher.internal.compiler.planner.logical
 import org.neo4j.cypher.internal.ast.IrHint
 import org.neo4j.cypher.internal.ast.UsingScanHint
 import org.neo4j.cypher.internal.compiler.planner.logical.ordering.InterestingOrderConfig
-import org.neo4j.cypher.internal.compiler.planner.logical.steps.BestPlans
 import org.neo4j.cypher.internal.expressions.LabelName
 import org.neo4j.cypher.internal.expressions.LabelOrRelTypeName
-import org.neo4j.cypher.internal.expressions.LogicalVariable
 import org.neo4j.cypher.internal.expressions.Variable
 import org.neo4j.cypher.internal.ir.QueryGraph
 import org.neo4j.cypher.internal.ir.SinglePlannerQuery
@@ -47,36 +45,6 @@ trait PlanTransformer {
 }
 
 trait CandidateSelector extends ProjectingSelector[LogicalPlan]
-
-trait LeafPlanner {
-
-  def apply(
-    queryGraph: QueryGraph,
-    interestingOrderConfig: InterestingOrderConfig,
-    context: LogicalPlanningContext
-  ): Set[LogicalPlan]
-}
-
-/**
- * Finds the best sorted and unsorted plan for every unique set of available symbols.
- */
-trait LeafPlanFinder {
-
-  def apply(
-    config: QueryPlannerConfiguration,
-    queryGraph: QueryGraph,
-    interestingOrderConfig: InterestingOrderConfig,
-    context: LogicalPlanningContext
-  ): Map[Set[LogicalVariable], BestPlans]
-
-  def apply(
-    leafPlanCandidates: Set[LogicalPlan],
-    config: QueryPlannerConfiguration,
-    queryGraph: QueryGraph,
-    interestingOrderConfig: InterestingOrderConfig,
-    context: LogicalPlanningContext
-  ): Map[Set[LogicalVariable], BestPlans]
-}
 
 object LabelScanLeafPlanner {
 
