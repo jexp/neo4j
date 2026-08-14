@@ -1722,7 +1722,7 @@ class EnvelopedLogFilesTest {
 
         assertThatThrownBy(() -> envelopedLogFiles.initialise())
                 .isInstanceOf(InconsistentLogFilesException.class)
-                .hasMessageContaining("is not using Envelopes as required");
+                .hasMessageContaining("is not using Envelopes, but Merged Log mode requires them");
     }
 
     @Test

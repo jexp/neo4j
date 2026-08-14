@@ -222,8 +222,8 @@ public class EnvelopedLogTailChecker {
 
                 // must be enveloped
                 if (!logHeader.getLogFormatVersion().usesSegments()) {
-                    throw new InconsistentLogFilesException(
-                            "Log File: " + logsRepository.pathFor(version) + " is not using Envelopes as required");
+                    throw new InconsistentLogFilesException("Log File: " + logsRepository.pathFor(version)
+                            + " is not using Envelopes, but Merged Log mode requires them");
                 }
 
                 // No format downgrades allowed
