@@ -83,8 +83,8 @@
     <apache.directory.server.version>2.0.0.AM27</apache.directory.server.version>
     <asm.version>9.10.1</asm.version>
     <awaitility.version>4.3.0</awaitility.version>
-    <awssdk.version>2.47.3</awssdk.version>
-    <bouncycastle.version>1.84</bouncycastle.version>
+    <awssdk.version>2.53.0</awssdk.version>
+    <bouncycastle.version>1.85</bouncycastle.version>
     <build-helper-maven-plugin.version>3.6.1</build-helper-maven-plugin.version>
     <build-resources.version>2026.07.1</build-resources.version>
     <caffeine.version>3.2.4</caffeine.version>
@@ -106,7 +106,7 @@
     <excludedTestGroups />
     <forkCounts>1</forkCounts>
     <generate-config-docs-phase>prepare-package</generate-config-docs-phase>
-    <grpc.version>1.82.1</grpc.version>
+    <grpc.version>1.83.1</grpc.version>
     <gson.version>2.14.0</gson.version>
     <guava.version>33.6.0-jre</guava.version>
     <!-- The property vm.target.version is used by CI to set the base JDK in which to run maven -->
@@ -119,7 +119,7 @@
     <jakarta.ws.rs-api.version>2.1.6</jakarta.ws.rs-api.version>
 
     <jamm.version>0.4.0</jamm.version>
-    <java-jwt.version>4.5.2</java-jwt.version>
+    <java-jwt.version>4.6.0</java-jwt.version>
     <javapoet.version>1.13.0</javapoet.version>
     <jdk.custom.options>--add-opens=java.base/java.nio=ALL-UNNAMED
       --add-opens=java.base/java.io=ALL-UNNAMED
@@ -135,19 +135,19 @@
     <jersey.version>2.46</jersey.version>
     <jetty.toolchain.version>4.0.9</jetty.toolchain.version>
     <jetty.version>12.1.11</jetty.version>
-    <json-unit.version>6.0.1</json-unit.version>
+    <json-unit.version>6.2.0</json-unit.version>
     <json4s.version>4.1.0</json4s.version>
     <jsr305.version>3.0.2</jsr305.version>
-    <junit.version>6.1.1</junit.version>
+    <junit.version>6.1.3</junit.version>
     <license-text.header>license/neo4j_gpl_v3/header.txt</license-text.header>
 
     <license.id>neo4j_gpl_v3</license.id>
     <licensing.prepend.text>license/neo4j_gpl_v3/notice.txt</licensing.prepend.text>
     <log4j.version>2.26.1</log4j.version>
-    <logback.version>1.5.38</logback.version>
+    <logback.version>1.6.3</logback.version>
     <lucene.version>10.5.1</lucene.version>
     <lucene9.version>9.12.3</lucene9.version>
-    <lz4.version>1.11.1</lz4.version>
+    <lz4.version>1.11.2</lz4.version>
     <maven.build.timestamp.format>yyMMddHHmmssSSS</maven.build.timestamp.format>
     <maven.compiler.release>${vm.target.version}</maven.compiler.release>
     <metrics.version>4.2.39</metrics.version>
@@ -166,7 +166,7 @@
      -->
     <netty.version>4.2.17.Final</netty.version>
     <opencypher.version>1.0.0-M23</opencypher.version>
-    <oshi-common.version>7.4.0</oshi-common.version>
+    <oshi-common.version>7.4.4</oshi-common.version>
     <parallel.tests>false</parallel.tests>
     <parquet-floor.version>2.1</parquet-floor.version>
     <parquet.version>1.18.0</parquet.version>
@@ -189,7 +189,7 @@
     <shiro.version>3.0.0</shiro.version>
     <skip-scalastyle>false</skip-scalastyle>
     <slf4j.version>2.0.17</slf4j.version>
-    <sqlite-jdbc.version>3.53.2.0</sqlite-jdbc.version>
+    <sqlite-jdbc.version>3.53.2.1</sqlite-jdbc.version>
     <teavm.version>0.15.0</teavm.version>
     <test.runner.jvm />
     <test.runner.jvm.settings>${test.runner.mockito.agent}
@@ -363,7 +363,7 @@
       <dependency>
         <groupId>com.github.luben</groupId>
         <artifactId>zstd-jni</artifactId>
-        <version>1.5.7-11</version>
+        <version>1.5.7-13</version>
       </dependency>
       <dependency>
         <groupId>com.github.seancfoley</groupId>
@@ -471,7 +471,7 @@
       <dependency>
         <groupId>commons-codec</groupId>
         <artifactId>commons-codec</artifactId>
-        <version>1.22.0</version>
+        <version>1.22.1</version>
       </dependency>
       <dependency>
         <groupId>commons-io</groupId>
@@ -922,7 +922,7 @@
       <dependency>
         <groupId>org.codehaus.jettison</groupId>
         <artifactId>jettison</artifactId>
-        <version>1.5.6</version>
+        <version>1.5.7</version>
       </dependency>
 
       <!-- other -->
