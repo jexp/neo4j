@@ -82,6 +82,8 @@ public interface DatabaseLayout {
 
     Path pathForExistsMarker();
 
+    Path segmentsMetadata();
+
     StoreFile pathForStore(CommonDatabaseStores store);
 
     Optional<StoreFile> idFile(DatabaseFile file);

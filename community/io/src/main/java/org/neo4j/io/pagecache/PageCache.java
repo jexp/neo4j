@@ -21,6 +21,7 @@ package org.neo4j.io.pagecache;
 
 import static org.eclipse.collections.impl.factory.Sets.immutable;
 import static org.neo4j.io.pagecache.impl.muninn.EvictionBouncer.ALWAYS_ALLOW;
+import static org.neo4j.io.pagecache.segment.FileSegmentTracker.EMPTY_FILE_TRACKER;
 
 import java.io.IOException;
 import java.nio.file.OpenOption;
@@ -32,6 +33,7 @@ import org.neo4j.io.pagecache.buffer.IOBufferFactory;
 import org.neo4j.io.pagecache.impl.muninn.EvictionBouncer;
 import org.neo4j.io.pagecache.impl.muninn.StoreFile;
 import org.neo4j.io.pagecache.impl.muninn.VersionStorage;
+import org.neo4j.io.pagecache.segment.FileSegmentTracker;
 import org.neo4j.io.pagecache.tracing.DatabaseFlushEvent;
 
 /**
@@ -113,7 +115,8 @@ public interface PageCache extends AutoCloseable {
                 openOptions,
                 IOController.DISABLED,
                 ALWAYS_ALLOW,
-                VersionStorage.EMPTY_STORAGE);
+                VersionStorage.EMPTY_STORAGE,
+                EMPTY_FILE_TRACKER);
     }
 
     /**
@@ -147,7 +150,8 @@ public interface PageCache extends AutoCloseable {
                 openOptions,
                 IOController.DISABLED,
                 ALWAYS_ALLOW,
-                VersionStorage.EMPTY_STORAGE);
+                VersionStorage.EMPTY_STORAGE,
+                EMPTY_FILE_TRACKER);
     }
 
     /**
@@ -178,7 +182,8 @@ public interface PageCache extends AutoCloseable {
                 openOptions,
                 ioController,
                 ALWAYS_ALLOW,
-                VersionStorage.EMPTY_STORAGE);
+                VersionStorage.EMPTY_STORAGE,
+                EMPTY_FILE_TRACKER);
     }
 
     default PagedFile map(
@@ -195,7 +200,8 @@ public interface PageCache extends AutoCloseable {
                 openOptions,
                 ioController,
                 ALWAYS_ALLOW,
-                VersionStorage.EMPTY_STORAGE);
+                VersionStorage.EMPTY_STORAGE,
+                EMPTY_FILE_TRACKER);
     }
 
     /**
@@ -228,7 +234,8 @@ public interface PageCache extends AutoCloseable {
             ImmutableSet<OpenOption> openOptions,
             IOController ioController,
             EvictionBouncer evictionBouncer,
-            VersionStorage versionStorage)
+            VersionStorage versionStorage,
+            FileSegmentTracker segmentTracker)
             throws IOException;
 
     /**

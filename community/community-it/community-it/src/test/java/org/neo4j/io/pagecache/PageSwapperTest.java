@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.io.ByteUnit.KibiByte;
 import static org.neo4j.io.pagecache.IOController.DISABLED;
 import static org.neo4j.io.pagecache.impl.muninn.EvictionBouncer.ALWAYS_ALLOW;
+import static org.neo4j.io.pagecache.segment.FileSegmentTracker.EMPTY_FILE_TRACKER;
 
 import java.io.IOException;
 import java.nio.channels.ClosedChannelException;
@@ -1113,7 +1114,8 @@ public abstract class PageSwapperTest {
                 pagesPerSegment(),
                 DISABLED,
                 ALWAYS_ALLOW,
-                swapperSet::allocate);
+                swapperSet::allocate,
+                EMPTY_FILE_TRACKER);
         openedSwappers.add(swapper);
         return swapper;
     }
@@ -1136,7 +1138,8 @@ public abstract class PageSwapperTest {
                 pagesPerSegment(),
                 controller,
                 ALWAYS_ALLOW,
-                swapperSet::allocate);
+                swapperSet::allocate,
+                EMPTY_FILE_TRACKER);
         openedSwappers.add(swapper);
         return swapper;
     }

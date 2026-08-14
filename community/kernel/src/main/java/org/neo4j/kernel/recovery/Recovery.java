@@ -24,6 +24,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.neo4j.collection.Dependencies.dependenciesOf;
 import static org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker.writable;
 import static org.neo4j.internal.helpers.collection.Iterables.stream;
+import static org.neo4j.io.pagecache.context.CursorContextFactory.NULL_CONTEXT_FACTORY;
 import static org.neo4j.io.pagecache.context.FixedVersionContextSupplier.EMPTY_CONTEXT_SUPPLIER;
 import static org.neo4j.io.pagecache.context.OldestVisibilityHorizonFactory.EMPTY_OLDEST_HORIZON_FACTORY;
 import static org.neo4j.io.pagecache.context.TransactionIdSnapshotFactory.EMPTY_SNAPSHOT_FACTORY;
@@ -103,6 +104,7 @@ import org.neo4j.kernel.impl.index.DatabaseIndexStats;
 import org.neo4j.kernel.impl.pagecache.ConfiguringPageCacheFactory;
 import org.neo4j.kernel.impl.scheduler.JobSchedulerFactory;
 import org.neo4j.kernel.impl.store.FileStoreProviderRegistry;
+import org.neo4j.kernel.impl.store.segment.SegmentTrackingFactory;
 import org.neo4j.kernel.impl.transaction.log.LogFormatVersionProvider;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.LogTailMetadata;
@@ -576,25 +578,35 @@ public final class Recovery {
         var namedDatabaseId = createRecoveryDatabaseId(fs, pageCache, databaseLayout, storageEngineFactory);
         Monitors monitors = new Monitors(globalMonitors, logProvider);
         VersionStorage recoveryVersionStorage = VersionStorage.EMPTY_STORAGE;
-        DatabasePageCache databasePageCache =
-                new DatabasePageCache(pageCache, ioController, recoveryVersionStorage, config);
-        SimpleLogService logService = new SimpleLogService(logProvider);
         DatabaseReadOnlyChecker readOnlyChecker = writable();
+        DatabaseHealth databaseHealth = new DatabaseHealth(HealthEventGenerator.NO_OP, recoveryLog);
+        SegmentTrackingFactory segmentTrackingFactory = recoveryLife.add(new SegmentTrackingFactory(
+                storageEngineFactory,
+                fs,
+                pageCache,
+                databaseLayout,
+                NULL_CONTEXT_FACTORY,
+                config,
+                readOnlyChecker,
+                databaseHealth,
+                recoveryLog));
+        DatabasePageCache databasePageCache = new DatabasePageCache(
+                pageCache, ioController, recoveryVersionStorage, segmentTrackingFactory.segmentTracker(), config);
 
+        SimpleLogService logService = new SimpleLogService(logProvider);
         DatabaseSchemaState schemaState = new DatabaseSchemaState(logProvider);
         JobScheduler scheduler = recoveryLife.add(JobSchedulerFactory.createInitialisedScheduler());
         DatabaseAvailabilityGuard guard = new RecoveryAvailabilityGuard(namedDatabaseId, clock, recoveryLog);
         recoveryLife.add(guard);
 
-        RecoveryBehavior recoveryBehavior = storageEngineFactory.recoveryBehavior(
-                fs, databasePageCache, databaseLayout, CursorContextFactory.NULL_CONTEXT_FACTORY);
+        RecoveryBehavior recoveryBehavior =
+                storageEngineFactory.recoveryBehavior(fs, databasePageCache, databaseLayout, NULL_CONTEXT_FACTORY);
         var versionContextSupplier = recoveryBehavior.useTransactionVersionContext()
                 ? new TransactionVersionContextSupplier()
                 : EMPTY_CONTEXT_SUPPLIER;
         versionContextSupplier.init(EMPTY_SNAPSHOT_FACTORY, EMPTY_OLDEST_HORIZON_FACTORY);
         CursorContextFactory cursorContextFactory =
                 new CursorContextFactory(tracers.getPageCacheTracer(), versionContextSupplier);
-        DatabaseHealth databaseHealth = new DatabaseHealth(HealthEventGenerator.NO_OP, recoveryLog);
 
         // The token registries during recovery can add tokens w/o making a defensive copy
         // of all internal token registry state, because there should be none doing lookups
@@ -753,7 +765,8 @@ public final class Recovery {
                 fs,
                 EMPTY_VISIBILITY_PROVIDER);
 
-        validateStoreId(logTailMetadata, storageEngine.metadataProvider().getStoreId());
+        StoreId storeId = storageEngine.metadataProvider().getStoreId();
+        validateStoreId(logTailMetadata, storeId);
 
         TransactionMetadataCache metadataCache = new TransactionMetadataCache();
         PhysicalLogicalTransactionStore transactionStore = new PhysicalLogicalTransactionStore(
@@ -832,6 +845,7 @@ public final class Recovery {
                 clock,
                 ioController,
                 memoryTracker,
+                segmentTrackingFactory.createSegmentMetadataService(storeId, memoryTracker),
                 config);
         recoveryLife.add(indexStatisticsStore);
         recoveryLife.add(storageEngine);

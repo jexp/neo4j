@@ -51,6 +51,8 @@ import org.neo4j.io.pagecache.impl.muninn.EvictionBouncer;
 import org.neo4j.io.pagecache.impl.muninn.StoreFile;
 import org.neo4j.io.pagecache.impl.muninn.VersionStorage;
 import org.neo4j.io.pagecache.monitoring.PageFileCounters;
+import org.neo4j.io.pagecache.segment.DatabaseSegmentTracker;
+import org.neo4j.io.pagecache.segment.FileSegmentTracker;
 import org.neo4j.io.pagecache.tracing.DatabaseFlushEvent;
 import org.neo4j.io.pagecache.tracing.FileFlushEvent;
 import org.neo4j.io.pagecache.tracing.FileMappedListener;
@@ -68,16 +70,22 @@ public class DatabasePageCache implements PageCache {
     private final Map<Path, DatabasePagedFile> uniqueDatabasePagedFiles = new ConcurrentHashMap<>();
     private final IOController ioController;
     private final List<FileMappedListener> mappedListeners = new CopyOnWriteArrayList<>();
+    private final DatabaseSegmentTracker pageCacheSegmentTracker;
     private final boolean useSnapshotEngine;
     private boolean closed;
     private final TicketMachine ticketMachine = new TicketMachine();
     private final VersionStorage versionStorage;
 
     public DatabasePageCache(
-            PageCache globalPageCache, IOController ioController, VersionStorage versionStorage, Config config) {
+            PageCache globalPageCache,
+            IOController ioController,
+            VersionStorage versionStorage,
+            DatabaseSegmentTracker databaseSegmentTracker,
+            Config config) {
         this.globalPageCache = requireNonNull(globalPageCache);
         this.ioController = requireNonNull(ioController);
         this.versionStorage = requireNonNull(versionStorage);
+        this.pageCacheSegmentTracker = databaseSegmentTracker;
         this.useSnapshotEngine = config.get(snapshot_query);
     }
 
@@ -89,7 +97,8 @@ public class DatabasePageCache implements PageCache {
             ImmutableSet<OpenOption> openOptions,
             IOController ignoredController,
             EvictionBouncer evictionBouncer,
-            VersionStorage ignoredVersionStorage)
+            VersionStorage ignoredVersionStorage,
+            FileSegmentTracker ignoredsegmentTracker)
             throws IOException {
         Path path = storeFile.baseSegment();
         // no one should call this version of map method with emptyDatabaseName != null,
@@ -98,7 +107,14 @@ public class DatabasePageCache implements PageCache {
             openOptions = openOptions.newWith(CONTEXT_VERSION_UPDATES);
         }
         PagedFile pagedFile = globalPageCache.map(
-                storeFile, pageSize, databaseName, openOptions, ioController, evictionBouncer, versionStorage);
+                storeFile,
+                pageSize,
+                databaseName,
+                openOptions,
+                ioController,
+                evictionBouncer,
+                versionStorage,
+                pageCacheSegmentTracker.createFileSegmentTracer(path));
         // Our default page cache handles mapping a file multiple times, where additional mappings for the
         // same file just returns the existing mapping. The DatabasePageCache needs to keep track of when
         // a file is mapped the first time _for this particular instance_ tho, so that listeners can be
@@ -225,6 +241,7 @@ public class DatabasePageCache implements PageCache {
         if (databasePagedFile.refCount.decrementAndGet() == 0) {
             invokeFileUnmapListeners(mappedListeners, databasePagedFile);
             uniqueDatabasePagedFiles.remove(databasePagedFile.path());
+            pageCacheSegmentTracker.removeFileSegmentTracer(databasePagedFile.path());
         }
     }
 

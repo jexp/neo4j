@@ -42,6 +42,7 @@ import org.neo4j.io.pagecache.impl.muninn.AsyncCheckpointFailureHandler;
 import org.neo4j.io.pagecache.tracing.DatabaseFlushEvent;
 import org.neo4j.kernel.KernelVersion;
 import org.neo4j.kernel.database.DatabaseTracers;
+import org.neo4j.kernel.impl.store.segment.SegmentMetadataService;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.files.checkpoint.CheckpointFile;
 import org.neo4j.kernel.impl.transaction.log.pruning.LogPruning;
@@ -77,6 +78,7 @@ public class CheckPointerImpl extends LifecycleAdapter implements CheckPointer {
     private final Clock clock;
     private final IOController ioController;
     private final MemoryTracker memoryTracker;
+    private final SegmentMetadataService segmentMetadataService;
     private final Config config;
 
     private volatile boolean shutdown;
@@ -96,6 +98,7 @@ public class CheckPointerImpl extends LifecycleAdapter implements CheckPointer {
             Clock clock,
             IOController ioController,
             MemoryTracker memoryTracker,
+            SegmentMetadataService segmentMetadataService,
             Config config) {
         this.checkpointFile = checkpointFile;
         this.metadataProvider = metadataProvider;
@@ -110,6 +113,7 @@ public class CheckPointerImpl extends LifecycleAdapter implements CheckPointer {
         this.clock = clock;
         this.ioController = ioController;
         this.memoryTracker = memoryTracker;
+        this.segmentMetadataService = segmentMetadataService;
         this.config = config;
     }
 
@@ -299,6 +303,7 @@ public class CheckPointerImpl extends LifecycleAdapter implements CheckPointer {
                 forceOperation.flushAndForce(flushEvent, asyncBlockAccessor, cursorContext);
                 flushEvent.ioControllerLimit(ioController.configuredLimit());
             }
+            segmentMetadataService.storeMetadata(ongoingCheckpoint.appendIndex());
 
             /*
              * Check kernel health before going to write the next check point.  In case of a panic this check point

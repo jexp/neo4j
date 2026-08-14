@@ -154,7 +154,8 @@ class MuninnPageCacheExplicitPreallocateTest {
                                 pagesPerSegment,
                                 ioController,
                                 evictionGuard,
-                                swapperIdProvider) -> {
+                                swapperIdProvider,
+                                segmentTracker) -> {
                             when(swapper.swapperId()).thenReturn(swapperIdProvider.swapperId(swapper));
                             when(swapper.path()).thenReturn(path);
                             return swapper;

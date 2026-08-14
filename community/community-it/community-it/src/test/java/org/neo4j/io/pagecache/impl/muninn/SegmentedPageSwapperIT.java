@@ -30,6 +30,7 @@ import static org.neo4j.io.pagecache.PageCache.PAGE_SIZE;
 import static org.neo4j.io.pagecache.PagedFile.PF_SHARED_READ_LOCK;
 import static org.neo4j.io.pagecache.PagedFile.PF_SHARED_WRITE_LOCK;
 import static org.neo4j.io.pagecache.context.CursorContext.NULL_CONTEXT;
+import static org.neo4j.io.pagecache.segment.FileSegmentTracker.EMPTY_FILE_TRACKER;
 import static org.neo4j.io.pagecache.tracing.FileFlushEvent.NULL;
 
 import java.io.IOException;
@@ -62,6 +63,8 @@ import org.neo4j.io.pagecache.impl.muninn.swapper.PageSwapper;
 import org.neo4j.io.pagecache.impl.muninn.swapper.PageSwapperFactory;
 import org.neo4j.io.pagecache.impl.muninn.swapper.SegmentedPageSwapperFactory;
 import org.neo4j.io.pagecache.impl.muninn.swapper.SingleFilePageSwapperFactory;
+import org.neo4j.io.pagecache.segment.FileSegmentTracker;
+import org.neo4j.io.pagecache.segment.PageCacheSegmentTracker;
 import org.neo4j.io.pagecache.tracing.DefaultPageCacheTracer;
 import org.neo4j.io.pagecache.tracing.DummyPageSwapper;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
@@ -1379,6 +1382,271 @@ class SegmentedPageSwapperIT {
         }
     }
 
+    @Test
+    void writeTracksOnlyMutatedSegment() throws IOException {
+        Path baseFile = directory.file("track-single-write");
+        int pageInSegment1 = PAGES_PER_SEGMENT + 1;
+        try (PageSwapper swapper = createSegmentedSwapper(baseFile)) {
+            writeRangeViaSwapper(swapper, 0, 3 * PAGES_PER_SEGMENT);
+            swapper.force();
+        }
+
+        FileSegmentTracker tracker = fileSegmentTracker(baseFile);
+        try (PageSwapper swapper = createSegmentedSwapper(baseFile, tracker)) {
+            long buffer = allocateFilled(PAGE_SIZE, (byte) 0);
+            try {
+                UnsafeUtil.putLong(buffer, marker(pageInSegment1));
+                assertThat(swapper.write(pageInSegment1, buffer)).isEqualTo(PAGE_SIZE);
+                assertThat(tracker.drainChangedSegments()).containsExactlyInAnyOrder(1);
+                assertThat(tracker.drainChangedSegments()).isEmpty();
+
+                assertThat(swapper.write(pageInSegment1, buffer)).isEqualTo(PAGE_SIZE);
+                assertThat(tracker.drainChangedSegments()).containsExactlyInAnyOrder(1);
+            } finally {
+                freeBuffer(buffer, PAGE_SIZE);
+            }
+        }
+    }
+
+    @Test
+    void writeSpanningSegmentsTracksEveryTouchedSegment() throws IOException {
+        Path baseFile = directory.file("track-spanning-write");
+        try (PageSwapper swapper = createSegmentedSwapper(baseFile)) {
+            writeRangeViaSwapper(swapper, 0, 3 * PAGES_PER_SEGMENT);
+            swapper.force();
+        }
+
+        FileSegmentTracker tracker = fileSegmentTracker(baseFile);
+        try (PageSwapper swapper = createSegmentedSwapper(baseFile, tracker)) {
+            writeRangeViaSwapper(swapper, 2, 2 * PAGES_PER_SEGMENT);
+            assertThat(tracker.drainChangedSegments()).containsExactlyInAnyOrder(0, 1, 2);
+        }
+    }
+
+    @Test
+    void writeVectoredTracksEveryTouchedSegment() throws IOException {
+        Path baseFile = directory.file("track-vectored-write");
+        int startPage = PAGES_PER_SEGMENT - 1;
+        try (PageSwapper swapper = createSegmentedSwapper(baseFile)) {
+            writeRangeViaSwapper(swapper, 0, 2 * PAGES_PER_SEGMENT);
+            swapper.force();
+        }
+
+        FileSegmentTracker tracker = fileSegmentTracker(baseFile);
+        try (PageSwapper swapper = createSegmentedSwapper(baseFile, tracker)) {
+            writeVectoredViaSwapper(swapper, startPage, new int[] {1, 1});
+            assertThat(tracker.drainChangedSegments()).containsExactlyInAnyOrder(0, 1);
+        }
+        assertSegmentFilesContainMarkers(baseFile, startPage, 2);
+    }
+
+    @Test
+    void writeGrowingIntoNewSegmentsTracksCreatedSegments() throws IOException {
+        Path baseFile = directory.file("track-grow-write");
+        FileSegmentTracker tracker = fileSegmentTracker(baseFile);
+
+        try (PageSwapper swapper = createSegmentedSwapper(baseFile, tracker)) {
+            writeRangeViaSwapper(swapper, 2 * PAGES_PER_SEGMENT + 1, 1);
+            assertThat(tracker.drainChangedSegments()).containsExactlyInAnyOrder(1, 2);
+        }
+    }
+
+    @Test
+    void trackSegmentCountOfCreatedFile() throws IOException {
+        Path baseFile = directory.file("count-created");
+        PageCacheSegmentTracker cacheTracker = new PageCacheSegmentTracker(directory.homePath());
+        try (PageSwapper swapper = createSegmentedSwapper(baseFile, cacheTracker.createFileSegmentTracer(baseFile))) {
+            assertThat(trackedSegmentCount(cacheTracker, baseFile)).isEqualTo(1);
+        }
+    }
+
+    @Test
+    void trackSegmentCountOfReopenedSegmentedFile() throws IOException {
+        Path baseFile = directory.file("count-reopened");
+        try (PageSwapper swapper = createSegmentedSwapper(baseFile)) {
+            writeRangeViaSwapper(swapper, 0, 3 * PAGES_PER_SEGMENT);
+            swapper.force();
+        }
+
+        PageCacheSegmentTracker cacheTracker = new PageCacheSegmentTracker(directory.homePath());
+        try (PageSwapper swapper = createSegmentedSwapper(baseFile, cacheTracker.createFileSegmentTracer(baseFile))) {
+            assertThat(trackedSegmentCount(cacheTracker, baseFile)).isEqualTo(3);
+        }
+    }
+
+    @Test
+    void trackSegmentCountOnSegmentGrowth() throws IOException {
+        Path baseFile = directory.file("count-growth");
+        PageCacheSegmentTracker cacheTracker = new PageCacheSegmentTracker(directory.homePath());
+        try (PageSwapper swapper = createSegmentedSwapper(baseFile, cacheTracker.createFileSegmentTracer(baseFile))) {
+            assertThat(trackedSegmentCount(cacheTracker, baseFile)).isEqualTo(1);
+
+            writeRangeViaSwapper(swapper, 2 * PAGES_PER_SEGMENT + 1, 1);
+
+            assertThat(trackedSegmentCount(cacheTracker, baseFile)).isEqualTo(3);
+        }
+    }
+
+    @Test
+    void trackSegmentCountOnTruncation() throws IOException {
+        Path baseFile = directory.file("count-truncation");
+        PageCacheSegmentTracker cacheTracker = new PageCacheSegmentTracker(directory.homePath());
+        try (PageSwapper swapper = createSegmentedSwapper(baseFile, cacheTracker.createFileSegmentTracer(baseFile))) {
+            writeRangeViaSwapper(swapper, 0, 3 * PAGES_PER_SEGMENT);
+            assertThat(trackedSegmentCount(cacheTracker, baseFile)).isEqualTo(3);
+
+            swapper.truncate((long) PAGES_PER_SEGMENT * PAGE_SIZE);
+
+            assertThat(trackedSegmentCount(cacheTracker, baseFile)).isEqualTo(1);
+        }
+    }
+
+    @Test
+    void readDoesNotTrackSegments() throws IOException {
+        Path baseFile = directory.file("track-reads");
+        int totalPages = 3 * PAGES_PER_SEGMENT;
+        try (PageSwapper swapper = createSegmentedSwapper(baseFile)) {
+            writeRangeViaSwapper(swapper, 0, totalPages);
+            swapper.force();
+        }
+
+        FileSegmentTracker tracker = fileSegmentTracker(baseFile);
+        try (PageSwapper swapper = createSegmentedSwapper(baseFile, tracker)) {
+            assertThat(swapper.getLastPageId()).isEqualTo(totalPages - 1L);
+
+            long buffer = allocateFilled(PAGE_SIZE, (byte) 0xFF);
+            try {
+                for (int segment = 0; segment < 3; segment++) {
+                    int page = segment * PAGES_PER_SEGMENT + 1;
+                    assertThat(swapper.read(page, buffer)).isEqualTo(PAGE_SIZE);
+                    assertPageMarkers(buffer, page, 1);
+                }
+            } finally {
+                freeBuffer(buffer, PAGE_SIZE);
+            }
+
+            assertThat(tracker.drainChangedSegments()).isEmpty();
+        }
+    }
+
+    @Test
+    void readPastEndOfFileDoesNotTrackSegments() throws IOException {
+        Path baseFile = directory.file("track-reads-past-eof");
+        try (PageSwapper swapper = createSegmentedSwapper(baseFile)) {
+            writeRangeViaSwapper(swapper, 0, 1);
+            swapper.force();
+        }
+
+        FileSegmentTracker tracker = fileSegmentTracker(baseFile);
+        try (PageSwapper swapper = createSegmentedSwapper(baseFile, tracker)) {
+            long buffer = allocateFilled(PAGE_SIZE, (byte) 0xFF);
+            try {
+                assertThat(swapper.read(PAGES_PER_SEGMENT - 1, buffer)).isZero();
+                assertThat(swapper.read(2 * PAGES_PER_SEGMENT, buffer)).isZero();
+            } finally {
+                freeBuffer(buffer, PAGE_SIZE);
+            }
+            assertThat(tracker.drainChangedSegments()).isEmpty();
+        }
+    }
+
+    @Test
+    void flushingCursorWritesTracksMutatedSegments() throws IOException {
+        Path baseFile = directory.file("track-cursor-writes");
+        int totalPages = 3 * PAGES_PER_SEGMENT;
+        FileSegmentTracker tracker = fileSegmentTracker(baseFile);
+
+        try (PageCache pageCache = newPageCache();
+                PagedFile pagedFile = mapSegmented(pageCache, baseFile, tracker, CREATE)) {
+            writePages(pagedFile, totalPages);
+            pagedFile.flushAndForce(NULL, EMPTY_ASYNC_BLOCK_ACCESSOR);
+
+            assertThat(tracker.drainChangedSegments()).containsExactlyInAnyOrder(0, 1, 2);
+        }
+    }
+
+    @Test
+    void readingThroughPageCacheDoesNotTrackSegments() throws IOException {
+        Path baseFile = directory.file("track-cursor-reads");
+        int totalPages = 3 * PAGES_PER_SEGMENT;
+        try (PageCache pageCache = newPageCache();
+                PagedFile pagedFile = mapSegmented(pageCache, baseFile, CREATE)) {
+            writePages(pagedFile, totalPages);
+            pagedFile.flushAndForce(NULL, EMPTY_ASYNC_BLOCK_ACCESSOR);
+        }
+
+        FileSegmentTracker tracker = fileSegmentTracker(baseFile);
+        try (PageCache pageCache = newPageCache();
+                PagedFile pagedFile = mapSegmented(pageCache, baseFile, tracker)) {
+            assertPagesContainMarkers(pagedFile, totalPages);
+            pagedFile.flushAndForce(NULL, EMPTY_ASYNC_BLOCK_ACCESSOR);
+            assertThat(tracker.drainChangedSegments()).isEmpty();
+        }
+    }
+
+    @Test
+    void writesToNonSegmentedSwapperDoNotTrackSegments() throws IOException {
+        Path file = directory.file("track-non-segmented-swapper");
+        int totalPages = 3 * PAGES_PER_SEGMENT;
+        FileSegmentTracker tracker = fileSegmentTracker(file);
+
+        try (PageSwapper swapper = createNonSegmentedSwapper(file, tracker)) {
+            writeRangeViaSwapper(swapper, 0, totalPages);
+            writeVectoredViaSwapper(swapper, totalPages, new int[] {1, 1});
+            swapper.force();
+
+            assertThat(tracker.drainChangedSegments()).isEmpty();
+        }
+
+        assertThat(fs.getFileSize(file)).isEqualTo((totalPages + 2L) * PAGE_SIZE);
+        assertThat(fs.fileExists(segment(file, 1))).isFalse();
+    }
+
+    @Test
+    void nonSegmentedSwapperFromSegmentedFactoryDoesNotTrackSegments() throws IOException {
+        Path file = directory.file("track-non-segmented-delegate");
+        int totalPages = 3 * PAGES_PER_SEGMENT;
+        FileSegmentTracker tracker = fileSegmentTracker(file);
+        PageSwapperFactory factory = new SegmentedPageSwapperFactory(
+                new SingleFilePageSwapperFactory(fs, PageCacheTracer.NULL, EmptyMemoryTracker.INSTANCE),
+                fs,
+                PageCacheTracer.NULL);
+
+        try (PageSwapper swapper = createNonSegmentedSwapper(factory, file, tracker)) {
+            writeRangeViaSwapper(swapper, 0, totalPages);
+            writeVectoredViaSwapper(swapper, totalPages, new int[] {1, 1});
+            swapper.force();
+
+            assertThat(tracker.drainChangedSegments()).isEmpty();
+        }
+
+        assertThat(fs.getFileSize(file)).isEqualTo((totalPages + 2L) * PAGE_SIZE);
+        assertThat(fs.fileExists(segment(file, 1))).isFalse();
+        assertThat(tracker.drainChangedSegments()).isEmpty();
+    }
+
+    @Test
+    void writingNonSegmentedFileThroughPageCacheDoesNotTrackSegments() throws IOException {
+        Path file = directory.file("track-non-segmented-mapping");
+        int totalPages = 3 * PAGES_PER_SEGMENT;
+        FileSegmentTracker tracker = fileSegmentTracker(file);
+
+        try (PageCache pageCache = newPageCache()) {
+            try (PagedFile pagedFile = mapNonSegmented(pageCache, file, tracker, CREATE)) {
+                writePages(pagedFile, totalPages);
+                pagedFile.flushAndForce(NULL, EMPTY_ASYNC_BLOCK_ACCESSOR);
+                assertThat(tracker.drainChangedSegments()).isEmpty();
+
+                writePages(pagedFile, totalPages);
+                assertThat(tracker.drainChangedSegments()).isEmpty();
+            }
+        }
+
+        assertThat(tracker.drainChangedSegments()).isEmpty();
+        assertThat(fs.getFileSize(file)).isEqualTo((long) totalPages * PAGE_SIZE);
+        assertThat(fs.fileExists(segment(file, 1))).isFalse();
+    }
+
     /**
      * Performs a vectored read into freshly allocated buffers whose page counts are given by {@code bufferPages}, and
      * asserts that every page holds the marker written for its logical page id. The buffer arrays are cloned before the
@@ -1438,7 +1706,8 @@ class SegmentedPageSwapperIT {
                 0,
                 IOController.DISABLED,
                 EvictionBouncer.ALWAYS_ALLOW,
-                swapperSet::allocate)) {
+                swapperSet::allocate,
+                EMPTY_FILE_TRACKER)) {
             long buffer = allocateFilled(PAGE_SIZE, (byte) 0xFF);
             try {
                 swapper.read(physicalPage, buffer);
@@ -1461,6 +1730,37 @@ class SegmentedPageSwapperIT {
             assertThat(swapper.write(startPage, buffer, length)).isEqualTo(length);
         } finally {
             freeBuffer(buffer, length);
+        }
+    }
+
+    /**
+     * Performs a vectored write of freshly allocated buffers whose page counts are given by {@code bufferPages}, with
+     * every page holding the marker for its logical page id. The buffer arrays are cloned before the call because the
+     * swapper rewrites them in place when a buffer straddles a segment boundary.
+     */
+    private static void writeVectoredViaSwapper(PageSwapper swapper, int startPage, int[] bufferPages)
+            throws IOException {
+        long[] addresses = new long[bufferPages.length];
+        int[] lengths = new int[bufferPages.length];
+        long totalBytes = 0;
+        int page = startPage;
+        for (int i = 0; i < bufferPages.length; i++) {
+            lengths[i] = bufferPages[i] * PAGE_SIZE;
+            addresses[i] = allocateFilled(lengths[i], (byte) 0);
+            for (int p = 0; p < bufferPages[i]; p++) {
+                UnsafeUtil.putLong(addresses[i] + (long) p * PAGE_SIZE, marker(page++));
+            }
+            totalBytes += lengths[i];
+        }
+        long[] baseAddresses = addresses.clone();
+        int[] baseLengths = lengths.clone();
+        try {
+            assertThat(swapper.write(startPage, addresses, lengths, bufferPages.length))
+                    .isEqualTo(totalBytes);
+        } finally {
+            for (int i = 0; i < baseAddresses.length; i++) {
+                freeBuffer(baseAddresses[i], baseLengths[i]);
+            }
         }
     }
 
@@ -1490,7 +1790,24 @@ class SegmentedPageSwapperIT {
         UnsafeUtil.free(address, bytes, EmptyMemoryTracker.INSTANCE);
     }
 
+    private static FileSegmentTracker fileSegmentTracker(Path baseFile) {
+        return new PageCacheSegmentTracker(baseFile.getParent()).createFileSegmentTracer(baseFile);
+    }
+
+    private static int trackedSegmentCount(PageCacheSegmentTracker cacheTracker, Path baseFile) {
+        return cacheTracker.segmentMetadata().stream()
+                .filter(metadata ->
+                        metadata.name().equals(baseFile.getFileName().toString()))
+                .findFirst()
+                .orElseThrow()
+                .segmentCount();
+    }
+
     private PageSwapper createSegmentedSwapper(Path baseFile) throws IOException {
+        return createSegmentedSwapper(baseFile, EMPTY_FILE_TRACKER);
+    }
+
+    private PageSwapper createSegmentedSwapper(Path baseFile, FileSegmentTracker segmentTracker) throws IOException {
         PageSwapperFactory factory = new SegmentedPageSwapperFactory(
                 new SingleFilePageSwapperFactory(fs, PageCacheTracer.NULL, EmptyMemoryTracker.INSTANCE),
                 fs,
@@ -1504,7 +1821,29 @@ class SegmentedPageSwapperIT {
                 PAGES_PER_SEGMENT,
                 IOController.DISABLED,
                 EvictionBouncer.ALWAYS_ALLOW,
-                swapperSet::allocate);
+                swapperSet::allocate,
+                segmentTracker);
+    }
+
+    private PageSwapper createNonSegmentedSwapper(Path file, FileSegmentTracker segmentTracker) throws IOException {
+        PageSwapperFactory factory =
+                new SingleFilePageSwapperFactory(fs, PageCacheTracer.NULL, EmptyMemoryTracker.INSTANCE);
+        return createNonSegmentedSwapper(factory, file, segmentTracker);
+    }
+
+    private PageSwapper createNonSegmentedSwapper(
+            PageSwapperFactory factory, Path file, FileSegmentTracker segmentTracker) throws IOException {
+        return factory.createPageSwapper(
+                file,
+                PAGE_SIZE,
+                NO_CALLBACK,
+                true,
+                false,
+                0,
+                IOController.DISABLED,
+                EvictionBouncer.ALWAYS_ALLOW,
+                swapperSet::allocate,
+                segmentTracker);
     }
 
     private static final PageEvictionCallback NO_CALLBACK = (pageRef, filePageId) -> {};
@@ -1622,6 +1961,36 @@ class SegmentedPageSwapperIT {
         var options = Sets.mutable.<OpenOption>of(new SegmentedOpenOption(PAGES_PER_SEGMENT));
         Collections.addAll(options, extra);
         return pageCache.map(new StoreFile(baseFile), PAGE_SIZE, DEFAULT_DATABASE_NAME, options.toImmutable());
+    }
+
+    private PagedFile mapSegmented(
+            PageCache pageCache, Path baseFile, FileSegmentTracker segmentTracker, StandardOpenOption... extra)
+            throws IOException {
+        var options = Sets.mutable.<OpenOption>of(new SegmentedOpenOption(PAGES_PER_SEGMENT));
+        Collections.addAll(options, extra);
+        return pageCache.map(
+                new StoreFile(baseFile),
+                PAGE_SIZE,
+                DEFAULT_DATABASE_NAME,
+                options.toImmutable(),
+                IOController.DISABLED,
+                EvictionBouncer.ALWAYS_ALLOW,
+                VersionStorage.EMPTY_STORAGE,
+                segmentTracker);
+    }
+
+    private PagedFile mapNonSegmented(
+            PageCache pageCache, Path file, FileSegmentTracker segmentTracker, StandardOpenOption... options)
+            throws IOException {
+        return pageCache.map(
+                new StoreFile(file),
+                PAGE_SIZE,
+                DEFAULT_DATABASE_NAME,
+                Sets.immutable.<OpenOption>of(options),
+                IOController.DISABLED,
+                EvictionBouncer.ALWAYS_ALLOW,
+                VersionStorage.EMPTY_STORAGE,
+                segmentTracker);
     }
 
     private static Path segment(Path baseFile, int index) {

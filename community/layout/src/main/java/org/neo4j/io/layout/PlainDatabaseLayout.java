@@ -105,6 +105,11 @@ public class PlainDatabaseLayout implements DatabaseLayout {
     }
 
     @Override
+    public Path segmentsMetadata() {
+        throw new UnsupportedOperationException("Segments metadata is not available on plain layout.");
+    }
+
+    @Override
     public StoreFile indexStatisticsStore() {
         throw new IllegalStateException("Can not get the metadata store for a PlainDatabaseLayout.");
     }

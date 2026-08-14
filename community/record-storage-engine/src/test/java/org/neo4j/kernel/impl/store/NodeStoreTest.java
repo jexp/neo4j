@@ -84,6 +84,7 @@ import org.neo4j.io.pagecache.context.CursorContextFactory;
 import org.neo4j.io.pagecache.impl.muninn.EvictionBouncer;
 import org.neo4j.io.pagecache.impl.muninn.StoreFile;
 import org.neo4j.io.pagecache.impl.muninn.VersionStorage;
+import org.neo4j.io.pagecache.segment.FileSegmentTracker;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.kernel.DatabaseCreationOptions;
 import org.neo4j.kernel.impl.store.allocator.ReusableRecordsAllocator;
@@ -323,7 +324,8 @@ class NodeStoreTest {
                             ImmutableSet<OpenOption> openOptions,
                             IOController ioController,
                             EvictionBouncer evictionGuard,
-                            VersionStorage versionStorage)
+                            VersionStorage versionStorage,
+                            FileSegmentTracker segmentTracker)
                             throws IOException {
                         if (storePath
                                 .storeBaseFileName()
@@ -340,7 +342,8 @@ class NodeStoreTest {
                                 openOptions,
                                 ioController,
                                 evictionGuard,
-                                versionStorage);
+                                versionStorage,
+                                segmentTracker);
                     }
                 };
 

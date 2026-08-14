@@ -66,6 +66,7 @@ import org.neo4j.io.pagecache.buffer.IOBufferFactory;
 import org.neo4j.io.pagecache.impl.muninn.swapper.PageSwapperFactory;
 import org.neo4j.io.pagecache.impl.muninn.swapper.SegmentedPageSwapperFactory;
 import org.neo4j.io.pagecache.impl.muninn.swapper.SingleFilePageSwapperFactory;
+import org.neo4j.io.pagecache.segment.FileSegmentTracker;
 import org.neo4j.io.pagecache.tracing.DatabaseFlushEvent;
 import org.neo4j.io.pagecache.tracing.EvictionRunEvent;
 import org.neo4j.io.pagecache.tracing.FileFlushEvent;
@@ -499,7 +500,8 @@ public class MuninnPageCache implements PageCache {
             ImmutableSet<OpenOption> openOptions,
             IOController ioController,
             EvictionBouncer evictionBouncer,
-            VersionStorage versionStorage)
+            VersionStorage versionStorage,
+            FileSegmentTracker segmentTracker)
             throws IOException {
         assertHealthy();
         ensureThreadsInitialised();
@@ -605,6 +607,7 @@ public class MuninnPageCache implements PageCache {
                 contextVersionUpdates,
                 multiVersioned ? pageReservedBytes : 0,
                 pagesPerSegment,
+                segmentTracker,
                 versionStorage,
                 littleEndian,
                 victimPage);

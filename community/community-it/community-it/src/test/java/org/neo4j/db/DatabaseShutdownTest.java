@@ -49,6 +49,7 @@ import org.neo4j.io.pagecache.PagedFile;
 import org.neo4j.io.pagecache.impl.muninn.EvictionBouncer;
 import org.neo4j.io.pagecache.impl.muninn.StoreFile;
 import org.neo4j.io.pagecache.impl.muninn.VersionStorage;
+import org.neo4j.io.pagecache.segment.FileSegmentTracker;
 import org.neo4j.io.pagecache.tracing.FileFlushEvent;
 import org.neo4j.kernel.impl.factory.DbmsInfo;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
@@ -141,7 +142,8 @@ class DatabaseShutdownTest {
                                         ImmutableSet<OpenOption> openOptions,
                                         IOController ioController,
                                         EvictionBouncer evictionGuard,
-                                        VersionStorage versionStorage)
+                                        VersionStorage versionStorage,
+                                        FileSegmentTracker segmentTracker)
                                         throws IOException {
                                     PagedFile pagedFile = super.map(
                                             storePath,
@@ -150,7 +152,8 @@ class DatabaseShutdownTest {
                                             openOptions,
                                             ioController,
                                             evictionGuard,
-                                            versionStorage);
+                                            versionStorage,
+                                            segmentTracker);
                                     return new DelegatingPagedFile(pagedFile) {
                                         @Override
                                         public void flush(

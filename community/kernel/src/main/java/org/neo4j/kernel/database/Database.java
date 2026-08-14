@@ -144,6 +144,8 @@ import org.neo4j.kernel.impl.query.QueryEngineProvider;
 import org.neo4j.kernel.impl.query.QueryExecutionEngine;
 import org.neo4j.kernel.impl.query.TransactionExecutionMonitor;
 import org.neo4j.kernel.impl.store.StoreFileListing;
+import org.neo4j.kernel.impl.store.segment.SegmentMetadataService;
+import org.neo4j.kernel.impl.store.segment.SegmentTrackingFactory;
 import org.neo4j.kernel.impl.storemigration.StoreVersionStateChecker;
 import org.neo4j.kernel.impl.storemigration.UnableToMigrateException;
 import org.neo4j.kernel.impl.transaction.log.CompleteCommandBatch;
@@ -289,6 +291,7 @@ public class Database extends AbstractDatabase {
     private MultiVersionDatabaseRollbackService multiVersionDatabaseRollbackService;
     private volatile RecoveryPredicateSupplier recoveryPredicate = RecoveryPredicateSupplier.ALL;
     private final boolean raftTriggersUpgrade;
+    private SegmentTrackingFactory segmentTrackingFactory;
 
     public Database(DatabaseCreationContext context) {
         super(
@@ -377,7 +380,18 @@ public class Database extends AbstractDatabase {
                 databaseConfig,
                 multiVersioned);
 
-        databasePageCache = new DatabasePageCache(globalPageCache, ioController, versionStorage, databaseConfig);
+        this.segmentTrackingFactory = life.add(new SegmentTrackingFactory(
+                storageEngineFactory,
+                fs,
+                globalPageCache,
+                databaseLayout,
+                cursorContextFactory,
+                databaseConfig,
+                readOnlyDatabaseChecker,
+                databaseHealth,
+                internalLog));
+        databasePageCache = new DatabasePageCache(
+                globalPageCache, ioController, versionStorage, segmentTrackingFactory.segmentTracker(), databaseConfig);
         DatabaseIdContext databaseIdContext = idContextFactory.createIdContext(
                 namedDatabaseId, cursorContextFactory, databaseConfig, idGeneratorSettings, multiVersioned);
         this.idController = databaseIdContext.getIdController();
@@ -625,6 +639,9 @@ public class Database extends AbstractDatabase {
                 new DefaultForceOperation(indexingService, storageEngine, databasePageCache);
         boolean isMergeLog =
                 databaseConfig.get(GraphDatabaseInternalSettings.merged_log) && !namedDatabaseId.isSystemDatabase();
+        var segmentMetadataService =
+                segmentTrackingFactory.createSegmentMetadataService(getStoreId(), otherDatabaseMemoryTracker);
+        databaseDependencies.satisfyDependency(segmentMetadataService);
         DatabaseTransactionLogModule transactionLogModule = buildTransactionLogs(
                 logFiles,
                 databaseConfig,
@@ -637,6 +654,7 @@ public class Database extends AbstractDatabase {
                 cursorContextFactory,
                 storageEngineFactory.commandReaderFactory(),
                 otherDatabaseMemoryTracker,
+                segmentMetadataService,
                 isMergeLog);
         commitmentFactory = new TransactionCommitmentFactory(logMetadataProvider);
 
@@ -1031,6 +1049,7 @@ public class Database extends AbstractDatabase {
             CursorContextFactory cursorContextFactory,
             CommandReaderFactory commandReaderFactory,
             MemoryTracker memoryTracker,
+            SegmentMetadataService segmentMetadataService,
             boolean isMergedLog) {
         TransactionMetadataCache transactionMetadataCache = new TransactionMetadataCache();
         databaseDependencies.satisfyDependencies(transactionMetadataCache);
@@ -1093,6 +1112,7 @@ public class Database extends AbstractDatabase {
                 clock,
                 ioController,
                 memoryTracker,
+                segmentMetadataService,
                 databaseConfig);
 
         long recurringPeriod = threshold.checkFrequencyMillis();

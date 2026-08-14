@@ -36,6 +36,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.neo4j.io.pagecache.context.FixedVersionContextSupplier.EMPTY_CONTEXT_SUPPLIER;
+import static org.neo4j.kernel.impl.store.segment.SegmentMetadataService.EMPTY_METADATA_SERVICE;
 import static org.neo4j.storageengine.api.TransactionIdStore.UNKNOWN_CONSENSUS_INDEX;
 import static org.neo4j.test.LatestVersions.LATEST_KERNEL_VERSION;
 
@@ -467,6 +468,7 @@ class CheckPointerImplTest {
                 clock,
                 IOController.DISABLED,
                 EmptyMemoryTracker.INSTANCE,
+                EMPTY_METADATA_SERVICE,
                 Config.defaults());
     }
 

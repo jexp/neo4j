@@ -65,6 +65,7 @@ import org.neo4j.io.pagecache.impl.FileIsNotMappedException;
 import org.neo4j.io.pagecache.impl.muninn.swapper.PageSwapper;
 import org.neo4j.io.pagecache.impl.muninn.swapper.PageSwapperFactory;
 import org.neo4j.io.pagecache.monitoring.PageFileCounters;
+import org.neo4j.io.pagecache.segment.FileSegmentTracker;
 import org.neo4j.io.pagecache.tracing.EvictionRunEvent;
 import org.neo4j.io.pagecache.tracing.FileFlushEvent;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
@@ -176,6 +177,7 @@ final class MuninnPagedFile implements PagedFile, Flushable {
      * @param ioController      io controller to report page file io operations
      * @param multiVersioned    if file is mutli versioned
      * @param pagesPerSegment   pages per segment, 0 if segmentation is disabled
+     * @param segmentTracker    segment state tracker
      * @param versionStorage    page file old versioned pages storage
      * @param littleEndian      page file endianess
      * @param victimPage        victim page pointer
@@ -202,6 +204,7 @@ final class MuninnPagedFile implements PagedFile, Flushable {
             boolean contextVersionUpdates,
             int reservedBytes,
             long pagesPerSegment,
+            FileSegmentTracker segmentTracker,
             VersionStorage versionStorage,
             boolean littleEndian,
             long victimPage)
@@ -250,7 +253,8 @@ final class MuninnPagedFile implements PagedFile, Flushable {
                 pagesPerSegment,
                 ioController,
                 evictionBouncer,
-                swapperSet::allocate);
+                swapperSet::allocate,
+                segmentTracker);
         if (truncateExisting) {
             swapper.truncate();
         }

@@ -19,12 +19,15 @@
  */
 package org.neo4j.io.pagecache.impl.muninn.swapper;
 
+import static org.neo4j.io.pagecache.segment.FileSegmentTracker.EMPTY_FILE_TRACKER;
+
 import java.io.IOException;
 import java.nio.file.Path;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.IOController;
 import org.neo4j.io.pagecache.PageEvictionCallback;
 import org.neo4j.io.pagecache.impl.muninn.EvictionBouncer;
+import org.neo4j.io.pagecache.segment.FileSegmentTracker;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 
 public class SegmentedPageSwapperFactory implements PageSwapperFactory {
@@ -49,7 +52,8 @@ public class SegmentedPageSwapperFactory implements PageSwapperFactory {
             long pagesPerSegment,
             IOController ioController,
             EvictionBouncer evictionBouncer,
-            SwapperIdProvider swapperIdProvider)
+            SwapperIdProvider swapperIdProvider,
+            FileSegmentTracker segmentTracker)
             throws IOException {
         if (pagesPerSegment == 0) {
             return delegate.createPageSwapper(
@@ -61,7 +65,8 @@ public class SegmentedPageSwapperFactory implements PageSwapperFactory {
                     pagesPerSegment,
                     ioController,
                     evictionBouncer,
-                    swapperIdProvider);
+                    swapperIdProvider,
+                    EMPTY_FILE_TRACKER);
         }
         return new SegmentedPageSwapper(
                 path,
@@ -76,6 +81,7 @@ public class SegmentedPageSwapperFactory implements PageSwapperFactory {
                 delegate,
                 fs,
                 pageCacheTracer.createFileSwapperTracer(),
-                pageCacheTracer);
+                pageCacheTracer,
+                segmentTracker);
     }
 }

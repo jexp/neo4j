@@ -41,6 +41,8 @@ import static org.neo4j.io.pagecache.IOController.DISABLED;
 import static org.neo4j.io.pagecache.PageCache.PAGE_SIZE;
 import static org.neo4j.io.pagecache.impl.muninn.EvictionBouncer.ALWAYS_ALLOW;
 import static org.neo4j.io.pagecache.impl.muninn.VersionStorage.EMPTY_STORAGE;
+import static org.neo4j.io.pagecache.segment.DatabaseSegmentTracker.EMPTY_DATABASE_SEGMENT_TRACKER;
+import static org.neo4j.io.pagecache.segment.FileSegmentTracker.EMPTY_FILE_TRACKER;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -57,6 +59,8 @@ import org.neo4j.io.layout.Neo4jLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.PagedFile;
 import org.neo4j.io.pagecache.impl.muninn.StoreFile;
+import org.neo4j.io.pagecache.segment.DatabaseSegmentTracker;
+import org.neo4j.io.pagecache.segment.FileSegmentTracker;
 import org.neo4j.io.pagecache.tracing.DatabaseFlushEvent;
 import org.neo4j.io.pagecache.tracing.FileFlushEvent;
 import org.neo4j.io.pagecache.tracing.FileMappedListener;
@@ -82,7 +86,7 @@ class DatabasePageCacheTest {
     void setUp() throws IOException {
         globalPageCache = mock(PageCache.class);
         pagedFileMapper = new PagedFileAnswer();
-        when(globalPageCache.map(any(StoreFile.class), eq(PAGE_SIZE), any(), any(), any(), any(), any()))
+        when(globalPageCache.map(any(StoreFile.class), eq(PAGE_SIZE), any(), any(), any(), any(), any(), any()))
                 .then(pagedFileMapper);
         databasePageCache = createPageCache();
     }
@@ -109,7 +113,33 @@ class DatabasePageCacheTest {
                         immutable.empty(),
                         DISABLED,
                         ALWAYS_ALLOW,
-                        EMPTY_STORAGE);
+                        EMPTY_STORAGE,
+                        EMPTY_FILE_TRACKER);
+    }
+
+    @Test
+    void useDatabaseSegmentTrackerOnFileMapping() throws IOException {
+        var fileSegmentTracker = mock(FileSegmentTracker.class);
+        var databaseSegmentTracker = mock(DatabaseSegmentTracker.class);
+        when(databaseSegmentTracker.createFileSegmentTracer(any(Path.class))).thenReturn(fileSegmentTracker);
+
+        try (var pageCache = new DatabasePageCache(
+                globalPageCache, DISABLED, EMPTY_STORAGE, databaseSegmentTracker, Config.defaults())) {
+            Path mapFile = testDirectory.createFile("mapFile");
+            pageCache.map(new StoreFile(mapFile), PAGE_SIZE, DATABASE_NAME, immutable.empty());
+
+            verify(databaseSegmentTracker).createFileSegmentTracer(mapFile);
+            verify(globalPageCache)
+                    .map(
+                            new StoreFile(mapFile),
+                            PAGE_SIZE,
+                            DATABASE_NAME,
+                            immutable.empty(),
+                            DISABLED,
+                            ALWAYS_ALLOW,
+                            EMPTY_STORAGE,
+                            fileSegmentTracker);
+        }
     }
 
     @Test
@@ -446,7 +476,8 @@ class DatabasePageCacheTest {
     }
 
     private DatabasePageCache createPageCache() {
-        return new DatabasePageCache(globalPageCache, DISABLED, EMPTY_STORAGE, Config.defaults());
+        return new DatabasePageCache(
+                globalPageCache, DISABLED, EMPTY_STORAGE, EMPTY_DATABASE_SEGMENT_TRACKER, Config.defaults());
     }
 
     private static PagedFile findPagedFile(List<PagedFile> pagedFiles, Path mapFile) {

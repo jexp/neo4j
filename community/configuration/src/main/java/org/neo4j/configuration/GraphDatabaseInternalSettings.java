@@ -2208,6 +2208,11 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
             .addConstraint(any(is(0L), min(mebiBytes(16))))
             .build();
 
+    @Internal
+    @Description("Track store segments state changes. Only affects segmented stores.")
+    public static final Setting<Boolean> store_segment_tracking =
+            newBuilder("internal.db.store.segment_tracking", BOOL, true).build();
+
     public static HeapEstimatorCacheConfig extractCustomHeapEstimatorCacheConfig(Config config) {
         return new HeapEstimatorCacheConfig(
                 config.get(GraphDatabaseInternalSettings.heap_estimator_cache_size_limit),

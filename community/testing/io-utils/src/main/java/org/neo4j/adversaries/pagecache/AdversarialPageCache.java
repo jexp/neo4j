@@ -36,6 +36,7 @@ import org.neo4j.io.pagecache.PagedFile;
 import org.neo4j.io.pagecache.impl.muninn.EvictionBouncer;
 import org.neo4j.io.pagecache.impl.muninn.StoreFile;
 import org.neo4j.io.pagecache.impl.muninn.VersionStorage;
+import org.neo4j.io.pagecache.segment.FileSegmentTracker;
 import org.neo4j.io.pagecache.tracing.DatabaseFlushEvent;
 import org.neo4j.util.VisibleForTesting;
 
@@ -63,7 +64,8 @@ public class AdversarialPageCache extends DelegatingPageCache {
             ImmutableSet<OpenOption> openOptions,
             IOController ioController,
             EvictionBouncer evictionBouncer,
-            VersionStorage versionStorage)
+            VersionStorage versionStorage,
+            FileSegmentTracker segmentTracker)
             throws IOException {
         if (openOptions.contains(CREATE)) {
             adversary.injectFailure(IOException.class, SecurityException.class);
@@ -71,7 +73,15 @@ public class AdversarialPageCache extends DelegatingPageCache {
             adversary.injectFailure(NoSuchFileException.class, IOException.class, SecurityException.class);
         }
         PagedFile pagedFile = getDelegate()
-                .map(storeFile, pageSize, databaseName, openOptions, ioController, evictionBouncer, versionStorage);
+                .map(
+                        storeFile,
+                        pageSize,
+                        databaseName,
+                        openOptions,
+                        ioController,
+                        evictionBouncer,
+                        versionStorage,
+                        segmentTracker);
         return new AdversarialPagedFile(pagedFile, adversary);
     }
 

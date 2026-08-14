@@ -25,6 +25,7 @@ import org.neo4j.io.pagecache.IOController;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.PageEvictionCallback;
 import org.neo4j.io.pagecache.impl.muninn.EvictionBouncer;
+import org.neo4j.io.pagecache.segment.FileSegmentTracker;
 
 /**
  * Creates PageSwappers for the given files.
@@ -41,20 +42,21 @@ public interface PageSwapperFactory {
     /**
      * Create a PageSwapper for the given file.
      *
-     * @param path             The file that the PageSwapper will move file pages in and
-     *                         out of.
-     * @param filePageSize     The size of the pages in the file. Presumably a
-     *                         multiple of some record size.
-     * @param onEviction       The PageSwapper will be told about evictions, and has
-     *                         the responsibility of informing the PagedFile via this callback.
-     * @param createIfNotExist When true, creates the given file if it does not exist, instead of throwing an
-     *                         exception.
-     * @param useDirectIO      When true, direct io open open will gonna be used for underlying channel.
-     *                         Option supported only on Linux with certain limitations.
-     * @param pagesPerSegment  Number of pages per file segment. 0 if segmentation is disabled
-     * @param ioController     controller to report swapper io's
-     * @param evictionBouncer  eviction bouncer to check if flushing for the dirty page is still required or can be skipped
+     * @param path              The file that the PageSwapper will move file pages in and
+     *                          out of.
+     * @param filePageSize      The size of the pages in the file. Presumably a
+     *                          multiple of some record size.
+     * @param onEviction        The PageSwapper will be told about evictions, and has
+     *                          the responsibility of informing the PagedFile via this callback.
+     * @param createIfNotExist  When true, creates the given file if it does not exist, instead of throwing an
+     *                          exception.
+     * @param useDirectIO       When true, direct io open open will gonna be used for underlying channel.
+     *                          Option supported only on Linux with certain limitations.
+     * @param pagesPerSegment   Number of pages per file segment. 0 if segmentation is disabled
+     * @param ioController      controller to report swapper io's
+     * @param evictionBouncer   eviction bouncer to check if flushing for the dirty page is still required or can be skipped
      * @param swapperIdProvider provider of the swapper id for the created swapper
+     * @param segmentTracker    tracker notified about segment related events
      * @return A working PageSwapper instance for the given file.
      * @throws IOException If the PageSwapper could not be created, for
      *                     instance if the underlying file could not be opened, or the given file does not exist and createIfNotExist is
@@ -69,6 +71,7 @@ public interface PageSwapperFactory {
             long pagesPerSegment,
             IOController ioController,
             EvictionBouncer evictionBouncer,
-            SwapperIdProvider swapperIdProvider)
+            SwapperIdProvider swapperIdProvider,
+            FileSegmentTracker segmentTracker)
             throws IOException;
 }

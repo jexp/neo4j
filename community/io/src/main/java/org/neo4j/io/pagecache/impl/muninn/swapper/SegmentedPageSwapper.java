@@ -22,6 +22,7 @@ package org.neo4j.io.pagecache.impl.muninn.swapper;
 import static java.lang.Long.numberOfTrailingZeros;
 import static java.util.Arrays.copyOfRange;
 import static org.neo4j.io.pagecache.impl.muninn.StoreFile.segmentPath;
+import static org.neo4j.io.pagecache.segment.FileSegmentTracker.EMPTY_FILE_TRACKER;
 import static org.neo4j.util.Preconditions.requirePowerOfTwo;
 
 import java.io.IOException;
@@ -38,6 +39,7 @@ import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.io.pagecache.PageEvictionCallback;
 import org.neo4j.io.pagecache.impl.muninn.EvictionBouncer;
 import org.neo4j.io.pagecache.impl.muninn.MuninnPageCache;
+import org.neo4j.io.pagecache.segment.FileSegmentTracker;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.io.pagecache.tracing.PageFileSwapperTracer;
 import org.neo4j.io.pagecache.tracing.SegmentEvent;
@@ -60,8 +62,10 @@ public final class SegmentedPageSwapper implements PageSwapper {
     private final PageFileSwapperTracer fileSwapperTracer;
     private final PageCacheTracer pageCacheTracer;
     private final int pageShift;
+    private final FileSegmentTracker segmentTracker;
     private volatile PageEvictionCallback onEviction;
 
+    @SuppressWarnings({"unused", "FieldCanBeLocal"})
     private PageSwapper[] segments;
 
     SegmentedPageSwapper(
@@ -77,7 +81,8 @@ public final class SegmentedPageSwapper implements PageSwapper {
             PageSwapperFactory fileSwapperFactory,
             FileSystemAbstraction fs,
             PageFileSwapperTracer fileSwapperTracer,
-            PageCacheTracer pageCacheTracer)
+            PageCacheTracer pageCacheTracer,
+            FileSegmentTracker segmentTracker)
             throws IOException {
         requirePowerOfTwo(pagesPerSegment);
         this.basePath = basePath;
@@ -91,6 +96,7 @@ public final class SegmentedPageSwapper implements PageSwapper {
         this.pageCacheTracer = pageCacheTracer;
         this.onEviction = onEviction;
         this.fileSwapperFactory = fileSwapperFactory;
+        this.segmentTracker = segmentTracker;
         this.pageShift = numberOfTrailingZeros(pagesPerSegment);
 
         this.swapperId = swapperIdProvider.swapperId(this);
@@ -174,7 +180,9 @@ public final class SegmentedPageSwapper implements PageSwapper {
 
     @Override
     public long write(long filePageId, long bufferAddress) throws IOException {
-        return segmentAt(segmentIndexFor(filePageId), false).write(pageWithinSegment(filePageId), bufferAddress);
+        int segmentIndex = segmentIndexFor(filePageId);
+        segmentTracker.segmentChanged(segmentIndex);
+        return segmentAt(segmentIndex, false).write(pageWithinSegment(filePageId), bufferAddress);
     }
 
     @Override
@@ -190,6 +198,7 @@ public final class SegmentedPageSwapper implements PageSwapper {
 
         while (bytesToWrite > 0) {
             int segmentIndex = segmentIndexFor(writePageId);
+            segmentTracker.segmentChanged(segmentIndex);
             long pagesLeftInSegment = pagesLeftInSegment(writePageId);
             int writeLength = Math.toIntExact(Math.min(pagesLeftInSegment * filePageSize, bytesToWrite));
             long writeBytes =
@@ -221,6 +230,7 @@ public final class SegmentedPageSwapper implements PageSwapper {
                 int originalLength = bufferLengths[buffersToWrite - 1];
                 bufferLengths[buffersToWrite - 1] = Math.toIntExact(bytesLeft - bytesToWrite);
 
+                segmentTracker.segmentChanged(segment);
                 totalBytes += segmentAt(segment, false)
                         .write(pageWithinSegment(pageId), bufferAddresses, bufferLengths, buffersToWrite);
 
@@ -247,6 +257,7 @@ public final class SegmentedPageSwapper implements PageSwapper {
             }
         }
         if (bytesToWrite > 0) {
+            segmentTracker.segmentChanged(segment);
             totalBytes += segmentAt(segment, false)
                     .write(pageWithinSegment(pageId), bufferAddresses, bufferLengths, buffersToWrite);
         }
@@ -256,8 +267,9 @@ public final class SegmentedPageSwapper implements PageSwapper {
     @Override
     public void asyncWrite(AsyncBlockAccessor accessor, long pageRef, long filePageId, long bufferAddress)
             throws IOException {
-        segmentAt(segmentIndexFor(filePageId), false)
-                .asyncWrite(accessor, pageRef, pageWithinSegment(filePageId), bufferAddress);
+        int segmentIndex = segmentIndexFor(filePageId);
+        segmentTracker.segmentChanged(segmentIndex);
+        segmentAt(segmentIndex, false).asyncWrite(accessor, pageRef, pageWithinSegment(filePageId), bufferAddress);
     }
 
     @Override
@@ -286,6 +298,7 @@ public final class SegmentedPageSwapper implements PageSwapper {
 
                 // Crossing a segment boundary fills the rest of the current segment exactly.
                 int segmentPages = Math.toIntExact(bytesLeft / filePageSize);
+                segmentTracker.segmentChanged(segment);
                 segmentAt(segment, false)
                         .asyncWrite(
                                 accessor,
@@ -322,6 +335,7 @@ public final class SegmentedPageSwapper implements PageSwapper {
             }
         }
         if (bytesToWrite > 0) {
+            segmentTracker.segmentChanged(segment);
             segmentAt(segment, false)
                     .asyncWrite(
                             accessor,
@@ -420,6 +434,7 @@ public final class SegmentedPageSwapper implements PageSwapper {
         }
         closeAndDeleteSegments(segments, 1);
         SEGMENTS.setRelease(this, new PageSwapper[] {segments[0]});
+        segmentTracker.segmentCount(1);
     }
 
     @Override
@@ -438,6 +453,7 @@ public final class SegmentedPageSwapper implements PageSwapper {
 
         closeAndDeleteSegments(current, lastKeptSegment + 1);
         SEGMENTS.setRelease(this, Arrays.copyOf(current, lastKeptSegment + 1));
+        segmentTracker.segmentCount(lastKeptSegment + 1);
     }
 
     @Override
@@ -451,10 +467,12 @@ public final class SegmentedPageSwapper implements PageSwapper {
         long maxSegmentBytes = pagesPerSegment * (long) filePageSize;
         int fullSegments = Math.toIntExact(newFileSize / maxSegmentBytes);
         long remainderBytes = newFileSize % maxSegmentBytes;
-        for (int segment = 0; segment < fullSegments; segment++) {
+        for (int segment = segmentIndexFor(Math.max(0, getLastPageId())); segment < fullSegments; segment++) {
+            segmentTracker.segmentChanged(segment);
             segmentAt(segment, false).allocate(maxSegmentBytes);
         }
         if (remainderBytes > 0) {
+            segmentTracker.segmentChanged(fullSegments);
             segmentAt(fullSegments, false).allocate(remainderBytes);
         }
     }
@@ -539,10 +557,12 @@ public final class SegmentedPageSwapper implements PageSwapper {
         PageSwapper[] grown = Arrays.copyOf(pageSwappers, targetIndex + 1);
         for (int idx = oldLength; idx <= targetIndex; idx++) {
             try (SegmentEvent createEvent = pageCacheTracer.createSegment(basePath, idx)) {
+                segmentTracker.segmentChanged(idx);
                 grown[idx] = openSegment(segmentPath(basePath, idx), true);
             }
         }
         SEGMENTS.setRelease(this, grown);
+        segmentTracker.segmentCount(grown.length);
         return grown[targetIndex];
     }
 
@@ -557,6 +577,7 @@ public final class SegmentedPageSwapper implements PageSwapper {
             }
             PageSwapper[] segments = new PageSwapper[existingCount];
             segments[0] = segmentZero;
+            segmentTracker.segmentCount(existingCount);
             return segments;
         }
     }
@@ -571,7 +592,8 @@ public final class SegmentedPageSwapper implements PageSwapper {
                 pagesPerSegment,
                 ioController,
                 evictionBouncer,
-                segmentSwapper -> swapperId);
+                segmentSwapper -> swapperId,
+                EMPTY_FILE_TRACKER);
     }
 
     private void closeAndDeleteSegments(PageSwapper[] segments, int initialIndex) throws IOException {
@@ -598,6 +620,7 @@ public final class SegmentedPageSwapper implements PageSwapper {
     }
 
     private void deleteSegmentFileIfExists(int segmentIndex) throws IOException {
+        segmentTracker.segmentChanged(segmentIndex);
         fs.deleteFile(segmentPath(basePath, segmentIndex));
     }
 }

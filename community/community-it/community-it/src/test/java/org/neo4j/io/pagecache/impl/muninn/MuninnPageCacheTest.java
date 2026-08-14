@@ -120,6 +120,7 @@ import org.neo4j.io.pagecache.impl.muninn.swapper.PageSwapper;
 import org.neo4j.io.pagecache.impl.muninn.swapper.PageSwapperFactory;
 import org.neo4j.io.pagecache.impl.muninn.swapper.SingleFilePageSwapperFactory;
 import org.neo4j.io.pagecache.impl.muninn.swapper.SwapperIdProvider;
+import org.neo4j.io.pagecache.segment.FileSegmentTracker;
 import org.neo4j.io.pagecache.tracing.DatabaseFlushEvent;
 import org.neo4j.io.pagecache.tracing.DefaultPageCacheTracer;
 import org.neo4j.io.pagecache.tracing.DelegatingPageCacheTracer;
@@ -3026,7 +3027,8 @@ public class MuninnPageCacheTest extends PageCacheTest<MuninnPageCache> {
                 long pagesPerSegment,
                 IOController ioController,
                 EvictionBouncer evictionBouncer,
-                SwapperIdProvider swapperIdProvider)
+                SwapperIdProvider swapperIdProvider,
+                FileSegmentTracker segmentTracker)
                 throws IOException {
             return new DelegatingPageSwapper(super.createPageSwapper(
                     file,
@@ -3037,7 +3039,8 @@ public class MuninnPageCacheTest extends PageCacheTest<MuninnPageCache> {
                     pagesPerSegment,
                     ioController,
                     evictionBouncer,
-                    swapperIdProvider)) {
+                    swapperIdProvider,
+                    segmentTracker)) {
                 @Override
                 public long write(long startFilePageId, long[] bufferAddresses, int[] bufferLengths, int length)
                         throws IOException {
@@ -3591,7 +3594,8 @@ public class MuninnPageCacheTest extends PageCacheTest<MuninnPageCache> {
                 long pagesPerSegment,
                 IOController ioController,
                 EvictionBouncer evictionBouncer,
-                SwapperIdProvider swapperIdProvider)
+                SwapperIdProvider swapperIdProvider,
+                FileSegmentTracker segmentTracker)
                 throws IOException {
             return new DelegatingPageSwapper(super.createPageSwapper(
                     file,
@@ -3602,7 +3606,8 @@ public class MuninnPageCacheTest extends PageCacheTest<MuninnPageCache> {
                     pagesPerSegment,
                     ioController,
                     evictionBouncer,
-                    swapperIdProvider)) {
+                    swapperIdProvider,
+                    segmentTracker)) {
                 @Override
                 public long read(long startFilePageId, long[] bufferAddresses, int[] bufferLengths, int length)
                         throws IOException {
@@ -3629,7 +3634,8 @@ public class MuninnPageCacheTest extends PageCacheTest<MuninnPageCache> {
                 long pagesPerSegment,
                 IOController ioController,
                 EvictionBouncer evictionBouncer,
-                SwapperIdProvider swapperIdProvider)
+                SwapperIdProvider swapperIdProvider,
+                FileSegmentTracker ignoreSegmentTracker)
                 throws IOException {
             return new DelegatingPageSwapper(super.createPageSwapper(
                     file,
@@ -3640,7 +3646,8 @@ public class MuninnPageCacheTest extends PageCacheTest<MuninnPageCache> {
                     pagesPerSegment,
                     ioController,
                     evictionBouncer,
-                    swapperIdProvider)) {
+                    swapperIdProvider,
+                    ignoreSegmentTracker)) {
                 @Override
                 public long read(long filePageId, long bufferAddress) throws IOException {
                     if (failReads.get()) {

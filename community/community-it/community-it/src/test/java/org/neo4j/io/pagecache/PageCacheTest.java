@@ -112,6 +112,7 @@ import org.neo4j.io.pagecache.impl.muninn.swapper.SingleFilePageSwapperFactory;
 import org.neo4j.io.pagecache.impl.muninn.swapper.SwapperIdProvider;
 import org.neo4j.io.pagecache.randomharness.Record;
 import org.neo4j.io.pagecache.randomharness.StandardRecordFormat;
+import org.neo4j.io.pagecache.segment.FileSegmentTracker;
 import org.neo4j.io.pagecache.tracing.DatabaseFlushEvent;
 import org.neo4j.io.pagecache.tracing.DefaultPageCacheTracer;
 import org.neo4j.io.pagecache.tracing.FileFlushEvent;
@@ -4698,7 +4699,8 @@ public abstract class PageCacheTest<T extends PageCache> extends PageCacheTestSu
                     long pagesPerSegment,
                     IOController ioController,
                     EvictionBouncer evictionBouncer,
-                    SwapperIdProvider swapperIdProvider)
+                    SwapperIdProvider swapperIdProvider,
+                    FileSegmentTracker segmentTracker)
                     throws IOException {
                 PageSwapper swapper = super.createPageSwapper(
                         path,
@@ -4709,7 +4711,8 @@ public abstract class PageCacheTest<T extends PageCache> extends PageCacheTestSu
                         pagesPerSegment,
                         ioController,
                         evictionBouncer,
-                        swapperIdProvider);
+                        swapperIdProvider,
+                        segmentTracker);
                 return new DelegatingPageSwapper(swapper) {
                     @Override
                     public long write(long filePageId, long bufferAddress) throws IOException {

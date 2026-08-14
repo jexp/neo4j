@@ -28,6 +28,7 @@ import org.neo4j.io.pagecache.buffer.IOBufferFactory;
 import org.neo4j.io.pagecache.impl.muninn.EvictionBouncer;
 import org.neo4j.io.pagecache.impl.muninn.StoreFile;
 import org.neo4j.io.pagecache.impl.muninn.VersionStorage;
+import org.neo4j.io.pagecache.segment.FileSegmentTracker;
 import org.neo4j.io.pagecache.tracing.DatabaseFlushEvent;
 
 public class DelegatingPageCache implements PageCache {
@@ -45,10 +46,18 @@ public class DelegatingPageCache implements PageCache {
             ImmutableSet<OpenOption> openOptions,
             IOController ioController,
             EvictionBouncer evictionBouncer,
-            VersionStorage versionStorage)
+            VersionStorage versionStorage,
+            FileSegmentTracker segmentTracker)
             throws IOException {
         return delegate.map(
-                storeFile, pageSize, databaseName, openOptions, ioController, evictionBouncer, versionStorage);
+                storeFile,
+                pageSize,
+                databaseName,
+                openOptions,
+                ioController,
+                evictionBouncer,
+                versionStorage,
+                segmentTracker);
     }
 
     @Override
