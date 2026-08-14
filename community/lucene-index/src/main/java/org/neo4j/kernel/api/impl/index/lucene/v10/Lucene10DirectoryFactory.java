@@ -108,13 +108,8 @@ public class Lucene10DirectoryFactory implements LuceneDirectoryFactory {
                             try (InputStream in = fs.openAsInputStream(file);
                                     IndexOutput out = directory.createOutput(
                                             file.getFileName().toString(), IOContext.DEFAULT)) {
-                                int length = in.available();
-                                byte[] bytes = new byte[length];
-                                int bytesRead = in.read(bytes, 0, length);
-                                if (bytesRead < length) {
-                                    throw new RuntimeException("Couldn't read it all " + bytesRead + " < " + length);
-                                }
-                                out.writeBytes(bytes, 0, length);
+                                byte[] bytes = in.readAllBytes();
+                                out.writeBytes(bytes, 0, bytes.length);
                             }
                         }
                     }
