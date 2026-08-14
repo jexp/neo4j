@@ -3431,6 +3431,21 @@ public enum GqlStatusInfoCodes implements GqlStatusInfo {
             },
             "unsupported operation on a composite database",
             ErrorClassification.CLIENT_ERROR),
+    STATUS_51N7C(
+            "Secret provider { %s } is not available. Enable it with the setting { %s }.",
+            new GqlParams.GqlParam[] {
+                new NonSensitiveGqlParam(GqlParams.StringParam.secretProviderType, List.of(FIXED_TEXT)),
+                new NonSensitiveGqlParam(GqlParams.StringParam.cfgSetting, List.of(CONFIG_SETTING))
+            },
+            "secret provider is not enabled",
+            ErrorClassification.CLIENT_ERROR),
+    STATUS_51N7D(
+            "Secret provider { %s } returned an error.",
+            new GqlParams.GqlParam[] {
+                new NonSensitiveGqlParam(GqlParams.StringParam.secretProviderType, List.of(FIXED_TEXT))
+            },
+            "secret provider error",
+            ErrorClassification.TRANSIENT_ERROR),
     STATUS_52N01(
             "Execution of the procedure { %s } timed out after { %s } { %s }.",
             new GqlParams.GqlParam[] {

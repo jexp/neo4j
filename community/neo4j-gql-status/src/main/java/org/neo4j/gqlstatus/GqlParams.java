@@ -144,6 +144,7 @@ public class GqlParams {
         runtime(new STRLIT()), // Cypher runtime name
         schemaDescr(new STRLIT()), // Schema descriptor
         schemaDescrType(new VERBATIM()), // type of schema descriptor
+        secretProviderType(new VERBATIM()), // type of secret provider
         selector(new VERBATIM()), // A GPM path selector
         selectorOrPathMode(new VERBATIM()), // A GPM path selector or GPM path mode
         selectorType1(new STRLIT()), // Selector type

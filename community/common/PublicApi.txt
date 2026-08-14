@@ -66,6 +66,7 @@ org.neo4j.kernel.api.exceptions.Status.General::IndexCorruptionDetected org.neo4
 org.neo4j.kernel.api.exceptions.Status.General::InvalidArguments org.neo4j.kernel.api.exceptions.Status.General public static final
 org.neo4j.kernel.api.exceptions.Status.General::MemoryPoolOutOfMemoryError org.neo4j.kernel.api.exceptions.Status.General public static final
 org.neo4j.kernel.api.exceptions.Status.General::OutOfMemoryError org.neo4j.kernel.api.exceptions.Status.General public static final
+org.neo4j.kernel.api.exceptions.Status.General::RemoteFailure org.neo4j.kernel.api.exceptions.Status.General public static final
 org.neo4j.kernel.api.exceptions.Status.General::SchemaCorruptionDetected org.neo4j.kernel.api.exceptions.Status.General public static final
 org.neo4j.kernel.api.exceptions.Status.General::StackOverFlowError org.neo4j.kernel.api.exceptions.Status.General public static final
 org.neo4j.kernel.api.exceptions.Status.General::StorageDamageDetected org.neo4j.kernel.api.exceptions.Status.General public static final

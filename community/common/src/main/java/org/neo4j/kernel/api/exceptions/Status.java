@@ -681,7 +681,8 @@ public interface Status {
                 TransientError,
                 "The database is not currently available to serve your request, refer to the database logs for more "
                         + "details. Retrying your request at a later time may succeed."),
-        EntityIdNotFound(TransientError, "The request referred to an entity id that does not exist.");
+        EntityIdNotFound(TransientError, "The request referred to an entity id that does not exist."),
+        RemoteFailure(TransientError, "A request to a remote system failed. You may retry the request.");
 
         private final Code code;
 
