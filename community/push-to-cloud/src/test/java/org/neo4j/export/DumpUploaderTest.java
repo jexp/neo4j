@@ -53,7 +53,6 @@ import org.neo4j.dbms.archive.backup.BackupTarFormatV1;
 import org.neo4j.dbms.archive.backup.BackupTarFormatV2;
 import org.neo4j.dbms.archive.backup.BackupZstdFormatV1;
 import org.neo4j.dbms.archive.backup.BackupZstdFormatV2;
-import org.neo4j.dbms.archive.backup.BackupZstdFormatV3;
 import org.neo4j.function.Predicates;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
@@ -75,8 +74,7 @@ class DumpUploaderTest {
                 new BackupTarFormatV1(),
                 new BackupTarFormatV2(),
                 new BackupZstdFormatV1(),
-                new BackupZstdFormatV2(),
-                new BackupZstdFormatV3());
+                new BackupZstdFormatV2());
     }
 
     static final String TAR_ARCHIVE = "GDS-monstrosity.tar";
@@ -93,8 +91,7 @@ class DumpUploaderTest {
             BackupTarFormatV1.class, false,
             BackupTarFormatV2.class, false,
             BackupZstdFormatV1.class, true,
-            BackupZstdFormatV2.class, true,
-            BackupZstdFormatV3.class, true);
+            BackupZstdFormatV2.class, true);
 
     @Inject
     TestDirectory directory;

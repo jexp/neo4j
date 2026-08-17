@@ -2194,12 +2194,6 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
             .build();
 
     @Internal
-    @Description("Enables use of new and not finalized BackupZstdFormatV3 for testing")
-    public static final Setting<Boolean> use_dev_compress_backup_format = newBuilder(
-                    "internal.db.backup.use_new_compressed_backup_format", BOOL, false)
-            .build();
-
-    @Internal
     @Description("Total in-memory byte budget for the cache in versioned relationship degree store.")
     public static final Setting<Long> versioned_degrees_cache_max_size = newBuilder(
                     "internal.db.block.versioned_degrees_cache_max_size", BYTES, mebiBytes(10))
