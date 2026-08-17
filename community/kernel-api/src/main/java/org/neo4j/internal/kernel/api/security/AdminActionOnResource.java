@@ -30,6 +30,10 @@ public class AdminActionOnResource {
         this.segment = segment;
     }
 
+    public PrivilegeAction action() {
+        return action;
+    }
+
     public boolean matches(AdminActionOnResource request) {
         return action.satisfies(request.action)
                 && (databaseScope.all || databaseScope.name.equals(request.databaseScope.name))

@@ -33,6 +33,8 @@ import org.neo4j.internal.kernel.api.procs.UserAggregationReducer;
 import org.neo4j.internal.kernel.api.procs.UserAggregationUpdater;
 import org.neo4j.internal.kernel.api.security.AccessMode;
 import org.neo4j.internal.kernel.api.security.AdminAccessMode;
+import org.neo4j.internal.kernel.api.security.PermissionState;
+import org.neo4j.internal.kernel.api.security.PrivilegeAction;
 import org.neo4j.internal.kernel.api.security.SecurityAuthorizationHandler;
 import org.neo4j.internal.kernel.api.security.SecurityContext;
 import org.neo4j.internal.kernel.api.security.StaticAccessMode;
@@ -178,7 +180,7 @@ public abstract class ProcedureCaller {
         SecurityContext procedureSecurityContext = mode.shouldBoostProcedure(id).allowsAccess()
                 ? securityContext
                         .withMode(new OverriddenAccessMode(mode, procedureMode))
-                        .withMode(AdminAccessMode.FULL)
+                        .withMode(boostedAdminAccessMode(securityContext))
                 : securityContext.withMode(new RestrictedAccessMode(mode, procedureMode));
 
         ResourceRawIterator<AnyValue[], ProcedureException> procedureCall;
@@ -187,6 +189,17 @@ public abstract class ProcedureCaller {
         }
 
         return createIterator(procedureSecurityContext, procedureCall);
+    }
+
+    /**
+     * EXECUTE BOOSTED grants every admin action unconditionally, since it's meant to boost data access
+     * (see {@link OverriddenAccessMode}), not bypass externalities like the secrets manager - so
+     * secrets-management actions are deferred to the pre-boost admin access mode instead of being boosted.
+     */
+    private static AdminAccessMode boostedAdminAccessMode(SecurityContext preBoostSecurityContext) {
+        return action -> PrivilegeAction.SECRETS_MANAGEMENT.satisfies(action.action())
+                ? preBoostSecurityContext.allowsAdminAction(action)
+                : PermissionState.EXPLICIT_GRANT;
     }
 
     public ProcedureSignature procedureSignature(int id) throws ProcedureException {
