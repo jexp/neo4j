@@ -38,6 +38,7 @@ import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.ProviderMismatchException;
 import java.util.Collection;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
@@ -50,6 +51,7 @@ import org.neo4j.configuration.Config;
 import org.neo4j.function.ThrowingSupplier;
 import org.neo4j.io.IOUtils;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.fs.PathWithMetadata;
 import org.neo4j.io.fs.StoreChannel;
 import org.neo4j.io.fs.watcher.FileWatcher;
 import org.neo4j.logging.InternalLogProvider;
@@ -290,6 +292,16 @@ public class SchemeFileSystemAbstraction implements FileSystemAbstraction, Stora
     @Override
     public Path[] listFiles(Path directory, Filter<Path> filter) throws IOException {
         return fs.listFiles(directory, filter);
+    }
+
+    @Override
+    public List<PathWithMetadata> listFilesWithMetadata(Path directory, Filter<Path> filter) throws IOException {
+        if (directory instanceof StoragePath storageDir) {
+            try (var paths = provider(storageDir).newDirectoryStreamWithMetadata(directory, filter)) {
+                return paths.toList();
+            }
+        }
+        return fs.listFilesWithMetadata(directory, filter);
     }
 
     @Override

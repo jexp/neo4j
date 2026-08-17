@@ -38,6 +38,7 @@ import java.nio.file.PathMatcher;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -314,6 +315,23 @@ public interface FileSystemAbstraction extends Closeable {
      * @throws IOException on I/O error.
      */
     Path[] listFiles(Path directory, DirectoryStream.Filter<Path> filter) throws IOException;
+
+    /**
+     * Returns paths and metadata for files passing the provided {@code filter} in the given {@code directory}.
+     *
+     * @param directory the directory to list files for. Both files and directories contained in the {@code directory} are returned, non-recursively.
+     * @param filter the filter to use in the listing.
+     * @return a stream of files and directories contained in the provided {@code directory}. For each file, metadata is included if available from the underlying file system.
+     * @throws NotDirectoryException if the provided {@code directory} isn't a directory.
+     * @throws NoSuchFileException if the provided {@code directory} doesn't exist.
+     * @throws IOException on I/O error.
+     */
+    default List<PathWithMetadata> listFilesWithMetadata(Path directory, DirectoryStream.Filter<Path> filter)
+            throws IOException {
+        return Arrays.stream(listFiles(directory, filter))
+                .map(PathWithMetadata::withoutMetadata)
+                .toList();
+    }
 
     /**
      * @param file the file to check whether or not it's a directory.

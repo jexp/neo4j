@@ -33,6 +33,7 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.CopyOption;
+import java.nio.file.DirectoryStream;
 import java.nio.file.FileStore;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystemAlreadyExistsException;
@@ -46,11 +47,13 @@ import java.util.EnumSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Stream;
 import org.eclipse.collections.api.factory.Maps;
 import org.eclipse.collections.api.map.MutableMap;
 import org.neo4j.cloud.storage.StorageSystemProviderFactory.ChunkChannelSupplier;
 import org.neo4j.configuration.Config;
 import org.neo4j.io.IOUtils;
+import org.neo4j.io.fs.PathWithMetadata;
 import org.neo4j.logging.InternalLogProvider;
 import org.neo4j.memory.MemoryTracker;
 import org.neo4j.util.Preconditions;
@@ -232,6 +235,9 @@ public abstract class StorageSystemProvider extends FileSystemProvider implement
         Preconditions.checkArgument(!normalizeForRead(options).contains(WRITE), "Opening for WRITE is not allowed");
         return openAsInputStream(ensureNotDirectory(path));
     }
+
+    public abstract Stream<PathWithMetadata> newDirectoryStreamWithMetadata(
+            Path dirPath, DirectoryStream.Filter<? super Path> filter) throws IOException;
 
     @Override
     public void close() {

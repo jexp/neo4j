@@ -356,6 +356,18 @@ class SchemeFileSystemAbstractionTest {
     }
 
     @Test
+    void listFilesWithMetadata() throws Exception {
+        Filter<Path> filter = (Path path) -> true;
+
+        schemeFs.listFilesWithMetadata(FS_PATH, filter);
+        verify(fs).listFilesWithMetadata(FS_PATH, filter);
+        verifyNoInteractions(systemProvider);
+
+        schemeFs.listFilesWithMetadata(schemePath, filter);
+        verify(systemProvider).newDirectoryStreamWithMetadata(schemePath, filter);
+    }
+
+    @Test
     void isDirectory() throws Exception {
         verifyFileSystemCall("isDirectory", FS_PATH);
         verifyFileSystemCall("isDirectory", schemePath);

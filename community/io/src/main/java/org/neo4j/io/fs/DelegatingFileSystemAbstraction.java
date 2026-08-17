@@ -179,6 +179,12 @@ public class DelegatingFileSystemAbstraction implements FileSystemAbstraction {
     }
 
     @Override
+    public List<PathWithMetadata> listFilesWithMetadata(Path directory, DirectoryStream.Filter<Path> filter)
+            throws IOException {
+        return delegate.listFilesWithMetadata(directory, filter);
+    }
+
+    @Override
     public void deleteRecursively(Path directory) throws IOException {
         delegate.deleteRecursively(directory);
     }

@@ -2220,6 +2220,23 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
     public static final Setting<Boolean> store_segment_tracking =
             newBuilder("internal.db.store.segment_tracking", BOOL, true).build();
 
+    @Internal
+    @Description(
+            "When inspecting or consuming backup chains, performs an incremental search over an increasing number of artifacts. "
+                    + "Provides a performance improvement for directories containing many short backup chains, or a long continuous backup chain."
+                    + "Only has an effect for object-storage-based filesystems, not on true local filesystems.")
+    public static final Setting<Boolean> backup_chain_search_incremental_query_enabled = newBuilder(
+                    "internal.dbms.backup.incremental_chain_search_enabled", BOOL, false)
+            .build();
+
+    @Internal
+    @Description("Controls the increase to the number of artifacts searched upon each iteration. "
+            + "A reasonable batch size is twice the expected number of artifacts per backup chain.")
+    public static final Setting<Integer> backup_chain_search_incremental_query_batch_size = newBuilder(
+                    "internal.dbms.backup.incremental_chain_search_query_batch_size", INT, 50)
+            .addConstraint(min(1))
+            .build();
+
     public static HeapEstimatorCacheConfig extractCustomHeapEstimatorCacheConfig(Config config) {
         return new HeapEstimatorCacheConfig(
                 config.get(GraphDatabaseInternalSettings.heap_estimator_cache_size_limit),

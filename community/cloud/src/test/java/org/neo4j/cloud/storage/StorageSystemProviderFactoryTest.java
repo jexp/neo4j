@@ -40,9 +40,11 @@ import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.FileAttributeView;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.neo4j.cloud.storage.StorageSystemProviderFactory.ChunkChannelSupplier;
 import org.neo4j.configuration.Config;
+import org.neo4j.io.fs.PathWithMetadata;
 import org.neo4j.logging.InternalLogProvider;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.memory.EmptyMemoryTracker;
@@ -131,6 +133,11 @@ class StorageSystemProviderFactoryTest {
 
         @Override
         public DirectoryStream<Path> newDirectoryStream(Path dir, Filter<? super Path> filter) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Stream<PathWithMetadata> newDirectoryStreamWithMetadata(Path dirPath, Filter<? super Path> filter) {
             throw new UnsupportedOperationException();
         }
 
