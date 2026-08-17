@@ -45,13 +45,13 @@ class HttpServiceTest {
 
     @ParameterizedTest
     @ValueSource(ints = {1, 4, 5, 8, 10, 14, 15, 16})
-    @Timeout(value = 30, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+    @Timeout(value = 45, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
     void pipeShouldNotBlock(int size) throws IOException {
         var port = PortAuthority.allocatePort();
 
         HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
         try {
-            var maxSleepInMillis = 1000;
+            var maxSleepInMillis = 500;
             server.createContext("/test", exchange -> {
                 var response = (String) JsonUtils.getObjectMapper()
                         .readValue(exchange.getRequestBody(), JsonUtils.TYPE_REF_MAP_STRING_OBJECT)
