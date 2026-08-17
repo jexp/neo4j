@@ -738,7 +738,7 @@ final case class QueryGraph private (
         else
           added = true
 
-        val sortedInput = if (s.isInstanceOf[Set[_]]) s.map(x => f(x)).toSeq.sorted else s.map(f)
+        val sortedInput = if (s.isInstanceOf[Set[_]]) s.toSeq.map(x => f(x)).sorted else s.map(f)
         builder.append(s"$name: ").append(sortedInput.mkString("['", "', '", "']"))
       }
     }

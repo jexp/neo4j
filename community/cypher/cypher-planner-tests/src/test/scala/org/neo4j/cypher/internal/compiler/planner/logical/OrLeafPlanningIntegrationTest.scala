@@ -26,6 +26,7 @@ import org.neo4j.cypher.internal.compiler.CypherPlannerTestSuite
 import org.neo4j.cypher.internal.compiler.planner.LogicalPlanConstructionTestSupport
 import org.neo4j.cypher.internal.compiler.planner.LogicalPlanningIntegrationTestSupport
 import org.neo4j.cypher.internal.compiler.planner.StatisticsBackedLogicalPlanningConfigurationBuilder
+import org.neo4j.cypher.internal.logical.builder.AbstractLogicalPlanBuilder.andsReorderable
 import org.neo4j.cypher.internal.logical.builder.AbstractLogicalPlanBuilder.column
 import org.neo4j.cypher.internal.logical.builder.IndexSeek.nodeIndexSeek
 import org.neo4j.cypher.internal.logical.plans.Distinct
@@ -1504,6 +1505,25 @@ class OrLeafPlanningIntegrationTest
       .|.nodeIndexOperator("s:Style(styleCode)", getValue = _ => GetValue)
       .filter("s.name CONTAINS 'lorem'", "s.tags IS NOT NULL")
       .nodeIndexOperator("s:Style(styleCode)", getValue = _ => GetValue)
+      .build()
+  }
+
+  test("handles predicates not fully flattened by cnf normalizer") {
+    val planner = plannerBuilder()
+      .setAllNodesCardinality(100)
+      .build()
+
+    val query =
+      """MATCH (n)
+        |WHERE (n.a AND n.b >= 1 AND n.b < 2)
+        |   OR (n.a AND ((n.b >= 1 AND n.b < 2) OR (n.b >= 1 AND n.b < 2)))
+        |   OR (n.a AND n.b >= 1 AND n.b < 2)
+        |RETURN n""".stripMargin
+
+    val plan = planner.plan(query).stripProduceResults
+    plan shouldEqual planner.subPlanBuilder()
+      .filter(andsReorderable("cacheNFromStore[n.b] < 2", "cacheNFromStore[n.b] >= 1"), "CoerceToPredicate(n.a)")
+      .allNodeScan("n")
       .build()
   }
 

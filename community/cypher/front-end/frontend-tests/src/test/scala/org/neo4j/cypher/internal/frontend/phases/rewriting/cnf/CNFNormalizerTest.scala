@@ -186,6 +186,14 @@ class CNFNormalizerTest extends CypherFunSuite with PredicateTestSupport {
     or(and(R, FALSE), P) <=> bool(P)
   }
 
+  test("a redundant OR of a conjunction inside an AND leaves a nested, un-flattened AND") {
+    // documents current behaviour, can be improved
+    or(
+      and(P, and(Q, and(R, S))),
+      and(P, or(and(Q, and(R, S)), and(Q, and(R, S))))
+    ) <=> ors(ands(P, Q, R, S), ands(P, ands(Q, R, S)))
+  }
+
   override protected def beforeEach(): Unit = {
     super.beforeEach()
     val monitors = mock[Monitors]

@@ -19,6 +19,7 @@
  */
 package org.neo4j.cypher.internal.ir
 
+import org.neo4j.cypher.internal.expressions.And
 import org.neo4j.cypher.internal.expressions.Ands
 import org.neo4j.cypher.internal.expressions.Expression
 import org.neo4j.cypher.internal.expressions.HasLabels
@@ -37,14 +38,23 @@ import org.neo4j.cypher.internal.expressions.Variable
 import org.neo4j.cypher.internal.ir.Selections.AsHasLabelsPredicate
 import org.neo4j.cypher.internal.ir.ast.ExistsIRExpression
 import org.neo4j.cypher.internal.ir.helpers.ExpressionConverters.PredicateConverter
+import org.neo4j.cypher.internal.macros.AssertMacros3.checkOnlyWhenAssertionsAreEnabled
 import org.neo4j.cypher.internal.util.Foldable.FoldableAny
 import org.neo4j.cypher.internal.util.Foldable.SkipChildren
 import org.neo4j.cypher.internal.util.Rewritable
+import org.neo4j.cypher.internal.util.collection.immutable.ListSet
 
 import scala.collection.MapView
 import scala.collection.mutable
 
 case class Selections private (predicates: Set[Predicate]) extends Rewritable {
+
+  checkOnlyWhenAssertionsAreEnabled(
+    checkNoTopLevelConjunctions,
+    s"""And/Ands found in Selections: $predicates
+       |A call to `PredicateConverter.asPredicates` might be missing.""".stripMargin
+  )
+
   def isEmpty: Boolean = predicates.isEmpty
 
   def predicatesGiven(ids: Set[LogicalVariable]): Seq[Expression] = {
@@ -186,6 +196,13 @@ case class Selections private (predicates: Set[Predicate]) extends Rewritable {
   override def dup(children: Seq[AnyRef]): this.type = {
     new Selections(children.head.asInstanceOf[Set[Predicate]]).asInstanceOf[this.type]
   }
+
+  private def checkNoTopLevelConjunctions: Boolean = {
+    predicates.forall {
+      case Predicate(_, _: Ands | _: And) => false
+      case _                              => true
+    }
+  }
 }
 
 object Selections {
@@ -222,9 +239,10 @@ object Selections {
     }
 
     val keptPredicates = predicates.flatMap {
-      case Predicate(dependencies, expr) => replaceCoveredPredicates(expr).map {
-          case replacedExpr if replacedExpr != expr => Predicate(replacedExpr.dependencies, replacedExpr)
-          case expr                                 => Predicate(dependencies, expr)
+      case originalPredicate @ Predicate(dependencies, expr) =>
+        replaceCoveredPredicates(expr).fold(ListSet.empty[Predicate]) {
+          case replacedExpr if replacedExpr != expr => replacedExpr.asPredicates
+          case expr                                 => ListSet(originalPredicate)
         }
     }
 

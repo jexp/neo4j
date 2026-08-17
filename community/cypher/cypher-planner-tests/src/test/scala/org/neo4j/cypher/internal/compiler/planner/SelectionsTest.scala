@@ -27,6 +27,7 @@ import org.neo4j.cypher.internal.expressions.Ors
 import org.neo4j.cypher.internal.expressions.PartialPredicate
 import org.neo4j.cypher.internal.ir.Predicate
 import org.neo4j.cypher.internal.ir.Selections
+import org.neo4j.cypher.internal.ir.helpers.ExpressionConverters.PredicateConverter
 import org.neo4j.cypher.internal.util.collection.immutable.ListSet
 
 class SelectionsTest extends CypherPlannerTestSuite with LogicalPlanningTestSupport {
@@ -182,6 +183,16 @@ class SelectionsTest extends CypherPlannerTestSuite with LogicalPlanningTestSupp
 
     fromLeft should equal(expected)
     fromRight should equal(expected)
+  }
+
+  test("should unpack ands nested in singleton ors") {
+    val exprs = ors(ands(aIsPerson, ands(aIsEmployee, aIsProgrammer)))
+    val actual = Selections(exprs.asPredicates)
+    actual shouldEqual Selections(Set(
+      Predicate(aId, aIsPerson),
+      Predicate(aId, aIsEmployee),
+      Predicate(aId, aIsProgrammer)
+    ))
   }
 
   private def idNames(names: String*): Set[LogicalVariable] = names.toSet.map(varFor)
