@@ -1312,6 +1312,22 @@ abstract class ExpressionTestBase[CONTEXT <: RuntimeContext](edition: Edition[CO
     runtimeResult should beColumns("t").withRows(singleColumn((1 to size).map(_ => "TO")))
   }
 
+  test("should compile type() when no operator in the pipeline reads from the store") {
+    // given an empty db: the relationship comes from a projected null rather than a scan or expand, so nothing
+    // else in the fused pipeline declares the data-read accessor that type() needs.
+    val logicalQuery = new LogicalQueryBuilder(this)
+      .produceResults("t")
+      .projection("type(r) AS t")
+      .projection("NULL AS r")
+      .limit(0)
+      .argument()
+      .build()
+
+    val runtimeResult = execute(logicalQuery, runtime)
+
+    runtimeResult should beColumns("t").withNoRows()
+  }
+
   test("should be able to access what runtime that was used in a UDF") {
     // given an empty db
 
