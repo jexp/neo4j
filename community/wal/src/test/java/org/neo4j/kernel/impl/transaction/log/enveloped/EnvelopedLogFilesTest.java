@@ -48,6 +48,7 @@ import org.neo4j.internal.nativeimpl.NativeAccessProvider;
 import org.neo4j.io.IOUtils;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.fs.ReadPastEndException;
+import org.neo4j.io.fs.StoreChannel;
 import org.neo4j.io.fs.filename.SequentialFileNameHelper;
 import org.neo4j.io.memory.HeapScopedBuffer;
 import org.neo4j.kernel.KernelVersion;
@@ -808,6 +809,113 @@ class EnvelopedLogFilesTest {
                 assertThat(reader.getTerm()).isEqualTo(i + 2);
             }
         }
+    }
+
+    /*
+     * Contract relied upon by the raft binary log shipper: it streams the channels from
+     * entryStreamChannels() lazily on the netty event loop, after the raft state machine has moved on.
+     * Bytes visible through an already-open channel must therefore never change — a log file may
+     * only be cut short (truncate) or unlinked (truncate/prune), never rewritten in place.
+     */
+    @Test
+    void truncateMustNeverChangeBytesVisibleThroughOpenTransferChannels() throws IOException {
+        envelopedLogFiles.initialise();
+        var writeChannel = envelopedLogFiles.currentWriteChannel();
+        var largeData = new byte[totalFileDataSize / 2];
+        writeData(writeChannel, largeData, 0);
+        writeData(writeChannel, largeData, 1);
+        writeData(writeChannel, EIGHT_BYTES_MESSAGE.getBytes(), 2);
+        writeData(writeChannel, EIGHT_BYTES_MESSAGE.getBytes(), 3);
+        writeChannel.prepareForFlush().flush();
+        assertThat(mirroringRepository.logVersions(false)).containsExactly(BASE_VERSION, BASE_VERSION + 1);
+
+        var transfer = envelopedLogFiles.entryStreamChannels(0, 3);
+        try {
+            var snapshots = snapshotAndRewind(transfer);
+            var channels = transfer.storeChannels();
+            assertThat(channels).hasSize(2);
+
+            // Entry 1 lives in the first file: truncating there cuts the first file,
+            // unlinks the second and rotates so the new entries land in a fresh file.
+            envelopedLogFiles.truncate(1);
+            var newWriteChannel = envelopedLogFiles.currentWriteChannel();
+            writeData(newWriteChannel, "newLeaderEntry1".getBytes(), 1);
+            writeData(newWriteChannel, "newLeaderEntry2".getBytes(), 1);
+            newWriteChannel.prepareForFlush().flush();
+
+            var truncatedRead = readUntilEndOfFile(channels.get(0), snapshots.get(0).length);
+            assertThat(truncatedRead.length)
+                    .as("truncation is visible as a shortened file")
+                    .isLessThan(snapshots.get(0).length);
+            assertThat(truncatedRead)
+                    .as("bytes before the truncation point are untouched")
+                    .isEqualTo(Arrays.copyOf(snapshots.get(0), truncatedRead.length));
+
+            var unlinkedRead = readUntilEndOfFile(channels.get(1), snapshots.get(1).length);
+            assertThat(unlinkedRead)
+                    .as("an unlinked file stays fully readable and unchanged through the open channel")
+                    .isEqualTo(snapshots.get(1));
+        } finally {
+            IOUtils.closeAllSilently(transfer.storeChannels());
+        }
+    }
+
+    @Test
+    void pruneMustNeverChangeBytesVisibleThroughOpenTransferChannels() throws IOException {
+        envelopedLogFiles.initialise();
+        var writeChannel = envelopedLogFiles.currentWriteChannel();
+        var largeData = new byte[totalFileDataSize / 2];
+        writeData(writeChannel, largeData, 0);
+        writeData(writeChannel, largeData, 1);
+        writeData(writeChannel, EIGHT_BYTES_MESSAGE.getBytes(), 2);
+        writeData(writeChannel, EIGHT_BYTES_MESSAGE.getBytes(), 3);
+        writeChannel.prepareForFlush().flush();
+
+        var transfer = envelopedLogFiles.entryStreamChannels(0, 3);
+        try {
+            var snapshots = snapshotAndRewind(transfer);
+            var channels = transfer.storeChannels();
+            assertThat(channels).hasSize(2);
+
+            assertThat(envelopedLogFiles.prune(2)).isOne();
+            assertThat(mirroringRepository.logVersions(false))
+                    .as("the first file is gone from the repository")
+                    .containsExactly(BASE_VERSION + 1);
+
+            for (int i = 0; i < channels.size(); i++) {
+                assertThat(readUntilEndOfFile(channels.get(i), snapshots.get(i).length))
+                        .as("channel %d still reads its full, unchanged snapshot", i)
+                        .isEqualTo(snapshots.get(i));
+            }
+        } finally {
+            IOUtils.closeAllSilently(transfer.storeChannels());
+        }
+    }
+
+    private static List<byte[]> snapshotAndRewind(StoreChannelsForTransfer transfer) throws IOException {
+        var snapshots = new ArrayList<byte[]>();
+        var channels = transfer.storeChannels();
+        for (int i = 0; i < channels.size(); i++) {
+            var channel = channels.get(i);
+            var start = channel.position();
+            var end = i == channels.size() - 1 ? transfer.toPosition() : channel.size();
+            var buffer = ByteBuffer.allocate(Math.toIntExact(end - start));
+            while (buffer.hasRemaining() && channel.read(buffer) >= 0) {
+                // keep reading
+            }
+            assertThat(buffer.hasRemaining()).isFalse();
+            snapshots.add(buffer.array());
+            channel.position(start);
+        }
+        return snapshots;
+    }
+
+    private static byte[] readUntilEndOfFile(StoreChannel channel, int maxBytes) throws IOException {
+        var buffer = ByteBuffer.allocate(maxBytes);
+        while (buffer.hasRemaining() && channel.read(buffer) >= 0) {
+            // keep reading
+        }
+        return Arrays.copyOf(buffer.array(), buffer.position());
     }
 
     @Test

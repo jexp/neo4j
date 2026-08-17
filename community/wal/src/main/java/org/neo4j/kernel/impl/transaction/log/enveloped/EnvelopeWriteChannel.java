@@ -605,10 +605,23 @@ public class EnvelopeWriteChannel implements PhysicalLogChannel {
         requireNonNegative(position);
         checkArgument(position <= channel.position(), "Can only truncate written data.");
         checkArgument(position >= segmentBlockSize, "Truncating the first segment is not possible");
+        checkState(
+                lastWrittenPosition == currentEnvelopeStart,
+                "Buffered envelopes must be flushed before truncating to %d. The rotation below flushes, which would "
+                        + "write buffered data [%d,%d) back into the file being shortened, re-extending it past the "
+                        + "truncation point and overwriting bytes concurrent readers may already be shipping.",
+                position,
+                lastWrittenPosition,
+                currentEnvelopeStart);
         this.previousChecksum = previousChecksum;
         this.currentIndex = previousIndex;
         this.currentTerm = previousTerm;
         channel.truncate(position);
+        // After truncation, it's critical that subsequent writes go to a completely different file rather than
+        // overwriting the sections of an existing file. This is because there might be readers in other threads
+        // reading the existing files, for example, Raft binary log shipping reads asynchronously. Overwriting
+        // data after a truncation could silently ship a mix of old and new data, whereas shortening a file
+        // will just ship less data.
         rotateLogFile();
     }
 

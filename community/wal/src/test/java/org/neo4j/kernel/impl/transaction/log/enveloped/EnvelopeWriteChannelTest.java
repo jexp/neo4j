@@ -1287,6 +1287,48 @@ class EnvelopeWriteChannelTest extends EnvelopeWriteChannelTestSupport {
     }
 
     @Test
+    void truncateShouldRejectUnflushedBufferedEnvelopes() throws IOException {
+        final var fileChannel = storeChannel();
+
+        int segmentSize = 128;
+
+        try (var channel = writeChannel(
+                fileChannel,
+                segmentSize,
+                buffer(segmentSize * 2),
+                logRotation(fileChannel, header(segmentSize), segmentSize * 100),
+                LogTracers.NULL)) {
+            channel.beginChecksumForWriting();
+            channel.putVersion(KERNEL_VERSION);
+            channel.putTerm(TERM);
+            channel.putContentType(CONTENT_TYPE);
+            channel.putLong(100);
+            channel.endCurrentEntry();
+            // Flush the first entry so the truncation point is within the written extent: that is what makes the
+            // buffered-data hazard reachable at all, rather than being caught by the "can only truncate written
+            // data" guard above.
+            channel.prepareForFlush().flush();
+            long truncatePosition = channel.position();
+
+            channel.beginChecksumForWriting();
+            channel.putVersion(KERNEL_VERSION);
+            channel.putContentType(CONTENT_TYPE);
+            channel.putLong(101);
+            channel.endCurrentEntry();
+
+            // Deliberately unflushed: the rotation inside truncateToPosition would otherwise write this envelope
+            // back into the file being shortened, at a byte range binary log shipping may already be streaming.
+            assertThatThrownBy(() -> channel.truncateToPosition(truncatePosition, 0xCF1AE743, FIRST_INDEX, TERM))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("Buffered envelopes must be flushed before truncating");
+
+            assertThat(fileSystem.getFileSize(logPath(1)))
+                    .as("a rejected truncate must not shorten the file")
+                    .isGreaterThanOrEqualTo(truncatePosition);
+        }
+    }
+
+    @Test
     void failWhenTryingToCompleteAnEmptyEnvelope() throws IOException {
         final int segmentSize = 256;
         final var fileChannel = storeChannel();
