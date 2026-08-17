@@ -256,6 +256,21 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
     public static final Setting<Boolean> display_planner_version =
             newBuilder("internal.cypher.display_planner_version", BOOL, false).build();
 
+    public enum CypherPlannerVersion {
+        LATEST, // Alias to the latest version (immediately following this entry)
+        // Planner version update: add the latest version here just after LATEST
+        V2026_05,
+        V2026_04,
+        V2026_03
+    }
+
+    @Internal
+    @Description("Sets the default Cypher planner version. This can be overridden per-query using the `plannerVersion` "
+            + "pre-parser option, which takes precedence over this setting.")
+    public static final Setting<CypherPlannerVersion> cypher_planner_version = newBuilder(
+                    "internal.cypher.planner_version", ofEnum(CypherPlannerVersion.class), CypherPlannerVersion.LATEST)
+            .build();
+
     public enum PlanVarExpandInto {
         /**
          * Plan expandInto using regular cost estimation

@@ -792,6 +792,7 @@ sealed abstract class CypherPlannerVersionOption(name: String) extends CypherKey
 
 object CypherPlannerVersionOption extends CypherOptionCompanion[CypherPlannerVersionOption](
       name = "plannerVersion",
+      setting = Some(GraphDatabaseInternalSettings.cypher_planner_version),
       cypherConfigField = Some(_.plannerVersion)
     ) {
   case object experimental extends CypherPlannerVersionOption("experimental")

@@ -20,6 +20,8 @@
 package org.neo4j.cypher.internal.options
 
 import org.neo4j.configuration.Config
+import org.neo4j.configuration.GraphDatabaseInternalSettings
+import org.neo4j.configuration.GraphDatabaseInternalSettings.CypherPlannerVersion
 import org.neo4j.cypher.internal.config.CypherConfiguration
 import org.neo4j.cypher.internal.options.CypherPlannerVersionOption._
 import org.neo4j.cypher.internal.options.OptionReader.Input
@@ -71,5 +73,50 @@ class CypherPlannerVersionOptionTest extends CypherFunSuite {
     CypherPlannerVersionOption.isRetired("v2026_04") shouldBe false
     CypherPlannerVersionOption.isRetired("latest") shouldBe false
     CypherPlannerVersionOption.isRetired("experimental") shouldBe false
+  }
+
+  test("fromConfig resolves the configured concrete version") {
+    val config = Config.newBuilder()
+      .set(GraphDatabaseInternalSettings.cypher_planner_version, CypherPlannerVersion.V2026_04)
+      .build()
+
+    CypherPlannerVersionOption.fromConfig(config) shouldBe v2026_04
+  }
+
+  test("fromConfig resolves a retired configured version to the default instead of throwing") {
+    val config = Config.newBuilder()
+      .set(GraphDatabaseInternalSettings.cypher_planner_version, CypherPlannerVersion.V2026_03)
+      .build()
+
+    CypherPlannerVersionOption.fromConfig(config) shouldBe CypherPlannerVersionOption.default
+  }
+
+  test("plannerVersion pre-parser option takes precedence over the configured setting") {
+    val configuredCypherConfig = CypherConfiguration.fromConfig(
+      Config.newBuilder()
+        .set(GraphDatabaseInternalSettings.cypher_planner_version, CypherPlannerVersion.V2026_04)
+        .build()
+    )
+    val reader = implicitly[OptionReader[CypherPlannerVersionOption]]
+
+    reader.read(Input(configuredCypherConfig, Set())).result shouldBe v2026_04
+    reader.read(Input(configuredCypherConfig, Set("plannerVersion" -> "experimental"))).result shouldBe experimental
+  }
+
+  test("CypherPlannerVersion config enum stays in sync with CypherPlannerVersionOption's concrete versions") {
+    // GraphDatabaseInternalSettings.CypherPlannerVersion is a separate Java enum from this file's Scala case
+    // objects (the config Setting framework requires a java.lang.Enum), kept in sync by convention rather than
+    // by sharing a type. If this test fails, a planner version was added to one side but not the other.
+    val concreteOptionNames = CypherPlannerVersionOption.supportedValues
+      .filterNot(v => v == CypherPlannerVersionOption.experimental || v == CypherPlannerVersionOption.next)
+      .map(_.name)
+      .toSet
+
+    val configEnumNames = CypherPlannerVersion.values().toSeq
+      .filterNot(_ == CypherPlannerVersion.LATEST)
+      .map(v => OptionReader.canonical(v.toString))
+      .toSet
+
+    configEnumNames shouldBe concreteOptionNames
   }
 }
