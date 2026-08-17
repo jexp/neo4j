@@ -328,6 +328,10 @@ object LogicalPlanToPlanBuilderString {
       case _: PartitionedUndirectedRelationshipIndexScan      => "partitionedRelationshipIndexOperator"
       case _: UndirectedRelationshipUniqueIndexSeek           => "relationshipIndexOperator"
       case _: DirectedRelationshipUniqueIndexSeek             => "relationshipIndexOperator"
+      case _: RemoteDirectedRelationshipIndexSeek             => "remoteRelationshipIndexOperator"
+      case _: RemoteUndirectedRelationshipIndexSeek           => "remoteRelationshipIndexOperator"
+      case _: RemoteDirectedRelationshipUniqueIndexSeek       => "remoteRelationshipIndexOperator"
+      case _: RemoteUndirectedRelationshipUniqueIndexSeek     => "remoteRelationshipIndexOperator"
       case _: DirectedRelationshipTypeScan                    => "relationshipTypeScan"
       case _: UndirectedRelationshipTypeScan                  => "relationshipTypeScan"
       case _: DynamicDirectedRelationshipTypeLookup           => "dynamicRelationshipTypeLookup"
@@ -1750,6 +1754,124 @@ object LogicalPlanToPlanBuilderString {
           supportPartitionedScan = false
         )
       case UndirectedRelationshipUniqueIndexSeek(
+          idName,
+          start,
+          end,
+          typeToken,
+          properties,
+          valueExpr,
+          argumentIds,
+          indexOrder,
+          indexType
+        ) =>
+        val propNames = properties.map(_.propertyKeyToken.name)
+        val queryStr = queryExpressionStr(valueExpr, propNames)
+        val paramExpr = getParamExpr(valueExpr)
+        relationshipIndexOperator(
+          idName,
+          start,
+          end,
+          typeToken,
+          properties,
+          argumentIds,
+          indexOrder,
+          paramExpr,
+          directed = false,
+          unique = true,
+          queryStr,
+          indexType,
+          supportPartitionedScan = false
+        )
+      case RemoteDirectedRelationshipIndexSeek(
+          idName,
+          start,
+          end,
+          typeToken,
+          properties,
+          valueExpr,
+          argumentIds,
+          indexOrder,
+          indexType,
+          supportPartitionedScan
+        ) =>
+        val propNames = properties.map(_.propertyKeyToken.name)
+        val queryStr = queryExpressionStr(valueExpr, propNames)
+        val paramExpr = getParamExpr(valueExpr)
+        relationshipIndexOperator(
+          idName,
+          start,
+          end,
+          typeToken,
+          properties,
+          argumentIds,
+          indexOrder,
+          paramExpr,
+          directed = true,
+          unique = false,
+          queryStr,
+          indexType,
+          supportPartitionedScan
+        )
+      case RemoteUndirectedRelationshipIndexSeek(
+          idName,
+          start,
+          end,
+          typeToken,
+          properties,
+          valueExpr,
+          argumentIds,
+          indexOrder,
+          indexType,
+          supportPartitionedScan
+        ) =>
+        val propNames = properties.map(_.propertyKeyToken.name)
+        val queryStr = queryExpressionStr(valueExpr, propNames)
+        val paramExpr = getParamExpr(valueExpr)
+        relationshipIndexOperator(
+          idName,
+          start,
+          end,
+          typeToken,
+          properties,
+          argumentIds,
+          indexOrder,
+          paramExpr,
+          directed = false,
+          unique = false,
+          queryStr,
+          indexType,
+          supportPartitionedScan
+        )
+      case RemoteDirectedRelationshipUniqueIndexSeek(
+          idName,
+          start,
+          end,
+          typeToken,
+          properties,
+          valueExpr,
+          argumentIds,
+          indexOrder,
+          indexType
+        ) =>
+        val propNames = properties.map(_.propertyKeyToken.name)
+        val queryStr = queryExpressionStr(valueExpr, propNames)
+        val paramExpr = getParamExpr(valueExpr)
+        relationshipIndexOperator(
+          idName,
+          start,
+          end,
+          typeToken,
+          properties,
+          argumentIds,
+          indexOrder,
+          paramExpr,
+          directed = true,
+          unique = true,
+          queryStr,
+          indexType,
+          supportPartitionedScan = false
+        )
+      case RemoteUndirectedRelationshipUniqueIndexSeek(
           idName,
           start,
           end,

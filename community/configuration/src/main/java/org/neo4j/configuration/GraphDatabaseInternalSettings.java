@@ -1330,9 +1330,16 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
 
     @Internal
     @Description(
-            "Feature flag to enable planning of remote leaf operators such as RemoteNodeIndexSeek in sharded databases (currently only read-only queries).")
-    public static final Setting<Boolean> remote_leaf_operators =
-            newBuilder("internal.cypher.remote_leaf_operators", BOOL, true).build();
+            "Feature flag to enable planning of the remote node index seek operators (RemoteNodeIndexSeek, RemoteNodeUniqueIndexSeek) in sharded databases (currently only read-only queries).")
+    public static final Setting<Boolean> remote_node_index_seek =
+            newBuilder("internal.cypher.remote_node_index_seek", BOOL, true).build();
+
+    @Internal
+    @Description(
+            "Feature flag to enable planning of the remote relationship index seek operators (RemoteDirectedRelationshipIndexSeek and variants) in sharded databases (currently only read-only queries).")
+    public static final Setting<Boolean> remote_relationship_index_seek = newBuilder(
+                    "internal.cypher.remote_relationship_index_seek", BOOL, false)
+            .build();
 
     @Internal
     @Description("A legacy feature flag enabling Sharded Property Databases feature. This flag has no longer any use"

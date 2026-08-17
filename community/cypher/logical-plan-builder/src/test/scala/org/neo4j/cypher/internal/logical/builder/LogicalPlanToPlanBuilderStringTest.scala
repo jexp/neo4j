@@ -2267,6 +2267,30 @@ class LogicalPlanToPlanBuilderStringTest
   )
 
   testPlan(
+    "remoteRelationshipIndexOperator", {
+      val builder = new TestPlanBuilder().produceResults("x", "y")
+
+      builder
+        .apply()
+        .|.remoteRelationshipIndexOperator("(x)-[r:Honey(prop = 20)]->(y)", indexType = IndexType.RANGE)
+        .apply()
+        .|.remoteRelationshipIndexOperator("(x)-[r:Honey(prop = 20)]-(y)", indexType = IndexType.RANGE)
+        .apply()
+        .|.remoteRelationshipIndexOperator(
+          "(x)-[r:Honey(prop = variable)]->(y)",
+          argumentIds = Set("variable"),
+          indexType = IndexType.RANGE
+        )
+        .remoteRelationshipIndexOperator(
+          "(x)-[r:Honey(prop = variable)]-(y)",
+          argumentIds = Set("variable"),
+          indexType = IndexType.RANGE
+        )
+        .build()
+    }
+  )
+
+  testPlan(
     "partitionedNodeIndexOperator", {
       val builder = new TestPlanBuilder().produceResults("x", "y")
 

@@ -265,8 +265,12 @@ import org.neo4j.cypher.internal.logical.plans.RangeQueryExpression
 import org.neo4j.cypher.internal.logical.plans.RelationshipCountFromCountStore
 import org.neo4j.cypher.internal.logical.plans.RemoteBatchProperties
 import org.neo4j.cypher.internal.logical.plans.RemoteBatchPropertiesWithFilter
+import org.neo4j.cypher.internal.logical.plans.RemoteDirectedRelationshipIndexSeek
+import org.neo4j.cypher.internal.logical.plans.RemoteDirectedRelationshipUniqueIndexSeek
 import org.neo4j.cypher.internal.logical.plans.RemoteNodeIndexSeek
 import org.neo4j.cypher.internal.logical.plans.RemoteNodeUniqueIndexSeek
+import org.neo4j.cypher.internal.logical.plans.RemoteUndirectedRelationshipIndexSeek
+import org.neo4j.cypher.internal.logical.plans.RemoteUndirectedRelationshipUniqueIndexSeek
 import org.neo4j.cypher.internal.logical.plans.RemoveLabels
 import org.neo4j.cypher.internal.logical.plans.RepeatAcyclic
 import org.neo4j.cypher.internal.logical.plans.RepeatOptions
@@ -1238,6 +1242,140 @@ case class LogicalPlan2PlanDescription(
         PlanDescriptionImpl(
           id,
           indexMode,
+          Seq.empty,
+          Seq(Details(indexDesc)),
+          variables,
+          withRawCardinalities,
+          withDistinctness
+        )
+      case p @ RemoteDirectedRelationshipIndexSeek(
+          idName,
+          start,
+          end,
+          typ,
+          properties,
+          valueExpr,
+          _,
+          _,
+          indexType,
+          _
+        ) =>
+        val (indexMode, indexDesc) = getRelIndexDescriptions(
+          idName,
+          start,
+          typ,
+          end,
+          isDirected = true,
+          properties.map(_.propertyKeyToken),
+          indexType,
+          valueExpr,
+          unique = false,
+          readOnly = readOnly,
+          p.cachedProperties
+        )
+        PlanDescriptionImpl(
+          id,
+          "Remote" + indexMode,
+          Seq.empty,
+          Seq(Details(indexDesc)),
+          variables,
+          withRawCardinalities,
+          withDistinctness
+        )
+      case p @ RemoteUndirectedRelationshipIndexSeek(
+          idName,
+          start,
+          end,
+          typ,
+          properties,
+          valueExpr,
+          _,
+          _,
+          indexType,
+          _
+        ) =>
+        val (indexMode, indexDesc) = getRelIndexDescriptions(
+          idName,
+          start,
+          typ,
+          end,
+          isDirected = false,
+          properties.map(_.propertyKeyToken),
+          indexType,
+          valueExpr,
+          unique = false,
+          readOnly = readOnly,
+          p.cachedProperties
+        )
+        PlanDescriptionImpl(
+          id,
+          "Remote" + indexMode,
+          Seq.empty,
+          Seq(Details(indexDesc)),
+          variables,
+          withRawCardinalities,
+          withDistinctness
+        )
+      case p @ RemoteDirectedRelationshipUniqueIndexSeek(
+          idName,
+          start,
+          end,
+          typ,
+          properties,
+          valueExpr,
+          _,
+          _,
+          indexType
+        ) =>
+        val (indexMode, indexDesc) = getRelIndexDescriptions(
+          idName,
+          start,
+          typ,
+          end,
+          isDirected = true,
+          properties.map(_.propertyKeyToken),
+          indexType,
+          valueExpr,
+          unique = true,
+          readOnly = readOnly,
+          p.cachedProperties
+        )
+        PlanDescriptionImpl(
+          id,
+          "Remote" + indexMode,
+          Seq.empty,
+          Seq(Details(indexDesc)),
+          variables,
+          withRawCardinalities,
+          withDistinctness
+        )
+      case p @ RemoteUndirectedRelationshipUniqueIndexSeek(
+          idName,
+          start,
+          end,
+          typ,
+          properties,
+          valueExpr,
+          _,
+          _,
+          indexType
+        ) =>
+        val (indexMode, indexDesc) = getRelIndexDescriptions(
+          idName,
+          start,
+          typ,
+          end,
+          isDirected = false,
+          properties.map(_.propertyKeyToken),
+          indexType,
+          valueExpr,
+          unique = true,
+          readOnly = readOnly,
+          p.cachedProperties
+        )
+        PlanDescriptionImpl(
+          id,
+          "Remote" + indexMode,
           Seq.empty,
           Seq(Details(indexDesc)),
           variables,

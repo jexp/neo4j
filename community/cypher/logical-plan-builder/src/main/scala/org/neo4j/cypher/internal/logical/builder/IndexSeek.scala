@@ -71,8 +71,12 @@ import org.neo4j.cypher.internal.logical.plans.RangeGreaterThan
 import org.neo4j.cypher.internal.logical.plans.RangeLessThan
 import org.neo4j.cypher.internal.logical.plans.RangeQueryExpression
 import org.neo4j.cypher.internal.logical.plans.RelationshipIndexLeafPlan
+import org.neo4j.cypher.internal.logical.plans.RemoteDirectedRelationshipIndexSeek
+import org.neo4j.cypher.internal.logical.plans.RemoteDirectedRelationshipUniqueIndexSeek
 import org.neo4j.cypher.internal.logical.plans.RemoteNodeIndexSeek
 import org.neo4j.cypher.internal.logical.plans.RemoteNodeUniqueIndexSeek
+import org.neo4j.cypher.internal.logical.plans.RemoteUndirectedRelationshipIndexSeek
+import org.neo4j.cypher.internal.logical.plans.RemoteUndirectedRelationshipUniqueIndexSeek
 import org.neo4j.cypher.internal.logical.plans.SingleQueryExpression
 import org.neo4j.cypher.internal.logical.plans.UndirectedRelationshipIndexContainsScan
 import org.neo4j.cypher.internal.logical.plans.UndirectedRelationshipIndexEndsWithScan
@@ -588,6 +592,121 @@ object IndexSeek {
       createScan,
       createEndsWithScan,
       createContainsScan
+    )
+  }
+
+  /**
+   * Construct a remote relationship index seek operator by parsing a string.
+   */
+  def remoteRelationshipIndexSeek(
+    indexSeekString: String,
+    getValue: String => GetValueFromIndexBehavior = _ => DoNotGetValue,
+    indexOrder: IndexOrder = IndexOrderNone,
+    paramExpr: Iterable[Expression] = Seq.empty,
+    argumentIds: Set[String] = Set.empty,
+    propIds: Option[PartialFunction[String, Int]] = None,
+    typeId: Int = 0,
+    unique: Boolean = false,
+    indexType: IndexType = IndexType.RANGE,
+    supportPartitionedScan: Boolean = true
+  )(implicit idGen: IdGen): RelationshipIndexLeafPlan = {
+
+    val (leftNode, incoming, rel, typeStr, predicateStr, outgoing, rightNode) =
+      indexSeekString.trim match {
+        case REL_INDEX_SEEK_PATTERN(leftNode, incoming, rel, typeStr, predicateStr, outgoing, rightNode) =>
+          (
+            VariableParser.unescaped(leftNode),
+            incoming,
+            VariableParser.unescaped(rel),
+            typeStr,
+            predicateStr,
+            outgoing,
+            VariableParser.unescaped(rightNode)
+          )
+        case _ => throw new IllegalStateException("Expected index seek string, got " + indexSeekString)
+      }
+
+    def toOption(in: String) = if (in == null || in.isEmpty) None else Some(in)
+
+    val (startNode, endNode, directed) = (incoming, outgoing) match {
+      case ("<", "") => (toOption(rightNode), toOption(leftNode), true)
+      case ("", ">") => (toOption(leftNode), toOption(rightNode), true)
+      case ("", "")  => (toOption(leftNode), toOption(rightNode), false)
+      case _         => throw new UnsupportedOperationException(s"Direction $incoming-$outgoing not supported")
+    }
+    val typeToken = RelationshipTypeToken(typeStr, RelTypeId(typeId))
+    val predicates: Array[String] = predicateStr.split(',').map(_.trim)
+
+    def createSeek(
+      properties: Seq[IndexedProperty],
+      valueExpr: QueryExpression[Expression]
+    ): RelationshipIndexLeafPlan = {
+      if (directed) {
+        if (unique)
+          RemoteDirectedRelationshipUniqueIndexSeek(
+            varFor(toOption(rel)),
+            varFor(startNode),
+            varFor(endNode),
+            typeToken,
+            properties,
+            valueExpr,
+            argumentIds.map(varFor),
+            indexOrder,
+            indexType
+          )
+        else
+          RemoteDirectedRelationshipIndexSeek(
+            varFor(toOption(rel)),
+            varFor(startNode),
+            varFor(endNode),
+            typeToken,
+            properties,
+            valueExpr,
+            argumentIds.map(varFor),
+            indexOrder,
+            indexType,
+            supportPartitionedScan
+          )
+      } else {
+        if (unique)
+          RemoteUndirectedRelationshipUniqueIndexSeek(
+            varFor(toOption(rel)),
+            varFor(startNode),
+            varFor(endNode),
+            typeToken,
+            properties,
+            valueExpr,
+            argumentIds.map(varFor),
+            indexOrder,
+            indexType
+          )
+        else
+          RemoteUndirectedRelationshipIndexSeek(
+            varFor(toOption(rel)),
+            varFor(startNode),
+            varFor(endNode),
+            typeToken,
+            properties,
+            valueExpr,
+            argumentIds.map(varFor),
+            indexOrder,
+            indexType,
+            supportPartitionedScan
+          )
+      }
+    }
+
+    createPlan[RelationshipIndexLeafPlan](
+      predicates,
+      RELATIONSHIP_TYPE,
+      getValue,
+      paramExpr,
+      propIds,
+      None,
+      createSeek,
+      _ => throw new UnsupportedOperationException("Remote relationship index scan is not supported"),
+      (_, _) => throw new UnsupportedOperationException("Remote relationship index ends with scan is not supported"),
+      (_, _) => throw new UnsupportedOperationException("Remote relationship index contains scan is not supported")
     )
   }
 

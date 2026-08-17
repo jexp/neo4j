@@ -28,8 +28,12 @@ import org.neo4j.cypher.internal.logical.plans.LogicalPlan
 
 class RemoteIndexSeekRewriterTest extends CypherPlannerTestSuite {
 
-  private def rewrite(plan: LogicalPlan): LogicalPlan =
-    plan.endoRewrite(RemoteIndexSeekRewriter)
+  private def rewrite(
+    plan: LogicalPlan,
+    rewriteNodes: Boolean = true,
+    rewriteRelationships: Boolean = true
+  ): LogicalPlan =
+    plan.endoRewrite(RemoteIndexSeekRewriter(rewriteNodes = rewriteNodes, rewriteRelationships = rewriteRelationships))
 
   test("should rewrite NodeIndexSeek on RHS of Apply to RemoteNodeIndexSeek") {
     val input = new LogicalPlanBuilder(wholePlan = false)
@@ -180,5 +184,151 @@ class RemoteIndexSeekRewriterTest extends CypherPlannerTestSuite {
     val result = rewrite(input)
 
     result shouldEqual input
+  }
+
+  test("should rewrite DirectedRelationshipIndexSeek on RHS of Apply to RemoteDirectedRelationshipIndexSeek") {
+    val input = new LogicalPlanBuilder(wholePlan = false)
+      .apply()
+      .|.relationshipIndexOperator("(x)-[r:R(prop = m.prop)]->(y)", argumentIds = Set("m"))
+      .nodeByLabelScan("m", "Person", IndexOrderNone)
+      .build()
+
+    val expected = new LogicalPlanBuilder(wholePlan = false)
+      .apply()
+      .|.remoteRelationshipIndexOperator("(x)-[r:R(prop = m.prop)]->(y)", argumentIds = Set("m"))
+      .nodeByLabelScan("m", "Person", IndexOrderNone)
+      .build()
+
+    rewrite(input) shouldEqual expected
+  }
+
+  test("should rewrite UndirectedRelationshipIndexSeek on RHS of Apply to RemoteUndirectedRelationshipIndexSeek") {
+    val input = new LogicalPlanBuilder(wholePlan = false)
+      .apply()
+      .|.relationshipIndexOperator("(x)-[r:R(prop = m.prop)]-(y)", argumentIds = Set("m"))
+      .nodeByLabelScan("m", "Person", IndexOrderNone)
+      .build()
+
+    val expected = new LogicalPlanBuilder(wholePlan = false)
+      .apply()
+      .|.remoteRelationshipIndexOperator("(x)-[r:R(prop = m.prop)]-(y)", argumentIds = Set("m"))
+      .nodeByLabelScan("m", "Person", IndexOrderNone)
+      .build()
+
+    rewrite(input) shouldEqual expected
+  }
+
+  test("should not rewrite DirectedRelationshipIndexSeek when the argumentIds are empty") {
+    val input = new LogicalPlanBuilder(wholePlan = false)
+      .relationshipIndexOperator("(x)-[r:R(prop = 42)]->(y)")
+      .build()
+
+    rewrite(input) shouldEqual input
+  }
+
+  test("should not rewrite UndirectedRelationshipIndexSeek when the argumentIds are empty") {
+    val input = new LogicalPlanBuilder(wholePlan = false)
+      .relationshipIndexOperator("(x)-[r:R(prop = 42)]-(y)")
+      .build()
+
+    rewrite(input) shouldEqual input
+  }
+
+  test(
+    "should rewrite DirectedRelationshipUniqueIndexSeek on RHS of Apply to RemoteDirectedRelationshipUniqueIndexSeek"
+  ) {
+    val input = new LogicalPlanBuilder(wholePlan = false)
+      .apply()
+      .|.relationshipIndexOperator("(x)-[r:R(prop = m.prop)]->(y)", argumentIds = Set("m"), unique = true)
+      .nodeByLabelScan("m", "Person", IndexOrderNone)
+      .build()
+
+    val expected = new LogicalPlanBuilder(wholePlan = false)
+      .apply()
+      .|.remoteRelationshipIndexOperator("(x)-[r:R(prop = m.prop)]->(y)", argumentIds = Set("m"), unique = true)
+      .nodeByLabelScan("m", "Person", IndexOrderNone)
+      .build()
+
+    rewrite(input) shouldEqual expected
+  }
+
+  test(
+    "should rewrite UndirectedRelationshipUniqueIndexSeek on RHS of Apply to RemoteUndirectedRelationshipUniqueIndexSeek"
+  ) {
+    val input = new LogicalPlanBuilder(wholePlan = false)
+      .apply()
+      .|.relationshipIndexOperator("(x)-[r:R(prop = m.prop)]-(y)", argumentIds = Set("m"), unique = true)
+      .nodeByLabelScan("m", "Person", IndexOrderNone)
+      .build()
+
+    val expected = new LogicalPlanBuilder(wholePlan = false)
+      .apply()
+      .|.remoteRelationshipIndexOperator("(x)-[r:R(prop = m.prop)]-(y)", argumentIds = Set("m"), unique = true)
+      .nodeByLabelScan("m", "Person", IndexOrderNone)
+      .build()
+
+    rewrite(input) shouldEqual expected
+  }
+
+  test("should not rewrite DirectedRelationshipUniqueIndexSeek when the argumentIds are empty") {
+    val input = new LogicalPlanBuilder(wholePlan = false)
+      .relationshipIndexOperator("(x)-[r:R(prop = 42)]->(y)", unique = true)
+      .build()
+
+    rewrite(input) shouldEqual input
+  }
+
+  test("should not rewrite DirectedRelationshipIndexSeek on RHS of a Merge-Apply") {
+    val input = new LogicalPlanBuilder(wholePlan = false)
+      .apply()
+      .|.merge(Seq(createNodeFull("p", labels = Seq("Person"), properties = Some("{name: 'Andy'}"))))
+      .|.relationshipIndexOperator("(x)-[r:R(prop = m.prop)]->(y)", argumentIds = Set("m"))
+      .nodeByLabelScan("m", "Person", IndexOrderNone)
+      .build()
+
+    val result = rewrite(input)
+
+    result shouldEqual input
+  }
+
+  test("should not rewrite relationship seeks when rewriteRelationships = false") {
+    val input = new LogicalPlanBuilder(wholePlan = false)
+      .apply()
+      .|.relationshipIndexOperator("(x)-[r:R(prop = m.prop)]->(y)", argumentIds = Set("m"))
+      .nodeByLabelScan("m", "Person", IndexOrderNone)
+      .build()
+
+    rewrite(input, rewriteRelationships = false) shouldEqual input
+  }
+
+  test("should not rewrite node seeks when rewriteNodes = false") {
+    val input = new LogicalPlanBuilder(wholePlan = false)
+      .apply()
+      .|.expand("(m)-[:KNOWS]->(n)")
+      .|.nodeIndexOperator("n:Person(id = m.id)", argumentIds = Set("m"))
+      .nodeByLabelScan("m", "Person", IndexOrderNone)
+      .build()
+
+    rewrite(input, rewriteNodes = false) shouldEqual input
+  }
+
+  test("should rewrite only node seeks when rewriteRelationships = false") {
+    val input = new LogicalPlanBuilder(wholePlan = false)
+      .apply()
+      .|.apply()
+      .|.|.relationshipIndexOperator("(x)-[r:R(prop = m.prop)]->(y)", argumentIds = Set("m"))
+      .|.nodeIndexOperator("n:Person(id = m.id)", argumentIds = Set("m"))
+      .nodeByLabelScan("m", "Person", IndexOrderNone)
+      .build()
+
+    val expected = new LogicalPlanBuilder(wholePlan = false)
+      .apply()
+      .|.apply()
+      .|.|.relationshipIndexOperator("(x)-[r:R(prop = m.prop)]->(y)", argumentIds = Set("m"))
+      .|.remoteNodeIndexOperator("n:Person(id = m.id)", argumentIds = Set("m"))
+      .nodeByLabelScan("m", "Person", IndexOrderNone)
+      .build()
+
+    rewrite(input, rewriteRelationships = false) shouldEqual expected
   }
 }

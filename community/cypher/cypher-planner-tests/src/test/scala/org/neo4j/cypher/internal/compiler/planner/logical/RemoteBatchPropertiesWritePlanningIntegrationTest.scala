@@ -72,7 +72,11 @@ abstract class AbstractRemoteBatchPropertiesWritePlanningIntegrationTest(executi
       RemoteBatchPropertiesImplementation.PLANNER
     )
     .withSetting(
-      GraphDatabaseInternalSettings.remote_leaf_operators,
+      GraphDatabaseInternalSettings.remote_node_index_seek,
+      true
+    )
+    .withSetting(
+      GraphDatabaseInternalSettings.remote_relationship_index_seek,
       true
     )
     .setExecutionModel(executionModel)

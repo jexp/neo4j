@@ -295,8 +295,11 @@ class CypherConfiguration private (val config: Config) {
   val mergeOptimizationEnabled: Boolean =
     config.get(GraphDatabaseInternalSettings.merge_optimization_enabled).booleanValue()
 
-  val remoteLeafOperators: Boolean =
-    config.get(GraphDatabaseInternalSettings.remote_leaf_operators).booleanValue()
+  val remoteNodeIndexSeek: Boolean =
+    config.get(GraphDatabaseInternalSettings.remote_node_index_seek).booleanValue()
+
+  val remoteRelationshipIndexSeek: Boolean =
+    config.get(GraphDatabaseInternalSettings.remote_relationship_index_seek).booleanValue()
 
   val displayPlannerVersion: Boolean =
     config.get(GraphDatabaseInternalSettings.display_planner_version).booleanValue()

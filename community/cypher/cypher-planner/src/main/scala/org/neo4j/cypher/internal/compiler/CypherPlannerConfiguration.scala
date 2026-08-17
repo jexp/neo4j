@@ -302,10 +302,17 @@ class CypherPlannerConfiguration(
     () => config.mergeOptimizationEnabled
   }
 
-  val remoteLeafOperators: () => Boolean = {
+  val remoteNodeIndexSeek: () => Boolean = {
     AssertMacros3.checkOnlyWhenAssertionsAreEnabled(
-      !GraphDatabaseInternalSettings.remote_leaf_operators.dynamic()
+      !GraphDatabaseInternalSettings.remote_node_index_seek.dynamic()
     )
-    () => config.remoteLeafOperators
+    () => config.remoteNodeIndexSeek
+  }
+
+  val remoteRelationshipIndexSeek: () => Boolean = {
+    AssertMacros3.checkOnlyWhenAssertionsAreEnabled(
+      !GraphDatabaseInternalSettings.remote_relationship_index_seek.dynamic()
+    )
+    () => config.remoteRelationshipIndexSeek
   }
 }

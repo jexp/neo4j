@@ -1443,6 +1443,335 @@ case class RemoteNodeUniqueIndexSeek(
   }
 }
 
+/**
+ * Similar to [[DirectedRelationshipIndexSeek]] but in the context of a sharded properties database.
+ */
+case class RemoteDirectedRelationshipIndexSeek(
+  idName: Option[LogicalVariable],
+  startNode: Option[LogicalVariable],
+  endNode: Option[LogicalVariable],
+  override val typeToken: RelationshipTypeToken,
+  properties: Seq[IndexedProperty],
+  valueExpr: QueryExpression[Expression],
+  argumentIds: Set[LogicalVariable],
+  indexOrder: IndexOrder,
+  override val indexType: IndexType,
+  supportPartitionedScan: Boolean
+)(implicit idGen: IdGen) extends RelationshipSingleTypeIndexSeekLeafPlan(idGen) {
+
+  override def usedVariables: Set[LogicalVariable] = valueExpr.expressions.flatMap(_.dependencies).toSet
+
+  override def withoutArgumentIds(argsToExclude: Set[LogicalVariable]): RemoteDirectedRelationshipIndexSeek =
+    copy(argumentIds = argumentIds -- argsToExclude)(SameId(this.id))
+
+  override def removeArgumentIds(): RemoteDirectedRelationshipIndexSeek =
+    copy(argumentIds = Set.empty)(SameId(this.id))
+
+  override def copyWithoutGettingValues: RemoteDirectedRelationshipIndexSeek =
+    copy(properties = properties.map(_.copy(getValueFromIndex = DoNotGetValue)))(SameId(this.id))
+
+  override def withMappedProperties(f: IndexedProperty => IndexedProperty): RemoteDirectedRelationshipIndexSeek =
+    copy(properties = properties.map(f))(SameId(this.id))
+
+  override def leftNode: Option[LogicalVariable] = startNode
+
+  override def rightNode: Option[LogicalVariable] = endNode
+
+  override def unique: Boolean = false
+
+  override def directed: Boolean = true
+
+  override def updateVariables(
+    idName: Option[LogicalVariable],
+    leftNode: Option[LogicalVariable],
+    rightNode: Option[LogicalVariable]
+  ): RemoteDirectedRelationshipIndexSeek =
+    copy(idName = idName, startNode = leftNode, endNode = rightNode)(SameId(this.id))
+
+  override def addArgumentIds(argsToAdd: Set[LogicalVariable]): LogicalLeafPlan =
+    copy(argumentIds = argumentIds ++ argsToAdd)(SameId(this.id))
+}
+
+object RemoteDirectedRelationshipIndexSeek extends IndexSeekNames {
+  override val PLAN_DESCRIPTION_INDEX_SCAN_NAME = "RemoteDirectedRelationshipIndexScan"
+  override val PLAN_DESCRIPTION_INDEX_SEEK_NAME = "RemoteDirectedRelationshipIndexSeek"
+  override val PLAN_DESCRIPTION_INDEX_SEEK_RANGE_NAME = "RemoteDirectedRelationshipIndexSeekByRange"
+  override val PLAN_DESCRIPTION_UNIQUE_INDEX_SEEK_NAME = "RemoteDirectedRelationshipUniqueIndexSeek"
+  override val PLAN_DESCRIPTION_UNIQUE_INDEX_SEEK_RANGE_NAME = "RemoteDirectedRelationshipUniqueIndexSeekByRange"
+  override val PLAN_DESCRIPTION_UNIQUE_LOCKING_INDEX_SEEK_NAME = "RemoteDirectedRelationshipUniqueIndexSeek(Locking)"
+
+  def apply(
+    idName: LogicalVariable,
+    startNode: LogicalVariable,
+    endNode: LogicalVariable,
+    typeToken: RelationshipTypeToken,
+    properties: Seq[IndexedProperty],
+    valueExpr: QueryExpression[Expression],
+    argumentIds: Set[LogicalVariable],
+    indexOrder: IndexOrder,
+    indexType: IndexType,
+    supportPartitionedScan: Boolean
+  )(implicit idGen: IdGen): RemoteDirectedRelationshipIndexSeek =
+    new RemoteDirectedRelationshipIndexSeek(
+      Some(idName),
+      Some(startNode),
+      Some(endNode),
+      typeToken,
+      properties,
+      valueExpr,
+      argumentIds,
+      indexOrder,
+      indexType,
+      supportPartitionedScan
+    )(idGen)
+}
+
+/**
+ * Similar to [[UndirectedRelationshipIndexSeek]] but in the context of a sharded properties database.
+ */
+case class RemoteUndirectedRelationshipIndexSeek(
+  idName: Option[LogicalVariable],
+  leftNode: Option[LogicalVariable],
+  rightNode: Option[LogicalVariable],
+  override val typeToken: RelationshipTypeToken,
+  properties: Seq[IndexedProperty],
+  valueExpr: QueryExpression[Expression],
+  argumentIds: Set[LogicalVariable],
+  indexOrder: IndexOrder,
+  override val indexType: IndexType,
+  supportPartitionedScan: Boolean
+)(implicit idGen: IdGen) extends RelationshipSingleTypeIndexSeekLeafPlan(idGen) {
+
+  override def usedVariables: Set[LogicalVariable] = valueExpr.expressions.flatMap(_.dependencies).toSet
+
+  override def withoutArgumentIds(argsToExclude: Set[LogicalVariable]): RemoteUndirectedRelationshipIndexSeek =
+    copy(argumentIds = argumentIds -- argsToExclude)(SameId(this.id))
+
+  override def removeArgumentIds(): RemoteUndirectedRelationshipIndexSeek =
+    copy(argumentIds = Set.empty)(SameId(this.id))
+
+  override def copyWithoutGettingValues: RemoteUndirectedRelationshipIndexSeek =
+    copy(properties = properties.map(_.copy(getValueFromIndex = DoNotGetValue)))(SameId(this.id))
+
+  override def withMappedProperties(f: IndexedProperty => IndexedProperty): RemoteUndirectedRelationshipIndexSeek =
+    copy(properties = properties.map(f))(SameId(this.id))
+
+  override def unique: Boolean = false
+
+  override def directed: Boolean = false
+
+  override def updateVariables(
+    idName: Option[LogicalVariable],
+    leftNode: Option[LogicalVariable],
+    rightNode: Option[LogicalVariable]
+  ): RemoteUndirectedRelationshipIndexSeek =
+    copy(idName = idName, leftNode = leftNode, rightNode = rightNode)(SameId(this.id))
+
+  override def addArgumentIds(argsToAdd: Set[LogicalVariable]): LogicalLeafPlan =
+    copy(argumentIds = argumentIds ++ argsToAdd)(SameId(this.id))
+}
+
+object RemoteUndirectedRelationshipIndexSeek extends IndexSeekNames {
+  override val PLAN_DESCRIPTION_INDEX_SCAN_NAME = "RemoteUndirectedRelationshipIndexScan"
+  override val PLAN_DESCRIPTION_INDEX_SEEK_NAME = "RemoteUndirectedRelationshipIndexSeek"
+  override val PLAN_DESCRIPTION_INDEX_SEEK_RANGE_NAME = "RemoteUndirectedRelationshipIndexSeekByRange"
+  override val PLAN_DESCRIPTION_UNIQUE_INDEX_SEEK_NAME = "RemoteUndirectedRelationshipUniqueIndexSeek"
+  override val PLAN_DESCRIPTION_UNIQUE_INDEX_SEEK_RANGE_NAME = "RemoteUndirectedRelationshipUniqueIndexSeekByRange"
+  override val PLAN_DESCRIPTION_UNIQUE_LOCKING_INDEX_SEEK_NAME = "RemoteUndirectedRelationshipUniqueIndexSeek(Locking)"
+
+  def apply(
+    idName: LogicalVariable,
+    leftNode: LogicalVariable,
+    rightNode: LogicalVariable,
+    typeToken: RelationshipTypeToken,
+    properties: Seq[IndexedProperty],
+    valueExpr: QueryExpression[Expression],
+    argumentIds: Set[LogicalVariable],
+    indexOrder: IndexOrder,
+    indexType: IndexType,
+    supportPartitionedScan: Boolean
+  )(implicit idGen: IdGen): RemoteUndirectedRelationshipIndexSeek =
+    new RemoteUndirectedRelationshipIndexSeek(
+      Some(idName),
+      Some(leftNode),
+      Some(rightNode),
+      typeToken,
+      properties,
+      valueExpr,
+      argumentIds,
+      indexOrder,
+      indexType,
+      supportPartitionedScan
+    )(idGen)
+}
+
+/**
+ * Similar to [[DirectedRelationshipUniqueIndexSeek]] but in the context of a sharded properties database.
+ */
+case class RemoteDirectedRelationshipUniqueIndexSeek(
+  idName: Option[LogicalVariable],
+  startNode: Option[LogicalVariable],
+  endNode: Option[LogicalVariable],
+  override val typeToken: RelationshipTypeToken,
+  properties: Seq[IndexedProperty],
+  valueExpr: QueryExpression[Expression],
+  argumentIds: Set[LogicalVariable],
+  indexOrder: IndexOrder,
+  override val indexType: IndexType
+)(implicit idGen: IdGen) extends RelationshipSingleTypeIndexSeekLeafPlan(idGen) {
+
+  override def usedVariables: Set[LogicalVariable] = valueExpr.expressions.flatMap(_.dependencies).toSet
+
+  override def withoutArgumentIds(argsToExclude: Set[LogicalVariable]): RemoteDirectedRelationshipUniqueIndexSeek =
+    copy(argumentIds = argumentIds -- argsToExclude)(SameId(this.id))
+
+  override def removeArgumentIds(): RemoteDirectedRelationshipUniqueIndexSeek =
+    copy(argumentIds = Set.empty)(SameId(this.id))
+
+  override def copyWithoutGettingValues: RemoteDirectedRelationshipUniqueIndexSeek =
+    copy(properties = properties.map(_.copy(getValueFromIndex = DoNotGetValue)))(SameId(this.id))
+
+  override def withMappedProperties(f: IndexedProperty => IndexedProperty): RemoteDirectedRelationshipUniqueIndexSeek =
+    copy(properties = properties.map(f))(SameId(this.id))
+
+  override def leftNode: Option[LogicalVariable] = startNode
+
+  override def rightNode: Option[LogicalVariable] = endNode
+
+  override def unique: Boolean = true
+
+  override def directed: Boolean = true
+
+  override def updateVariables(
+    idName: Option[LogicalVariable],
+    leftNode: Option[LogicalVariable],
+    rightNode: Option[LogicalVariable]
+  ): RemoteDirectedRelationshipUniqueIndexSeek =
+    copy(idName = idName, startNode = leftNode, endNode = rightNode)(SameId(this.id))
+
+  override def addArgumentIds(argsToAdd: Set[LogicalVariable]): LogicalLeafPlan =
+    copy(argumentIds = argumentIds ++ argsToAdd)(SameId(this.id))
+
+  override val distinctness: Distinctness = {
+    valueExpr match {
+      case _: SingleQueryExpression[_] =>
+        AtMostOneRow
+      case comp: CompositeQueryExpression[_] if comp.exact =>
+        AtMostOneRow
+      case _ =>
+        NotDistinct
+    }
+  }
+}
+
+object RemoteDirectedRelationshipUniqueIndexSeek {
+
+  def apply(
+    idName: LogicalVariable,
+    startNode: LogicalVariable,
+    endNode: LogicalVariable,
+    typeToken: RelationshipTypeToken,
+    properties: Seq[IndexedProperty],
+    valueExpr: QueryExpression[Expression],
+    argumentIds: Set[LogicalVariable],
+    indexOrder: IndexOrder,
+    indexType: IndexType
+  )(implicit idGen: IdGen): RemoteDirectedRelationshipUniqueIndexSeek =
+    new RemoteDirectedRelationshipUniqueIndexSeek(
+      Some(idName),
+      Some(startNode),
+      Some(endNode),
+      typeToken,
+      properties,
+      valueExpr,
+      argumentIds,
+      indexOrder,
+      indexType
+    )(idGen)
+}
+
+/**
+ * Similar to [[UndirectedRelationshipUniqueIndexSeek]] but in the context of a sharded properties database.
+ */
+case class RemoteUndirectedRelationshipUniqueIndexSeek(
+  idName: Option[LogicalVariable],
+  leftNode: Option[LogicalVariable],
+  rightNode: Option[LogicalVariable],
+  override val typeToken: RelationshipTypeToken,
+  properties: Seq[IndexedProperty],
+  valueExpr: QueryExpression[Expression],
+  argumentIds: Set[LogicalVariable],
+  indexOrder: IndexOrder,
+  override val indexType: IndexType
+)(implicit idGen: IdGen) extends RelationshipSingleTypeIndexSeekLeafPlan(idGen) {
+
+  override def usedVariables: Set[LogicalVariable] = valueExpr.expressions.flatMap(_.dependencies).toSet
+
+  override def withoutArgumentIds(argsToExclude: Set[LogicalVariable]): RemoteUndirectedRelationshipUniqueIndexSeek =
+    copy(argumentIds = argumentIds -- argsToExclude)(SameId(this.id))
+
+  override def removeArgumentIds(): RemoteUndirectedRelationshipUniqueIndexSeek =
+    copy(argumentIds = Set.empty)(SameId(this.id))
+
+  override def copyWithoutGettingValues: RemoteUndirectedRelationshipUniqueIndexSeek =
+    copy(properties = properties.map(_.copy(getValueFromIndex = DoNotGetValue)))(SameId(this.id))
+
+  override def withMappedProperties(f: IndexedProperty => IndexedProperty)
+    : RemoteUndirectedRelationshipUniqueIndexSeek =
+    copy(properties = properties.map(f))(SameId(this.id))
+
+  override def unique: Boolean = true
+
+  override def directed: Boolean = false
+
+  override def updateVariables(
+    idName: Option[LogicalVariable],
+    leftNode: Option[LogicalVariable],
+    rightNode: Option[LogicalVariable]
+  ): RemoteUndirectedRelationshipUniqueIndexSeek =
+    copy(idName = idName, leftNode = leftNode, rightNode = rightNode)(SameId(this.id))
+
+  override def addArgumentIds(argsToAdd: Set[LogicalVariable]): LogicalLeafPlan =
+    copy(argumentIds = argumentIds ++ argsToAdd)(SameId(this.id))
+
+  override val distinctness: Distinctness = {
+    valueExpr match {
+      case _: SingleQueryExpression[_] =>
+        AtMostOneRow
+      case comp: CompositeQueryExpression[_] if comp.exact =>
+        AtMostOneRow
+      case _ =>
+        NotDistinct
+    }
+  }
+}
+
+object RemoteUndirectedRelationshipUniqueIndexSeek {
+
+  def apply(
+    idName: LogicalVariable,
+    leftNode: LogicalVariable,
+    rightNode: LogicalVariable,
+    typeToken: RelationshipTypeToken,
+    properties: Seq[IndexedProperty],
+    valueExpr: QueryExpression[Expression],
+    argumentIds: Set[LogicalVariable],
+    indexOrder: IndexOrder,
+    indexType: IndexType
+  )(implicit idGen: IdGen): RemoteUndirectedRelationshipUniqueIndexSeek =
+    new RemoteUndirectedRelationshipUniqueIndexSeek(
+      Some(idName),
+      Some(leftNode),
+      Some(rightNode),
+      typeToken,
+      properties,
+      valueExpr,
+      argumentIds,
+      indexOrder,
+      indexType
+    )(idGen)
+}
+
 case class PropertyKeyNameOrder(propertyKeyName: PropertyKeyName, order: PropertyKeyNameOrder.Order)
 
 object PropertyKeyNameOrder {

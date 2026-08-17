@@ -545,7 +545,11 @@ abstract class AbstractRemoteBatchPropertiesPlanningIntegrationTest(executionMod
       RemoteBatchPropertiesImplementation.PLANNER
     )
     .withSetting(
-      GraphDatabaseInternalSettings.remote_leaf_operators,
+      GraphDatabaseInternalSettings.remote_node_index_seek,
+      true
+    )
+    .withSetting(
+      GraphDatabaseInternalSettings.remote_relationship_index_seek,
       true
     )
     .setExecutionModel(executionModel)
@@ -1266,6 +1270,32 @@ abstract class AbstractRemoteBatchPropertiesPlanningIntegrationTest(executionMod
         getValue = Map("id" -> GetValue),
         unique = true
       )
+      .build()
+  }
+
+  test("should plan a remote relationship index seek on the RHS of an apply") {
+    val planner = spdPlanner
+      .setAllNodesCardinality(100_000)
+      .setLabelCardinality("A", 10)
+      .setRelationshipCardinality("()-[:R]->()", 100_000)
+      .addNodeIndex("A", Seq("prop"), 1.0, 1.0 / 10, isUnique = true)
+      .addRelationshipIndex("R", Seq("prop"), 1.0, 1.0 / 100)
+      .build()
+
+    val query =
+      """MATCH (a:A), (x)-[r:R]->(y)
+        |WHERE r.prop = a.prop
+        |RETURN a, r""".stripMargin
+
+    val plan = planner.plan(query).stripProduceResults
+    plan shouldEqual planner.subPlanBuilder()
+      .apply()
+      .|.remoteRelationshipIndexOperator(
+        "()-[r:R(prop = cacheN[a.prop])]->()",
+        argumentIds = Set("a"),
+        getValue = Map("prop" -> DoNotGetValue)
+      )
+      .nodeIndexOperator("a:A(prop)", getValue = Map("prop" -> GetValue), unique = true)
       .build()
   }
 

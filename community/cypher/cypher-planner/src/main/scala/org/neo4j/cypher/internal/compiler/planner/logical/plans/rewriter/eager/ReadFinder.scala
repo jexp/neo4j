@@ -164,8 +164,12 @@ import org.neo4j.cypher.internal.logical.plans.RelationshipCountFromCountStore
 import org.neo4j.cypher.internal.logical.plans.RemoteBatchProperties
 import org.neo4j.cypher.internal.logical.plans.RemoteBatchPropertiesWithFilter
 import org.neo4j.cypher.internal.logical.plans.RemoteBatchPropertiesWithPushdownOperators
+import org.neo4j.cypher.internal.logical.plans.RemoteDirectedRelationshipIndexSeek
+import org.neo4j.cypher.internal.logical.plans.RemoteDirectedRelationshipUniqueIndexSeek
 import org.neo4j.cypher.internal.logical.plans.RemoteNodeIndexSeek
 import org.neo4j.cypher.internal.logical.plans.RemoteNodeUniqueIndexSeek
+import org.neo4j.cypher.internal.logical.plans.RemoteUndirectedRelationshipIndexSeek
+import org.neo4j.cypher.internal.logical.plans.RemoteUndirectedRelationshipUniqueIndexSeek
 import org.neo4j.cypher.internal.logical.plans.RemoveLabels
 import org.neo4j.cypher.internal.logical.plans.Repeat
 import org.neo4j.cypher.internal.logical.plans.RepeatOptions
@@ -1143,6 +1147,10 @@ object ReadFinder {
       case _: PhysicalPlanningPlan |
         _: RemoteNodeIndexSeek |
         _: RemoteNodeUniqueIndexSeek |
+        _: RemoteDirectedRelationshipIndexSeek |
+        _: RemoteUndirectedRelationshipIndexSeek |
+        _: RemoteDirectedRelationshipUniqueIndexSeek |
+        _: RemoteUndirectedRelationshipUniqueIndexSeek |
         _: CommandLogicalPlan |
         _: LogicalLeafPlanExtension |
         _: LogicalPlanExtension |

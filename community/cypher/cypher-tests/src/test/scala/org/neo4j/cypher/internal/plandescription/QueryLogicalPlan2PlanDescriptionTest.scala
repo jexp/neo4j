@@ -94,6 +94,7 @@ import org.neo4j.cypher.internal.logical.builder.IndexSeek.partitionedNodeIndexS
 import org.neo4j.cypher.internal.logical.builder.IndexSeek.partitionedRelationshipIndexSeek
 import org.neo4j.cypher.internal.logical.builder.IndexSeek.relationshipIndexSeek
 import org.neo4j.cypher.internal.logical.builder.IndexSeek.remoteNodeIndexSeek
+import org.neo4j.cypher.internal.logical.builder.IndexSeek.remoteRelationshipIndexSeek
 import org.neo4j.cypher.internal.logical.plans
 import org.neo4j.cypher.internal.logical.plans.Aggregation
 import org.neo4j.cypher.internal.logical.plans.AllNodesScan
@@ -2198,6 +2199,104 @@ class QueryLogicalPlan2PlanDescriptionTest extends LogicalPlan2PlanDescriptionTe
         Set("r", "x", "y")
       ),
       readOnly = false
+    )
+  }
+
+  test("RemoteRelationshipIndexSeek") {
+    assertGood(
+      attach(remoteRelationshipIndexSeek("(x)-[r:R(Prop = 42)]->(y)"), 23.0),
+      planDescription(
+        id,
+        "RemoteDirectedRelationshipIndexSeek",
+        Seq.empty,
+        Seq(details("RANGE INDEX (x)-[r:R(Prop)]->(y) WHERE Prop = 42")),
+        Set("r", "x", "y")
+      )
+    )
+
+    assertGood(
+      attach(remoteRelationshipIndexSeek("(x)-[r:R(Prop = 42)]->(y)", getValue = _ => GetValue), 23.0),
+      planDescription(
+        id,
+        "RemoteDirectedRelationshipIndexSeek",
+        Seq.empty,
+        Seq(details("RANGE INDEX (x)-[r:R(Prop)]->(y) WHERE Prop = 42, cache[r.Prop]")),
+        Set("r", "x", "y")
+      )
+    )
+
+    assertGood(
+      attach(remoteRelationshipIndexSeek("(x)-[r:R(Prop = 42)]-(y)"), 23.0),
+      planDescription(
+        id,
+        "RemoteUndirectedRelationshipIndexSeek",
+        Seq.empty,
+        Seq(details("RANGE INDEX (x)-[r:R(Prop)]-(y) WHERE Prop = 42")),
+        Set("r", "x", "y")
+      )
+    )
+
+    assertGood(
+      attach(remoteRelationshipIndexSeek("(x)-[r:R(Prop = 42)]-(y)", getValue = _ => GetValue), 23.0),
+      planDescription(
+        id,
+        "RemoteUndirectedRelationshipIndexSeek",
+        Seq.empty,
+        Seq(details("RANGE INDEX (x)-[r:R(Prop)]-(y) WHERE Prop = 42, cache[r.Prop]")),
+        Set("r", "x", "y")
+      )
+    )
+  }
+
+  test("RemoteRelationshipUniqueIndexSeek") {
+    assertGood(
+      attach(remoteRelationshipIndexSeek("(x)-[r:R(Prop = 42)]->(y)", getValue = _ => GetValue, unique = true), 23.0),
+      planDescription(
+        id,
+        "RemoteDirectedRelationshipUniqueIndexSeek",
+        Seq.empty,
+        Seq(details("RANGE INDEX (x)-[r:R(Prop)]->(y) WHERE Prop = 42, cache[r.Prop]")),
+        Set("r", "x", "y")
+      )
+    )
+
+    assertGood(
+      attach(
+        remoteRelationshipIndexSeek("(x)-[r:R(1 < Prop < 123)]->(y)", getValue = _ => GetValue, unique = true),
+        23.0
+      ),
+      planDescription(
+        id,
+        "RemoteDirectedRelationshipUniqueIndexSeekByRange",
+        Seq.empty,
+        Seq(details("RANGE INDEX (x)-[r:R(Prop)]->(y) WHERE Prop > 1 AND Prop < 123, cache[r.Prop]")),
+        Set("r", "x", "y")
+      )
+    )
+
+    assertGood(
+      attach(remoteRelationshipIndexSeek("(x)-[r:R(Prop = 42)]-(y)", getValue = _ => GetValue, unique = true), 23.0),
+      planDescription(
+        id,
+        "RemoteUndirectedRelationshipUniqueIndexSeek",
+        Seq.empty,
+        Seq(details("RANGE INDEX (x)-[r:R(Prop)]-(y) WHERE Prop = 42, cache[r.Prop]")),
+        Set("r", "x", "y")
+      )
+    )
+
+    assertGood(
+      attach(
+        remoteRelationshipIndexSeek("(x)-[r:R(1 < Prop < 123)]-(y)", getValue = _ => GetValue, unique = true),
+        23.0
+      ),
+      planDescription(
+        id,
+        "RemoteUndirectedRelationshipUniqueIndexSeekByRange",
+        Seq.empty,
+        Seq(details("RANGE INDEX (x)-[r:R(Prop)]-(y) WHERE Prop > 1 AND Prop < 123, cache[r.Prop]")),
+        Set("r", "x", "y")
+      )
     )
   }
 

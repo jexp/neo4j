@@ -2144,6 +2144,65 @@ abstract class AbstractLogicalPlanBuilder[T, IMPL <: AbstractLogicalPlanBuilder[
     appendAtCurrentIndent(LeafOperator(planBuilder))
   }
 
+  def remoteRelationshipIndexSeek(
+    indexSeekString: String,
+    getValue: String => GetValueFromIndexBehavior = _ => DoNotGetValue,
+    indexOrder: IndexOrder = IndexOrderNone,
+    paramExpr: Iterable[Expression] = Seq.empty,
+    argumentIds: Set[String] = Set.empty,
+    unique: Boolean = false,
+    indexType: IndexType = IndexType.RANGE,
+    supportPartitionedScan: Boolean = true
+  ): IdGen => RelationshipIndexLeafPlan = {
+    val relType = resolver.getRelTypeId(IndexSeek.relTypeFromIndexSeekString(indexSeekString))
+    val propIds: PartialFunction[String, Int] = {
+      case x => resolver.getPropertyKeyId(x)
+    }
+    val planBuilder = (idGen: IdGen) => {
+      val plan = IndexSeek.remoteRelationshipIndexSeek(
+        indexSeekString,
+        getValue,
+        indexOrder,
+        paramExpr,
+        argumentIds,
+        Some(propIds),
+        relType,
+        unique,
+        indexType,
+        supportPartitionedScan
+      )(idGen)
+      plan.idName.foreach(r => newRelationship(varFor(r.name)))
+      plan.leftNode.foreach(l => newNode(varFor(l.name)))
+      plan.rightNode.foreach(r => newNode(varFor(r.name)))
+      plan
+    }
+    planBuilder
+  }
+
+  def remoteRelationshipIndexOperator(
+    indexSeekString: String,
+    getValue: String => GetValueFromIndexBehavior = _ => DoNotGetValue,
+    indexOrder: IndexOrder = IndexOrderNone,
+    paramExpr: Iterable[Expression] = Seq.empty,
+    argumentIds: Set[String] = Set.empty,
+    unique: Boolean = false,
+    indexType: IndexType = IndexType.RANGE,
+    supportPartitionedScan: Boolean = true
+  ): IMPL = {
+    val planBuilder = (idGen: IdGen) =>
+      remoteRelationshipIndexSeek(
+        indexSeekString,
+        getValue,
+        indexOrder,
+        paramExpr,
+        argumentIds,
+        unique,
+        indexType,
+        supportPartitionedScan
+      )(idGen)
+    appendAtCurrentIndent(LeafOperator(planBuilder))
+  }
+
   def partitionedNodeIndexOperator(
     indexSeekString: String,
     getValue: String => GetValueFromIndexBehavior = _ => DoNotGetValue,
