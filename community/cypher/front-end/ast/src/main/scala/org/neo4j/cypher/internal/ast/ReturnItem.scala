@@ -122,6 +122,7 @@ sealed trait ReturnItem extends ASTNode with SemanticCheckable {
     }
   }
 
+  def wasAutoAliased: Boolean
 }
 
 sealed trait ProjectionType
@@ -155,18 +156,23 @@ case class UnaliasedReturnItem(expression: Expression, inputText: String)(val po
   def stringify(expressionStringifier: ExpressionStringifier): String = expressionStringifier(expression)
 
   override def withName(name: LogicalVariable)(position: InputPosition): ReturnItem =
-    AliasedReturnItem(expression, name)(position)
+    AliasedReturnItem(expression, name)(position, AliasedReturnItem.wasAutoAliasedDefault)
 
+  override def wasAutoAliased: Boolean = false
 }
 
 object AliasedReturnItem {
 
   def apply(v: LogicalVariable): AliasedReturnItem =
-    AliasedReturnItem(v.copyId, v.copyId)(v.position)
+    AliasedReturnItem(v.copyId, v.copyId)(v.position, AliasedReturnItem.wasAutoAliasedDefault)
+
+  val wasAutoAliasedDefault: Boolean = false
 }
 
-case class AliasedReturnItem(expression: Expression, variable: LogicalVariable)(val position: InputPosition)
-    extends ReturnItem {
+case class AliasedReturnItem(expression: Expression, variable: LogicalVariable)(
+  val position: InputPosition,
+  val wasAutoAliased: Boolean = false
+) extends ReturnItem {
   val alias: Option[LogicalVariable] = Some(variable)
   val name: String = variable.name
 
@@ -174,7 +180,7 @@ case class AliasedReturnItem(expression: Expression, variable: LogicalVariable)(
     this.copy(
       children.head.asInstanceOf[Expression],
       children(1).asInstanceOf[LogicalVariable]
-    )(position).asInstanceOf[this.type]
+    )(position, wasAutoAliased).asInstanceOf[this.type]
 
   override def asCanonicalStringVal: String = s"${expression.asCanonicalStringVal} AS ${variable.asCanonicalStringVal}"
 
@@ -182,7 +188,7 @@ case class AliasedReturnItem(expression: Expression, variable: LogicalVariable)(
     s"${expressionStringifier(expression)} AS ${expressionStringifier(variable)}"
 
   override def withName(name: LogicalVariable)(position: InputPosition): ReturnItem =
-    AliasedReturnItem(expression, name)(position)
+    AliasedReturnItem(expression, name)(position, AliasedReturnItem.wasAutoAliasedDefault)
 }
 
 object ReturnItems {

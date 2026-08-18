@@ -219,21 +219,23 @@ case class NormalizeWithAndReturnClauses(
       ri.items.map {
         case i: UnaliasedReturnItem =>
           val alias = i.alias.getOrElse(Variable(i.name)(i.expression.position, Variable.isIsolatedDefault))
-          AliasedReturnItem(i.expression, alias)(i.position)
+          AliasedReturnItem(i.expression, alias)(i.position, AliasedReturnItem.wasAutoAliasedDefault)
         case x => x
       }
     ri.copy(items = aliasedReturnItems)(ri.position)
   }
 
   /**
-   * Convert those UnaliasedReturnItems to AliasedReturnItems which refer to a variable or a map projection.
-   * Those can be deemed as implicitly aliased.
+   * Convert all UnaliasedReturnItems to AliasedReturnItems, reusing the implicit alias of a bare
+   * variable or map projection where available, and synthesizing one from `inputText` otherwise.
+   * Items that needed a synthesized name are marked `wasAutoAliased = true`.
    */
   private def aliasImplicitlyAliasedReturnItems(ri: ReturnItems): ReturnItems = {
     val newItems =
       ri.items.map {
-        case i: UnaliasedReturnItem if i.alias.isDefined =>
-          AliasedReturnItem(i.expression, i.alias.get)(i.position)
+        case i: UnaliasedReturnItem =>
+          val alias = i.alias.getOrElse(Variable(i.name)(i.expression.position, Variable.isIsolatedDefault))
+          AliasedReturnItem(i.expression, alias)(i.position, wasAutoAliased = i.alias.isEmpty)
         case x => x
       }
     ri.copy(items = newItems)(ri.position)

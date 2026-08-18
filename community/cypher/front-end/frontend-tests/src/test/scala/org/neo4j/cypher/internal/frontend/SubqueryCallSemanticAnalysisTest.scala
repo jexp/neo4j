@@ -1065,6 +1065,17 @@ class SubqueryCallSemanticAnalysisTest
     }
   }
 
+  test("Returning unaliased in CALL") {
+    val query = """CALL {
+                  |  RETURN 1
+                  |}
+                  |RETURN 2
+                  |""".stripMargin
+    run(query).hasErrors(
+      SemanticError.unaliasedReturnItem("CALL { RETURN ... }", p(16, 2, 10))
+    )
+  }
+
   override def messageProvider: ErrorMessageProvider = new ErrorMessageProviderAdapter {
     override def createUseClauseUnsupportedError(): String = "A very nice message explaining why USE is not allowed"
 

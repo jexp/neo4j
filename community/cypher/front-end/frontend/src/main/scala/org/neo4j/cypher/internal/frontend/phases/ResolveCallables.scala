@@ -191,7 +191,10 @@ sealed abstract class ResolveCallables extends Phase[BaseContext, BaseState, Bas
             returnItems = ReturnItems(
               FreeProjection,
               items = callResults.map(item =>
-                AliasedReturnItem(item.variable.copyId, item.variable.copyId)(resolved.position)
+                AliasedReturnItem(
+                  item.variable.copyId,
+                  item.variable.copyId
+                )(resolved.position, AliasedReturnItem.wasAutoAliasedDefault)
               )
             )(resolved.position),
             None,

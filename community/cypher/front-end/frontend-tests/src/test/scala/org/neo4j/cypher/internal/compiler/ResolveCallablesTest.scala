@@ -57,8 +57,8 @@ class ResolveCallablesTest extends ResolveCallablesTestSuite {
           ReturnItems(
             FreeProjection,
             Seq(
-              AliasedReturnItem(v"x", v"x")(pos),
-              AliasedReturnItem(v"y", v"y")(pos)
+              AliasedReturnItem(v"x", v"x")(pos, AliasedReturnItem.wasAutoAliasedDefault),
+              AliasedReturnItem(v"y", v"y")(pos, AliasedReturnItem.wasAutoAliasedDefault)
             )
           )(pos),
           None,

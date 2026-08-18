@@ -335,7 +335,7 @@ case object ExpandClauses extends StatementRewriter with StepSequencer.Step with
             Seq(AliasedReturnItem(
               Count(Null()(pos.zeroLength))(pos),
               Variable(anonVarNameGen.nextName)(pos, isIsolated = false)
-            )(pos))
+            )(pos, AliasedReturnItem.wasAutoAliasedDefault))
           )(pos),
           AddedInRewriteGeneral()
         )(pos)
@@ -422,11 +422,14 @@ case object ExpandClauses extends StatementRewriter with StepSequencer.Step with
             incomingVariables.toSeq.map { case (original, anonymized) =>
               AliasedReturnItem(
                 ContainerIndex(
-                  ContainerIndex(anonymized.outgoing.copyId, index.copyId)(pos),
+                  ContainerIndex(
+                    anonymized.outgoing.copyId,
+                    index.copyId
+                  )(pos),
                   SignedDecimalIntegerLiteral("0")(pos.zeroLength)
                 )(pos),
                 original
-              )(pos)
+              )(pos, AliasedReturnItem.wasAutoAliasedDefault)
             }
 
           val remappingWith: Option[With] =
@@ -444,20 +447,27 @@ case object ExpandClauses extends StatementRewriter with StepSequencer.Step with
         pos: InputPosition
       ): Seq[Clause] = {
         if (countVariable.isDefined) {
-          val countStar = AliasedReturnItem(CountStar()(pos), countVariable.get.copyId)(pos)
+          val countStar =
+            AliasedReturnItem(CountStar()(pos), countVariable.get.copyId)(pos, AliasedReturnItem.wasAutoAliasedDefault)
           val collectItems = collectedVariables.map {
             case (_, v) =>
               AliasedReturnItem(
-                FunctionInvocation(FunctionName("collect")(pos), ListLiteral(Seq(v.incoming.copyId))(pos))(pos),
+                FunctionInvocation(
+                  FunctionName("collect")(pos),
+                  ListLiteral(Seq(v.incoming.copyId))(pos)
+                )(pos),
                 v.outgoing.copyId
-              )(pos)
+              )(pos, AliasedReturnItem.wasAutoAliasedDefault)
           }.toSeq
 
           val returnItems = ReturnItems(FreeProjection, Seq(countStar) ++ collectItems)(pos)
           Seq(With(returnItems, withType = AddedInRewriteGeneral())(pos))
         } else if (collectedVariables.exists(_._2.anonymizedIncoming) && !willExpand) {
           val deanonymized = collectedVariables.map(av =>
-            AliasedReturnItem(av._2.incoming.copyId, av._2.original.copyId)(pos)
+            AliasedReturnItem(
+              av._2.incoming.copyId,
+              av._2.original.copyId
+            )(pos, AliasedReturnItem.wasAutoAliasedDefault)
           )
           Seq(With(ReturnItems(FreeProjection, deanonymized.toSeq)(pos))(pos))
         } else Seq.empty
@@ -806,7 +816,9 @@ case object ExpandClauses extends StatementRewriter with StepSequencer.Step with
         def defaultPostface: Clause = {
           val items = scopeState.getResultCols(ast).map { v =>
             (updatedLayout.resultMapping.getOrElse(v, v), incomingLayout.resultMapping.getOrElse(v, v))
-          }.map { case (v1, v2) => AliasedReturnItem(v1.copyId, v2.copyId)(v1.position) }
+          }.map { case (v1, v2) =>
+            AliasedReturnItem(v1.copyId, v2.copyId)(v1.position, AliasedReturnItem.wasAutoAliasedDefault)
+          }
 
           Return(ReturnItems(FreeProjection, items)(pos))(pos)
         }
@@ -849,7 +861,9 @@ case object ExpandClauses extends StatementRewriter with StepSequencer.Step with
                   val innerOrder = innerRewritten.returnColumns.map(_.name).zipWithIndex.toMap
                   layoutWithUse.resultMapping.values.toSeq
                     .sortBy(v => (innerOrder.getOrElse(v.name, Int.MaxValue), v.name))
-                    .map(v => AliasedReturnItem(v.copyId, v.copyId)(v.position))
+                    .map(v =>
+                      AliasedReturnItem(v.copyId, v.copyId)(v.position, AliasedReturnItem.wasAutoAliasedDefault)
+                    )
                 } else innerRewritten.returnVariables.explicitVariables.map(AliasedReturnItem(_))
               val returnItems = ReturnItems(FreeProjection, items.toSeq)(ast.position)
               Return(returnItems)(ast.position)
@@ -1045,7 +1059,7 @@ case object ExpandClauses extends StatementRewriter with StepSequencer.Step with
             Seq(AliasedReturnItem(
               SignedDecimalIntegerLiteral("1")(sq.position.zeroLength),
               Variable(placeholderName.value, sq.position)
-            )(sq.position))
+            )(sq.position, AliasedReturnItem.wasAutoAliasedDefault))
           )(sq.position)
         )(sq.position)))(sq.position)
       })

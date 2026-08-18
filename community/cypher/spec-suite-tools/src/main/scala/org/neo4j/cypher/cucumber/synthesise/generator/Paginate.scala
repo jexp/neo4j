@@ -100,7 +100,7 @@ class Paginate(val args: CucumberSalad.Ingredients) extends ScenarioGenerator wi
               case _ =>
                 logicalVariableForHeader(header, None)
             }
-            AliasedReturnItem(item.expression, name)(pos)
+            AliasedReturnItem(item.expression, name)(pos, AliasedReturnItem.wasAutoAliasedDefault)
           }
           val newReturn = ret.copy(
             returnItems = ret.returnItems.copy(items = newItems)(pos),

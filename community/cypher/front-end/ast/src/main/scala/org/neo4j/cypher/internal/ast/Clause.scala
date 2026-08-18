@@ -1875,7 +1875,10 @@ object ProjectionClause {
 
   def checkAliasedReturnItems(returnItems: ReturnItems, clauseName: String): SemanticState => Seq[SemanticError] =
     state =>
-      returnItems.items.filter(item => item.alias.isEmpty).map(i => {
+      returnItems.items.filter {
+        case a: AliasedReturnItem => a.wasAutoAliased
+        case item                 => item.alias.isEmpty
+      }.map(i => {
         SemanticError.unaliasedReturnItem(clauseName, i.position)
       })
 }

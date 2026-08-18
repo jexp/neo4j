@@ -102,7 +102,9 @@ case object isolateAggregation extends StatementRewriter with StepSequencer.Step
           val expressionRewriter = createRewriterFor(withReturnItems)
           val newReturnItems = clauseReturnItems.map {
             case ri @ AliasedReturnItem(expression, _) =>
-              ri.copy(expression = expression.endoRewrite(expressionRewriter))(ri.position)
+              ri.copy(expression =
+                expression.endoRewrite(expressionRewriter)
+              )(ri.position, AliasedReturnItem.wasAutoAliasedDefault)
             case ri @ UnaliasedReturnItem(expression, _) =>
               ri.copy(expression = expression.endoRewrite(expressionRewriter))(ri.position)
           }

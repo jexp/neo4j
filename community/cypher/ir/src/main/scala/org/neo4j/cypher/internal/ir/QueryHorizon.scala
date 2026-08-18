@@ -242,7 +242,7 @@ object QueryProjection {
 
   def forVariables(variables: Set[LogicalVariable]): Seq[AliasedReturnItem] =
     variables.toIndexedSeq.map(variable =>
-      AliasedReturnItem(variable, variable)(InputPosition.NONE)
+      AliasedReturnItem(variable, variable)(InputPosition.NONE, AliasedReturnItem.wasAutoAliasedDefault)
     )
 }
 

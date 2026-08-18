@@ -281,7 +281,8 @@ trait StatementBuilder extends Cypher5ParserListener {
     val expression = ctx.expression()
     val variable = ctx.variable()
     ctx.ast =
-      if (variable != null) AliasedReturnItem(expression.ast(), variable.ast())(position)
+      if (variable != null)
+        AliasedReturnItem(expression.ast(), variable.ast())(position, AliasedReturnItem.wasAutoAliasedDefault)
       else UnaliasedReturnItem(expression.ast(), inputText(expression))(position)
   }
 

@@ -238,7 +238,10 @@ object CompositeQueryFragmenter {
           else
             alias.name // otherwise name the parameter after the alias.
         val parameter = ExplicitParameter(parameterName, CTAny)(item.position)
-        (parameter -> alias, ast.AliasedReturnItem(parameter, alias)(item.position))
+        (
+          parameter -> alias,
+          ast.AliasedReturnItem(parameter, alias)(item.position, ast.AliasedReturnItem.wasAutoAliasedDefault)
+        )
     }.unzip
     // For convenience, return both a map of the new parameters and the rewritten WITH clause.
     ParameterisedWithClause(parameters.toMap, importWith.withReturnItems(rewrittenItems))
@@ -266,7 +269,13 @@ object CompositeQueryFragmenter {
         else
           importVariable.name // otherwise name the parameter after the alias.
       val parameter = ExplicitParameter(parameterName, CTAny)(importVariable.position)
-      (parameter -> importVariable, ast.AliasedReturnItem(parameter, importVariable)(importVariable.position))
+      (
+        parameter -> importVariable,
+        ast.AliasedReturnItem(parameter, importVariable)(
+          importVariable.position,
+          ast.AliasedReturnItem.wasAutoAliasedDefault
+        )
+      )
     }.unzip
     val position = scopeImports.head.position
     val returnItems = ReturnItems(FreeProjection, rewrittenItems)(position)

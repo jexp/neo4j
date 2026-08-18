@@ -320,4 +320,39 @@ class ConditionalQueryWhenSemanticAnalysisTest
         |""".stripMargin
     run(query).hasNoErrors
   }
+
+  test("Returning unaliased in conditionals 1") {
+    val query = """WHEN true THEN RETURN 2 LIMIT 1
+                  |""".stripMargin
+    run(query).hasSemanticErrorsIn {
+      case CypherVersion.Cypher5 => Seq()
+      case CypherVersion.Cypher25 =>
+        Seq(
+          SemanticError.unaliasedReturnItem("WHEN ... THEN ...", p(22, 1, 23))
+        )
+    }
+  }
+
+  test("Returning unaliased in conditionals 2") {
+    val query = """WHEN true THEN RETURN 2 LIMIT 1
+                  |ELSE RETURN 1 LIMIT 1
+                  |""".stripMargin
+    run(query).hasSemanticErrorsIn {
+      case CypherVersion.Cypher5 => Seq()
+      case CypherVersion.Cypher25 =>
+        Seq(
+          SemanticError.unaliasedReturnItem("WHEN ... THEN ...", p(22, 1, 23)),
+          SemanticError.unaliasedReturnItem("WHEN ... THEN ...", p(44, 2, 13)),
+          SemanticError.incompatibleWhenReturnColumns("conditional queries", p(32, 2, 1))
+        )
+    }
+  }
+
+  test("Returning explicitly aliased in conditionals does not report unaliasedReturnItem") {
+    run("WHEN true THEN RETURN 2 AS x").hasNoErrors
+  }
+
+  test("Returning implicitly aliased variable in conditionals does not report unaliasedReturnItem") {
+    run("WHEN true THEN MATCH (n) RETURN n").hasNoErrors
+  }
 }

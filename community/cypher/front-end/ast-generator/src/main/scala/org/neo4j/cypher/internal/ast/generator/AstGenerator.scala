@@ -1637,14 +1637,14 @@ class AstGenerator(
   def _aliasedReturnItem: Gen[ReturnItem] = for {
     expr <- _expression
     variable <- _variable
-  } yield AliasedReturnItem(expr, variable)(pos)
+  } yield AliasedReturnItem(expr, variable)(pos, AliasedReturnItem.wasAutoAliasedDefault)
 
   def _returnItem: Gen[ReturnItem] = for {
     expr <- _expression
     variable <- _variable
     item <- oneOf(
       UnaliasedReturnItem(expr, "")(pos),
-      AliasedReturnItem(expr, variable)(pos)
+      AliasedReturnItem(expr, variable)(pos, AliasedReturnItem.wasAutoAliasedDefault)
     )
   } yield item
 

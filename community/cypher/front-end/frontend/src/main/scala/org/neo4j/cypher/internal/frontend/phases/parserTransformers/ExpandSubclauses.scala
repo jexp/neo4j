@@ -144,7 +144,13 @@ case object ExpandSubclauses extends StatementRewriter
             expr.endoRewrite(substituteSubExpressions) match {
               case rewritten if rewritten.containsAggregate =>
                 val anonReference = Variable(anonVarGen.nextName, expr.position)
-                (Some(anonReference), Some(AliasedReturnItem(expr, anonReference.copyId)(expr.position)))
+                (
+                  Some(anonReference),
+                  Some(AliasedReturnItem(
+                    expr,
+                    anonReference.copyId
+                  )(expr.position, AliasedReturnItem.wasAutoAliasedDefault))
+                )
               case rewritten if rewritten != expr => (Some(rewritten), None)
               case _                              => (None, None)
             }
@@ -257,10 +263,15 @@ case object ExpandSubclauses extends StatementRewriter
             val substituteGroupingKeys: Rewriter = groupingKeyRewriter(splitSpec)
             val projectingItems = items.mapItems(_.map(ri =>
               hoistedAlias.get(ri.alias.get) match {
-                case Some(anon) => AliasedReturnItem(anon.copyId, ri.alias.get.copyId)(ri.position)
+                case Some(anon) => AliasedReturnItem(
+                    anon.copyId,
+                    ri.alias.get.copyId
+                  )(ri.position, AliasedReturnItem.wasAutoAliasedDefault)
                 case None => ri match {
                     case ari: AliasedReturnItem =>
-                      ari.copy(expression = ari.expression.endoRewrite(substituteGroupingKeys))(ari.position)
+                      ari.copy(expression =
+                        ari.expression.endoRewrite(substituteGroupingKeys)
+                      )(ari.position, AliasedReturnItem.wasAutoAliasedDefault)
                     case other => other
                   }
               }

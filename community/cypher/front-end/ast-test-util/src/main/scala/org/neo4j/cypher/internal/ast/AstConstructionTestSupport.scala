@@ -1924,7 +1924,7 @@ trait AstConstructionTestSupport {
   }
 
   implicit class VariableOps(v: Variable) {
-    def aliased: AliasedReturnItem = AliasedReturnItem(v, v)(pos)
+    def aliased: AliasedReturnItem = AliasedReturnItem(v, v)(pos, AliasedReturnItem.wasAutoAliasedDefault)
   }
 
   implicit class NumberLiteralOps(nl: NumberLiteral) {

@@ -215,7 +215,8 @@ object pegCommand {
     )
 
     val declared =
-      if (yieldAll || yieldItems.isEmpty) commandCols.map(v => AliasedReturnItem(v, v)(v.position))
+      if (yieldAll || yieldItems.isEmpty)
+        commandCols.map(v => AliasedReturnItem(v, v)(v.position, AliasedReturnItem.wasAutoAliasedDefault))
       else yieldItems.flatMap(yi => Seq(yi.toReturnItem)).distinct
 
     val declaredWithIncoming =

@@ -549,7 +549,7 @@ private object Ast {
           } yield AliasedReturnItem(
             expression = ExplicitParameter(parName, CTAny)(pos),
             variable = variable(varName, pos)
-          )(pos)
+          )(pos, AliasedReturnItem.wasAutoAliasedDefault)
       )(pos))(pos)
     )
 

@@ -94,13 +94,15 @@ sealed trait ProjectionItem {
 
   def asReturnItem(anonVarGen: AnonymousVariableNameGenerator): AliasedReturnItem = {
     val itemAlias = alias.getOrElse(Variable(anonVarGen.nextName, expression.position))
-    AliasedReturnItem(expression, itemAlias)(expression.position)
+    AliasedReturnItem(expression, itemAlias)(expression.position, AliasedReturnItem.wasAutoAliasedDefault)
   }
 
   def asReturnItem: AliasedReturnItem = {
     expression match {
-      case lv: LogicalVariable => AliasedReturnItem(lv.copyId, alias.get.copyId)(expression.position)
-      case _                   => AliasedReturnItem(expression, alias.get.copyId)(expression.position)
+      case lv: LogicalVariable =>
+        AliasedReturnItem(lv.copyId, alias.get.copyId)(expression.position, AliasedReturnItem.wasAutoAliasedDefault)
+      case _ =>
+        AliasedReturnItem(expression, alias.get.copyId)(expression.position, AliasedReturnItem.wasAutoAliasedDefault)
     }
   }
 }

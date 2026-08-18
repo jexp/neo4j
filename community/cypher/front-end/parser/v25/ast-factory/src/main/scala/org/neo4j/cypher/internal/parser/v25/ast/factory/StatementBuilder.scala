@@ -367,7 +367,8 @@ trait StatementBuilder extends Cypher25ParserListener {
     val expression = ctx.expression()
     val variable = ctx.variable()
     ctx.ast =
-      if (variable != null) AliasedReturnItem(expression.ast(), variable.ast())(position)
+      if (variable != null)
+        AliasedReturnItem(expression.ast(), variable.ast())(position, AliasedReturnItem.wasAutoAliasedDefault)
       else UnaliasedReturnItem(expression.ast(), inputText(expression))(position)
   }
 
@@ -749,7 +750,8 @@ trait StatementBuilder extends Cypher25ParserListener {
   final override def exitLetItem(
     ctx: Cypher25Parser.LetItemContext
   ): Unit = {
-    ctx.ast = AliasedReturnItem(ctx.expression().ast(), ctx.variable().ast())(pos(ctx))
+    ctx.ast =
+      AliasedReturnItem(ctx.expression().ast(), ctx.variable().ast())(pos(ctx), AliasedReturnItem.wasAutoAliasedDefault)
   }
 
   final override def exitCallClause(

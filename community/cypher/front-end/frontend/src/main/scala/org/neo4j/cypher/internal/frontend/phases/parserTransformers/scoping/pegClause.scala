@@ -699,8 +699,9 @@ object pegClause {
     def remapPassThroughAlias(item: ReturnItem): ReturnItem = item match {
       case ari: AliasedReturnItem if ari.isPassThrough =>
         incomingByName.get(ari.variable.name) match {
-          case Some(incomingVar) => AliasedReturnItem(ari.expression, incomingVar)(ari.position)
-          case None              => ari
+          case Some(incomingVar) =>
+            AliasedReturnItem(ari.expression, incomingVar)(ari.position, AliasedReturnItem.wasAutoAliasedDefault)
+          case None => ari
         }
       case other => other
     }

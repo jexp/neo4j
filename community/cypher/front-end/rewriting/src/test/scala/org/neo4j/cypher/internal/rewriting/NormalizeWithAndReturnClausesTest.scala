@@ -18,6 +18,7 @@ package org.neo4j.cypher.internal.rewriting
 
 import org.neo4j.cypher.internal.CypherVersion
 import org.neo4j.cypher.internal.CypherVersionHelpers
+import org.neo4j.cypher.internal.ast.AliasedReturnItem
 import org.neo4j.cypher.internal.ast.semantics.SemanticCheckResult
 import org.neo4j.cypher.internal.ast.semantics.SemanticError
 import org.neo4j.cypher.internal.ast.semantics.SemanticFeature
@@ -43,6 +44,18 @@ class NormalizeWithAndReturnClausesTest extends CypherFunSuite with RewriteTest 
 
   override def rewriterUnderTest(query: String): Rewriter =
     NormalizeWithAndReturnClauses(Neo4jCypherExceptionFactory(query, None), Some(CypherVersion.Cypher5))
+
+  /**
+   * assertRewrite cannot be used to check `wasAutoAliased`, since it lives in AliasedReturnItem's
+   * second parameter list and is therefore excluded from the case class equality it relies on.
+   * This runs the rewriter directly and maps each resulting AliasedReturnItem's variable name to
+   * its `wasAutoAliased` flag.
+   */
+  private def wasAutoAliasedByName(query: String): Map[String, Boolean] = {
+    val original = parseForRewriting(CypherVersion.Cypher25, query)
+    val result = endoRewrite(original, query)
+    result.folder.findAllByClass[AliasedReturnItem].map(item => item.variable.name -> item.wasAutoAliased).toMap
+  }
 
   test("ensure variables are aliased") {
     assertRewrite(
@@ -148,6 +161,14 @@ class NormalizeWithAndReturnClausesTest extends CypherFunSuite with RewriteTest 
     )
   }
 
+  test("ensure valid things are aliased in subqueries - marks auto-aliased items") {
+    val flags = wasAutoAliasedByName("CALL { RETURN 1 } RETURN 2")
+    flags("1") shouldBe true
+    // The outer RETURN is a top-level RETURN, aliased via aliasUnaliasedReturnItems,
+    // which must never set wasAutoAliased.
+    flags("2") shouldBe false
+  }
+
   test("ensure returns are aliased in when returns") {
     assertRewrite(
       CypherVersion.Cypher25,
@@ -156,12 +177,34 @@ class NormalizeWithAndReturnClausesTest extends CypherFunSuite with RewriteTest 
     )
   }
 
+  test("ensure returns are aliased in when returns - marks auto-aliased items") {
+    val flags = wasAutoAliasedByName("WHEN true THEN WITH 1 AS x RETURN x, 2 AS y, 3")
+    flags("x") shouldBe false
+    flags("y") shouldBe false
+    flags("3") shouldBe true
+  }
+
   test("ensure returns are aliased in wrapped when returns") {
     assertRewrite(
       CypherVersion.Cypher25,
       """WHEN true THEN { WITH 1 AS x RETURN x }""".stripMargin,
       """WHEN true THEN { WITH 1 AS x RETURN x AS x }""".stripMargin
     )
+  }
+
+  test("ensure returns are aliased in wrapped when returns - marks auto-aliased items") {
+    val flags = wasAutoAliasedByName("WHEN true THEN { WITH 1 AS x RETURN x, 2 AS y, 3 }")
+    flags("x") shouldBe false
+    flags("y") shouldBe false
+    flags("3") shouldBe true
+  }
+
+  test("ensure returns are aliased in NEXT - marks auto-aliased items") {
+    val flags = wasAutoAliasedByName("RETURN 2 NEXT RETURN 1")
+    flags("2") shouldBe true
+    // The last query of a NEXT chain is a top-level RETURN, aliased via aliasUnaliasedReturnItems,
+    // which must never set wasAutoAliased.
+    flags("1") shouldBe false
   }
 
   test("ensure valid things are aliased in subqueries in conditional query") {
@@ -1101,10 +1144,15 @@ class NormalizeWithAndReturnClausesTest extends CypherFunSuite with RewriteTest 
   }
 
   test("WITH: does not attach ORDER BY expressions to unaliased items") {
-    // Note: unaliased items in WITH are invalid, and will be caught during semantic check
-    assertNotRewrittenAndSemanticErrors(
+    // Note: unaliased items in WITH are invalid, and will be caught during semantic check,
+    // even though the item itself now gets an auto-generated alias (marked wasAutoAliased).
+    assertRewriteAndSemanticError(
       """MATCH (n)
         |WITH n.prop ORDER BY n.prop
+        |RETURN prop AS prop
+      """.stripMargin,
+      """MATCH (n)
+        |WITH n.prop AS `n.prop` ORDER BY n.prop
         |RETURN prop AS prop
       """.stripMargin,
       "Expression in WITH must be aliased (use AS) (line 2, column 6 (offset: 15))"
@@ -1115,7 +1163,7 @@ class NormalizeWithAndReturnClausesTest extends CypherFunSuite with RewriteTest 
     assertRewriteAndSemanticError(
       CypherVersion.Cypher25,
       "WHEN true THEN MATCH (n) WITH n RETURN 1",
-      "WHEN true THEN MATCH (n) WITH n AS n RETURN 1",
+      "WHEN true THEN MATCH (n) WITH n AS n RETURN 1 AS `1`",
       "Expression in WHEN ... THEN ... must be aliased (use AS) (line 1, column 40 (offset: 39))"
     )
   }
@@ -1124,7 +1172,7 @@ class NormalizeWithAndReturnClausesTest extends CypherFunSuite with RewriteTest 
     assertRewriteAndSemanticError(
       CypherVersion.Cypher25,
       "WHEN true THEN { MATCH (n) WITH n RETURN 1 }",
-      "WHEN true THEN { MATCH (n) WITH n AS n RETURN 1 }",
+      "WHEN true THEN { MATCH (n) WITH n AS n RETURN 1 AS `1` }",
       "Expression in { RETURN ... } must be aliased (use AS) (line 1, column 42 (offset: 41))"
     )
   }
@@ -1133,26 +1181,32 @@ class NormalizeWithAndReturnClausesTest extends CypherFunSuite with RewriteTest 
     assertRewriteAndSemanticError(
       CypherVersion.Cypher25,
       "{ MATCH (n) WITH n RETURN 1 }",
-      "{ MATCH (n) WITH n AS n RETURN 1 }",
+      "{ MATCH (n) WITH n AS n RETURN 1 AS `1` }",
       "Expression in { RETURN ... } must be aliased (use AS) (line 1, column 27 (offset: 26))"
     )
   }
 
-  test("should not introduce aliases in when then return") {
-    assertNotRewrittenAndSemanticErrors(
+  test("should introduce auto-alias in when then return") {
+    assertRewriteAndSemanticError(
       CypherVersion.Cypher25,
       "WHEN true THEN RETURN 1",
+      "WHEN true THEN RETURN 1 AS `1`",
       "Expression in WHEN ... THEN ... must be aliased (use AS) (line 1, column 23 (offset: 22))"
     )
   }
 
-  test("should not introduce aliases in when then return multiple branches") {
-    assertNotRewrittenAndSemanticErrors(
+  test("should introduce auto-aliases in when then return multiple branches") {
+    assertRewriteAndSemanticError(
       CypherVersion.Cypher25,
       """WHEN true THEN RETURN 1
         |WHEN true THEN RETURN 1
         |WHEN true THEN RETURN 1
         |ELSE RETURN 1
+        |""".stripMargin,
+      """WHEN true THEN RETURN 1 AS `1`
+        |WHEN true THEN RETURN 1 AS `1`
+        |WHEN true THEN RETURN 1 AS `1`
+        |ELSE RETURN 1 AS `1`
         |""".stripMargin,
       "Expression in WHEN ... THEN ... must be aliased (use AS) (line 1, column 23 (offset: 22))",
       "Expression in WHEN ... THEN ... must be aliased (use AS) (line 2, column 23 (offset: 46))",
@@ -1161,24 +1215,27 @@ class NormalizeWithAndReturnClausesTest extends CypherFunSuite with RewriteTest 
     )
   }
 
-  test("should not introduce aliases in when then contained in subquery return") {
-    assertNotRewrittenAndSemanticErrors(
+  test("should introduce auto-alias in when then contained in subquery return") {
+    assertRewriteAndSemanticError(
       CypherVersion.Cypher25,
       "CALL () { WHEN true THEN RETURN 1 } RETURN 1 AS one",
+      "CALL () { WHEN true THEN RETURN 1 AS `1` } RETURN 1 AS one",
       "Expression in CALL () { RETURN ... } must be aliased (use AS) (line 1, column 33 (offset: 32))"
     )
   }
 
-  test("should not introduce aliases in subquery return") {
-    assertNotRewrittenAndSemanticErrors(
+  test("should introduce auto-alias in subquery return") {
+    assertRewriteAndSemanticError(
       "CALL { RETURN 1 } RETURN 1 AS one",
+      "CALL { RETURN 1 AS `1` } RETURN 1 AS one",
       "Expression in CALL { RETURN ... } must be aliased (use AS) (line 1, column 15 (offset: 14))"
     )
   }
 
-  test("should not introduce aliases in scoped subquery return") {
-    assertNotRewrittenAndSemanticErrors(
+  test("should introduce auto-alias in scoped subquery return") {
+    assertRewriteAndSemanticError(
       "CALL () { RETURN 1 } RETURN 1 AS one",
+      "CALL () { RETURN 1 AS `1` } RETURN 1 AS one",
       "Expression in CALL () { RETURN ... } must be aliased (use AS) (line 1, column 18 (offset: 17))"
     )
   }
@@ -1204,24 +1261,27 @@ class NormalizeWithAndReturnClausesTest extends CypherFunSuite with RewriteTest 
     )
   }
 
-  test("should not introduce aliases in union subquery return") {
-    assertNotRewrittenAndSemanticErrors(
+  test("should introduce auto-aliases in union subquery return") {
+    assertRewriteAndSemanticError(
       "CALL { RETURN 1 UNION RETURN 1 } RETURN 1 AS one",
+      "CALL { RETURN 1 AS `1` UNION RETURN 1 AS `1` } RETURN 1 AS one",
       "Expression in CALL { RETURN ... } must be aliased (use AS) (line 1, column 15 (offset: 14))",
       "Expression in CALL { RETURN ... } must be aliased (use AS) (line 1, column 30 (offset: 29))"
     )
   }
 
-  test("should not introduce aliases in correlated subquery return") {
-    assertNotRewrittenAndSemanticErrors(
+  test("should introduce auto-alias in correlated subquery return") {
+    assertRewriteAndSemanticError(
       "MATCH (n) CALL { WITH n AS n RETURN 1 } RETURN 1 AS one",
+      "MATCH (n) CALL { WITH n AS n RETURN 1 AS `1` } RETURN 1 AS one",
       "Expression in CALL { RETURN ... } must be aliased (use AS) (line 1, column 37 (offset: 36))"
     )
   }
 
-  test("should not introduce aliases in correlated union subquery return") {
-    assertNotRewrittenAndSemanticErrors(
+  test("should introduce auto-aliases in correlated union subquery return") {
+    assertRewriteAndSemanticError(
       "MATCH (n) CALL { WITH n AS n RETURN 1 UNION WITH n AS n RETURN 1 } RETURN 1 AS one",
+      "MATCH (n) CALL { WITH n AS n RETURN 1 AS `1` UNION WITH n AS n RETURN 1 AS `1` } RETURN 1 AS one",
       "Expression in CALL { RETURN ... } must be aliased (use AS) (line 1, column 37 (offset: 36))",
       "Expression in CALL { RETURN ... } must be aliased (use AS) (line 1, column 64 (offset: 63))"
     )
@@ -1250,10 +1310,15 @@ class NormalizeWithAndReturnClausesTest extends CypherFunSuite with RewriteTest 
   }
 
   test("does not attach WHERE expression to unaliased items") {
-    // Note: unaliased items in WITH are invalid, and will be caught during semantic check
-    assertNotRewrittenAndSemanticErrors(
+    // Note: unaliased items in WITH are invalid, and will be caught during semantic check,
+    // even though the item itself now gets an auto-generated alias (marked wasAutoAliased).
+    assertRewriteAndSemanticError(
       """MATCH (n)
         |WITH n.prop WHERE n.prop
+        |RETURN prop AS prop
+      """.stripMargin,
+      """MATCH (n)
+        |WITH n.prop AS `n.prop` WHERE n.prop
         |RETURN prop AS prop
       """.stripMargin,
       "Expression in WITH must be aliased (use AS) (line 2, column 6 (offset: 15))"

@@ -371,7 +371,7 @@ case class SingleQuery(clauses: Seq[Clause])(val position: InputPosition) extend
     val invalidValues = wth.returnItems.items.find(!_.isPassThrough)
     if (invalidValues.nonEmpty) {
       val value = invalidValues.head
-      val aliasString = if (value.alias.nonEmpty) s" AS ${value.alias.get.name}" else ""
+      val aliasString = if (value.alias.nonEmpty && !value.wasAutoAliased) s" AS ${value.alias.get.name}" else ""
       val expression = ExpressionStringifier.apply().apply(value.expression)
       val input = expression + aliasString
       Seq(SemanticError.invalidImportingWithAliasOrExpression(input, wth.position))
@@ -459,7 +459,7 @@ case class SingleQuery(clauses: Seq[Clause])(val position: InputPosition) extend
       val invalidValues = wth.returnItems.items.find(!_.isPassThrough)
       when(invalidValues.nonEmpty) {
         val value = invalidValues.head
-        val aliasString = if (value.alias.nonEmpty) s" AS ${value.alias.get.name}" else ""
+        val aliasString = if (value.alias.nonEmpty && !value.wasAutoAliased) s" AS ${value.alias.get.name}" else ""
         val expression = ExpressionStringifier.apply().apply(value.expression)
         val input = expression + aliasString
         error(SemanticError.invalidImportingWithAliasOrExpression(input, wth.position))
@@ -1014,7 +1014,7 @@ case class TopLevelBraces(
           ReturnItems(
             if (returnVariables.includeExisting) AdditiveProjection else FreeProjection,
             returnVariables.explicitVariables.map(v =>
-              AliasedReturnItem(v.copyId, v.copyId)(position)
+              AliasedReturnItem(v.copyId, v.copyId)(position, AliasedReturnItem.wasAutoAliasedDefault)
             )
           )(position)
         )(position)
