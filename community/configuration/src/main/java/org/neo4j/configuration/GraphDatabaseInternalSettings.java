@@ -2204,6 +2204,13 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
             .build();
 
     @Internal
+    @Description("Defines the level of parallelism employed when reading backup descriptions")
+    public static final Setting<Integer> backup_description_reader_threads = newBuilder(
+                    "internal.dbms.backup.description_reader_thread_count", INT, 8)
+            .addConstraint(min(1))
+            .build();
+
+    @Internal
     @Description("Total in-memory byte budget for the cache in versioned relationship degree store.")
     public static final Setting<Long> versioned_degrees_cache_max_size = newBuilder(
                     "internal.db.block.versioned_degrees_cache_max_size", BYTES, mebiBytes(10))
