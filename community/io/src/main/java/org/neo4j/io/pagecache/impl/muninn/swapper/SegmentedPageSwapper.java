@@ -428,6 +428,7 @@ public final class SegmentedPageSwapper implements PageSwapper {
         if (segments.length == 0) {
             return;
         }
+        segmentTracker.segmentChanged(0);
         segments[0].truncate();
         if (segments.length == 1) {
             return;
@@ -449,6 +450,7 @@ public final class SegmentedPageSwapper implements PageSwapper {
             return;
         }
         long pagesInTheLastSegment = pagesToKeep - logicalPageOf(lastKeptSegment, 0);
+        segmentTracker.segmentChanged(lastKeptSegment);
         current[lastKeptSegment].truncate(pagesInTheLastSegment * filePageSize);
 
         closeAndDeleteSegments(current, lastKeptSegment + 1);

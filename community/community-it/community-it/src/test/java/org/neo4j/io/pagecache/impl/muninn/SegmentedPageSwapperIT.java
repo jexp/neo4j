@@ -1502,6 +1502,88 @@ class SegmentedPageSwapperIT {
     }
 
     @Test
+    void fullTruncateTracksSegmentZeroAsChanged() throws IOException {
+        Path baseFile = directory.file("track-truncate-full");
+        FileSegmentTracker tracker = fileSegmentTracker(baseFile);
+        try (PageSwapper swapper = createSegmentedSwapper(baseFile, tracker)) {
+            writeRangeViaSwapper(swapper, 0, 3 * PAGES_PER_SEGMENT);
+            swapper.force();
+            tracker.drainChangedSegments();
+
+            swapper.truncate();
+            assertThat(tracker.drainChangedSegments()).containsExactly(0);
+        }
+    }
+
+    @Test
+    void truncateToSizeTracksPartiallyKeptSegmentAsChanged() throws IOException {
+        Path baseFile = directory.file("track-truncate-middle");
+        int totalPages = 3 * PAGES_PER_SEGMENT;
+        int pagesToKeep = PAGES_PER_SEGMENT + 2;
+
+        FileSegmentTracker tracker = fileSegmentTracker(baseFile);
+        try (PageSwapper swapper = createSegmentedSwapper(baseFile, tracker)) {
+            writeRangeViaSwapper(swapper, 0, totalPages);
+            swapper.force();
+            tracker.drainChangedSegments();
+
+            swapper.truncate((long) pagesToKeep * PAGE_SIZE);
+            assertThat(tracker.drainChangedSegments()).containsExactly(1);
+        }
+    }
+
+    @Test
+    void truncateWithinFirstSegmentTracksSegmentZeroAsChanged() throws IOException {
+        Path baseFile = directory.file("track-truncate-first");
+        int totalPages = 3 * PAGES_PER_SEGMENT;
+        int pagesToKeep = 3;
+
+        FileSegmentTracker tracker = fileSegmentTracker(baseFile);
+        try (PageSwapper swapper = createSegmentedSwapper(baseFile, tracker)) {
+            writeRangeViaSwapper(swapper, 0, totalPages);
+            swapper.force();
+            tracker.drainChangedSegments();
+
+            swapper.truncate((long) pagesToKeep * PAGE_SIZE);
+            assertThat(tracker.drainChangedSegments()).containsExactly(0);
+        }
+    }
+
+    @Test
+    void truncateAtSegmentBoundaryStillTracksLastKeptSegmentAsChanged() throws IOException {
+        Path baseFile = directory.file("track-truncate-boundary");
+        int totalPages = 3 * PAGES_PER_SEGMENT;
+        int pagesToKeep = 2 * PAGES_PER_SEGMENT;
+
+        FileSegmentTracker tracker = fileSegmentTracker(baseFile);
+        try (PageSwapper swapper = createSegmentedSwapper(baseFile, tracker)) {
+            writeRangeViaSwapper(swapper, 0, totalPages);
+            swapper.force();
+            tracker.drainChangedSegments();
+
+            swapper.truncate((long) pagesToKeep * PAGE_SIZE);
+            assertThat(tracker.drainChangedSegments()).containsExactlyInAnyOrder(1);
+        }
+    }
+
+    @Test
+    void truncateKeepingMorePagesThanExistDoesNotTrackAnySegment() throws IOException {
+        Path baseFile = directory.file("track-truncate-noop");
+        int totalPages = 2 * PAGES_PER_SEGMENT - 1;
+
+        try (PageSwapper swapper = createSegmentedSwapper(baseFile)) {
+            writeRangeViaSwapper(swapper, 0, totalPages);
+            swapper.force();
+        }
+
+        FileSegmentTracker tracker = fileSegmentTracker(baseFile);
+        try (PageSwapper swapper = createSegmentedSwapper(baseFile, tracker)) {
+            swapper.truncate(10L * PAGES_PER_SEGMENT * PAGE_SIZE);
+            assertThat(tracker.drainChangedSegments()).isEmpty();
+        }
+    }
+
+    @Test
     void readDoesNotTrackSegments() throws IOException {
         Path baseFile = directory.file("track-reads");
         int totalPages = 3 * PAGES_PER_SEGMENT;
