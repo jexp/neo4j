@@ -315,6 +315,7 @@ class KernelTransactionTestBase {
                 NullLogProvider.getInstance(),
                 validatorFactory,
                 EMPTY_GUARD,
+                RaftUpgradeBarrier.NO_OP,
                 storageEngine.getOpenOptions().contains(MULTI_VERSIONED),
                 exceptionHandlerService,
                 TopologyGraphDbmsModel.HostedOnMode.SINGLE,

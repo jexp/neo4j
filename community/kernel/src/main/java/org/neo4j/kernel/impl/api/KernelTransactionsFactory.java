@@ -101,5 +101,6 @@ public interface KernelTransactionsFactory {
             ExceptionHandlerService exceptionHandlerService,
             LogProvider internalLogProvider,
             TopologyGraphDbmsModel.HostedOnMode mode,
-            DatabaseMonitors databaseMonitors);
+            DatabaseMonitors databaseMonitors,
+            RaftUpgradeBarrier raftUpgradeBarrier);
 }

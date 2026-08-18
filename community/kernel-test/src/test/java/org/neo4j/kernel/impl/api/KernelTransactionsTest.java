@@ -988,7 +988,8 @@ class KernelTransactionsTest {
                 mock(ExceptionHandlerService.class),
                 NullLogProvider.getInstance(),
                 TopologyGraphDbmsModel.HostedOnMode.SINGLE,
-                new DatabaseMonitors(new Monitors(), DatabaseLogProvider.nullDatabaseLogProvider()));
+                new DatabaseMonitors(new Monitors(), DatabaseLogProvider.nullDatabaseLogProvider()),
+                RaftUpgradeBarrier.NO_OP);
     }
 
     private static TestKernelTransactions createTestTransactions(
@@ -1135,7 +1136,8 @@ class KernelTransactionsTest {
                     mock(ExceptionHandlerService.class),
                     NullLogProvider.getInstance(),
                     TopologyGraphDbmsModel.HostedOnMode.SINGLE,
-                    new DatabaseMonitors(new Monitors(), DatabaseLogProvider.nullDatabaseLogProvider()));
+                    new DatabaseMonitors(new Monitors(), DatabaseLogProvider.nullDatabaseLogProvider()),
+                    RaftUpgradeBarrier.NO_OP);
         }
 
         @Override

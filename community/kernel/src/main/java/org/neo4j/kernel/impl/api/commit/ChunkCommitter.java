@@ -52,6 +52,7 @@ import org.neo4j.kernel.impl.locking.LockManager;
 import org.neo4j.kernel.impl.transaction.log.TransactionCommitmentFactory;
 import org.neo4j.kernel.impl.transaction.tracing.TransactionRollbackEvent;
 import org.neo4j.kernel.impl.transaction.tracing.TransactionWriteEvent;
+import org.neo4j.lock.Lock;
 import org.neo4j.lock.LockTracer;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
@@ -69,6 +70,7 @@ public final class ChunkCommitter implements TransactionCommitter {
     private int chunkNumber = BASE_CHUNK_ID;
     private long previousBatchAppendIndex = UNKNOWN_APPEND_INDEX;
     private KernelVersion kernelVersion;
+    private Lock raftUpgradeBarrierEntered;
     private ChunkedTransaction transactionPayload;
     private final TransactionCommitmentFactory commitmentFactory;
     private final KernelVersionProvider kernelVersionProvider;
@@ -134,6 +136,12 @@ public final class ChunkCommitter implements TransactionCommitter {
             throws KernelException {
         LockManager.Client lockClient = ktx.lockClient();
         try {
+            if (raftUpgradeBarrierEntered == null) {
+                // Hold the upgrade barrier from the moment we capture the version in commands until this transaction
+                // has finished appending all its chunks (released in reset()), so a concurrent version upgrade cannot
+                // be ordered before a later chunk of this (now old-version) transaction.
+                raftUpgradeBarrierEntered = ktx.enterRaftUpgradeBarrier();
+            }
             StorageCommands storageCommands = ktx.extractCommands(memoryTracker);
             List<StorageCommand> extractedCommands = storageCommands.commands();
             assert storageCommands.leases().size() == 0 : "LeaseMap not implemented for chunked transactions";
@@ -273,6 +281,10 @@ public final class ChunkCommitter implements TransactionCommitter {
 
     @Override
     public void reset() {
+        if (raftUpgradeBarrierEntered != null) {
+            raftUpgradeBarrierEntered.close();
+            raftUpgradeBarrierEntered = null;
+        }
         chunkNumber = BASE_CHUNK_ID;
         kernelVersion = null;
         transactionPayload = null;

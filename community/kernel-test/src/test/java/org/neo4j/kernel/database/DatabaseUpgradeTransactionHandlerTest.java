@@ -256,7 +256,6 @@ class DatabaseUpgradeTransactionHandlerTest {
                 Config.defaults(),
                 kernelMock,
                 kernelTransactions,
-                false,
                 false);
         handler.registerUpgradeListener((fromKernelVersion, toKernelVersion, tx, currentLogFormat) -> {
             // The tx being sent in here is just a mock, so we create the tx here

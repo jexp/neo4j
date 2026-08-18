@@ -312,6 +312,7 @@ class KernelTransactionTerminationTest {
                     NullLogProvider.getInstance(),
                     TransactionValidatorFactory.EMPTY_VALIDATOR_FACTORY,
                     EMPTY_GUARD,
+                    RaftUpgradeBarrier.NO_OP,
                     false,
                     mock(ExceptionHandlerService.class),
                     TopologyGraphDbmsModel.HostedOnMode.SINGLE,

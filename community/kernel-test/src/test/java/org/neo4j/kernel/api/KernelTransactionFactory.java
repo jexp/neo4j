@@ -60,6 +60,7 @@ import org.neo4j.kernel.impl.api.InternalTransactionCommitProcess;
 import org.neo4j.kernel.impl.api.KernelTransactionImplementation;
 import org.neo4j.kernel.impl.api.KernelTransactions;
 import org.neo4j.kernel.impl.api.LeaseService;
+import org.neo4j.kernel.impl.api.RaftUpgradeBarrier;
 import org.neo4j.kernel.impl.api.index.IndexingService;
 import org.neo4j.kernel.impl.api.index.stats.IndexStatisticsStore;
 import org.neo4j.kernel.impl.api.state.ConstraintIndexCreator;
@@ -156,6 +157,7 @@ public final class KernelTransactionFactory {
                 NullLogProvider.getInstance(),
                 TransactionValidatorFactory.EMPTY_VALIDATOR_FACTORY,
                 EMPTY_GUARD,
+                RaftUpgradeBarrier.NO_OP,
                 storageEngine.getOpenOptions().contains(MULTI_VERSIONED),
                 exceptionHandlerService,
                 TopologyGraphDbmsModel.HostedOnMode.SINGLE,

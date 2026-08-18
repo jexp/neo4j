@@ -183,6 +183,7 @@ public class KernelTransactions extends LifecycleAdapter
     private final boolean multiVersioned;
     private final TopologyGraphDbmsModel.HostedOnMode mode;
     private final DatabaseSerialGuard databaseSerialGuard;
+    private final RaftUpgradeBarrier raftUpgradeBarrier;
     private final TransactionStateBehaviour transactionStateBehaviour;
     private final Log log;
     private final DatabaseMonitors databaseMonitors;
@@ -236,7 +237,8 @@ public class KernelTransactions extends LifecycleAdapter
             ExceptionHandlerService exceptionHandlerService,
             LogProvider internalLogProvider,
             TopologyGraphDbmsModel.HostedOnMode mode,
-            DatabaseMonitors databaseMonitors) {
+            DatabaseMonitors databaseMonitors,
+            RaftUpgradeBarrier raftUpgradeBarrier) {
         this.config = config;
         this.lockManager = lockManager;
         this.constraintIndexCreator = constraintIndexCreator;
@@ -288,6 +290,8 @@ public class KernelTransactions extends LifecycleAdapter
         this.transactionStateBehaviour = new KernelTransactionsStateBehaviour(storageEngine, enrichmentStrategy);
         this.securityLog = this.databaseDependencies.resolveDependency(AbstractSecurityLog.class);
         this.databaseSerialGuard = multiVersioned ? new MultiVersionDatabaseSerialGuard(allTransactions) : EMPTY_GUARD;
+        // Created (and gated) by Database; NO_OP unless this is the raft-triggered upgrade.
+        this.raftUpgradeBarrier = raftUpgradeBarrier;
 
         doBlockNewTransactions();
     }
@@ -685,6 +689,7 @@ public class KernelTransactions extends LifecycleAdapter
                             internalLogProvider,
                             transactionValidatorFactory,
                             databaseSerialGuard,
+                            raftUpgradeBarrier,
                             multiVersioned,
                             exceptionHandlerService,
                             mode,
@@ -807,6 +812,7 @@ public class KernelTransactions extends LifecycleAdapter
                 LogProvider logProvider,
                 TransactionValidatorFactory transactionValidatorFactory,
                 DatabaseSerialGuard databaseSerialGuard,
+                RaftUpgradeBarrier raftUpgradeBarrier,
                 boolean multiVersioned,
                 ExceptionHandlerService exceptionHandlerService,
                 TopologyGraphDbmsModel.HostedOnMode mode,

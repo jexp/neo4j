@@ -79,7 +79,6 @@ class DatabaseUpgradeTransactionHandler {
     private final KernelImpl kernelApi;
     private final KernelTransactions kernelTransactions;
     private final boolean multiversioned;
-    private final boolean raftTriggersUpgrade;
 
     DatabaseUpgradeTransactionHandler(
             DbmsRuntimeVersionProvider dbmsRuntimeVersionProvider,
@@ -91,8 +90,7 @@ class DatabaseUpgradeTransactionHandler {
             Config config,
             KernelImpl kernelApi,
             KernelTransactions kernelTransactions,
-            boolean multiversioned,
-            boolean raftTriggersUpgrade) {
+            boolean multiversioned) {
         this.dbmsRuntimeVersionProvider = dbmsRuntimeVersionProvider;
         this.kernelVersionProvider = kernelVersionProvider;
         this.logFormatVersionProvider = logFormatVersionProvider;
@@ -103,9 +101,6 @@ class DatabaseUpgradeTransactionHandler {
         this.kernelApi = kernelApi;
         this.kernelTransactions = kernelTransactions;
         this.multiversioned = multiversioned;
-        // If raft triggers upgrade this handler only takes read locks to prevent transactions committing concurrently
-        // with upgrade
-        this.raftTriggersUpgrade = raftTriggersUpgrade;
     }
 
     interface InternalUpgradeTransactionHandler {
@@ -143,8 +138,7 @@ class DatabaseUpgradeTransactionHandler {
         public Lock beforeCommit(TransactionData data, KernelTransaction tx, GraphDatabaseService databaseService)
                 throws Exception {
             KernelVersion checkKernelVersion = kernelVersionProvider.kernelVersion();
-            if (!raftTriggersUpgrade
-                    && dbmsRuntimeVersionProvider.getVersion().kernelVersion().isGreaterThan(checkKernelVersion)) {
+            if (dbmsRuntimeVersionProvider.getVersion().kernelVersion().isGreaterThan(checkKernelVersion)) {
                 try {
                     // multi version dbs should allow earlier transactions to complete before upgrade
                     if (multiversioned && tx.getTransactionSequenceNumber() < upgradeTransactionSequenceNumber) {

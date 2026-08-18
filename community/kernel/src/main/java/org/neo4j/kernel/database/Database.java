@@ -38,12 +38,12 @@ import static org.neo4j.scheduler.Group.INDEX_CLEANUP_WORK;
 import static org.neo4j.scheduler.Group.STORAGE_MAINTENANCE;
 import static org.neo4j.storageengine.api.TransactionIdStore.BASE_TX_ID;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -112,8 +112,8 @@ import org.neo4j.kernel.impl.api.ExternalIdReuseConditionProvider;
 import org.neo4j.kernel.impl.api.KernelImpl;
 import org.neo4j.kernel.impl.api.KernelTransactions;
 import org.neo4j.kernel.impl.api.KernelTransactionsFactory;
-import org.neo4j.kernel.impl.api.LeaseClient;
 import org.neo4j.kernel.impl.api.LeaseService;
+import org.neo4j.kernel.impl.api.RaftUpgradeBarrier;
 import org.neo4j.kernel.impl.api.TransactionCommitProcess;
 import org.neo4j.kernel.impl.api.TransactionIdSequence;
 import org.neo4j.kernel.impl.api.TransactionVisibilityProvider;
@@ -289,9 +289,12 @@ public class Database extends AbstractDatabase {
     private LeaseMonitor leaseMonitor;
     private final ChunkedTransactionTracker chunkedTransactionTracker;
     private MultiVersionDatabaseRollbackService multiVersionDatabaseRollbackService;
+    // Real only for the raft-triggered upgrade NO_OP otherwise. Assigned in  specificInit()
+    private RaftUpgradeBarrier raftUpgradeBarrier = RaftUpgradeBarrier.NO_OP;
     private volatile RecoveryPredicateSupplier recoveryPredicate = RecoveryPredicateSupplier.ALL;
     private final boolean raftTriggersUpgrade;
     private SegmentTrackingFactory segmentTrackingFactory;
+    private final AtomicBoolean mvccRollbackDone = new AtomicBoolean(false);
 
     public Database(DatabaseCreationContext context) {
         super(
@@ -417,6 +420,9 @@ public class Database extends AbstractDatabase {
         databaseDependencies.satisfyDependency(transactionStats);
         databaseDependencies.satisfyDependency(indexStats);
         databaseDependencies.satisfyDependency(databaseLockManager);
+        raftUpgradeBarrier = RaftUpgradeBarrier.create(raftTriggersUpgrade);
+        databaseDependencies.satisfyDependency(raftUpgradeBarrier);
+        mvccRollbackDone.set(false);
         databaseDependencies.satisfyDependency(idGeneratorFactory);
         databaseDependencies.satisfyDependency(idController);
         databaseDependencies.satisfyDependency(lockService);
@@ -673,7 +679,8 @@ public class Database extends AbstractDatabase {
                 clock,
                 indexStatisticsStore,
                 leaseService,
-                cursorContextFactory);
+                cursorContextFactory,
+                raftUpgradeBarrier);
 
         life.add(kernelModule.kernelAPI());
         kernelModule.satisfyDependencies(databaseDependencies);
@@ -833,6 +840,11 @@ public class Database extends AbstractDatabase {
     }
 
     private void registerUpgradeListener(LogMetadataProvider logMetadataProvider) {
+        if (raftTriggersUpgrade) {
+            internalLog.info(
+                    "Using raft controlled version upgrade mechanism rather than DatabaseUpgradeTransactionHandler");
+            return;
+        }
         DatabaseUpgradeTransactionHandler handler = new DatabaseUpgradeTransactionHandler(
                 globalDependencies.resolveDependency(DbmsRuntimeVersionProvider.class),
                 logMetadataProvider,
@@ -843,8 +855,7 @@ public class Database extends AbstractDatabase {
                 databaseConfig,
                 kernelModule.kernelAPI(),
                 kernelModule.kernelTransactions(),
-                isMultiVersioned(storageEngineFactory, namedDatabaseId),
-                raftTriggersUpgrade);
+                isMultiVersioned(storageEngineFactory, namedDatabaseId));
 
         handler.registerUpgradeListener((fromKernelVersion, toKernelVersion, tx, currentLogFormat) -> {
             tx.upgrade()
@@ -1154,7 +1165,8 @@ public class Database extends AbstractDatabase {
             SystemNanoClock clock,
             IndexStatisticsStore indexStatisticsStore,
             LeaseService leaseService,
-            CursorContextFactory cursorContextFactory) {
+            CursorContextFactory cursorContextFactory,
+            RaftUpgradeBarrier raftUpgradeBarrier) {
         AtomicReference<CpuClock> cpuClockRef = setupCpuClockAtomicReference();
 
         TransactionCommitProcess transactionCommitProcess = commitProcessFactory.create(
@@ -1234,7 +1246,8 @@ public class Database extends AbstractDatabase {
                 exceptionHandlerService,
                 internalLogProvider,
                 mode,
-                databaseMonitors);
+                databaseMonitors,
+                raftUpgradeBarrier);
 
         var transactionMonitor =
                 buildTransactionMonitor(kernelTransactions, logMetadataProvider, databaseConfig, indexingService);
@@ -1456,11 +1469,16 @@ public class Database extends AbstractDatabase {
         if (iAmLeaseOwner) {
             leaseMonitor.newLeaseAcquired(leaseId);
             if (!storageEngineFactory.multiVersioned()) {
+                mvccRollbackDone.set(true);
                 return;
             }
-            scheduler.schedule(
-                    STORAGE_MAINTENANCE,
-                    () -> multiVersionDatabaseRollbackService.postLeaseSwitchTransactionCleanup(leaseId));
+            scheduler.schedule(STORAGE_MAINTENANCE, () -> {
+                if (multiVersionDatabaseRollbackService.postLeaseSwitchTransactionCleanup(leaseId)) {
+                    mvccRollbackDone.set(true);
+                }
+            });
+        } else {
+            mvccRollbackDone.set(false);
         }
     }
 
@@ -1482,11 +1500,40 @@ public class Database extends AbstractDatabase {
                 Subject.AUTH_DISABLED);
     }
 
-    public UpgradeLock lockForUpgrade(LeaseClient leaseClient) {
-        LockManager.Client lockClient = databaseLockManager.newClient();
-        lockClient.initialize(
-                leaseClient, LockManager.Client.INVALID_TRANSACTION_ID, otherDatabaseMemoryTracker, databaseConfig);
-        return new UpgradeLock(lockClient, UpgradeLocker.DEFAULT.acquireWriteLock(lockClient));
+    /**
+     * Takes the exclusive side of the {@link RaftUpgradeBarrier} ahead of replicating a kernel version upgrade.
+     * Blocks new version captures and waits for in-flight ones to drain. Must be paired with
+     * {@link #unlockAfterRaftUpgrade()} on the same thread. The lock acquisition is not time bounded
+     * but may be held off while MVCC rollbacks are pending, or due to interruption
+     * @return true if we have acquired the lock. Can return false if MVCC rollback still pending, or
+     * we are interrupted. The lock is not held if this returns false
+     */
+    public boolean lockForRaftUpgrade() {
+        if (!mvccRollbackDone.get()) {
+            // Wait for MVCC lease change rollbacks to clear on old versions before trying upgrade
+            return false;
+        }
+        try {
+            raftUpgradeBarrier.lockForUpgrade();
+            return true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
+
+    /**
+     * Releases the exclusive side of the {@link RaftUpgradeBarrier} taken by {@link #lockForRaftUpgrade()}.
+     */
+    public void unlockAfterRaftUpgrade() {
+        raftUpgradeBarrier.unlockAfterUpgrade();
+    }
+
+    /**
+     * Switches the RaftUpgradeBarrier to NO-OP versions
+     */
+    public void raftUpgradeNotRequired() {
+        raftUpgradeBarrier.upgradeLockNotRequired();
     }
 
     private void prepareStop(Predicate<PagedFile> deleteFilePredicate) {
@@ -1565,13 +1612,6 @@ public class Database extends AbstractDatabase {
         @Override
         public long youngestObservableHorizon() {
             return kernelModule.transactionMonitor().youngestObservableHorizon();
-        }
-    }
-
-    public record UpgradeLock(LockManager.Client lockClient, org.neo4j.lock.Lock lock) implements Closeable {
-        @Override
-        public void close() {
-            lockClient.close();
         }
     }
 

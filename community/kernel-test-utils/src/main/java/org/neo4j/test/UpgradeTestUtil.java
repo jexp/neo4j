@@ -33,6 +33,8 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.kernel.KernelVersion;
 import org.neo4j.kernel.KernelVersionProvider;
+import org.neo4j.kernel.impl.transaction.ChunkedBatchRepresentation;
+import org.neo4j.kernel.impl.transaction.ChunkedRollbackBatchRepresentation;
 import org.neo4j.kernel.impl.transaction.CommittedCommandBatchRepresentation;
 import org.neo4j.kernel.impl.transaction.CompleteBatchRepresentation;
 import org.neo4j.kernel.impl.transaction.EmptyBatchRepresentation;
@@ -128,12 +130,17 @@ public class UpgradeTestUtil {
                 if (committedCommandBatchRepresentation.txId() > fromTxId) {
                     transactions.add(committedCommandBatchRepresentation);
                     KernelVersion kernelVersion;
-                    if (committedCommandBatchRepresentation instanceof EmptyBatchRepresentation empty) {
-                        kernelVersion = empty.kernelVersion();
-                    } else {
-                        CompleteBatchRepresentation representation =
-                                (CompleteBatchRepresentation) committedCommandBatchRepresentation;
-                        kernelVersion = representation.startEntry().kernelVersion();
+                    switch (committedCommandBatchRepresentation) {
+                        case EmptyBatchRepresentation empty -> kernelVersion = empty.kernelVersion();
+                        case CompleteBatchRepresentation complete ->
+                            kernelVersion = complete.startEntry().kernelVersion();
+                        case ChunkedBatchRepresentation chunked ->
+                            kernelVersion = chunked.chunkStart().kernelVersion();
+                        case ChunkedRollbackBatchRepresentation chunkedRollback ->
+                            kernelVersion = chunkedRollback.kernelVersion();
+                        default ->
+                            throw new IllegalStateException(
+                                    "unknown batch type " + committedCommandBatchRepresentation);
                     }
                     transactionVersions.add(kernelVersion);
                 }

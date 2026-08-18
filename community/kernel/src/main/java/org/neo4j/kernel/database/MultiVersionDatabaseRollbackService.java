@@ -89,22 +89,23 @@ public class MultiVersionDatabaseRollbackService extends LifecycleAdapter {
         this.clock = clock;
     }
 
-    public synchronized void postLeaseSwitchTransactionCleanup(int leaseId) {
+    public synchronized boolean postLeaseSwitchTransactionCleanup(int leaseId) {
+        boolean completedSuccessfully = false;
         try {
             if (shutdown) {
-                return;
+                return false;
             }
             LeaseClient leaseClient = leaseService.newClient();
             leaseClient.ensureValid();
             if (leaseService != LeaseService.NO_LEASES && leaseClient.leaseId() != leaseId) {
                 internalLog.debug("Lease expired while doing database rollback.");
-                return;
+                return false;
             }
             kernelTransactions.terminateOldLeaseTransactions(leaseId);
 
             if (readOnlyDatabaseChecker.isReadOnly()) {
                 internalLog.info("Post lease switch transaction can't be executed on the read only database.");
-                return;
+                return false;
             }
 
             DatabaseTracer databaseTracer = tracers.getDatabaseTracer();
@@ -115,19 +116,18 @@ public class MultiVersionDatabaseRollbackService extends LifecycleAdapter {
                 if (transactionInfos.isEmpty()) {
                     internalLog.debug("Post lease switch transaction cleanup had no transactions to cleanup.");
                     databaseAsyncRollbackEvent.databaseRollbackCompleted(true, 0, 0);
-                    return;
+                    return true;
                 }
 
                 internalLog.info("Post lease switch transaction cleanup has " + transactionInfos.size()
                         + " candidates to rollback.");
                 int rolledBackTransactions = 0;
                 int chunkedOngoingTransactions = 0;
-                boolean completedSuccessfully = false;
 
                 try {
                     for (ChunkedTransactionTracker.TransactionInfo transactionInfo : transactionInfos) {
                         if (databaseAvailabilityGuard.isShutdown()) {
-                            return;
+                            return false;
                         }
                         if (transactionInfo.leaseId() == leaseId) {
                             chunkedOngoingTransactions++;
@@ -169,6 +169,7 @@ public class MultiVersionDatabaseRollbackService extends LifecycleAdapter {
             internalLog.error("Unexpected error while doing database rollback.", e);
             databaseHealth.panic(e);
         }
+        return completedSuccessfully;
     }
 
     @Override

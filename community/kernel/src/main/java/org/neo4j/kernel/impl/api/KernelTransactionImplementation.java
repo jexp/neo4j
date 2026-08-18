@@ -333,6 +333,7 @@ public class KernelTransactionImplementation
     private final ChunkedTransactionSink txStateWriter;
     private final DatabaseSerialGuard databaseSerialGuard;
     private final SerialExecutionGuard serialExecutionGuard;
+    private final RaftUpgradeBarrier raftUpgradeBarrier;
     private final TxStateMemoryConsumer txStateMemoryConsumer;
     private boolean failedCleanup = false;
 
@@ -377,6 +378,7 @@ public class KernelTransactionImplementation
             LogProvider logProvider,
             TransactionValidatorFactory transactionValidatorFactory,
             DatabaseSerialGuard databaseSerialGuard,
+            RaftUpgradeBarrier raftUpgradeBarrier,
             boolean multiVersioned,
             ExceptionHandlerService exceptionHandlerService,
             TopologyGraphDbmsModel.HostedOnMode mode,
@@ -507,6 +509,7 @@ public class KernelTransactionImplementation
         this.collectionsFactory = collectionsFactory;
         this.kernelTransactions = kernelTransactions;
         this.databaseSerialGuard = databaseSerialGuard;
+        this.raftUpgradeBarrier = raftUpgradeBarrier;
         this.transactionValidator =
                 transactionValidatorFactory.createTransactionValidator(memoryTracker, transactionMonitor);
         this.validationLockDumper = transactionValidatorFactory.createValidationLockDumper();
@@ -1899,6 +1902,14 @@ public class KernelTransactionImplementation
                         exceptionHandlerService,
                         transactionMonitor)
                 : ChunkedTransactionSink.EMPTY;
+    }
+
+    /**
+     * Taken by the committer just before it captures the {@code KernelVersion} to stamp on this transaction's
+     * command batch(es) See {@link RaftUpgradeBarrier}.
+     */
+    public org.neo4j.lock.Lock enterRaftUpgradeBarrier() {
+        return raftUpgradeBarrier.enter();
     }
 
     private TransactionCommitter createCommitter(
