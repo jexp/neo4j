@@ -2180,13 +2180,6 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
             .build();
 
     @Internal
-    @Description("Directory for capturing any import related context information for a specific import.")
-    public static final Setting<Path> import_context_directory = newBuilder(
-                    "internal.db.import.context_directory", PATH, null)
-            .immutable()
-            .build();
-
-    @Internal
     @Description("The duration between detailed reporting events during an import process.")
     public static final Setting<Duration> import_detailed_reporting_interval = newBuilder(
                     "internal.db.import.detailed_reporting_interval", DURATION, Duration.ofMinutes(1))

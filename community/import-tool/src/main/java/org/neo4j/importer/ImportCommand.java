@@ -707,7 +707,7 @@ public class ImportCommand {
 
                     final var importerBuilder = configureFileImporterBuilder(FileImporter.builder()
                             .withCsvConfig(csvConfiguration(fileSystem))
-                            .withImportConfig(importConfiguration(databaseConfig))
+                            .withImportConfig(importConfiguration(databaseConfig, importContext.baseDir()))
                             .withDatabaseLayout(databaseLayout)
                             .withDatabaseConfig(databaseConfig)
                             .withFileSystem(fileSystem)
@@ -1302,7 +1302,7 @@ public class ImportCommand {
             return builder.build();
         }
 
-        private org.neo4j.batchimport.api.Configuration importConfiguration(Config databaseConfig) {
+        private org.neo4j.batchimport.api.Configuration importConfiguration(Config databaseConfig, Path contextDir) {
             return new Configuration.Overridden(Configuration.defaultConfiguration()) {
                 @Override
                 public int maxNumberOfWorkerThreads() {
@@ -1361,6 +1361,11 @@ public class ImportCommand {
                 @Override
                 public Path captureProfileResultPath() {
                     return captureProfileResultPath != null ? captureProfileResultPath.toAbsolutePath() : null;
+                }
+
+                @Override
+                public Path contextDirectory() {
+                    return contextDir;
                 }
 
                 @Override

@@ -23,7 +23,6 @@ import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.StandardCopyOption.ATOMIC_MOVE;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
-import static org.neo4j.configuration.GraphDatabaseInternalSettings.import_context_directory;
 import static org.neo4j.configuration.GraphDatabaseInternalSettings.import_detailed_reporting_interval;
 import static org.neo4j.configuration.GraphDatabaseSettings.logs_directory;
 import static org.neo4j.io.fs.DefaultFileSystemAbstraction.APPEND_OPTIONS;
@@ -115,6 +114,8 @@ public class ImportContext extends Monitor.Delegate implements InternalLogProvid
 
     private final Config databaseConfig;
 
+    private final Path baseDir;
+
     private final FileSystemAbstraction fs;
 
     private final List<String> originalArgs;
@@ -134,6 +135,7 @@ public class ImportContext extends Monitor.Delegate implements InternalLogProvid
     private ImportContext(
             String dbName,
             Config databaseConfig,
+            Path baseDir,
             FileSystemAbstraction fs,
             List<String> originalArgs,
             String collectorPath,
@@ -145,6 +147,7 @@ public class ImportContext extends Monitor.Delegate implements InternalLogProvid
         super(Monitor.NO_MONITOR);
         this.dbName = dbName;
         this.databaseConfig = databaseConfig;
+        this.baseDir = baseDir;
         this.fs = fs;
         this.originalArgs = originalArgs;
         this.collectorPath = collectorPath;
@@ -182,10 +185,8 @@ public class ImportContext extends Monitor.Delegate implements InternalLogProvid
         var retaining = verbose || retainForInstrumentation;
         return new ImportContext(
                 database.name(),
-                Config.newBuilder()
-                        .fromConfig(databaseConfig)
-                        .set(import_context_directory, baseDir)
-                        .build(),
+                databaseConfig,
+                baseDir,
                 fs,
                 originalArgs,
                 collectorReporting == null ? DEFAULT_REPORT_FILE_NAME : collectorReporting.toString(),
@@ -226,7 +227,7 @@ public class ImportContext extends Monitor.Delegate implements InternalLogProvid
     }
 
     public Path baseDir() {
-        return databaseConfig.get(import_context_directory);
+        return baseDir;
     }
 
     public Path logPath() {
@@ -406,19 +407,10 @@ public class ImportContext extends Monitor.Delegate implements InternalLogProvid
      * <p>
      * A resumed import picks up state that the attempt it resumes laid out on disk (the partially written store, its
      * temporary intermediary data, the node id ranges the work was divided into), so it is only safe to continue if
-     * the settings that shaped that state still hold the same values, which this makes it possible to tell. Note that
-     * {@link org.neo4j.configuration.GraphDatabaseInternalSettings#import_context_directory} is scoped to a single
-     * attempt and therefore differs between any two of them by design.
+     * the settings that shaped that state still hold the same values, which this makes it possible to tell.
      * <p>
      * Written {@link #writeProtected(Path, String) write-protected}, since a hand edit would decide whether a resume
      * is allowed to run at all.
-     *
-     * TODO The context dir is an internal setting used to keep track of where the context dir is, and it's decided
-     * at runtime, we check the config BEFORE the context dir has been created, and therefore as a duct-tape fix we
-     * allow the context dir setting to change between resumes, because when checked the resuming process will see
-     * it's own context dir as null, and that will always fail the check..
-     *
-     * TODO Real solution: move context dir path to ImportContext field
      */
     public void persistConfig() {
         try {
@@ -478,8 +470,7 @@ public class ImportContext extends Monitor.Delegate implements InternalLogProvid
      * that cannot break it. Every other declared setting is treated as resume-sensitive by default, so a setting
      * newly added to Neo4j is guarded automatically rather than only once someone remembers to deny-list it.
      */
-    private static final List<Setting<?>> RESUME_SAFE_SETTINGS =
-            List.of(import_detailed_reporting_interval, import_context_directory);
+    private static final List<Setting<?>> RESUME_SAFE_SETTINGS = List.of(import_detailed_reporting_interval);
 
     /**
      * Which declared settings, other than the {@link #RESUME_SAFE_SETTINGS}, the given configuration resolves

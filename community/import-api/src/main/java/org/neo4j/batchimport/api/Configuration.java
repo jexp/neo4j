@@ -243,6 +243,14 @@ public interface Configuration {
         return null;
     }
 
+    /**
+     * Directory for capturing any context information for this specific import, or {@code null} if this import has
+     * no such directory.
+     */
+    default Path contextDirectory() {
+        return null;
+    }
+
     default int intermediaryBufferSize() {
         return (int) mebiBytes(10);
     }
@@ -396,6 +404,11 @@ public interface Configuration {
         @Override
         public Path captureProfileResultPath() {
             return defaults.captureProfileResultPath();
+        }
+
+        @Override
+        public Path contextDirectory() {
+            return defaults.contextDirectory();
         }
 
         @Override
