@@ -314,7 +314,7 @@ public final class CypherMath {
     }
 
     public static AnyValue modulo(AnyValue lhs, AnyValue rhs) {
-        if (lhs == NO_VALUE || rhs == NO_VALUE) {
+        if (divideCheckForNull(lhs, rhs)) {
             return NO_VALUE;
         } else if (lhs instanceof NumberValue lhsNumber && rhs instanceof NumberValue rhsNumber) {
             try {
