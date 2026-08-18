@@ -1963,8 +1963,9 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
 
     @Internal
     @Description("")
-    public static final Setting<Integer> spd_import_segment_buffer_size = newBuilder(
-                    "internal.db.spd_import.segment_buffer_size", INT, 8 * 1024 * 1024)
+    public static final Setting<Long> spd_import_segment_buffer_size = newBuilder(
+                    "internal.db.spd_import.segment_buffer_size", BYTES, mebiBytes(8))
+            .addConstraint(max(gibiBytes(2)))
             .build();
 
     @Internal
@@ -1987,14 +1988,15 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
 
     @Internal
     @Description("")
-    public static final Setting<Integer> spd_import_io_buffer_size = newBuilder(
-                    "internal.db.spd_import.io_buffer_size", INT, 2 * 1024 * 1024)
+    public static final Setting<Long> spd_import_io_buffer_size = newBuilder(
+                    "internal.db.spd_import.io_buffer_size", BYTES, mebiBytes(2))
+            .addConstraint(max(gibiBytes(2)))
             .build();
 
     @Internal
     @Description("")
     public static final Setting<Long> spd_import_max_memory = newBuilder(
-                    "internal.db.spd_import.max_memory", LONG, 10L * Integer.MAX_VALUE)
+                    "internal.db.spd_import.max_memory", BYTES, gibiBytes(20))
             .build();
 
     @Internal
