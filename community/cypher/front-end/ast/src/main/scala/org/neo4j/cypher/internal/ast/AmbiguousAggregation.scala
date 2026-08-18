@@ -21,11 +21,30 @@ import org.neo4j.cypher.internal.expressions.IsAggregate
 import org.neo4j.cypher.internal.expressions.LogicalProperty
 import org.neo4j.cypher.internal.expressions.LogicalVariable
 import org.neo4j.cypher.internal.expressions.ScopeExpression
+import org.neo4j.cypher.internal.expressions.Variable
 import org.neo4j.cypher.internal.util.AnonymousVariableNameGenerator
 import org.neo4j.cypher.internal.util.Foldable.SkipChildren
 import org.neo4j.cypher.internal.util.Foldable.TraverseChildrenNewAccForSiblings
 
 object AmbiguousAggregation {
+
+  /**
+   * An aggregation expression in a RETURN/WITH clause structurally equals one in that same clause's
+   * ORDER BY/WHERE only if the variables it depends on still mean the same thing in both places. This is
+   * not the case when some other item of the same clause redefines (shadows) one of those variables with
+   * a new alias, since ORDER BY/WHERE resolve names in the post-projection scope: e.g. in
+   * `RETURN 1 AS a, count(a) AS cnt ORDER BY count(a) + 1`, the `a` inside the ORDER BY's `count(a)` binds
+   * to the new `1 AS a`, not to the pre-projection `a` the RETURN's own `count(a)` aggregates over, even
+   * though the two `count(a)` expressions are structurally identical (equality here ignores position).
+   */
+  def potentiallyRedefined(
+    expression: Expression,
+    aliasMap: Map[Expression, LogicalVariable]
+  ): Boolean =
+    aliasMap.filter {
+      case (e: Variable, v: Variable) => e.name != v.name
+      case _                          => true
+    }.valuesIterator.exists(alias => expression.folder.findAllByClass[LogicalVariable].contains(alias))
 
   /**
    * In a RETURN/WITH expression that contains an aggregation or in a sort item where there is an aggregation in the preceding WITH/RETURN clause,

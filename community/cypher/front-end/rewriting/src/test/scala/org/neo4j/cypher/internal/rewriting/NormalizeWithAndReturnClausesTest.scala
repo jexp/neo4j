@@ -29,6 +29,7 @@ import org.neo4j.cypher.internal.util.InputPosition
 import org.neo4j.cypher.internal.util.Neo4jCypherExceptionFactory
 import org.neo4j.cypher.internal.util.Rewriter
 import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.util.test_helpers.DiffPrinter
 import org.neo4j.cypher.internal.util.test_helpers.WindowsStringSafe
 import org.neo4j.exceptions.SyntaxException
 import org.neo4j.gqlstatus.GqlHelper
@@ -1657,6 +1658,150 @@ class NormalizeWithAndReturnClausesTest extends CypherFunSuite with RewriteTest 
     )
   }
 
+  // In each of the next four cases, `a`/`b` is shadowed: the alias reusing the aggregate's own argument
+  // name means the pre-projection and post-projection variable are indistinguishable at this point in the
+  // pipeline (before Namespacer runs), so potentiallyRedefined blocks the substitution and the aggregate
+  // is left as-is in ORDER BY. checkIllegalOrdering catches it downstream instead.
+  test(
+    "UNWIND range(1, 10) AS a RETURN sum (a) AS a ORDER BY (sum(a) + 1)"
+  ) {
+    assertRewrite(
+      """UNWIND range(1, 10) AS a
+        |RETURN sum(a) AS a
+        |  ORDER BY (sum(a) + 1)
+      """.stripMargin,
+      """UNWIND range(1, 10) AS a
+        |RETURN sum(a) AS a
+        |  ORDER BY sum(a) + 1 ASCENDING
+      """.stripMargin
+    )
+  }
+
+  test(
+    "UNWIND range(1, 10) AS a WITH sum (a) AS a ORDER BY (sum(a) + 1) RETURN a"
+  ) {
+    assertRewrite(
+      """UNWIND range(1, 10) AS a
+        |WITH sum(a) AS a
+        |  ORDER BY (sum(a) + 1)
+        |RETURN a
+      """.stripMargin,
+      """UNWIND range(1, 10) AS a
+        |WITH sum(a) AS a
+        |  ORDER BY sum(a) + 1 ASCENDING
+        |RETURN a AS a
+      """.stripMargin
+    )
+  }
+
+  test(
+    "UNWIND range(1, 10) AS a WITH a, a / 2 + 5 AS b, a % 3 AS g RETURN g, sum(a) AS a, sum(b) AS b ORDER BY (sum(a) + count(b))"
+  ) {
+    assertRewrite(
+      """UNWIND range(1, 10) AS a
+        |WITH a, a / 2 + 5 AS b, a % 3 AS g
+        |RETURN g, sum(a) AS a, count(b) AS b
+        |  ORDER BY (sum(a) + count(b))
+      """.stripMargin,
+      """UNWIND range(1, 10) AS a
+        |WITH a AS a, a / 2 + 5 AS b, a % 3 AS g
+        |RETURN g AS g, sum(a) AS a, count(b) AS b
+        |  ORDER BY sum(a) + count(b) ASCENDING
+      """.stripMargin
+    )
+  }
+
+  test(
+    "UNWIND range(1, 10) AS a WITH a, a / 2 + 5 AS b, a % 3 AS g WITH g, min(a) AS a, max(b) AS b ORDER BY (min(a) + max(b)) RETURN g, a, b"
+  ) {
+    assertRewrite(
+      """UNWIND range(1, 10) AS a
+        |WITH a, a / 2 + 5 AS b, a % 3 AS g
+        |WITH g, min(a) AS a, max(b) AS b
+        |  ORDER BY (min(a) + max(b))
+        |RETURN g, a, b
+      """.stripMargin,
+      """UNWIND range(1, 10) AS a
+        |WITH a AS a, a / 2 + 5 AS b, a % 3 AS g
+        |WITH g AS g, min(a) AS a, max(b) AS b
+        |  ORDER BY min(a) + max(b) ASCENDING
+        |RETURN g AS g, a AS a, b AS b
+      """.stripMargin
+    )
+  }
+
+  test(
+    "UNWIND range(1, 10) AS a WITH a, a / 2 + 5 AS b, a % 3 AS g RETURN g, avg(a) AS a, count(*) AS b  ORDER BY (a + b)"
+  ) {
+    assertRewrite(
+      """UNWIND range(1, 10) AS a
+        |WITH a, a / 2 + 5 AS b, a % 3 AS g
+        |RETURN g, avg(a) AS a, count(*) AS b
+        |  ORDER BY (a + b)
+      """.stripMargin,
+      """UNWIND range(1, 10) AS a
+        |WITH a AS a, a / 2 + 5 AS b, a % 3 AS g
+        |RETURN g AS g, avg(a) AS a, count(*) AS b
+        |  ORDER BY a + b ASCENDING
+      """.stripMargin
+    )
+  }
+
+  test(
+    "UNWIND range(1, 10) AS a WITH a, a / 2 + 5 AS b, a % 3 AS g WITH g, avg(a) AS a, count(*) AS b  ORDER BY (a + b) RETURN g, a, b"
+  ) {
+    assertRewrite(
+      """UNWIND range(1, 10) AS a
+        |WITH a, a / 2 + 5 AS b, a % 3 AS g
+        |WITH g, avg(a) AS a, count(*) AS b
+        |  ORDER BY (a + b)
+        |RETURN g, a, b
+      """.stripMargin,
+      """UNWIND range(1, 10) AS a
+        |WITH a AS a, a / 2 + 5 AS b, a % 3 AS g
+        |WITH g AS g, avg(a) AS a, count(*) AS b
+        |  ORDER BY a + b ASCENDING
+        |RETURN g AS g, a AS a, b AS b
+      """.stripMargin
+    )
+  }
+
+  test(
+    "UNWIND range(1, 10) AS a WITH a, a / 2 + 5 AS b, a % 3 AS g RETURN g, sum(a) AS a, sum(b) AS b ORDER BY sum(a), count(b)"
+  ) {
+    assertRewrite(
+      """UNWIND range(1, 10) AS a
+        |WITH a, a / 2 + 5 AS b, a % 3 AS g
+        |RETURN g, sum(a) AS a, count(b) AS b
+        |  ORDER BY sum(a), count(b)
+      """.stripMargin,
+      """UNWIND range(1, 10) AS a
+        |WITH a AS a, a / 2 + 5 AS b, a % 3 AS g
+        |RETURN g AS g, sum(a) AS a, count(b) AS b
+        |  ORDER BY a ASCENDING, b ASCENDING
+      """.stripMargin
+    )
+  }
+
+  test(
+    "UNWIND range(1, 10) AS a WITH a, a / 2 + 5 AS b, a % 3 AS g WIHT g, sum(a) AS a, sum(b) AS b ORDER BY sum(a), count(b) RETURN g, a, b"
+  ) {
+    assertRewrite(
+      """UNWIND range(1, 10) AS a
+        |WITH a, a / 2 + 5 AS b, a % 3 AS g
+        |WITH g, sum(a) AS a, count(b) AS b
+        |  ORDER BY sum(a), count(b)
+        |RETURN g, a, b
+      """.stripMargin,
+      """UNWIND range(1, 10) AS a
+        |WITH a AS a, a / 2 + 5 AS b, a % 3 AS g
+        |WITH g AS g, sum(a) AS a, count(b) AS b
+        |  ORDER BY a ASCENDING, b ASCENDING
+        |RETURN g AS g, a AS a, b AS b
+      """.stripMargin
+    )
+  }
+
   test("MATCH (a) WITH a WHERE true return a") {
     assertRewrite(
       """MATCH (a)
@@ -1795,13 +1940,21 @@ class NormalizeWithAndReturnClausesTest extends CypherFunSuite with RewriteTest 
     val original = parseForRewriting(originalQuery.replace("\r\n", "\n"))
     val expected = parseForRewriting(expectedQuery.replace("\r\n", "\n"))
     val result = endoRewrite(original, originalQuery)
+    val actualCypher = prettifier.asString(result)
     assert(
       result === expected,
       s"""
-    $originalQuery
-    should be rewritten to:
-    $expectedQuery
-    but was rewritten to:${prettifier.asString(result)}"""
+          $originalQuery
+
+          should be rewritten to:
+          $expectedQuery
+
+          but was rewritten to:
+          $actualCypher
+
+          diff (expected -> actual):
+          ${DiffPrinter.render(expectedQuery, actualCypher)}
+          """
     )
     result.semanticCheck.run(
       SemanticState.clean.withFeature(MultipleDatabases),

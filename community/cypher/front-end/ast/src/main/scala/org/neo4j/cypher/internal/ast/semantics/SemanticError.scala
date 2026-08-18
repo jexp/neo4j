@@ -838,14 +838,7 @@ object SemanticError {
   }
 
   def invalidReferenceInSubclauseExpression(variables: Seq[String], position: InputPosition): SemanticError = {
-    val gql = ErrorGqlStatusObjectImplementation.from(GqlStatusInfoCodes.STATUS_42001)
-      .atPosition(position.offset, position.line, position.column)
-      .withCause(ErrorGqlStatusObjectImplementation.from(GqlStatusInfoCodes.STATUS_42I79)
-        .atPosition(position.offset, position.line, position.column)
-        .withParam(GqlParams.ListParam.variableList, variables.asJava)
-        .build())
-      .build()
-
+    val gql = GqlHelper.getGql42001_42I79(variables.asJava, position.offset, position.line, position.column)
     val errorMsg = gql.getMessage
     SemanticError(gql, errorMsg, position)
   }

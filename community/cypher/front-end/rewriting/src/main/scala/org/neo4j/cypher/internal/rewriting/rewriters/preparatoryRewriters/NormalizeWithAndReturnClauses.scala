@@ -306,7 +306,7 @@ case class NormalizeWithAndReturnClauses(
       case Some(alias) if !existingAliases.valuesIterator.contains(expression) =>
         alias.copyId.withPosition(expression.position)
       case _ =>
-        val newExpression = expression.endoRewrite(topDown(
+        expression.endoRewrite(topDown(
           Rewriter.lift {
             case subExpression: Expression =>
               existingAliases.get(subExpression) match {
@@ -317,7 +317,6 @@ case class NormalizeWithAndReturnClauses(
           },
           _.isInstanceOf[ScopeExpression]
         ))
-        newExpression
     }
   }
 

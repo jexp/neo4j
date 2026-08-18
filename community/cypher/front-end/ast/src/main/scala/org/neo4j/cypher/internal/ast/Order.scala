@@ -17,14 +17,16 @@
 package org.neo4j.cypher.internal.ast
 
 import org.neo4j.cypher.internal.ast.AmbiguousAggregation.notProjectedAggregationExpression
+import org.neo4j.cypher.internal.ast.AmbiguousAggregation.potentiallyRedefined
 import org.neo4j.cypher.internal.ast.prettifier.ExpressionStringifier
+import org.neo4j.cypher.internal.ast.semantics.*
 import org.neo4j.cypher.internal.ast.semantics.SemanticCheck
 import org.neo4j.cypher.internal.ast.semantics.SemanticCheckable
 import org.neo4j.cypher.internal.ast.semantics.SemanticError
 import org.neo4j.cypher.internal.ast.semantics.SemanticExpressionCheck
 import org.neo4j.cypher.internal.ast.semantics.SemanticPatternCheck
-import org.neo4j.cypher.internal.ast.semantics._
 import org.neo4j.cypher.internal.expressions.Expression
+import org.neo4j.cypher.internal.expressions.LogicalVariable
 import org.neo4j.cypher.internal.expressions.Property
 import org.neo4j.cypher.internal.util.ASTNode
 import org.neo4j.cypher.internal.util.InputPosition
@@ -34,12 +36,20 @@ case class OrderBy(sortItems: Seq[SortItem])(val position: InputPosition) extend
   override def semanticCheck: SemanticCheck = sortItems.semanticCheck
 
   def checkIllegalOrdering(returnItems: ReturnItems): Option[SemanticError] = {
-    val aggregationItems = returnItems.items
+    val rawAggregationItems = returnItems.items
       .filter(item => item.expression.containsAggregate)
       .map(_.expression)
-      .toSet
 
-    if (aggregationItems.nonEmpty) {
+    if (rawAggregationItems.nonEmpty) {
+      // An aggregation item only counts as "already projected" for a sort item that references it under
+      // the same variable bindings. If some other item of this clause redefines a variable the aggregation
+      // depends on, the match is coincidental (see potentiallyRedefined), and the sort item's use of that
+      // aggregation must be treated as not projected, not silently accepted.
+      val aliasMap: Map[Expression, LogicalVariable] = returnItems.items.collect {
+        case AliasedReturnItem(expression, variable) => expression -> variable
+      }.toMap
+      val aggregationItems = rawAggregationItems.filterNot(potentiallyRedefined(_, aliasMap)).toSet
+
       val illegalSortItems =
         sortItems.flatMap(sortItem => notProjectedAggregationExpression(sortItem.expression, aggregationItems))
 
