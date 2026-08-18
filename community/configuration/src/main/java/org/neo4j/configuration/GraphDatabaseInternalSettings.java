@@ -59,7 +59,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.neo4j.annotations.service.ServiceProvider;
-import org.neo4j.graphdb.config.Configuration;
 import org.neo4j.graphdb.config.Setting;
 import org.neo4j.logging.log4j.LogConfig;
 import org.neo4j.memory.HeapEstimatorCacheConfig;
@@ -1648,39 +1647,8 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
 
     @Internal
     @Description("Whether the transaction log is merged with replication log.")
-    public static final Setting<Boolean> merged_log = newBuilder("internal.dbms.merged_log", BOOL, false)
-            .immutable()
-            .addConstraint(new SettingConstraint<>() {
-                @Override
-                public void validate(Boolean value, Configuration config) {
-                    if (value) {
-                        if (!config.get(GraphDatabaseInternalSettings.merge_log_on_latest)) {
-                            if (config.get(GraphDatabaseInternalSettings.latest_kernel_version) != (byte) 254) {
-                                throw new IllegalArgumentException("Merged log can only be enabled when '"
-                                        + GraphDatabaseInternalSettings.latest_kernel_version.name()
-                                        + "' is set to GLORIOUS_FUTURE (254)");
-                            }
-                            if (config.get(GraphDatabaseInternalSettings.latest_runtime_version) != Integer.MAX_VALUE) {
-                                throw new IllegalArgumentException("Merged log can only be enabled when '"
-                                        + GraphDatabaseInternalSettings.latest_runtime_version.name()
-                                        + "' is set to GLORIOUS_FUTURE (Integer.MAX_VALUE)");
-                            }
-                        }
-                    }
-                }
-
-                @Override
-                public String getDescription() {
-                    return "merged log is a development feature that requires other future settings to be enabled";
-                }
-            })
-            .build();
-
-    @Internal
-    @Description(
-            "Enables merge log entries and marshalling on KernelVersion.LATEST rather than requiring KernelVersion.GLORIOUS_FUTURE")
-    public static final Setting<Boolean> merge_log_on_latest =
-            newBuilder("internal.dbms.merged_log_on_latest", BOOL, false).build();
+    public static final Setting<Boolean> merged_log =
+            newBuilder("internal.dbms.merged_log", BOOL, false).build();
 
     @Internal
     @Description("""

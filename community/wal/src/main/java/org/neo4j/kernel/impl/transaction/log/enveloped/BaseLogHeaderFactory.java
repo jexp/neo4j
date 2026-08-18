@@ -54,7 +54,7 @@ public class BaseLogHeaderFactory implements LogHeaderFactory {
             long newFileVersion, long lastAppendIndex, int lastChecksum, int segmentSize, long preFileTerm) {
         storeIdentifierFinalized.set(true);
         KernelVersion version = getCurrentDatabaseVersion();
-        Config envelopeEnabledConfig = Config.defaults(GraphDatabaseInternalSettings.merge_log_on_latest, true);
+        Config envelopeEnabledConfig = Config.defaults(GraphDatabaseInternalSettings.merged_log, true);
         LogFormat logFormat = LogFormat.fromConfigAndKernelVersion(envelopeEnabledConfig, version);
         if (!logFormat.usesSegments()) {
             throw new IllegalArgumentException("Unable to find enveloped LogFormat for KernelVersion=" + version
@@ -74,10 +74,6 @@ public class BaseLogHeaderFactory implements LogHeaderFactory {
     @Override
     public void setVersion(KernelVersion databaseVersion) {
         this.currentAppendedDatabaseVersion = databaseVersion;
-    }
-
-    public boolean isCurrentVersion(KernelVersion databaseVersion) {
-        return currentAppendedDatabaseVersion == databaseVersion;
     }
 
     @Override

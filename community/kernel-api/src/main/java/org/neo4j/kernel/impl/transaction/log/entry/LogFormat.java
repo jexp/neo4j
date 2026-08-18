@@ -665,10 +665,7 @@ public enum LogFormat {
             return logFormat;
         }
 
-        // We check both settings because BaseLogHeaderFactory uses a synthetic config to create headers that doesn't
-        // force merged_log if it's not already on
-        if (config.get(GraphDatabaseInternalSettings.merged_log)
-                || config.get(GraphDatabaseInternalSettings.merge_log_on_latest)) {
+        if (config.get(GraphDatabaseInternalSettings.merged_log)) {
             return V11;
         }
 

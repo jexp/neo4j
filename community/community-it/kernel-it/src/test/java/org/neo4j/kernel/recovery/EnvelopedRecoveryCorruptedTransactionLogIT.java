@@ -33,7 +33,6 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -185,15 +184,10 @@ class EnvelopedRecoveryCorruptedTransactionLogIT extends RecoveryCorruptedTransa
                 Arguments.of(badStoreId, true, false));
     }
 
-    @Disabled("TODO MERGELOG: Enable when Merged Log functionality is out of transitory state.")
     @ParameterizedTest()
     @MethodSource("provideStoreIdAndMode")
     void checkStoreIdValidationLogic(StoreId storeId, boolean mergeLog, boolean shouldStart) throws IOException {
         Map<Setting<?>, Object> extraConfig = Map.of(
-                GraphDatabaseInternalSettings.latest_kernel_version,
-                KernelVersion.GLORIOUS_FUTURE.version(),
-                GraphDatabaseInternalSettings.latest_runtime_version,
-                DbmsRuntimeVersion.GLORIOUS_FUTURE.getVersion(),
                 GraphDatabaseInternalSettings.merged_log,
                 mergeLog,
                 GraphDatabaseInternalSettings.allow_new_log_format_on_upgrade_or_create,
