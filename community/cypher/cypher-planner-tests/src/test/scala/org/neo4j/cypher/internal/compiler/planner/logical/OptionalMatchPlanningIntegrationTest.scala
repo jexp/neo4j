@@ -32,6 +32,7 @@ import org.neo4j.cypher.internal.compiler.planner.LogicalPlanningTestSupport2
 import org.neo4j.cypher.internal.compiler.planner.LogicalPlanningTestSupport2.QueryGraphSolverSetup
 import org.neo4j.cypher.internal.compiler.planner.LogicalPlanningTestSupport2.QueryGraphSolverWithGreedyConnectComponents
 import org.neo4j.cypher.internal.compiler.planner.LogicalPlanningTestSupport2.QueryGraphSolverWithIDPConnectComponents
+import org.neo4j.cypher.internal.compiler.planner.StatisticsBackedLogicalPlanningConfigurationBuilder
 import org.neo4j.cypher.internal.compiler.planner.logical.plans.rewriter.unnestOptional
 import org.neo4j.cypher.internal.expressions.Ands
 import org.neo4j.cypher.internal.expressions.LogicalVariable
@@ -47,6 +48,7 @@ import org.neo4j.cypher.internal.logical.plans.CartesianProduct
 import org.neo4j.cypher.internal.logical.plans.DirectedAllRelationshipsScan
 import org.neo4j.cypher.internal.logical.plans.Expand
 import org.neo4j.cypher.internal.logical.plans.Expand.ExpandAll
+import org.neo4j.cypher.internal.logical.plans.GetValue
 import org.neo4j.cypher.internal.logical.plans.IndexOrderAscending
 import org.neo4j.cypher.internal.logical.plans.IndexOrderNone
 import org.neo4j.cypher.internal.logical.plans.LeftOuterHashJoin
@@ -1276,4 +1278,115 @@ abstract class OptionalMatchPlanningIntegrationTest(queryGraphSolverSetup: Query
         .build()
     )
   }
+
+  private def doesNotExistPlannerBuilder(): StatisticsBackedLogicalPlanningConfigurationBuilder = {
+    plannerBuilder()
+      .setAllNodesCardinality(100)
+      .setLabelCardinality("DoesNotExist", 0)
+  }
+
+  test("optional should solve interesting order by variable") {
+    val planner = doesNotExistPlannerBuilder().build()
+
+    val q =
+      """
+        |OPTIONAL MATCH (n:DoesNotExist)
+        |WHERE n.prop > 123
+        |RETURN n AS result
+        |ORDER BY result
+        |""".stripMargin
+
+    val plan = planner.plan(q).stripProduceResults
+    plan shouldEqual planner.subPlanBuilder()
+      .projection("n AS result")
+      .optional()
+      .filter("n.prop > 123")
+      .nodeByLabelScan("n", "DoesNotExist", IndexOrderAscending)
+      .build()
+  }
+
+  test("optional should solve interesting order by indexed property") {
+    val planner = doesNotExistPlannerBuilder()
+      .addNodeIndex("DoesNotExist", Seq("prop"), existsSelectivity = 1.0, uniqueSelectivity = 1.0)
+      .build()
+
+    val q =
+      """
+        |OPTIONAL MATCH (n:DoesNotExist)
+        |WHERE n.prop IS NOT NULL
+        |RETURN n.prop AS result
+        |ORDER BY result
+        |""".stripMargin
+
+    val plan = planner.plan(q).stripProduceResults
+    plan shouldEqual planner.subPlanBuilder()
+      .projection("cacheN[n.prop] AS result")
+      .optional()
+      .nodeIndexOperator("n:DoesNotExist(prop)", indexOrder = IndexOrderAscending, getValue = _ => GetValue)
+      .build()
+  }
+
+  test("optional should solve interesting order by unindexed property") {
+    val planner = doesNotExistPlannerBuilder().build()
+
+    val q =
+      """
+        |OPTIONAL MATCH (n:DoesNotExist)
+        |WHERE n.prop > 123
+        |RETURN n.name AS result
+        |ORDER BY result
+        |""".stripMargin
+
+    val plan = planner.plan(q).stripProduceResults
+    plan shouldEqual planner.subPlanBuilder()
+      .optional()
+      .sort("result ASC")
+      .projection("n.name AS result")
+      .filter("n.prop > 123")
+      .nodeByLabelScan("n", "DoesNotExist")
+      .build()
+  }
+
+  test("optional should not solve interesting order containing coalesce") {
+    val planner = doesNotExistPlannerBuilder().build()
+
+    val q =
+      """
+        |OPTIONAL MATCH (n:DoesNotExist)
+        |WHERE n.prop > 123
+        |RETURN coalesce(n.name, '<empty>') AS v
+        |ORDER BY v
+        |""".stripMargin
+
+    val plan = planner.plan(q).stripProduceResults
+    plan shouldEqual planner.subPlanBuilder()
+      .sort("v ASC")
+      .projection("coalesce(cacheN[n.name], '<empty>') AS v")
+      .optional()
+      .cacheProperties("cacheNFromStore[n.name]")
+      .filter("n.prop > 123")
+      .nodeByLabelScan("n", "DoesNotExist")
+      .build()
+  }
+
+  test("optional should not solve interesting order containing property access on complex expression") {
+    val planner = doesNotExistPlannerBuilder().build()
+    val q =
+      """
+        |OPTIONAL MATCH (n:DoesNotExist)
+        |WHERE n.prop > 123
+        |RETURN coalesce(n, {name: '<empty>'}).name AS v
+        |ORDER BY v
+        |""".stripMargin
+
+    val plan = planner.plan(q).stripProduceResults
+    plan shouldEqual planner.subPlanBuilder()
+      .sort("v ASC")
+      .projection("coalesce(n, {name: '<empty>'}).name AS v")
+      .optional()
+      .filter("n.prop > 123")
+      .nodeByLabelScan("n", "DoesNotExist")
+      .build()
+  }
+
 }

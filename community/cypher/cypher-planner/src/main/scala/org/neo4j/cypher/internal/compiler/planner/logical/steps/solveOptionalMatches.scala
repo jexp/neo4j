@@ -24,9 +24,11 @@ import org.neo4j.cypher.internal.compiler.planner.logical.LogicalPlanningContext
 import org.neo4j.cypher.internal.compiler.planner.logical.idp.BestResults
 import org.neo4j.cypher.internal.compiler.planner.logical.ordering.InterestingOrderConfig
 import org.neo4j.cypher.internal.compiler.planner.logical.plans.rewriter.unnestOptional
+import org.neo4j.cypher.internal.expressions.LogicalProperty
 import org.neo4j.cypher.internal.expressions.LogicalVariable
 import org.neo4j.cypher.internal.ir.QueryGraph
 import org.neo4j.cypher.internal.ir.helpers.CachedFunction
+import org.neo4j.cypher.internal.ir.ordering.ColumnOrder
 import org.neo4j.cypher.internal.logical.plans.AggregatingPlan
 import org.neo4j.cypher.internal.logical.plans.CachedProperties
 import org.neo4j.cypher.internal.logical.plans.LogicalLeafPlan
@@ -77,7 +79,29 @@ case object ApplyOptionalSolverFactory extends OptionalSolverFactory {
     interestingOrderConfig: InterestingOrderConfig,
     context: LogicalPlanningContext
   ): OptionalSolverFactory.Solver = {
-    new ApplyOptionalSolver(optionalQg, enclosingQg, interestingOrderConfig, context)
+    new ApplyOptionalSolver(optionalQg, enclosingQg, keepOnlyKnownNullInNullOutColumns(interestingOrderConfig), context)
+  }
+
+  /**
+   * Projecting literals, coalesce(), IS NOT NULL, etc, under Optional might incorrectly set the result to NULL.
+   */
+  private def keepOnlyKnownNullInNullOutColumns(interestingOrderConfig: InterestingOrderConfig)
+    : InterestingOrderConfig = {
+
+    def knownNullInNullOutExpression(co: ColumnOrder): Boolean = {
+      ColumnOrder.projectExpression(co.expression, co.projections) match {
+        case _: LogicalVariable                     => true
+        case LogicalProperty(_: LogicalVariable, _) => true
+        case _                                      => false
+      }
+    }
+
+    InterestingOrderConfig(
+      orderToReportAndSolve =
+        interestingOrderConfig
+          .orderToSolve // we don't verify solved InterestingOrder for Optional anyway
+          .mapOrderCandidates(_.takeWhile(knownNullInNullOutExpression))
+    )
   }
 
   private class ApplyOptionalSolver(
@@ -93,7 +117,7 @@ case object ApplyOptionalSolverFactory extends OptionalSolverFactory {
     private def doPlan(previouslyCachedProperties: CachedProperties): BestPlans = {
       context.staticComponents.queryGraphSolver.plan(
         optionalQg,
-        removeColumnsWithoutDependencies(interestingOrderConfig),
+        interestingOrderConfig,
         innerContext.withModifiedPlannerState(_.withPreviouslyCachedProperties(previouslyCachedProperties))
       )
     }
@@ -102,11 +126,7 @@ case object ApplyOptionalSolverFactory extends OptionalSolverFactory {
     // This case is handled separately, since non-sharded databases will never have previously cached properties.
     // This should avoid the overhead of the cache function and any regressions in planning times for non-sharded deployments.
     private lazy val innerPlanWithoutPreviouslyCachedProperties: BestPlans =
-      context.staticComponents.queryGraphSolver.plan(
-        optionalQg,
-        removeColumnsWithoutDependencies(interestingOrderConfig),
-        innerContext
-      )
+      context.staticComponents.queryGraphSolver.plan(optionalQg, interestingOrderConfig, innerContext)
 
     private val cachedPlanInnerOfOptionalMatch = CachedFunction(doPlan _)
 
@@ -181,18 +201,6 @@ case object ApplyOptionalSolverFactory extends OptionalSolverFactory {
       }
     }
 
-    /**
-     * Projecting a column without dependencies under Optional might incorrectly set it to NULL.
-     */
-    private def removeColumnsWithoutDependencies(interestingOrderConfig: InterestingOrderConfig)
-      : InterestingOrderConfig = {
-      InterestingOrderConfig(
-        orderToReportAndSolve =
-          interestingOrderConfig
-            .orderToSolve // we don't verify solved InterestingOrder for Optional anyway
-            .mapOrderCandidates(_.takeWhile(column => column.dependencies.nonEmpty))
-      )
-    }
   }
 }
 
