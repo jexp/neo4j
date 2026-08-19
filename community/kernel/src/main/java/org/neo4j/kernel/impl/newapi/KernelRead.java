@@ -143,7 +143,7 @@ public class KernelRead implements Read {
                 index -> indexingService.getIndexProxy(index).newValueReader());
         this.tokenIndexReaderCache = new IndexReaderCache<>(
                 index -> indexingService.getIndexProxy(index).newTokenReader());
-        this.entityCounter = new EntityCounter(multiVersioned);
+        this.entityCounter = new EntityCounter(multiVersioned, assertOpen);
         this.applyAccessModeToTxState = multiVersioned;
         this.multiVersioned = multiVersioned;
         this.assertOpen = assertOpen;
@@ -856,6 +856,7 @@ public class KernelRead implements Read {
 
     @Override
     public long countsForNode(int labelId) {
+        performCheckBeforeOperation();
         return entityCounter.countsForNode(
                 labelId,
                 getAccessMode(),
@@ -880,6 +881,7 @@ public class KernelRead implements Read {
 
     @Override
     public long countsForRelationship(int startLabelId, int typeId, int endLabelId) {
+        performCheckBeforeOperation();
         return entityCounter.countsForRelationship(
                 startLabelId,
                 typeId,

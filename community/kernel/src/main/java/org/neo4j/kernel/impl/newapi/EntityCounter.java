@@ -44,6 +44,7 @@ import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.internal.schema.IndexType;
 import org.neo4j.internal.schema.SchemaDescriptors;
 import org.neo4j.io.pagecache.context.CursorContext;
+import org.neo4j.kernel.api.AssertOpen;
 import org.neo4j.kernel.api.txstate.TransactionState;
 import org.neo4j.kernel.api.txstate.TxStateHolder;
 import org.neo4j.memory.MemoryTracker;
@@ -55,14 +56,19 @@ import org.neo4j.token.api.TokenConstants;
 
 final class EntityCounter {
 
+    // Specifies how often we should verify that the transaction is still open
+    private static final int CHECK_TX_INTERVAL = 100_000;
+
     private final boolean multiVersioned;
+    private final AssertOpen assertOpen;
 
     /**
      * Mulitversioned counter should return counts matching transaction visibility rules, which is impossible to get from
      * the current countstore. If {@param multiVersioned} is true all counting will by done via store or token index scan if possible.
      */
-    public EntityCounter(boolean multiVersioned) {
+    public EntityCounter(boolean multiVersioned, AssertOpen assertOpen) {
         this.multiVersioned = multiVersioned;
+        this.assertOpen = assertOpen;
     }
 
     long countsForNode(
@@ -119,7 +125,7 @@ final class EntityCounter {
         return count;
     }
 
-    private static long countNodesByScan(
+    private long countNodesByScan(
             int labelId, CursorFactory cursors, CursorContext cursorContext, MemoryTracker memoryTracker, Read read) {
         // We have a restriction on what part of the graph can be traversed, that can affect nodes with the
         // specified label.
@@ -128,10 +134,14 @@ final class EntityCounter {
         // We cannot use a NodeLabelScan without an expensive post-filtering, since it is not guaranteed that all
         // nodes with the label can be traversed.
         long count = 0;
+        long scanned = 0;
         // DefaultNodeCursor already contains traversal checks within next()
         try (NodeCursor nodes = cursors.allocateNodeCursor(cursorContext, memoryTracker)) {
             read.allNodesScan(nodes);
             while (nodes.next()) {
+                if ((++scanned % CHECK_TX_INTERVAL) == 0) {
+                    assertOpen.assertOpen();
+                }
                 if (labelId == TokenConstants.ANY_LABEL || nodes.hasLabel(labelId)) {
                     count++;
                 }
@@ -247,14 +257,18 @@ final class EntityCounter {
         return IndexDescriptor.NO_INDEX;
     }
 
-    private static long countRelationshipsWithEndLabels(
+    private long countRelationshipsWithEndLabels(
             RelationshipIndexCursor relationship,
             NodeCursor sourceNode,
             NodeCursor targetNode,
             int startLabelId,
             int endLabelId) {
         long internalCount = 0;
+        long scanned = 0;
         while (relationship.next()) {
+            if ((++scanned % CHECK_TX_INTERVAL) == 0) {
+                assertOpen.assertOpen();
+            }
             if (relationship.readFromStore()
                     && matchesLabels(relationship, sourceNode, targetNode, startLabelId, endLabelId)) {
                 internalCount++;
@@ -263,14 +277,18 @@ final class EntityCounter {
         return internalCount;
     }
 
-    private static long countRelationshipsWithEndLabels(
+    private long countRelationshipsWithEndLabels(
             RelationshipScanCursor relationship,
             NodeCursor sourceNode,
             NodeCursor targetNode,
             int startLabelId,
             int endLabelId) {
         long internalCount = 0;
+        long scanned = 0;
         while (relationship.next()) {
+            if ((++scanned % CHECK_TX_INTERVAL) == 0) {
+                assertOpen.assertOpen();
+            }
             if (matchesLabels(relationship, sourceNode, targetNode, startLabelId, endLabelId)) {
                 internalCount++;
             }
