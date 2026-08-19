@@ -2221,7 +2221,8 @@
         </property>
       </activation>
       <properties>
-        <forkCounts>1C</forkCounts>
+        <forkCounts>${parallel.forkCounts}</forkCounts>
+        <parallel.forkCounts>1C</parallel.forkCounts>
         <parallel.tests>true</parallel.tests>
         <reuseForks>true</reuseForks>
       </properties>
