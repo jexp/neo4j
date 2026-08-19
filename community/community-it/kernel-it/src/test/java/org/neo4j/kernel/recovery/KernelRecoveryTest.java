@@ -45,6 +45,7 @@ import org.neo4j.kernel.impl.transaction.log.LogicalTransactionStore;
 import org.neo4j.kernel.impl.transaction.log.TransactionCommitmentFactory;
 import org.neo4j.kernel.impl.transaction.tracing.TransactionWriteEvent;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.memory.EmptyMemoryTracker;
 import org.neo4j.storageengine.api.LogMetadataProvider;
 import org.neo4j.storageengine.api.StorageEngine;
 import org.neo4j.storageengine.api.TransactionApplicationMode;
@@ -120,7 +121,8 @@ class KernelRecoveryTest {
                                 commitmentFactory.newCommitment(),
                                 transactionIdGenerator),
                         TransactionWriteEvent.NULL,
-                        TransactionApplicationMode.EXTERNAL);
+                        TransactionApplicationMode.EXTERNAL,
+                        EmptyMemoryTracker.INSTANCE);
             }
         }
     }

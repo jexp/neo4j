@@ -118,7 +118,7 @@ public final class DefaultCommitter implements TransactionCommitter {
                 // Transaction id will need to be extracted from result object when that is available to work regardless
                 // mode and log merge progress
                 try {
-                    return commitProcess.commit(batch, transactionWriteEvent, mode);
+                    return commitProcess.commit(batch, transactionWriteEvent, mode, memoryTracker);
                 } finally {
                     monitor.afterApply();
                 }

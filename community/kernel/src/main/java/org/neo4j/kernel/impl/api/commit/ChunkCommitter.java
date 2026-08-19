@@ -177,7 +177,7 @@ public final class ChunkCommitter implements TransactionCommitter {
 
                     ChunkedCommandBatch chunk = new ChunkedCommandBatch(extractedCommands, chunkMetadata);
                     transaction.init(chunk);
-                    commitProcess.commit(transaction, transactionWriteEvent, mode);
+                    commitProcess.commit(transaction, transactionWriteEvent, mode, memoryTracker);
 
                     // transaction chunk commit completed
                     transactionPayload = transaction;
@@ -218,7 +218,7 @@ public final class ChunkCommitter implements TransactionCommitter {
                 validateCurrentKernelVersion();
                 prepareRollBackEntry();
                 if (isSingleInstance()) {
-                    chunkedRollbackProcess.rollbackChunks(transactionPayload, rollbackEvent);
+                    chunkedRollbackProcess.rollbackChunks(transactionPayload, rollbackEvent, ktx.memoryTracker());
                 }
                 writeRollbackEntry(rollbackEvent);
             } catch (Exception e) {
@@ -249,7 +249,7 @@ public final class ChunkCommitter implements TransactionCommitter {
     private void writeRollbackEntry(TransactionRollbackEvent transactionRollbackEvent)
             throws TransactionFailureException {
         try (var writeEvent = transactionRollbackEvent.beginRollbackWriteEvent()) {
-            commitProcess.commit(transactionPayload, writeEvent, INTERNAL);
+            commitProcess.commit(transactionPayload, writeEvent, INTERNAL, ktx.memoryTracker());
         }
     }
 

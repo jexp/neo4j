@@ -53,6 +53,7 @@ import org.neo4j.kernel.impl.transaction.log.CompleteCommandBatch;
 import org.neo4j.kernel.impl.transaction.log.TransactionCommitmentFactory;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.lock.LockTracer;
+import org.neo4j.memory.EmptyMemoryTracker;
 import org.neo4j.storageengine.api.CommandCreationContext;
 import org.neo4j.storageengine.api.Leases;
 import org.neo4j.storageengine.api.StorageEngine;
@@ -103,7 +104,7 @@ public class CommitProcessTracingIT {
         try (var cursorContext = contextFactory.create("tracePageCacheAccessOnCommandCreation");
                 var reader = storageEngine.newReader()) {
             assertZeroCursor(cursorContext);
-            try (CommandCreationContext context = storageEngine.newCommandCreationContext(false);
+            try (CommandCreationContext context = storageEngine.newCommandCreationContext(false, INSTANCE);
                     var storeCursors = storageEngine.createStorageCursors(cursorContext)) {
                 context.initialize(
                         kernelVersionProvider,
@@ -154,7 +155,8 @@ public class CommitProcessTracingIT {
                             transactionCommitmentFactory.newCommitment(),
                             transactionIdGenerator),
                     NULL,
-                    EXTERNAL);
+                    EXTERNAL,
+                    EmptyMemoryTracker.INSTANCE);
 
             assertCursor(cursorContext, 1);
         }

@@ -67,7 +67,7 @@ public interface StorageEngine extends ReadableStorageEngine, Lifecycle {
      * {@link #createCommands(ReadableTransactionState, StorageReader, CommandCreationContext, LockTracer, Decorator, CursorContext, StoreCursors, MemoryTracker)}.
      * Must be {@link CommandCreationContext#close() closed} after used, before being discarded.
      */
-    CommandCreationContext newCommandCreationContext(boolean multiVersioned);
+    CommandCreationContext newCommandCreationContext(boolean multiVersioned, MemoryTracker memoryTracker);
 
     /**
      * Create multi versioned stores transaction validator factory. Validator factory produces noop validators in all other engines.
@@ -78,7 +78,7 @@ public interface StorageEngine extends ReadableStorageEngine, Lifecycle {
 
     /**
      * Adds an {@link IndexUpdateListener} which will receive streams of index updates from changes that gets
-     * {@link #apply(StorageEngineTransaction, TransactionApplicationMode) applied} to this storage engine.
+     * {@link #apply(StorageEngineTransaction, TransactionApplicationMode, MemoryTracker) applied} to this storage engine.
      * @param indexUpdateListener {@link IndexUpdateListener} to add.
      */
     void addIndexUpdateListener(IndexUpdateListener indexUpdateListener);
@@ -87,7 +87,7 @@ public interface StorageEngine extends ReadableStorageEngine, Lifecycle {
      * Generates a list of {@link StorageCommand commands} representing the changes in the given transaction state
      * ({@code state}.
      * The returned commands can be used to form {@link StorageEngineTransaction} batches, which can be applied to this
-     * storage using {@link #apply(StorageEngineTransaction, TransactionApplicationMode)}.
+     * storage using {@link #apply(StorageEngineTransaction, TransactionApplicationMode, MemoryTracker)}.
      * The reason this is separated like this is that the generated commands can be used for other things
      * than applying to storage, f.ex replicating to another storage engine.
      * @param state {@link ReadableTransactionState} representing logical store changes to generate commands for.
@@ -144,9 +144,12 @@ public interface StorageEngine extends ReadableStorageEngine, Lifecycle {
      *
      * @param batch batch of groups of commands to apply to storage.
      * @param mode {@link TransactionApplicationMode} when applying.
+     * @param memoryTracker memory tracker of the transaction the batch belongs to, where memory allocated while
+     * applying the batch is registered.
      * @throws Exception if an error occurs during application.
      */
-    void apply(StorageEngineTransaction batch, TransactionApplicationMode mode) throws Exception;
+    void apply(StorageEngineTransaction batch, TransactionApplicationMode mode, MemoryTracker memoryTracker)
+            throws Exception;
 
     /**
      * Called for a transaction to release any storage engine resources on close

@@ -395,7 +395,8 @@ public class KernelTransactionImplementation
         this.readOnlyDatabaseChecker = readOnlyDatabaseChecker;
         this.transactionIdGenerator = transactionIdGenerator;
         this.databaseHealth = databaseHealth;
-        this.transactionMemoryPool = new TransactionMemoryPool(dbTransactionsPool, config, () -> !closed, logProvider);
+        this.transactionMemoryPool = new TransactionMemoryPool(
+                dbTransactionsPool, config, () -> !closed || (startTimeMillis != Long.MAX_VALUE), logProvider);
         this.memoryTracker = transactionMemoryPool.getTransactionTracker();
         this.constraintIndexCreator = constraintIndexCreator;
         this.commitProcess = commitProcess;
@@ -403,7 +404,7 @@ public class KernelTransactionImplementation
         this.transactionMonitor = transactionMonitor;
         this.transactionExecutionMonitor = transactionExecutionMonitor;
         this.storageReader = storageEngine.newReader();
-        this.commandCreationContext = storageEngine.newCommandCreationContext(multiVersioned);
+        this.commandCreationContext = storageEngine.newCommandCreationContext(multiVersioned, memoryTracker);
         this.kernelVersionProvider = kernelVersionProvider;
         this.serverIdentity = serverIdentity;
         this.enrichmentStrategy = enrichmentStrategy;

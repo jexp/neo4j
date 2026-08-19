@@ -58,6 +58,7 @@ import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.impl.store.record.NodeRecord;
 import org.neo4j.lock.Lock;
 import org.neo4j.lock.LockService;
+import org.neo4j.memory.EmptyMemoryTracker;
 import org.neo4j.monitoring.DatabaseHealth;
 import org.neo4j.storageengine.api.CommandBatch;
 import org.neo4j.storageengine.api.StorageCommand;
@@ -117,7 +118,8 @@ class RecordStorageEngineTest {
         when(commandBatch.commandCount()).thenReturn(1);
         when(storageEngineTransaction.commandBatch()).thenReturn(commandBatch);
 
-        assertThatThrownBy(() -> engine.apply(storageEngineTransaction, TransactionApplicationMode.INTERNAL))
+        assertThatThrownBy(() -> engine.apply(
+                        storageEngineTransaction, TransactionApplicationMode.INTERNAL, EmptyMemoryTracker.INSTANCE))
                 .rootCause()
                 .isEqualTo(failure);
 
@@ -201,7 +203,7 @@ class RecordStorageEngineTest {
                 return null;
             });
             // when
-            engine.apply(storageEngineTransaction, TransactionApplicationMode.INTERNAL);
+            engine.apply(storageEngineTransaction, TransactionApplicationMode.INTERNAL, EmptyMemoryTracker.INSTANCE);
 
             // then
             InOrder inOrder = inOrder(lockService, applierCloseCall, nodeLock);
@@ -249,7 +251,8 @@ class RecordStorageEngineTest {
     private static Exception executeFailingTransaction(RecordStorageEngine engine) throws IOException {
         Exception applicationError = new UnderlyingStorageException("No space left on device");
         StorageEngineTransaction txToApply = newTransactionThatFailsWith(applicationError);
-        assertThatThrownBy(() -> engine.apply(txToApply, TransactionApplicationMode.INTERNAL))
+        assertThatThrownBy(
+                        () -> engine.apply(txToApply, TransactionApplicationMode.INTERNAL, EmptyMemoryTracker.INSTANCE))
                 .rootCause()
                 .isSameAs(applicationError);
         return applicationError;

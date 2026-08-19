@@ -157,7 +157,7 @@ class KernelTransactionTestBase {
     public void before() throws Exception {
         collectionsFactory = Mockito.spy(new TestCollectionsFactory());
         when(storageEngine.newReader()).thenReturn(storageReader);
-        when(storageEngine.newCommandCreationContext(anyBoolean())).thenReturn(commandCreationContext);
+        when(storageEngine.newCommandCreationContext(anyBoolean(), any())).thenReturn(commandCreationContext);
         when(storageEngine.logMetadataProvider()).thenReturn(metadataProvider);
         when(storageEngine.createStorageCursors(any())).thenReturn(StoreCursors.NULL);
         when(storageEngine.createCommands(
@@ -334,7 +334,8 @@ class KernelTransactionTestBase {
         public long commit(
                 StorageEngineTransaction batch,
                 TransactionWriteEvent transactionWriteEvent,
-                TransactionApplicationMode mode) {
+                TransactionApplicationMode mode,
+                MemoryTracker memoryTracker) {
             transactions.add(batch.commandBatch());
             return ++appendIndex;
         }

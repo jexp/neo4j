@@ -22,7 +22,6 @@ package org.neo4j.kernel.impl.api;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.stream.Collectors.toSet;
 import static org.neo4j.configuration.GraphDatabaseInternalSettings.shutdown_terminated_transaction_wait_timeout;
-import static org.neo4j.configuration.GraphDatabaseSettings.memory_transaction_database_max_size;
 import static org.neo4j.configuration.GraphDatabaseSettings.shutdown_transaction_end_timeout;
 import static org.neo4j.io.pagecache.PageCacheOpenOptions.MULTI_VERSIONED;
 import static org.neo4j.kernel.api.exceptions.Status.Transaction.LeaseExpired;
@@ -95,7 +94,6 @@ import org.neo4j.kernel.internal.event.DatabaseTransactionEventListeners;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
-import org.neo4j.memory.GlobalMemoryGroupTracker;
 import org.neo4j.memory.ScopedMemoryPool;
 import org.neo4j.monitoring.DatabaseHealth;
 import org.neo4j.monitoring.ExceptionHandlerService;
@@ -128,7 +126,6 @@ public class KernelTransactions extends LifecycleAdapter
     private final TransactionRollbackProcess rollbackProcess;
     private final DatabaseTransactionEventListeners eventListeners;
     private final TransactionMonitor transactionMonitor;
-    private final GlobalMemoryGroupTracker transactionsMemoryPool;
     private final TransactionExecutionMonitor transactionExecutionMonitor;
     private final AvailabilityGuard databaseAvailabilityGuard;
     private final StorageEngine storageEngine;
@@ -187,7 +184,7 @@ public class KernelTransactions extends LifecycleAdapter
     private final TransactionStateBehaviour transactionStateBehaviour;
     private final Log log;
     private final DatabaseMonitors databaseMonitors;
-    private ScopedMemoryPool transactionMemoryPool;
+    private final ScopedMemoryPool transactionMemoryPool;
 
     /**
      * Kernel transactions component status. True when stopped, false when started.
@@ -225,7 +222,7 @@ public class KernelTransactions extends LifecycleAdapter
             Dependencies databaseDependencies,
             DatabaseTracers tracers,
             LeaseService leaseService,
-            GlobalMemoryGroupTracker transactionsMemoryPool,
+            ScopedMemoryPool transactionMemoryPool,
             DatabaseReadOnlyChecker readOnlyDatabaseChecker,
             TransactionExecutionMonitor transactionExecutionMonitor,
             IdController.IdFreeCondition externalIdReuseCondition,
@@ -246,7 +243,7 @@ public class KernelTransactions extends LifecycleAdapter
         this.rollbackProcess = rollbackProcess;
         this.eventListeners = eventListeners;
         this.transactionMonitor = transactionMonitor;
-        this.transactionsMemoryPool = transactionsMemoryPool;
+        this.transactionMemoryPool = transactionMemoryPool;
         this.transactionExecutionMonitor = transactionExecutionMonitor;
         this.databaseAvailabilityGuard = databaseAvailabilityGuard;
         this.storageEngine = storageEngine;
@@ -463,23 +460,6 @@ public class KernelTransactions extends LifecycleAdapter
     }
 
     @Override
-    public void init() throws Exception {
-        if (namedDatabaseId.equals(NamedDatabaseId.NAMED_SYSTEM_DATABASE_ID)) {
-            this.transactionMemoryPool = transactionsMemoryPool.newSystemDatabasePool(
-                    namedDatabaseId.name(),
-                    config.get(memory_transaction_database_max_size),
-                    memory_transaction_database_max_size.name());
-        } else {
-            this.transactionMemoryPool = transactionsMemoryPool.newDatabasePool(
-                    namedDatabaseId.name(),
-                    config.get(memory_transaction_database_max_size),
-                    memory_transaction_database_max_size.name());
-        }
-        config.addListener(
-                memory_transaction_database_max_size, (before, after) -> transactionMemoryPool.setSize(after));
-    }
-
-    @Override
     public void start() {
         stopped = false;
         unblockNewTransactions();
@@ -542,8 +522,7 @@ public class KernelTransactions extends LifecycleAdapter
     @Override
     public void shutdown() {
         // All transaction should be terminated/awaited to complete on stop
-        try (var tempMemoryPool = transactionMemoryPool;
-                var tempTxPool = txPool) {
+        try (var tempTxPool = txPool) {
         } finally {
             unblockNewTransactions(); // Release the lock before we discard this object
         }

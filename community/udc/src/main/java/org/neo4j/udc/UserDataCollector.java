@@ -20,7 +20,6 @@
 package org.neo4j.udc;
 
 import static java.lang.String.valueOf;
-import static java.util.Objects.requireNonNull;
 import static org.neo4j.configuration.GraphDatabaseInternalSettings.udc_initial_delay_ms;
 import static org.neo4j.configuration.GraphDatabaseInternalSettings.udc_network_enabled;
 import static org.neo4j.configuration.GraphDatabaseInternalSettings.udc_report_interval_ms;
@@ -80,6 +79,7 @@ public class UserDataCollector extends LifecycleAdapter {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     public static final String CLUSTER_SIZE_KEY = "clusterSize";
     private static final String PACKAGING_VARIABLE = "NEO4J_UDC_PACKAGING";
+    private static final String UNKNOWN = "unknown";
 
     private final Config config;
     private final Edition edition;
@@ -302,7 +302,10 @@ public class UserDataCollector extends LifecycleAdapter {
         Path packagingInfoFile = config.get(neo4j_home).resolve(PackagingDiagnostics.PACKAGING_INFO_FILENAME);
         try {
             List<String> lines = FileSystemUtils.readLines(fs, packagingInfoFile, EmptyMemoryTracker.INSTANCE);
-            for (String line : requireNonNull(lines)) {
+            if (lines == null) {
+                return UNKNOWN;
+            }
+            for (String line : lines) {
                 if (line.startsWith("Package Type:")) {
                     return line.substring("Package Type:".length()).trim();
                 }
@@ -310,6 +313,6 @@ public class UserDataCollector extends LifecycleAdapter {
         } catch (Exception e) {
             return "error";
         }
-        return "unknown";
+        return UNKNOWN;
     }
 }

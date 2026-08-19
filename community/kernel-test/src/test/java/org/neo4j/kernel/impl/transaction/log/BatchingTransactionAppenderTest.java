@@ -105,6 +105,7 @@ import org.neo4j.kernel.impl.transaction.log.rotation.LogRotation;
 import org.neo4j.kernel.impl.transaction.tracing.TransactionWriteEvent;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.logging.NullLogProvider;
+import org.neo4j.memory.EmptyMemoryTracker;
 import org.neo4j.monitoring.DatabaseHealth;
 import org.neo4j.monitoring.Panic;
 import org.neo4j.storageengine.api.CommandBatch;
@@ -524,7 +525,10 @@ class BatchingTransactionAppenderTest {
             CompleteTransaction batch = new CompleteTransaction(
                     transaction, NULL_CONTEXT, StoreCursors.NULL, transactionCommitment, transactionIdGenerator);
             assertThatThrownBy(() -> commitProcess.commit(
-                            batch, TransactionWriteEvent.NULL, TransactionApplicationMode.EXTERNAL))
+                            batch,
+                            TransactionWriteEvent.NULL,
+                            TransactionApplicationMode.EXTERNAL,
+                            EmptyMemoryTracker.INSTANCE))
                     .rootCause()
                     .hasMessageContaining(
                             "Received commands batch with txId:11 to be applied, but appending it ended up generating an unexpected txId:42");

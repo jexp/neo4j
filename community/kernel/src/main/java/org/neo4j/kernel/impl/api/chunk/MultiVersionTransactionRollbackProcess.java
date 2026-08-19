@@ -28,6 +28,7 @@ import org.neo4j.kernel.impl.transaction.CommittedCommandBatchRepresentation;
 import org.neo4j.kernel.impl.transaction.log.CommandBatchCursor;
 import org.neo4j.kernel.impl.transaction.log.LogicalTransactionStore;
 import org.neo4j.kernel.impl.transaction.tracing.TransactionRollbackEvent;
+import org.neo4j.memory.MemoryTracker;
 import org.neo4j.storageengine.api.StorageEngine;
 import org.neo4j.storageengine.api.TransactionApplicationMode;
 
@@ -42,7 +43,8 @@ public final class MultiVersionTransactionRollbackProcess implements Transaction
     }
 
     @Override
-    public void rollbackChunks(ChunkedTransaction chunkedTransaction, TransactionRollbackEvent rollbackEvent)
+    public void rollbackChunks(
+            ChunkedTransaction chunkedTransaction, TransactionRollbackEvent rollbackEvent, MemoryTracker memoryTracker)
             throws Exception {
         long transactionIdToRollback = chunkedTransaction.transactionId();
         long chunksToRollback = chunkedTransaction.chunkId() - 1;
@@ -54,6 +56,7 @@ public final class MultiVersionTransactionRollbackProcess implements Transaction
                 chunkedTransaction.cursorContext(),
                 chunkedTransaction.storeCursors());
         try (var rollbackDataEvent = rollbackEvent.beginRollbackDataEvent()) {
+            memoryTracker.setTrackingOnly(true);
             while (rolledbackBatches != chunksToRollback) {
                 validateBatchIndex(
                         nextBatchToRollbackIndex, chunksToRollback, rolledbackBatches, transactionIdToRollback);
@@ -71,7 +74,8 @@ public final class MultiVersionTransactionRollbackProcess implements Transaction
                             .cursorContext()
                             .getVersionContext()
                             .initChunkId(commandBatch.commandBatch().chunkId());
-                    storageEngine.apply(rollbackChunkedTransaction, TransactionApplicationMode.MVCC_ROLLBACK);
+                    storageEngine.apply(
+                            rollbackChunkedTransaction, TransactionApplicationMode.MVCC_ROLLBACK, memoryTracker);
                     rolledbackBatches++;
                     nextBatchToRollbackIndex = commandBatch.previousBatchAppendIndex();
                 }
@@ -82,6 +86,8 @@ public final class MultiVersionTransactionRollbackProcess implements Transaction
                         chunksToRollback, transactionIdToRollback, nextBatchToRollbackIndex));
             }
             rollbackDataEvent.batchedRolledBack(chunksToRollback, transactionIdToRollback);
+        } finally {
+            memoryTracker.setTrackingOnly(false);
         }
     }
 

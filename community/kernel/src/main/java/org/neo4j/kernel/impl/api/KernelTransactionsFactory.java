@@ -48,7 +48,7 @@ import org.neo4j.kernel.impl.query.TransactionExecutionMonitor;
 import org.neo4j.kernel.impl.transaction.log.TransactionCommitmentFactory;
 import org.neo4j.kernel.internal.event.DatabaseTransactionEventListeners;
 import org.neo4j.logging.LogProvider;
-import org.neo4j.memory.GlobalMemoryGroupTracker;
+import org.neo4j.memory.ScopedMemoryPool;
 import org.neo4j.monitoring.DatabaseHealth;
 import org.neo4j.monitoring.ExceptionHandlerService;
 import org.neo4j.resources.CpuClock;
@@ -89,7 +89,7 @@ public interface KernelTransactionsFactory {
             Dependencies databaseDependencies,
             DatabaseTracers tracers,
             LeaseService leaseService,
-            GlobalMemoryGroupTracker transactionsMemoryPool,
+            ScopedMemoryPool transactionMemoryPool,
             DatabaseReadOnlyChecker readOnlyDatabaseChecker,
             TransactionExecutionMonitor transactionExecutionMonitor,
             IdController.IdFreeCondition externalIdReuseCondition,

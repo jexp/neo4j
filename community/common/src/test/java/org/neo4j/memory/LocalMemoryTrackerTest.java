@@ -173,4 +173,47 @@ class LocalMemoryTrackerTest {
         // then
         assertThat(leakedMemory.longValue()).isEqualTo(leakedAmount);
     }
+
+    @Test
+    void trackingOnlyDoesNotThrowOnLocalHeapLimit() {
+        var memoryTracker = new LocalMemoryTracker(NO_TRACKING, 10, 0, "settingName");
+        memoryTracker.setTrackingOnly(true);
+
+        memoryTracker.allocateHeap(100);
+
+        assertThat(memoryTracker.estimatedHeapMemory()).isEqualTo(100);
+    }
+
+    @Test
+    void trackingOnlyDoesNotThrowOnLocalNativeLimit() {
+        var memoryTracker = new LocalMemoryTracker(NO_TRACKING, 10, 0, "settingName");
+        memoryTracker.setTrackingOnly(true);
+
+        memoryTracker.allocateNative(100);
+
+        assertThat(memoryTracker.usedNativeMemory()).isEqualTo(100);
+    }
+
+    @Test
+    void trackingOnlyStillChargesThePool() {
+        var pool = new MemoryPoolImpl(5, true, "poolSetting");
+        var tracker = new LocalMemoryTracker(pool, 10, 0, "localSetting");
+        tracker.setTrackingOnly(true);
+
+        tracker.allocateHeap(10);
+
+        assertThat(tracker.estimatedHeapMemory()).isEqualTo(10);
+        assertThat(pool.usedHeap()).isEqualTo(10);
+    }
+
+    @Test
+    void resetClearsTrackingOnly() {
+        var memoryTracker = new LocalMemoryTracker(NO_TRACKING, 10, 0, "settingName");
+        memoryTracker.setTrackingOnly(true);
+        memoryTracker.allocateHeap(100);
+        memoryTracker.releaseHeap(100);
+        memoryTracker.reset();
+
+        assertThatThrownBy(() -> memoryTracker.allocateHeap(100)).isInstanceOf(MemoryLimitExceededException.class);
+    }
 }

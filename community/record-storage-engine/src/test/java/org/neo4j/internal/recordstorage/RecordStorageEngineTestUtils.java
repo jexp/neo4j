@@ -121,7 +121,7 @@ public class RecordStorageEngineTestUtils {
         KernelVersionProvider kernelVersionProvider = storageEngine.logMetadataProvider();
         CursorContext cursorContext = NULL_CONTEXT;
         try (RecordStorageCommandCreationContext commandCreationContext =
-                        storageEngine.newCommandCreationContext(false);
+                        storageEngine.newCommandCreationContext(false, EmptyMemoryTracker.INSTANCE);
                 StoreCursors storeCursors = new CachedStoreCursors(neoStores, cursorContext)) {
             commandCreationContext.initialize(
                     kernelVersionProvider,
@@ -144,7 +144,8 @@ public class RecordStorageEngineTestUtils {
                             txIdStore.nextCommittingTransactionId(),
                             storeCursors,
                             commands.toArray(new StorageCommand[0])),
-                    TransactionApplicationMode.EXTERNAL);
+                    TransactionApplicationMode.EXTERNAL,
+                    EmptyMemoryTracker.INSTANCE);
         }
     }
 }

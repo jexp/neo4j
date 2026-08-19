@@ -22,6 +22,7 @@ package org.neo4j.kernel.impl.api;
 import org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.kernel.impl.transaction.tracing.TransactionWriteEvent;
+import org.neo4j.memory.MemoryTracker;
 import org.neo4j.storageengine.api.StorageEngineTransaction;
 import org.neo4j.storageengine.api.TransactionApplicationMode;
 
@@ -39,9 +40,10 @@ public class DatabaseTransactionCommitProcess implements TransactionCommitProces
     public long commit(
             StorageEngineTransaction batch,
             TransactionWriteEvent transactionWriteEvent,
-            TransactionApplicationMode mode)
+            TransactionApplicationMode mode,
+            MemoryTracker memoryTracker)
             throws TransactionFailureException {
         readOnlyDatabaseChecker.check();
-        return commitProcess.commit(batch, transactionWriteEvent, mode);
+        return commitProcess.commit(batch, transactionWriteEvent, mode, memoryTracker);
     }
 }

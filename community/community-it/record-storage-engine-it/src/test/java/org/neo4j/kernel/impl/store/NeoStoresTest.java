@@ -477,7 +477,7 @@ class NeoStoresTest {
 
     private void commitTx() throws Exception {
         CursorContext cursorContext = NULL_CONTEXT;
-        try (CommandCreationContext commandCreationContext = storageEngine.newCommandCreationContext(false);
+        try (CommandCreationContext commandCreationContext = storageEngine.newCommandCreationContext(false, INSTANCE);
                 var storeCursors = storageEngine.createStorageCursors(NULL_CONTEXT)) {
             commandCreationContext.initialize(
                     LatestVersions.LATEST_KERNEL_VERSION_PROVIDER,
@@ -507,7 +507,8 @@ class NeoStoresTest {
                     AUTH_DISABLED);
             storageEngine.apply(
                     new CompleteTransaction(tx, cursorContext, storeCursors, NO_COMMITMENT, transactionIdGenerator),
-                    INTERNAL);
+                    INTERNAL,
+                    EmptyMemoryTracker.INSTANCE);
         }
     }
 

@@ -21,6 +21,7 @@ package org.neo4j.kernel.impl.api;
 
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.kernel.impl.transaction.tracing.TransactionWriteEvent;
+import org.neo4j.memory.MemoryTracker;
 import org.neo4j.storageengine.api.CommandBatch;
 import org.neo4j.storageengine.api.StorageEngineTransaction;
 import org.neo4j.storageengine.api.TransactionApplicationMode;
@@ -42,12 +43,15 @@ public interface TransactionCommitProcess {
      * @param batch batch of commands to commit.
      * @param transactionWriteEvent {@link TransactionWriteEvent} for traceability.
      * @param mode The {@link TransactionApplicationMode} to use when applying these transactions.
+     * @param memoryTracker memory tracker of the transaction the batch belongs to, where memory allocated while
+     * applying the batch is registered.
      * @return append index of the last committed command batch in the provided batch.
      * @throws TransactionFailureException If the commit process fails.
      */
     long commit(
             StorageEngineTransaction batch,
             TransactionWriteEvent transactionWriteEvent,
-            TransactionApplicationMode mode)
+            TransactionApplicationMode mode,
+            MemoryTracker memoryTracker)
             throws TransactionFailureException;
 }

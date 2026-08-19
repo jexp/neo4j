@@ -88,6 +88,11 @@ public class LocalMemoryTracker implements LimitedMemoryTracker {
      */
     private long heapHighWaterMark;
 
+    /**
+     * Flag for the tracking only mode when memory is tracked, but no OOM exceptions are thrown
+     */
+    private boolean trackingOnly;
+
     public LocalMemoryTracker() {
         this(NO_TRACKING);
     }
@@ -125,10 +130,15 @@ public class LocalMemoryTracker implements LimitedMemoryTracker {
 
         this.allocatedBytesNative += bytes;
 
-        if (allocatedBytesHeap + allocatedBytesNative > localBytesLimit) {
+        if (!trackingOnly && allocatedBytesHeap + allocatedBytesNative > localBytesLimit) {
             allocatedBytesNative -= bytes;
             throw MemoryLimitExceededException.transactionMemoryLimitExceeded(
                     bytes, localBytesLimit, allocatedBytesHeap + allocatedBytesNative, limitSettingName);
+        }
+
+        if (trackingOnly) {
+            memoryPool.reserveNativeNoThrow(bytes);
+            return;
         }
 
         try {
@@ -158,7 +168,7 @@ public class LocalMemoryTracker implements LimitedMemoryTracker {
 
         allocatedBytesHeap += bytes;
 
-        if (allocatedBytesHeap + allocatedBytesNative > localBytesLimit) {
+        if (!trackingOnly && allocatedBytesHeap + allocatedBytesNative > localBytesLimit) {
             allocatedBytesHeap -= bytes;
             throw MemoryLimitExceededException.transactionMemoryLimitExceeded(
                     bytes, localBytesLimit, allocatedBytesHeap + allocatedBytesNative, limitSettingName);
@@ -170,11 +180,16 @@ public class LocalMemoryTracker implements LimitedMemoryTracker {
 
         if (allocatedBytesHeap > localHeapPool) {
             long grab = max(bytes, grabSize);
-            try {
-                reserveHeapFromPool(grab);
-            } catch (MemoryLimitExceededException t) {
-                allocatedBytesHeap -= bytes;
-                throw t;
+            if (trackingOnly) {
+                memoryPool.reserveHeapNoThrow(grab);
+                localHeapPool += grab;
+            } else {
+                try {
+                    reserveHeapFromPool(grab);
+                } catch (MemoryLimitExceededException t) {
+                    allocatedBytesHeap -= bytes;
+                    throw t;
+                }
             }
         }
     }
@@ -223,7 +238,13 @@ public class LocalMemoryTracker implements LimitedMemoryTracker {
             allocatedBytesHeap = 0;
             allocatedBytesNative = 0;
             heapHighWaterMark = 0;
+            trackingOnly = false;
         }
+    }
+
+    @Override
+    public void setTrackingOnly(boolean trackingOnly) {
+        this.trackingOnly = trackingOnly;
     }
 
     public void checkAllocatedNativeBytes() {

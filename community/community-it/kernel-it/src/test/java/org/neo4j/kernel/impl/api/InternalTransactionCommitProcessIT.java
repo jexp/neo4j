@@ -40,6 +40,7 @@ import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.SimpleTriggerInfo;
 import org.neo4j.kernel.impl.transaction.tracing.TransactionWriteEvent;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.memory.EmptyMemoryTracker;
 import org.neo4j.storageengine.api.TransactionApplicationMode;
 import org.neo4j.storageengine.api.TransactionIdStore;
 import org.neo4j.storageengine.api.cursor.StoreCursors;
@@ -146,7 +147,10 @@ class InternalTransactionCommitProcessIT {
                     return txId;
                 });
         transactionCommitProcess.commit(
-                completeTransaction, TransactionWriteEvent.NULL, TransactionApplicationMode.INTERNAL);
+                completeTransaction,
+                TransactionWriteEvent.NULL,
+                TransactionApplicationMode.INTERNAL,
+                EmptyMemoryTracker.INSTANCE);
 
         long lastRotationTx = checkPointer.forceCheckPoint(new SimpleTriggerInfo("test"));
 

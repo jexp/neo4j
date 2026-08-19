@@ -101,6 +101,12 @@ public class TransactionMemoryPool extends DelegatingMemoryPool implements Scope
     }
 
     @Override
+    public void reserveHeapNoThrow(long bytes) {
+        delegate.reserveHeapNoThrow(bytes);
+        super.reserveHeapNoThrow(bytes);
+    }
+
+    @Override
     public void releaseHeap(long bytes) {
         super.releaseHeap(bytes);
         delegate.releaseHeap(bytes);
@@ -115,6 +121,12 @@ public class TransactionMemoryPool extends DelegatingMemoryPool implements Scope
             delegate.releaseNative(bytes);
             throw e;
         }
+    }
+
+    @Override
+    public void reserveNativeNoThrow(long bytes) {
+        delegate.reserveNativeNoThrow(bytes);
+        super.reserveNativeNoThrow(bytes);
     }
 
     @Override

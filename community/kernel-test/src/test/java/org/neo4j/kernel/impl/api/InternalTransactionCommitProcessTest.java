@@ -60,6 +60,8 @@ import org.neo4j.kernel.impl.transaction.tracing.TransactionWriteEvent;
 import org.neo4j.logging.AssertableLogProvider;
 import org.neo4j.logging.LogAssertions;
 import org.neo4j.logging.NullLogProvider;
+import org.neo4j.memory.EmptyMemoryTracker;
+import org.neo4j.memory.MemoryTracker;
 import org.neo4j.storageengine.api.CommandBatch;
 import org.neo4j.storageengine.api.Leases;
 import org.neo4j.storageengine.api.StorageEngine;
@@ -91,8 +93,8 @@ class InternalTransactionCommitProcessTest {
 
         // WHEN
         var mockedTransaction = mockedTransaction(mock(TransactionIdStore.class));
-        var exceptionAssert = ErrorGqlStatusObjectAssertions.assertThatThrownBy(
-                        () -> commitProcess.commit(mockedTransaction, transactionWriteEvent, INTERNAL))
+        var exceptionAssert = ErrorGqlStatusObjectAssertions.assertThatThrownBy(() -> commitProcess.commit(
+                        mockedTransaction, transactionWriteEvent, INTERNAL, EmptyMemoryTracker.INSTANCE))
                 .isInstanceOf(TransactionFailureException.class)
                 .hasMessageContaining("Could not append transaction: ")
                 .hasGqlStatus(GqlStatusInfoCodes.STATUS_2DN06)
@@ -118,15 +120,18 @@ class InternalTransactionCommitProcessTest {
         IOException rootCause = new IOException("Mock exception");
         doThrow(new IOException(rootCause))
                 .when(storageEngine)
-                .apply(any(StorageEngineTransaction.class), any(TransactionApplicationMode.class));
+                .apply(
+                        any(StorageEngineTransaction.class),
+                        any(TransactionApplicationMode.class),
+                        any(MemoryTracker.class));
 
         TransactionCommitProcess commitProcess = new InternalTransactionCommitProcess(
                 appender, storageEngine, false, commandCommitListeners, () -> true, logProvider);
 
         // WHEN
         var mockedTransaction = mockedTransaction(mock(TransactionIdStore.class));
-        var exceptionAssert = ErrorGqlStatusObjectAssertions.assertThatThrownBy(
-                        () -> commitProcess.commit(mockedTransaction, transactionWriteEvent, INTERNAL))
+        var exceptionAssert = ErrorGqlStatusObjectAssertions.assertThatThrownBy(() -> commitProcess.commit(
+                        mockedTransaction, transactionWriteEvent, INTERNAL, EmptyMemoryTracker.INSTANCE))
                 .isInstanceOf(TransactionFailureException.class)
                 .hasMessageContaining("Could not apply the transaction: ")
                 .hasGqlStatus(GqlStatusInfoCodes.STATUS_2DN05)
@@ -151,7 +156,7 @@ class InternalTransactionCommitProcessTest {
         StorageEngine storageEngine = mock(StorageEngine.class);
         doThrow(new IOException(rootCause))
                 .when(storageEngine)
-                .apply(any(CompleteTransaction.class), any(TransactionApplicationMode.class));
+                .apply(any(CompleteTransaction.class), any(TransactionApplicationMode.class), any(MemoryTracker.class));
         var commandCommitListeners = mock(CommandCommitListeners.class);
         TransactionCommitProcess commitProcess = new InternalTransactionCommitProcess(
                 appender, storageEngine, false, commandCommitListeners, () -> true, NullLogProvider.getInstance());
@@ -160,7 +165,7 @@ class InternalTransactionCommitProcessTest {
         // WHEN
         TransactionFailureException exception = assertThrows(
                 TransactionFailureException.class,
-                () -> commitProcess.commit(transaction, transactionWriteEvent, INTERNAL));
+                () -> commitProcess.commit(transaction, transactionWriteEvent, INTERNAL, EmptyMemoryTracker.INSTANCE));
         assertThat(exception.getMessage()).contains("Could not apply the transaction:");
         assertTrue(contains(exception, rootCause.getMessage(), rootCause.getClass()));
         verify(commandCommitListeners).registerFailure(transaction, exception);
@@ -209,7 +214,8 @@ class InternalTransactionCommitProcessTest {
                 new FakeCommitment(txId, appendIndex, transactionIdStore, true),
                 new IdStoreTransactionIdGenerator(transactionIdStore));
 
-        assertThatThrownBy(() -> commitProcess.commit(transactionToApply, transactionWriteEvent, INTERNAL))
+        assertThatThrownBy(() -> commitProcess.commit(
+                        transactionToApply, transactionWriteEvent, INTERNAL, EmptyMemoryTracker.INSTANCE))
                 .rootCause()
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Append index was not generated for the batch yet.");
@@ -250,7 +256,7 @@ class InternalTransactionCommitProcessTest {
                 StoreCursors.NULL,
                 new FakeCommitment(txId, appendIndex, transactionIdStore, true),
                 new IdStoreTransactionIdGenerator(transactionIdStore));
-        commitProcess.commit(transactionToApply, transactionWriteEvent, INTERNAL);
+        commitProcess.commit(transactionToApply, transactionWriteEvent, INTERNAL, EmptyMemoryTracker.INSTANCE);
 
         verify(transactionIdStore)
                 .transactionCommitted(
@@ -278,8 +284,8 @@ class InternalTransactionCommitProcessTest {
                 appender, storageEngine, true, commandCommitListeners, () -> true, logProvider);
 
         var transaction = mockedTransaction(mock(TransactionIdStore.class));
-        var exceptionAssert = ErrorGqlStatusObjectAssertions.assertThatThrownBy(
-                        () -> commitProcess.commit(transaction, transactionWriteEvent, INTERNAL))
+        var exceptionAssert = ErrorGqlStatusObjectAssertions.assertThatThrownBy(() ->
+                        commitProcess.commit(transaction, transactionWriteEvent, INTERNAL, EmptyMemoryTracker.INSTANCE))
                 .isInstanceOf(TransactionFailureException.class)
                 .hasMessageContaining("Could not preallocate disk space ")
                 .hasGqlStatus(GqlStatusInfoCodes.STATUS_51N59)
@@ -312,8 +318,8 @@ class InternalTransactionCommitProcessTest {
                 appender, storageEngine, true, commandCommitListeners, () -> true, logProvider);
 
         var transaction = mockedTransaction(mock(TransactionIdStore.class));
-        var exceptionAssert = ErrorGqlStatusObjectAssertions.assertThatThrownBy(
-                        () -> commitProcess.commit(transaction, transactionWriteEvent, INTERNAL))
+        var exceptionAssert = ErrorGqlStatusObjectAssertions.assertThatThrownBy(() ->
+                        commitProcess.commit(transaction, transactionWriteEvent, INTERNAL, EmptyMemoryTracker.INSTANCE))
                 .isInstanceOf(TransactionFailureException.class)
                 .hasMessageContaining("Could not preallocate disk space ")
                 .hasGqlStatus(GqlStatusInfoCodes.STATUS_51N59)
@@ -338,7 +344,11 @@ class InternalTransactionCommitProcessTest {
         var commandCommitListeners = mock(CommandCommitListeners.class);
         TransactionCommitProcess commitProcess = new InternalTransactionCommitProcess(
                 appender, storageEngine, false, commandCommitListeners, () -> true, NullLogProvider.getInstance());
-        commitProcess.commit(mockedTransaction(mock(TransactionIdStore.class)), transactionWriteEvent, INTERNAL);
+        commitProcess.commit(
+                mockedTransaction(mock(TransactionIdStore.class)),
+                transactionWriteEvent,
+                INTERNAL,
+                EmptyMemoryTracker.INSTANCE);
 
         verify(storageEngine, never()).preAllocateStoreFilesForCommands(any(), any());
     }

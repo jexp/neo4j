@@ -64,6 +64,13 @@ public interface MemoryTracker extends AutoCloseable, HeapMemoryTracker, HeapEst
     default void allocateHeapNoThrow(long bytes) {}
 
     /**
+     * Enable or disable tracking only mode of memory accounting. In tracking only mode we do memory tracking but no
+     * memory exceptions are thrown
+     * @param trackingOnly new desired state of tracking only mode
+     */
+    default void setTrackingOnly(boolean trackingOnly) {}
+
+    /**
      * Record the release of heap memory. This should be called when we forget about a reference and that particular object will be garbage collected.
      *
      * @param bytes number of released bytes

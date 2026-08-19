@@ -120,6 +120,26 @@ class LocalMemoryTrackerWithPoolTest {
         assertThat(memoryPool.usedHeap()).isLessThan(10);
     }
 
+    @Test
+    void trackingOnlyOverLimitHeapStillFullyReleasedOnReset() {
+        memoryTracker.setTrackingOnly(true);
+        memoryTracker.allocateHeap(LOCAL_LIMIT * 10);
+
+        assertThat(memoryTracker.estimatedHeapMemory()).isEqualTo(LOCAL_LIMIT * 10);
+        assertThat(memoryPool.usedHeap()).isEqualTo(LOCAL_LIMIT * 10);
+    }
+
+    @Test
+    void trackingOnlyOverLimitNativeImmediatelyReleased() {
+        memoryTracker.setTrackingOnly(true);
+        memoryTracker.allocateNative(LOCAL_LIMIT * 10);
+        assertThat(memoryPool.usedNative()).isEqualTo(LOCAL_LIMIT * 10);
+
+        memoryTracker.releaseNative(LOCAL_LIMIT * 10);
+
+        assertThat(memoryPool.usedNative()).isEqualTo(0);
+    }
+
     private void assertReserved(long i) {
         assertEquals(i, memoryPool.usedHeap());
     }

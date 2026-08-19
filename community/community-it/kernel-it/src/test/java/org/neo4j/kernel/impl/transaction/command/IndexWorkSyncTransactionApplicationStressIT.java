@@ -134,7 +134,8 @@ class IndexWorkSyncTransactionApplicationStressIT {
                             storageCursors,
                             commitmentFactory,
                             transactionIdGenerator),
-                    EXTERNAL);
+                    EXTERNAL,
+                    INSTANCE);
         }
 
         // WHEN
@@ -215,7 +216,7 @@ class IndexWorkSyncTransactionApplicationStressIT {
         @Override
         public void run() {
             try (StorageReader reader = storageEngine.newReader();
-                    CommandCreationContext creationContext = storageEngine.newCommandCreationContext(false);
+                    CommandCreationContext creationContext = storageEngine.newCommandCreationContext(false, INSTANCE);
                     var storeCursors = storageEngine.createStorageCursors(NULL_CONTEXT)) {
                 creationContext.initialize(
                         LatestVersions.LATEST_KERNEL_VERSION_PROVIDER,
@@ -226,7 +227,7 @@ class IndexWorkSyncTransactionApplicationStressIT {
                         () -> LockTracer.NONE);
                 TransactionQueue queue = new TransactionQueue(batchSize, tx -> {
                     // Apply
-                    storageEngine.apply(tx, EXTERNAL);
+                    storageEngine.apply(tx, EXTERNAL, INSTANCE);
 
                     // And verify that all nodes are in the index
                     verifyIndex(tx);

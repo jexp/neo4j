@@ -31,6 +31,7 @@ import org.neo4j.kernel.impl.transaction.tracing.StoreApplyEvent;
 import org.neo4j.kernel.impl.transaction.tracing.TransactionWriteEvent;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
+import org.neo4j.memory.MemoryTracker;
 import org.neo4j.storageengine.api.StorageEngine;
 import org.neo4j.storageengine.api.StorageEngineTransaction;
 import org.neo4j.storageengine.api.TransactionApplicationMode;
@@ -62,7 +63,8 @@ public class InternalTransactionCommitProcess implements TransactionCommitProces
     public long commit(
             StorageEngineTransaction batch,
             TransactionWriteEvent transactionWriteEvent,
-            TransactionApplicationMode mode)
+            TransactionApplicationMode mode,
+            MemoryTracker memoryTracker)
             throws TransactionFailureException {
         try {
             if (preAllocateSpaceInStores) {
@@ -73,10 +75,12 @@ public class InternalTransactionCommitProcess implements TransactionCommitProces
             }
 
             long lastAppendIndex = appendToLog(batch, transactionWriteEvent);
+            memoryTracker.setTrackingOnly(true);
             try {
-                applyToStore(batch, transactionWriteEvent, mode);
+                applyToStore(batch, transactionWriteEvent, mode, memoryTracker);
             } finally {
                 close(batch);
+                memoryTracker.setTrackingOnly(false);
             }
 
             commandCommitListeners.registerSuccess(batch);
@@ -99,10 +103,11 @@ public class InternalTransactionCommitProcess implements TransactionCommitProces
     protected void applyToStore(
             StorageEngineTransaction batch,
             TransactionWriteEvent transactionWriteEvent,
-            TransactionApplicationMode mode)
+            TransactionApplicationMode mode,
+            MemoryTracker memoryTracker)
             throws TransactionFailureException {
         try (StoreApplyEvent storeApplyEvent = transactionWriteEvent.beginStoreApply()) {
-            storageEngine.apply(batch, mode);
+            storageEngine.apply(batch, mode, memoryTracker);
         } catch (Throwable cause) {
             throw TransactionFailureException.couldNotApplyTransaction(batch.toString(), cause, log);
         }

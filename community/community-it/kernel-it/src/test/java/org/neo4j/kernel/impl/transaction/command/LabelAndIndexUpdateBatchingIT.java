@@ -42,6 +42,7 @@ import org.neo4j.kernel.impl.transaction.log.LogicalTransactionStore;
 import org.neo4j.kernel.impl.transaction.log.TransactionCommitmentFactory;
 import org.neo4j.kernel.impl.transaction.tracing.TransactionWriteEvent;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.memory.EmptyMemoryTracker;
 import org.neo4j.storageengine.api.LogMetadataProvider;
 import org.neo4j.storageengine.api.StorageEngine;
 import org.neo4j.storageengine.api.TransactionIdStore;
@@ -120,13 +121,17 @@ class LabelAndIndexUpdateBatchingIT {
         try {
             int cutoffIndex = findCutoffIndex(transactions, txIdCutOffPoint);
             commitProcess.commit(
-                    toApply(transactions.subList(0, cutoffIndex), db), TransactionWriteEvent.NULL, EXTERNAL);
+                    toApply(transactions.subList(0, cutoffIndex), db),
+                    TransactionWriteEvent.NULL,
+                    EXTERNAL,
+                    EmptyMemoryTracker.INSTANCE);
 
             // WHEN applying the two transactions (node N and the constraint) in the same batch
             commitProcess.commit(
                     toApply(transactions.subList(cutoffIndex, transactions.size()), db),
                     TransactionWriteEvent.NULL,
-                    EXTERNAL);
+                    EXTERNAL,
+                    EmptyMemoryTracker.INSTANCE);
 
             // THEN node N should've ended up in the index too
             try (Transaction tx = db.beginTx()) {

@@ -142,6 +142,57 @@ class DatabaseMemoryGroupTrackerTest {
         subPool.close();
     }
 
+    @Test
+    void trackingOnlyDoesNotThrowButStillChargesTheParent() {
+        try (var subPool = globalPool.newDatabasePool("pool1", 10, null)) {
+            var memoryTracker = subPool.getPoolMemoryTracker();
+            memoryTracker.setTrackingOnly(true);
+
+            memoryTracker.allocateHeap(101);
+
+            assertEquals(101, subPool.usedHeap());
+            assertEquals(101, memoryTracker.estimatedHeapMemory());
+            assertEquals(101, globalPool.usedHeap());
+        }
+    }
+
+    @Test
+    void resetClearsTrackingOnly() {
+        try (var subPool = globalPool.newDatabasePool("pool1", 10, null)) {
+            var memoryTracker = subPool.getPoolMemoryTracker();
+            memoryTracker.setTrackingOnly(true);
+            memoryTracker.reset();
+
+            assertThrows(MemoryLimitExceededException.class, () -> memoryTracker.allocateHeap(11));
+        }
+    }
+
+    @Test
+    void trackingOnlyOverLimitFullyReleasedOnRelease() {
+        try (var subPool = globalPool.newDatabasePool("pool1", 10, null)) {
+            var memoryTracker = subPool.getPoolMemoryTracker();
+            memoryTracker.setTrackingOnly(true);
+            memoryTracker.allocateHeap(101);
+
+            memoryTracker.releaseHeap(101);
+
+            assertEquals(0, subPool.usedHeap());
+            assertEquals(0, globalPool.usedHeap());
+        }
+    }
+
+    @Test
+    void trackingOnlyOverLimitFullyReleasedOnClose() {
+        var subPool = globalPool.newDatabasePool("pool1", 10, null);
+        var memoryTracker = subPool.getPoolMemoryTracker();
+        memoryTracker.setTrackingOnly(true);
+        memoryTracker.allocateHeap(101);
+
+        subPool.close();
+
+        assertEquals(0, globalPool.usedHeap());
+    }
+
     private static final class AllocationFacade {
         final String name;
         final Function<ScopedMemoryPool, Long> used;

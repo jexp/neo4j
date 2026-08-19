@@ -44,6 +44,7 @@ import org.neo4j.kernel.impl.transaction.tracing.TransactionRollbackEvent;
 import org.neo4j.kernel.impl.transaction.tracing.TransactionWriteEvent;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 import org.neo4j.logging.InternalLog;
+import org.neo4j.memory.MemoryTracker;
 import org.neo4j.monitoring.DatabaseHealth;
 import org.neo4j.storageengine.api.TransactionApplicationMode;
 import org.neo4j.storageengine.api.cursor.StoreCursors;
@@ -62,6 +63,7 @@ public class MultiVersionDatabaseRollbackService extends LifecycleAdapter {
     private final TransactionCommitProcess transactionCommitProcess;
     private final TransactionIdSequence transactionIdSequence;
     private final SystemNanoClock clock;
+    private final MemoryTracker otherMemoryTracker;
     private boolean shutdown;
 
     public MultiVersionDatabaseRollbackService(
@@ -75,7 +77,8 @@ public class MultiVersionDatabaseRollbackService extends LifecycleAdapter {
             DatabaseHealth databaseHealth,
             TransactionCommitProcess transactionCommitProcess,
             TransactionIdSequence transactionIdSequence,
-            SystemNanoClock clock) {
+            SystemNanoClock clock,
+            MemoryTracker otherMemoryTracker) {
         this.kernelTransactions = kernelTransactions;
         this.internalLog = internalLog;
         this.tracers = tracers;
@@ -87,6 +90,7 @@ public class MultiVersionDatabaseRollbackService extends LifecycleAdapter {
         this.transactionCommitProcess = transactionCommitProcess;
         this.transactionIdSequence = transactionIdSequence;
         this.clock = clock;
+        this.otherMemoryTracker = otherMemoryTracker;
     }
 
     public synchronized boolean postLeaseSwitchTransactionCleanup(int leaseId) {
@@ -124,7 +128,7 @@ public class MultiVersionDatabaseRollbackService extends LifecycleAdapter {
                 int rolledBackTransactions = 0;
                 int chunkedOngoingTransactions = 0;
 
-                try {
+                try (var scopedTracker = otherMemoryTracker.getScopedMemoryTracker()) {
                     for (ChunkedTransactionTracker.TransactionInfo transactionInfo : transactionInfos) {
                         if (databaseAvailabilityGuard.isShutdown()) {
                             return false;
@@ -148,7 +152,10 @@ public class MultiVersionDatabaseRollbackService extends LifecycleAdapter {
                             try (TransactionWriteEvent transactionWriteEvent =
                                     transactionRollbackEvent.beginRollbackWriteEvent()) {
                                 transactionCommitProcess.commit(
-                                        chunkedTransaction, transactionWriteEvent, TransactionApplicationMode.INTERNAL);
+                                        chunkedTransaction,
+                                        transactionWriteEvent,
+                                        TransactionApplicationMode.INTERNAL,
+                                        scopedTracker);
                             }
                             chunkedTransactionTracker.cleanupChunkedTransaction(transactionInfo.transactionId());
                         }

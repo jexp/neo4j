@@ -98,14 +98,16 @@ class ParallelRecoveryVisitorTest {
         Barrier.Control barrier = new Barrier.Control();
         RecoveryControllableStorageEngine storageEngine = new RecoveryControllableStorageEngine() {
             @Override
-            public void apply(StorageEngineTransaction batch, TransactionApplicationMode mode) throws Exception {
+            public void apply(
+                    StorageEngineTransaction batch, TransactionApplicationMode mode, MemoryTracker memoryTracker)
+                    throws Exception {
                 long txId = idOf(batch.commandBatch());
                 if (txId == 2) {
                     barrier.reached();
                 } else if (txId == 3) {
                     barrier.awaitUninterruptibly();
                 }
-                super.apply(batch, mode);
+                super.apply(batch, mode, memoryTracker);
                 if (txId == 3) {
                     barrier.release();
                 }
@@ -129,13 +131,15 @@ class ParallelRecoveryVisitorTest {
         // given
         RecoveryControllableStorageEngine storageEngine = new RecoveryControllableStorageEngine() {
             @Override
-            public void apply(StorageEngineTransaction batch, TransactionApplicationMode mode) throws Exception {
+            public void apply(
+                    StorageEngineTransaction batch, TransactionApplicationMode mode, MemoryTracker memoryTracker)
+                    throws Exception {
                 if (idOf(batch.commandBatch()) == 2) {
                     // Just make it very likely that, if the locking wouldn't work as expected, then the test will fail,
                     // but the test will not be flaky if the visitor works as expected.
                     Thread.sleep(50);
                 }
-                super.apply(batch, mode);
+                super.apply(batch, mode, memoryTracker);
             }
         };
 
@@ -166,12 +170,14 @@ class ParallelRecoveryVisitorTest {
             }
 
             @Override
-            public void apply(StorageEngineTransaction batch, TransactionApplicationMode mode) throws Exception {
+            public void apply(
+                    StorageEngineTransaction batch, TransactionApplicationMode mode, MemoryTracker memoryTracker)
+                    throws Exception {
                 long txId = idOf(batch.commandBatch());
                 if (txId > 2) {
                     barrier.awaitUninterruptibly();
                 }
-                super.apply(batch, mode);
+                super.apply(batch, mode, memoryTracker);
                 if (txId == 2) {
                     barrier.reached();
                 }
@@ -200,8 +206,10 @@ class ParallelRecoveryVisitorTest {
         String failure = "Deliberate failure applying transaction";
         RecoveryControllableStorageEngine storageEngine = new RecoveryControllableStorageEngine() {
             @Override
-            public void apply(StorageEngineTransaction batch, TransactionApplicationMode mode) throws Exception {
-                super.apply(batch, mode);
+            public void apply(
+                    StorageEngineTransaction batch, TransactionApplicationMode mode, MemoryTracker memoryTracker)
+                    throws Exception {
+                super.apply(batch, mode, memoryTracker);
                 throw new Exception(failure);
             }
         };
@@ -228,8 +236,10 @@ class ParallelRecoveryVisitorTest {
         String failure = "Deliberate failure applying transaction";
         RecoveryControllableStorageEngine storageEngine = new RecoveryControllableStorageEngine() {
             @Override
-            public void apply(StorageEngineTransaction batch, TransactionApplicationMode mode) throws Exception {
-                super.apply(batch, mode);
+            public void apply(
+                    StorageEngineTransaction batch, TransactionApplicationMode mode, MemoryTracker memoryTracker)
+                    throws Exception {
+                super.apply(batch, mode, memoryTracker);
                 throw new Exception(failure);
             }
         };
@@ -255,9 +265,11 @@ class ParallelRecoveryVisitorTest {
             }
 
             @Override
-            public void apply(StorageEngineTransaction batch, TransactionApplicationMode mode) throws Exception {
+            public void apply(
+                    StorageEngineTransaction batch, TransactionApplicationMode mode, MemoryTracker memoryTracker)
+                    throws Exception {
                 assertThat(Thread.currentThread()).isNotEqualTo(mainRecoveryThread);
-                super.apply(batch, mode);
+                super.apply(batch, mode, memoryTracker);
                 latch.await();
             }
         };
@@ -290,9 +302,11 @@ class ParallelRecoveryVisitorTest {
             }
 
             @Override
-            public void apply(StorageEngineTransaction batch, TransactionApplicationMode mode) throws Exception {
+            public void apply(
+                    StorageEngineTransaction batch, TransactionApplicationMode mode, MemoryTracker memoryTracker)
+                    throws Exception {
                 assertThat(Thread.currentThread()).isNotEqualTo(mainRecoveryThread);
-                super.apply(batch, mode);
+                super.apply(batch, mode, memoryTracker);
                 Thread.sleep(1);
             }
         };
@@ -380,7 +394,8 @@ class ParallelRecoveryVisitorTest {
         }
 
         @Override
-        public void apply(StorageEngineTransaction batch, TransactionApplicationMode mode) throws Exception {
+        public void apply(StorageEngineTransaction batch, TransactionApplicationMode mode, MemoryTracker memoryTracker)
+                throws Exception {
             applyOrder[applyOrderCursor.getAndIncrement()] = idOf(batch.commandBatch());
         }
 
@@ -414,7 +429,7 @@ class ParallelRecoveryVisitorTest {
         }
 
         @Override
-        public CommandCreationContext newCommandCreationContext(boolean multiVersioned) {
+        public CommandCreationContext newCommandCreationContext(boolean multiVersioned, MemoryTracker memoryTracker) {
             throw new UnsupportedOperationException();
         }
 

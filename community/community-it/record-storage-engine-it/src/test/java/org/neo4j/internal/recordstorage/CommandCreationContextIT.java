@@ -25,6 +25,7 @@ import static org.neo4j.graphdb.RelationshipType.withName;
 import static org.neo4j.io.pagecache.context.CursorContext.NULL_CONTEXT;
 import static org.neo4j.kernel.impl.api.FlatRelationshipModifications.singleCreate;
 import static org.neo4j.lock.ResourceLocker.IGNORE;
+import static org.neo4j.memory.EmptyMemoryTracker.INSTANCE;
 
 import java.time.Duration;
 import java.util.function.BiConsumer;
@@ -101,7 +102,7 @@ public class CommandCreationContextIT {
             ToLongFunction<CommandCreationContext> idReservation) {
         try (var cursorContext = contextFactory.create("trackPageCacheAccessOnIdReservation")) {
             prepareIdGenerator(storeProvider.apply(neoStores).getIdGenerator());
-            try (var creationContext = storageEngine.newCommandCreationContext(false)) {
+            try (var creationContext = storageEngine.newCommandCreationContext(false, INSTANCE)) {
                 creationContext.initialize(
                         kernelVersionProvider,
                         cursorContext,
@@ -119,7 +120,7 @@ public class CommandCreationContextIT {
     @MethodSource("commandOperations")
     void trackMemoryAllocationInCommandCreationContext(BiConsumer<TransactionRecordState, ContextHolder> operation) {
         var memoryTracker = new LocalMemoryTracker();
-        try (var commandCreationContext = storageEngine.newCommandCreationContext(false);
+        try (var commandCreationContext = storageEngine.newCommandCreationContext(false, INSTANCE);
                 var storeCursors = storageEngine.createStorageCursors(NULL_CONTEXT)) {
             commandCreationContext.initialize(
                     kernelVersionProvider,

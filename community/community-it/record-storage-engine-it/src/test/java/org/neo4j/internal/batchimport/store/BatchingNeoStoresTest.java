@@ -109,6 +109,7 @@ import org.neo4j.lock.ResourceLocker;
 import org.neo4j.logging.NullLog;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.logging.internal.NullLogService;
+import org.neo4j.memory.EmptyMemoryTracker;
 import org.neo4j.memory.MemoryPools;
 import org.neo4j.memory.MemoryTracker;
 import org.neo4j.monitoring.DatabaseHealth;
@@ -640,7 +641,8 @@ class BatchingNeoStoresTest {
             TxState txState = new TxState();
             var transactionIdGenerator = new IdStoreTransactionIdGenerator(logMetadataProvider);
             NeoStores neoStores = storageEngine.testAccessNeoStores();
-            try (CommandCreationContext commandCreationContext = storageEngine.newCommandCreationContext(false);
+            try (CommandCreationContext commandCreationContext =
+                            storageEngine.newCommandCreationContext(false, INSTANCE);
                     var storeCursors = storageEngine.createStorageCursors(NULL_CONTEXT)) {
                 commandCreationContext.initialize(
                         LatestVersions.LATEST_KERNEL_VERSION_PROVIDER,
@@ -713,7 +715,7 @@ class BatchingNeoStoresTest {
                     storeCursors,
                     NO_COMMITMENT,
                     transactionIdGenerator);
-            storageEngine.apply(apply, TransactionApplicationMode.INTERNAL);
+            storageEngine.apply(apply, TransactionApplicationMode.INTERNAL, EmptyMemoryTracker.INSTANCE);
         }
     }
 

@@ -21,6 +21,7 @@ package org.neo4j.kernel.database;
 
 import static java.lang.String.format;
 import static org.apache.commons.lang3.ArrayUtils.EMPTY_LONG_ARRAY;
+import static org.neo4j.configuration.GraphDatabaseSettings.memory_transaction_database_max_size;
 import static org.neo4j.function.Predicates.alwaysTrue;
 import static org.neo4j.function.ThrowingAction.executeAll;
 import static org.neo4j.internal.helpers.collection.Iterators.asList;
@@ -195,6 +196,7 @@ import org.neo4j.logging.InternalLogProvider;
 import org.neo4j.logging.internal.DatabaseLogProvider;
 import org.neo4j.logging.internal.DatabaseLogService;
 import org.neo4j.memory.GlobalMemoryGroupTracker;
+import org.neo4j.memory.LocalMemoryTracker;
 import org.neo4j.memory.MemoryTracker;
 import org.neo4j.memory.ScopedMemoryPool;
 import org.neo4j.monitoring.Monitors;
@@ -268,6 +270,7 @@ public class Database extends AbstractDatabase {
     private DatabasePageCache databasePageCache;
     private CheckpointerLifecycle checkpointerLifecycle;
     private ScopedMemoryPool otherDatabasePool;
+    private ScopedMemoryPool transactionsDatabasePool;
     private final GraphDatabaseFacade databaseFacade;
     private final FileLockerService fileLockerService;
     private final KernelTransactionFactory kernelTransactionFactory;
@@ -445,6 +448,11 @@ public class Database extends AbstractDatabase {
         life.add(onShutdown(() -> otherDatabasePool.close()));
         otherDatabaseMemoryTracker = otherDatabasePool.getPoolMemoryTracker();
         databaseDependencies.satisfyDependency(new DatabaseMemoryTrackers(otherDatabaseMemoryTracker));
+
+        transactionsDatabasePool = createTransactionsDatabasePool();
+        life.add(onShutdown(() -> transactionsDatabasePool.close()));
+        databaseConfig.addListener(
+                memory_transaction_database_max_size, (before, after) -> transactionsDatabasePool.setSize(after));
 
         life.add(new PageCacheLifecycle(databasePageCache));
         life.add(versionStorage);
@@ -720,7 +728,8 @@ public class Database extends AbstractDatabase {
                 databaseHealth,
                 kernelModule.getTransactionCommitProcess(),
                 transactionIdSequence,
-                clock);
+                clock,
+                otherDatabaseMemoryTracker);
         databaseDependencies.satisfyDependency(multiVersionDatabaseRollbackService);
 
         var rollBackAvailabilityService =
@@ -1230,7 +1239,7 @@ public class Database extends AbstractDatabase {
                 databaseDependencies,
                 tracers,
                 leaseService,
-                transactionsMemoryPool,
+                transactionsDatabasePool,
                 readOnlyDatabaseChecker,
                 transactionExecutionMonitor,
                 externalIdReuseConditionProvider.get(logMetadataProvider, clock),
@@ -1410,9 +1419,8 @@ public class Database extends AbstractDatabase {
         return tracers;
     }
 
-    @Override
-    public MemoryTracker getOtherDatabaseMemoryTracker() {
-        return otherDatabaseMemoryTracker;
+    public MemoryTracker createLocalTransactionsMemoryTracker() {
+        return new LocalMemoryTracker(transactionsDatabasePool);
     }
 
     @Override
@@ -1587,6 +1595,18 @@ public class Database extends AbstractDatabase {
         return isMultiVersioned(storageEngineFactory, namedDatabaseId)
                 ? (() -> kernelModule.get().transactionMonitor().oldestVisibilityHorizon())
                 : OldestVisibilityHorizonFactory.EMPTY_OLDEST_HORIZON_FACTORY;
+    }
+
+    private ScopedMemoryPool createTransactionsDatabasePool() {
+        return isSystem()
+                ? transactionsMemoryPool.newSystemDatabasePool(
+                        namedDatabaseId.name(),
+                        databaseConfig.get(memory_transaction_database_max_size),
+                        memory_transaction_database_max_size.name())
+                : transactionsMemoryPool.newDatabasePool(
+                        namedDatabaseId.name(),
+                        databaseConfig.get(memory_transaction_database_max_size),
+                        memory_transaction_database_max_size.name());
     }
 
     private static boolean isMultiVersioned(

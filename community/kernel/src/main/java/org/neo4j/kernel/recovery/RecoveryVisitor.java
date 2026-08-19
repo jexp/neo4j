@@ -28,6 +28,7 @@ import org.neo4j.kernel.impl.api.chunk.ChunkedTransaction;
 import org.neo4j.kernel.impl.transaction.CommittedCommandBatchRepresentation;
 import org.neo4j.kernel.impl.transaction.CompleteBatchRepresentation;
 import org.neo4j.kernel.impl.transaction.EmptyBatchRepresentation;
+import org.neo4j.memory.EmptyMemoryTracker;
 import org.neo4j.storageengine.api.StorageEngine;
 import org.neo4j.storageengine.api.StorageEngineTransaction;
 import org.neo4j.storageengine.api.TransactionApplicationMode;
@@ -53,7 +54,7 @@ final class RecoveryVisitor implements RecoveryApplier {
     @Override
     public boolean visit(CommittedCommandBatchRepresentation batch) throws Exception {
         StorageEngineTransaction storageEngineTransaction = commandToApply(batch);
-        storageEngine.apply(storageEngineTransaction, mode);
+        storageEngine.apply(storageEngineTransaction, mode, EmptyMemoryTracker.INSTANCE);
         return false;
     }
 

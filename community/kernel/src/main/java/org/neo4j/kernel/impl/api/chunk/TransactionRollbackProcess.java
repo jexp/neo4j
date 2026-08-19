@@ -20,17 +20,23 @@
 package org.neo4j.kernel.impl.api.chunk;
 
 import org.neo4j.kernel.impl.transaction.tracing.TransactionRollbackEvent;
+import org.neo4j.memory.MemoryTracker;
 
 public sealed interface TransactionRollbackProcess
         permits MultiVersionTransactionRollbackProcess, TransactionRollbackProcess.EmptyTransactionRollbackProcess {
     TransactionRollbackProcess EMPTY_ROLLBACK_PROCESS = new EmptyTransactionRollbackProcess();
 
-    void rollbackChunks(ChunkedTransaction chunkedTransaction, TransactionRollbackEvent rollbackEvent) throws Exception;
+    void rollbackChunks(
+            ChunkedTransaction chunkedTransaction, TransactionRollbackEvent rollbackEvent, MemoryTracker memoryTracker)
+            throws Exception;
 
     final class EmptyTransactionRollbackProcess implements TransactionRollbackProcess {
         private EmptyTransactionRollbackProcess() {}
 
         @Override
-        public void rollbackChunks(ChunkedTransaction chunkedTransaction, TransactionRollbackEvent rollbackEvent) {}
+        public void rollbackChunks(
+                ChunkedTransaction chunkedTransaction,
+                TransactionRollbackEvent rollbackEvent,
+                MemoryTracker memoryTracker) {}
     }
 }

@@ -108,7 +108,8 @@ public final class KernelTransactionFactory {
         StorageEngine storageEngine = mock(StorageEngine.class, RETURNS_MOCKS);
         StorageReader storageReader = mock(StorageReader.class);
         when(storageEngine.newReader()).thenReturn(storageReader);
-        when(storageEngine.newCommandCreationContext(anyBoolean())).thenReturn(mock(CommandCreationContext.class));
+        when(storageEngine.newCommandCreationContext(anyBoolean(), any()))
+                .thenReturn(mock(CommandCreationContext.class));
         when(storageEngine.createStorageCursors(any())).thenReturn(StoreCursors.NULL);
 
         var locks = mock(LockManager.class);

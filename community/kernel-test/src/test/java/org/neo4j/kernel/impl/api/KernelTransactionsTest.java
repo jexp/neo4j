@@ -135,10 +135,10 @@ import org.neo4j.lock.LockTracer;
 import org.neo4j.logging.NullLog;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.logging.internal.DatabaseLogProvider;
-import org.neo4j.memory.GlobalMemoryGroupTracker;
 import org.neo4j.memory.MemoryGroup;
 import org.neo4j.memory.MemoryPools;
 import org.neo4j.memory.MemoryTracker;
+import org.neo4j.memory.ScopedMemoryPool;
 import org.neo4j.monitoring.DatabaseHealth;
 import org.neo4j.monitoring.ExceptionHandlerService;
 import org.neo4j.monitoring.Monitors;
@@ -725,37 +725,6 @@ class KernelTransactionsTest {
     }
 
     @Test
-    void shouldRegisterTransactionMemoryPoolOnInit() throws Exception {
-        // given
-        GlobalMemoryGroupTracker memoryPools = new MemoryPools().pool(MemoryGroup.TRANSACTION, 0, null);
-        KernelTransactions transactions = createTransactions(
-                mock(StorageEngine.class, RETURNS_MOCKS),
-                mock(TransactionCommitProcess.class),
-                mock(TransactionIdStore.class),
-                mock(KernelVersionProvider.class),
-                DatabaseTracers.EMPTY,
-                mock(LockManager.class),
-                Clocks.nanoClock(),
-                mock(AvailabilityGuard.class),
-                Config.defaults(),
-                LeaseService.NO_LEASES,
-                memoryPools);
-        assertThat(memoryPools.getDatabasePools()).isEmpty();
-
-        // when
-        transactions.init();
-
-        // then
-        assertThat(memoryPools.getDatabasePools()).hasSize(1);
-
-        // and when
-        transactions.shutdown();
-
-        // then
-        assertThat(memoryPools.getDatabasePools()).hasSize(0);
-    }
-
-    @Test
     void shouldReturnLongMaxAsOldestTxWhenEmpty() throws Throwable {
         KernelTransactions ktxs = newKernelTransactions();
         assertThat(ktxs.getNumberOfActiveTransactions()).isEqualTo(0);
@@ -867,7 +836,8 @@ class KernelTransactionsTest {
 
         StorageEngine storageEngine = mock(StorageEngine.class, RETURNS_MOCKS);
         when(storageEngine.newReader()).thenReturn(firstReader, otherReaders);
-        when(storageEngine.newCommandCreationContext(anyBoolean())).thenReturn(mock(CommandCreationContext.class));
+        when(storageEngine.newCommandCreationContext(anyBoolean(), any()))
+                .thenReturn(mock(CommandCreationContext.class));
         when(storageEngine.createStorageCursors(any())).thenReturn(StoreCursors.NULL);
         when(storageEngine.createCommands(
                         any(ReadableTransactionState.class),
@@ -929,7 +899,7 @@ class KernelTransactionsTest {
                     databaseAvailabilityGuard,
                     config,
                     leaseService,
-                    new MemoryPools().pool(MemoryGroup.TRANSACTION, 0, null));
+                    new MemoryPools().pool(MemoryGroup.TRANSACTION, 0, null).newDatabasePool("test", 0, null));
         }
         life.add(transactions);
         return transactions;
@@ -946,7 +916,7 @@ class KernelTransactionsTest {
             AvailabilityGuard databaseAvailabilityGuard,
             Config config,
             LeaseService leaseService,
-            GlobalMemoryGroupTracker memoryGroupTracker) {
+            ScopedMemoryPool transactionMemoryPool) {
         return new KernelTransactions(
                 config,
                 locks,
@@ -976,7 +946,7 @@ class KernelTransactionsTest {
                 createDependencies(),
                 tracers,
                 leaseService,
-                memoryGroupTracker,
+                transactionMemoryPool,
                 writable(),
                 TransactionExecutionMonitor.NO_OP,
                 snapshot -> true,
@@ -1124,7 +1094,7 @@ class KernelTransactionsTest {
                     databaseDependencies,
                     tracers,
                     leaseService,
-                    new MemoryPools().pool(MemoryGroup.TRANSACTION, 0, null),
+                    new MemoryPools().pool(MemoryGroup.TRANSACTION, 0, null).newDatabasePool("test", 0, null),
                     writable(),
                     TransactionExecutionMonitor.NO_OP,
                     snapshot -> true,

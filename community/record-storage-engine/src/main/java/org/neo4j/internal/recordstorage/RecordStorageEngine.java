@@ -390,7 +390,8 @@ public class RecordStorageEngine implements StorageEngine, Lifecycle {
     }
 
     @Override
-    public RecordStorageCommandCreationContext newCommandCreationContext(boolean multiVersioned) {
+    public RecordStorageCommandCreationContext newCommandCreationContext(
+            boolean multiVersioned, MemoryTracker memoryTracker) {
         return new RecordStorageCommandCreationContext(
                 neoStores, tokenHolders, internalLogProvider, denseNodeThreshold, config, format);
     }
@@ -507,10 +508,11 @@ public class RecordStorageEngine implements StorageEngine, Lifecycle {
     }
 
     @Override
-    public void apply(StorageEngineTransaction batch, TransactionApplicationMode mode) throws Exception {
+    public void apply(StorageEngineTransaction batch, TransactionApplicationMode mode, MemoryTracker memoryTracker)
+            throws Exception {
         TransactionAppliersDispatcherFactory batchApplier = applierDispatcherFactory(mode);
         StorageEngineTransaction initialBatch = batch;
-        try (BatchContext context = createBatchContext(batchApplier, batch)) {
+        try (BatchContext context = createBatchContext(batchApplier, batch, memoryTracker)) {
             while (batch != null) {
                 if (batch.commandBatch().isEmptyTransaction()) {
                     applyEmptyTransaction(batch, mode);
@@ -574,7 +576,9 @@ public class RecordStorageEngine implements StorageEngine, Lifecycle {
     }
 
     private BatchContext createBatchContext(
-            TransactionAppliersDispatcherFactory batchApplier, StorageEngineTransaction initialBatch) {
+            TransactionAppliersDispatcherFactory batchApplier,
+            StorageEngineTransaction initialBatch,
+            MemoryTracker memoryTracker) {
         return new BatchContextImpl(
                 indexUpdateListener,
                 indexUpdatesSync,

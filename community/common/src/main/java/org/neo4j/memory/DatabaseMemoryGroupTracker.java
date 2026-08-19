@@ -79,6 +79,12 @@ public class DatabaseMemoryGroupTracker extends DelegatingMemoryPool implements 
     }
 
     @Override
+    public void reserveHeapNoThrow(long bytes) {
+        parent.reserveHeapNoThrow(bytes);
+        super.reserveHeapNoThrow(bytes);
+    }
+
+    @Override
     public void releaseHeap(long bytes) {
         super.releaseHeap(bytes);
         parent.releaseHeap(bytes);
@@ -97,6 +103,12 @@ public class DatabaseMemoryGroupTracker extends DelegatingMemoryPool implements 
             parent.releaseNative(bytes);
             throw e;
         }
+    }
+
+    @Override
+    public void reserveNativeNoThrow(long bytes) {
+        parent.reserveNativeNoThrow(bytes);
+        super.reserveNativeNoThrow(bytes);
     }
 
     @Override

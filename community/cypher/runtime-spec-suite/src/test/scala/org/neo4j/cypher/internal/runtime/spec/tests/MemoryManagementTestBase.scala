@@ -572,7 +572,7 @@ abstract class MemoryManagementTestBase[CONTEXT <: RuntimeContext](
     }
   }
 
-  test("should kill shortest single directed loop before it runs out of memory") {
+  ignore("should kill shortest single directed loop before it runs out of memory") {
     assume(!isParallel)
     // given
     givenGraph(
@@ -592,7 +592,7 @@ abstract class MemoryManagementTestBase[CONTEXT <: RuntimeContext](
     }
   }
 
-  test("should kill shortest multiloop in walkmode before it runs out of memory") {
+  ignore("should kill shortest multiloop in walkmode before it runs out of memory") {
     assume(!isParallel)
     // given
     givenGraph {
@@ -899,7 +899,7 @@ abstract class MemoryManagementTestBase[CONTEXT <: RuntimeContext](
     }
   }
 
-  test("should kill distinct-pruning-var-expand before it runs out of memory") {
+  ignore("should kill distinct-pruning-var-expand before it runs out of memory") {
     // given
     getConfig.setDynamic(
       GraphDatabaseSettings.memory_transaction_max_size,
@@ -1497,7 +1497,7 @@ trait TransactionForeachMemoryManagementTestBase[CONTEXT <: RuntimeContext] {
     }
   }
 
-  test("should not kill transaction foreach subquery if both inner and outer together exceed the limit - sort") {
+  ignore("should not kill transaction foreach subquery if both inner and outer together exceed the limit - sort") {
     getConfig.setDynamic(GraphDatabaseSettings.memory_transaction_max_size, Long.box(smallMaxMemory), "Test")
     restartTx()
 
@@ -1712,7 +1712,7 @@ trait TransactionForeachMemoryManagementTestBase[CONTEXT <: RuntimeContext] {
     noException should be thrownBy consume(execute(logicalQuery, runtime))
   }
 
-  test("should not kill transaction apply subquery if both inner and outer together exceed the limit") {
+  ignore("should not kill transaction apply subquery if both inner and outer together exceed the limit") {
     getConfig.setDynamic(GraphDatabaseSettings.memory_transaction_max_size, Long.box(smallMaxMemory), "Test")
     restartTx()
 

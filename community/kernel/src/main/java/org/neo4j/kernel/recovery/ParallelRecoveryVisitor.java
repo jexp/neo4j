@@ -38,6 +38,7 @@ import org.neo4j.kernel.impl.api.CompleteTransaction;
 import org.neo4j.kernel.impl.transaction.CommittedCommandBatchRepresentation;
 import org.neo4j.lock.LockService;
 import org.neo4j.lock.ReentrantLockService;
+import org.neo4j.memory.EmptyMemoryTracker;
 import org.neo4j.storageengine.api.StorageEngine;
 import org.neo4j.storageengine.api.TransactionApplicationMode;
 
@@ -161,7 +162,7 @@ final class ParallelRecoveryVisitor implements RecoveryApplier {
         try (CursorContext cursorContext = contextFactory.create(tracerTag);
                 var storeCursors = storageEngine.createStorageCursors(cursorContext)) {
             var tx = new CompleteTransaction(transaction, cursorContext, storeCursors);
-            storageEngine.apply(tx, mode);
+            storageEngine.apply(tx, mode, EmptyMemoryTracker.INSTANCE);
         }
     }
 

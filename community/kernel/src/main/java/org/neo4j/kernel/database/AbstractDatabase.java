@@ -49,7 +49,6 @@ import org.neo4j.kernel.monitoring.DatabaseEventListeners;
 import org.neo4j.logging.InternalLog;
 import org.neo4j.logging.internal.DatabaseLogProvider;
 import org.neo4j.logging.internal.DatabaseLogService;
-import org.neo4j.memory.MemoryTracker;
 import org.neo4j.monitoring.DatabaseHealth;
 import org.neo4j.monitoring.ExceptionHandlerService;
 import org.neo4j.monitoring.Monitors;
@@ -301,8 +300,6 @@ public abstract class AbstractDatabase extends LifecycleAdapter implements Lifec
     public abstract GraphDatabaseAPI getDatabaseAPI();
 
     public abstract DatabaseTracers getTracers();
-
-    public abstract MemoryTracker getOtherDatabaseMemoryTracker();
 
     public abstract StorageEngineFactory getStorageEngineFactory();
 

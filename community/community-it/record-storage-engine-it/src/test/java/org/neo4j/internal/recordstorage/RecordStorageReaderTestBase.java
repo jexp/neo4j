@@ -109,7 +109,7 @@ public abstract class RecordStorageReaderTestBase {
         this.storageEngine = builder.build();
         this.storageReader = storageEngine.newReader();
         this.commitReader = storageEngine.newReader();
-        this.commitContext = storageEngine.newCommandCreationContext(false);
+        this.commitContext = storageEngine.newCommandCreationContext(false, INSTANCE);
         storageCursors = storageEngine.createStorageCursors(NULL_CONTEXT);
         commitContext.initialize(
                 LatestVersions.LATEST_KERNEL_VERSION_PROVIDER,
@@ -328,7 +328,8 @@ public abstract class RecordStorageReaderTestBase {
                 INSTANCE);
         storageEngine.apply(
                 new GroupOfCommands(txId, storageCursors, commands.toArray(new StorageCommand[0])),
-                TransactionApplicationMode.EXTERNAL);
+                TransactionApplicationMode.EXTERNAL,
+                INSTANCE);
     }
 
     protected int labelId(Label label) {

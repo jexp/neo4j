@@ -202,7 +202,8 @@ public abstract class GraphStoreFixture implements AutoCloseable {
                             commitmentFactory.newCommitment(),
                             transactionIdGenerator),
                     TransactionWriteEvent.NULL,
-                    TransactionApplicationMode.EXTERNAL);
+                    TransactionApplicationMode.EXTERNAL,
+                    EmptyMemoryTracker.INSTANCE);
         }
     }
 
