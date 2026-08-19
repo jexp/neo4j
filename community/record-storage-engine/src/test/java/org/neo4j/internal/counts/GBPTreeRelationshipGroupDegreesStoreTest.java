@@ -53,6 +53,7 @@ import org.neo4j.io.pagecache.context.CursorContextFactory;
 import org.neo4j.io.pagecache.impl.muninn.StoreFile;
 import org.neo4j.io.pagecache.tracing.DatabaseFlushEvent;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
+import org.neo4j.kernel.recovery.RecoveryStartupChecker;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.memory.MemoryTracker;
 import org.neo4j.storageengine.api.RelationshipDirection;
@@ -267,7 +268,8 @@ class GBPTreeRelationshipGroupDegreesStoreTest {
                 NullLogProvider.getInstance(),
                 CONTEXT_FACTORY,
                 PageCacheTracer.NULL,
-                Sets.immutable.empty());
+                Sets.immutable.empty(),
+                RecoveryStartupChecker.EMPTY_CHECKER);
     }
 
     private static class TestableCountsBuilder implements DegreesRebuilder {

@@ -74,6 +74,7 @@ import org.neo4j.io.pagecache.tracing.FileFlushEvent;
 import org.neo4j.io.pagecache.tracing.FileFlushEvent.FileFlushEventProvider;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.kernel.impl.index.schema.ConsistencyCheckable;
+import org.neo4j.kernel.recovery.RecoveryStartupChecker;
 import org.neo4j.logging.InternalLogProvider;
 import org.neo4j.memory.MemoryTracker;
 import org.neo4j.storageengine.CheckpointableStore;
@@ -113,6 +114,7 @@ public class GBPTreeGenericCountsStore implements AutoCloseable, ConsistencyChec
 
     protected final CountsLayout layout = new CountsLayout();
     private final Rebuilder rebuilder;
+    private final RecoveryStartupChecker recoveryStartupChecker;
     private final boolean needsRebuild;
     private final boolean readOnly;
     private final String name;
@@ -141,7 +143,8 @@ public class GBPTreeGenericCountsStore implements AutoCloseable, ConsistencyChec
             InternalLogProvider userLogProvider,
             CursorContextFactory contextFactory,
             PageCacheTracer pageCacheTracer,
-            ImmutableSet<OpenOption> openOptions)
+            ImmutableSet<OpenOption> openOptions,
+            RecoveryStartupChecker recoveryStartupChecker)
             throws IOException {
         this.storeFile = storeFile;
         this.fileSystem = fileSystem;
@@ -153,6 +156,7 @@ public class GBPTreeGenericCountsStore implements AutoCloseable, ConsistencyChec
         this.maxCacheSize = maxCacheSize;
         this.highMarkCacheSize = (int) (maxCacheSize * 0.8);
         this.rebuilder = rebuilder;
+        this.recoveryStartupChecker = recoveryStartupChecker;
 
         // First just read the header so that we can avoid creating it if this store is read-only
         Reader headerReader = CountsHeader.reader();
@@ -255,7 +259,8 @@ public class GBPTreeGenericCountsStore implements AutoCloseable, ConsistencyChec
                     needsRebuild,
                     idSequence.getHighestGapFreeNumber(),
                     rebuilder.lastCommittedTxId());
-            try (CountUpdater updater = createDirectUpdater(false, cursorContext)) {
+            try (CountUpdater updater =
+                    new RecoveryAwareCountUpdater(createDirectUpdater(false, cursorContext), recoveryStartupChecker)) {
                 rebuilder.rebuild(updater, cursorContext, memoryTracker);
             } finally {
                 idSequence.set(rebuilder.lastCommittedTxId(), EMPTY_META);
@@ -290,7 +295,7 @@ public class GBPTreeGenericCountsStore implements AutoCloseable, ConsistencyChec
             lock.unlock();
             return null;
         }
-        return new CountUpdater(
+        return new CountUpdater.WritingCountUpdater(
                 new MapWriter(key -> readCountFromTree(key, cursorContext), changes, idSequence, txId, isLast), lock);
     }
 
@@ -352,7 +357,7 @@ public class GBPTreeGenericCountsStore implements AutoCloseable, ConsistencyChec
     protected CountUpdater createDirectParallelUpdater(CursorContext cursorContext) {
         checkCacheSizeAndPotentiallyFlush(cursorContext);
         Lock lock = lock(this.lock.readLock());
-        return new CountUpdater(
+        return new CountUpdater.WritingCountUpdater(
                 new MapWriter(key -> readCountFromTree(key, cursorContext), changes, idSequence, -1, false), lock);
     }
 
@@ -376,7 +381,7 @@ public class GBPTreeGenericCountsStore implements AutoCloseable, ConsistencyChec
                             maxCacheSize,
                             userLogProvider)
                     : new TreeWriter(tree.writer(W_BATCHED_SINGLE_THREADED, cursorContext), userLogProvider);
-            CountUpdater updater = new CountUpdater(writer, lock);
+            CountUpdater updater = new CountUpdater.WritingCountUpdater(writer, lock);
             success = true;
             return updater;
         } finally {
@@ -826,6 +831,27 @@ public class GBPTreeGenericCountsStore implements AutoCloseable, ConsistencyChec
 
         boolean hasExclusive() {
             return exclusive;
+        }
+    }
+
+    private static class RecoveryAwareCountUpdater implements CountUpdater {
+        private final CountUpdater delegate;
+        private final RecoveryStartupChecker recoveryStartupChecker;
+
+        RecoveryAwareCountUpdater(CountUpdater delegate, RecoveryStartupChecker recoveryStartupChecker) {
+            this.delegate = delegate;
+            this.recoveryStartupChecker = recoveryStartupChecker;
+        }
+
+        @Override
+        public boolean increment(CountsKey key, long delta) {
+            recoveryStartupChecker.checkIfCanceled();
+            return delegate.increment(key, delta);
+        }
+
+        @Override
+        public void close() {
+            delegate.close();
         }
     }
 }

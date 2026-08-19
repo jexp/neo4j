@@ -714,7 +714,7 @@ public final class Recovery {
                 tracers.getPageCacheTracer(),
                 recoveryVersionStorage,
                 PagePrefetcher.DISABLED,
-                dependenciesOf(recoveryVersionStorage),
+                dependenciesOf(recoveryVersionStorage, startupChecker),
                 new ExceptionHandlerService(logService.getInternalLogProvider()),
                 OperationMode.RECOVERY,
                 VectorStoreCreator.FAILING,

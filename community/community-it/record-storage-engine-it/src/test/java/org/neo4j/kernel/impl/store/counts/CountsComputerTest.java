@@ -80,6 +80,7 @@ import org.neo4j.kernel.impl.store.RelationshipStore;
 import org.neo4j.kernel.impl.store.StoreFactory;
 import org.neo4j.kernel.impl.store.format.FormatFamily;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.kernel.recovery.RecoveryStartupChecker;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.memory.MemoryTracker;
 import org.neo4j.storageengine.api.TransactionIdStore;
@@ -569,7 +570,8 @@ class CountsComputerTest {
                 NullLogProvider.getInstance(),
                 CONTEXT_FACTORY,
                 PAGE_CACHE_TRACER,
-                openOptions);
+                openOptions,
+                RecoveryStartupChecker.EMPTY_CHECKER);
     }
 
     private void rebuildCounts(long lastCommittedTransactionId) throws IOException {

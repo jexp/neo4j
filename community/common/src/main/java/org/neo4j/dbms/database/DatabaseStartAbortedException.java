@@ -23,7 +23,7 @@ import static java.lang.String.format;
 
 import org.neo4j.kernel.database.NamedDatabaseId;
 
-public class DatabaseStartAbortedException extends Exception {
+public class DatabaseStartAbortedException extends RuntimeException {
     public DatabaseStartAbortedException(NamedDatabaseId namedDatabaseId) {
         super(format("%s was stopped before it finished starting!", namedDatabaseId));
     }

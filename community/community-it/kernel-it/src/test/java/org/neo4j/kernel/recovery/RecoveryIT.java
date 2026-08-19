@@ -2025,7 +2025,6 @@ class RecoveryIT {
                 .recoveryPredicate(RecoveryPredicate.ALL)
                 .monitors(monitors)
                 .extensionFactories(Iterables.cast(Services.loadAll(ExtensionFactory.class)))
-                .startupChecker(null)
                 .clock(Clock.systemUTC())
                 .force());
 

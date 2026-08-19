@@ -82,6 +82,7 @@ import org.neo4j.kernel.impl.store.record.RelationshipRecord;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.kernel.lifecycle.Lifecycle;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
+import org.neo4j.kernel.recovery.RecoveryStartupChecker;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.memory.EmptyMemoryTracker;
 import org.neo4j.storageengine.api.EagerValueIndexEntryUpdate;
@@ -164,7 +165,8 @@ class OnlineIndexUpdatesTest {
                 NullLogProvider.getInstance(),
                 contextFactory,
                 pageCacheTracer,
-                neoStores.getOpenOptions());
+                neoStores.getOpenOptions(),
+                RecoveryStartupChecker.EMPTY_CHECKER);
         life.add(wrapInLifecycle(counts));
         nodeStore = neoStores.getNodeStore();
         relationshipStore = neoStores.getRelationshipStore();

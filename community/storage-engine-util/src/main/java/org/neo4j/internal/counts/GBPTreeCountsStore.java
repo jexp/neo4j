@@ -38,6 +38,7 @@ import org.neo4j.io.pagecache.context.CursorContextFactory;
 import org.neo4j.io.pagecache.impl.muninn.StoreFile;
 import org.neo4j.io.pagecache.tracing.FileFlushEvent;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
+import org.neo4j.kernel.recovery.RecoveryStartupChecker;
 import org.neo4j.logging.InternalLogProvider;
 import org.neo4j.memory.MemoryTracker;
 
@@ -102,7 +103,8 @@ public class GBPTreeCountsStore extends GBPTreeGenericCountsStore implements Cou
             InternalLogProvider userLogProvider,
             CursorContextFactory contextFactory,
             PageCacheTracer pageCacheTracer,
-            ImmutableSet<OpenOption> openOptions)
+            ImmutableSet<OpenOption> openOptions,
+            RecoveryStartupChecker recoveryStartupChecker)
             throws IOException {
         super(
                 pageCache,
@@ -118,7 +120,8 @@ public class GBPTreeCountsStore extends GBPTreeGenericCountsStore implements Cou
                 userLogProvider,
                 contextFactory,
                 pageCacheTracer,
-                openOptions);
+                openOptions,
+                recoveryStartupChecker);
     }
 
     @Override

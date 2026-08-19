@@ -112,6 +112,7 @@ import org.neo4j.kernel.impl.storemigration.SchemaStoreMigration.SchemaStoreMigr
 import org.neo4j.kernel.impl.transaction.log.EmptyLogTailMetadata;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.LogTailMetadata;
+import org.neo4j.kernel.recovery.RecoveryStartupChecker;
 import org.neo4j.logging.InternalLogProvider;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.logging.internal.LogService;
@@ -856,7 +857,8 @@ public class RecordStorageMigrator extends AbstractStoreMigrationParticipant {
                 logService.getInternalLogProvider(),
                 contextFactory,
                 pageCacheTracer,
-                openOptions);
+                openOptions,
+                RecoveryStartupChecker.EMPTY_CHECKER);
     }
 
     private CountsStore openCountsStore(

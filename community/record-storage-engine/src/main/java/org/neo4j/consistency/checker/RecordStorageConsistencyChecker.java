@@ -84,6 +84,7 @@ import org.neo4j.kernel.impl.api.index.IndexSamplingConfig;
 import org.neo4j.kernel.impl.index.schema.ConsistencyCheckable;
 import org.neo4j.kernel.impl.store.NeoStores;
 import org.neo4j.kernel.impl.store.cursor.CachedStoreCursors;
+import org.neo4j.kernel.recovery.RecoveryStartupChecker;
 import org.neo4j.logging.InternalLog;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.memory.MemoryTracker;
@@ -501,7 +502,8 @@ public class RecordStorageConsistencyChecker implements AutoCloseable {
                 NullLogProvider.getInstance(),
                 contextFactory,
                 cacheTracer,
-                neoStores.getOpenOptions());
+                neoStores.getOpenOptions(),
+                RecoveryStartupChecker.EMPTY_CHECKER);
     }
 
     private static TokenHolders safeLoadTokens(

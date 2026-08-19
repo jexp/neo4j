@@ -105,6 +105,7 @@ import org.neo4j.kernel.impl.store.stats.StoreEntityCounters;
 import org.neo4j.kernel.impl.transaction.log.entry.LogFormat;
 import org.neo4j.kernel.lifecycle.Lifecycle;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
+import org.neo4j.kernel.recovery.RecoveryStartupChecker;
 import org.neo4j.lock.LockService;
 import org.neo4j.lock.LockTracer;
 import org.neo4j.lock.ResourceLocker;
@@ -366,7 +367,8 @@ public class RecordStorageEngine implements StorageEngine, Lifecycle {
                     userLogProvider,
                     contextFactory,
                     pageCacheTracer,
-                    getOpenOptions());
+                    getOpenOptions(),
+                    RecoveryStartupChecker.EMPTY_CHECKER);
         } catch (IOException e) {
             throw new UnderlyingStorageException(e);
         }

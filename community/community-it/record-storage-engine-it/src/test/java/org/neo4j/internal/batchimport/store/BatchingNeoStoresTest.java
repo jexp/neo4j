@@ -102,6 +102,7 @@ import org.neo4j.kernel.impl.transaction.log.LogTailLogVersionsMetadata;
 import org.neo4j.kernel.impl.transaction.log.LogTailMetadata;
 import org.neo4j.kernel.impl.transaction.log.files.TransactionLogInitializer;
 import org.neo4j.kernel.lifecycle.Lifespan;
+import org.neo4j.kernel.recovery.RecoveryStartupChecker;
 import org.neo4j.lock.LockService;
 import org.neo4j.lock.LockTracer;
 import org.neo4j.lock.ResourceLocker;
@@ -398,7 +399,8 @@ class BatchingNeoStoresTest {
                 NullLogProvider.getInstance(),
                 CONTEXT_FACTORY,
                 PageCacheTracer.NULL,
-                openOptions)) {
+                openOptions,
+                RecoveryStartupChecker.EMPTY_CHECKER)) {
             countsStore.start(NULL_CONTEXT, INSTANCE);
             countsStore.checkpoint(DatabaseFlushEvent.NULL, EMPTY_ASYNC_BLOCK_ACCESSOR, NULL_CONTEXT);
         }
@@ -454,7 +456,8 @@ class BatchingNeoStoresTest {
                 NullLogProvider.getInstance(),
                 CONTEXT_FACTORY,
                 PageCacheTracer.NULL,
-                openOptions)) {
+                openOptions,
+                RecoveryStartupChecker.EMPTY_CHECKER)) {
             assertEquals(10, countsStore.nodeCount(1, NULL_CONTEXT));
             assertEquals(20, countsStore.nodeCount(2, NULL_CONTEXT));
             assertEquals(30, countsStore.relationshipCount(ANY_LABEL, 1, 2, NULL_CONTEXT));

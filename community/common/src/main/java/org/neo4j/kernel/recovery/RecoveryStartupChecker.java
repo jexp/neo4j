@@ -38,7 +38,7 @@ public class RecoveryStartupChecker {
         this.namedDatabaseId = namedDatabaseId;
     }
 
-    void checkIfCanceled() throws DatabaseStartAbortedException {
+    public void checkIfCanceled() throws DatabaseStartAbortedException {
         if (databaseStartupController.shouldAbortStartup()) {
             throw new DatabaseStartAbortedException(namedDatabaseId);
         }
@@ -48,8 +48,5 @@ public class RecoveryStartupChecker {
         private NeverCanceledChecker() {
             super(NEVER_ABORT, null);
         }
-
-        @Override
-        void checkIfCanceled() {}
     }
 }

@@ -85,6 +85,7 @@ import org.neo4j.io.pagecache.tracing.DatabaseFlushEvent;
 import org.neo4j.io.pagecache.tracing.DefaultPageCacheTracer;
 import org.neo4j.io.pagecache.tracing.FileFlushEvent;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
+import org.neo4j.kernel.recovery.RecoveryStartupChecker;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.memory.MemoryTracker;
 import org.neo4j.test.OtherThreadExecutor;
@@ -154,7 +155,8 @@ class GBPTreeGenericCountsStoreTest {
                 NullLogProvider.getInstance(),
                 cursorContextFactory,
                 pageCacheTracer,
-                getOpenOptions())) {
+                getOpenOptions(),
+                RecoveryStartupChecker.EMPTY_CHECKER)) {
             assertThat(pageCacheTracer.pins()).isEqualTo(4);
             assertThat(pageCacheTracer.unpins()).isEqualTo(4);
             assertThat(pageCacheTracer.hits()).isOne();
@@ -549,7 +551,8 @@ class GBPTreeGenericCountsStoreTest {
                         NullLogProvider.getInstance(),
                         CONTEXT_FACTORY,
                         PageCacheTracer.NULL,
-                        getOpenOptions()));
+                        getOpenOptions(),
+                        RecoveryStartupChecker.EMPTY_CHECKER));
     }
 
     @Test
@@ -973,7 +976,8 @@ class GBPTreeGenericCountsStoreTest {
                 NullLogProvider.getInstance(),
                 CONTEXT_FACTORY,
                 PageCacheTracer.NULL,
-                getOpenOptions());
+                getOpenOptions(),
+                RecoveryStartupChecker.EMPTY_CHECKER);
     }
 
     protected ImmutableSet<OpenOption> getOpenOptions() {

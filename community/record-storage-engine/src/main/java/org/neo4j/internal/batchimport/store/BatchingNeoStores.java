@@ -99,6 +99,7 @@ import org.neo4j.kernel.impl.store.format.RecordFormats;
 import org.neo4j.kernel.impl.store.format.RecordStorageCapability;
 import org.neo4j.kernel.impl.store.record.RelationshipGroupRecord;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesMatcher;
+import org.neo4j.kernel.recovery.RecoveryStartupChecker;
 import org.neo4j.logging.InternalLogProvider;
 import org.neo4j.logging.internal.LogService;
 import org.neo4j.memory.MemoryTracker;
@@ -513,7 +514,8 @@ public class BatchingNeoStores implements AutoCloseable, MemoryStatsVisitor.Visi
                 userLogProvider,
                 contextFactory,
                 pageCacheTracer,
-                openOptions);
+                openOptions,
+                RecoveryStartupChecker.EMPTY_CHECKER);
     }
 
     private CountsStore openCountsStore(

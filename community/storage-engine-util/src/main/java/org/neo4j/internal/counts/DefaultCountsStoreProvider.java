@@ -35,6 +35,7 @@ import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.context.CursorContextFactory;
 import org.neo4j.io.pagecache.impl.muninn.VersionStorage;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
+import org.neo4j.kernel.recovery.RecoveryStartupChecker;
 import org.neo4j.logging.InternalLogProvider;
 
 @ServiceProvider
@@ -68,7 +69,8 @@ public class DefaultCountsStoreProvider implements CountsStoreProvider {
                     userLogProvider,
                     contextFactory,
                     pageCacheTracer,
-                    openOptions);
+                    openOptions,
+                    RecoveryStartupChecker.EMPTY_CHECKER);
         } catch (IOException e) {
             throw new UnderlyingStorageException(e);
         }

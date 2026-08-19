@@ -85,6 +85,7 @@ import org.neo4j.kernel.impl.transaction.log.EmptyLogTailMetadata;
 import org.neo4j.kernel.impl.transaction.log.LogTailMetadata;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.kernel.recovery.LogTailExtractor;
+import org.neo4j.kernel.recovery.RecoveryStartupChecker;
 import org.neo4j.logging.AssertableLogProvider;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.logging.internal.LogService;
@@ -729,7 +730,8 @@ class RecordStorageMigratorIT {
                 NullLogProvider.getInstance(),
                 contextFactory,
                 cacheTracer,
-                migratedStoreOpenOptions);
+                migratedStoreOpenOptions,
+                RecoveryStartupChecker.EMPTY_CHECKER);
     }
 
     private GBPTreeCountsStore openCountsStore(
@@ -751,6 +753,7 @@ class RecordStorageMigratorIT {
                 NullLogProvider.getInstance(),
                 contextFactory,
                 cacheTracer,
-                migratedStoreOpenOptions);
+                migratedStoreOpenOptions,
+                RecoveryStartupChecker.EMPTY_CHECKER);
     }
 }

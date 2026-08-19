@@ -35,6 +35,7 @@ import org.neo4j.io.pagecache.context.CursorContextFactory;
 import org.neo4j.io.pagecache.impl.muninn.StoreFile;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.kernel.impl.store.record.RelationshipGroupRecord;
+import org.neo4j.kernel.recovery.RecoveryStartupChecker;
 import org.neo4j.logging.InternalLogProvider;
 import org.neo4j.memory.MemoryTracker;
 import org.neo4j.storageengine.api.RelationshipDirection;
@@ -61,7 +62,8 @@ public class GBPTreeRelationshipGroupDegreesStore extends GBPTreeGenericCountsSt
             InternalLogProvider userLogProvider,
             CursorContextFactory contextFactory,
             PageCacheTracer pageCacheTracer,
-            ImmutableSet<OpenOption> openOptions)
+            ImmutableSet<OpenOption> openOptions,
+            RecoveryStartupChecker recoveryStartupChecker)
             throws IOException {
         super(
                 pageCache,
@@ -77,7 +79,8 @@ public class GBPTreeRelationshipGroupDegreesStore extends GBPTreeGenericCountsSt
                 userLogProvider,
                 contextFactory,
                 pageCacheTracer,
-                openOptions);
+                openOptions,
+                recoveryStartupChecker);
     }
 
     @Override
