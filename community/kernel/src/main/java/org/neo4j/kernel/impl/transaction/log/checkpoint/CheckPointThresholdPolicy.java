@@ -35,7 +35,7 @@ import org.neo4j.time.SystemNanoClock;
  *
  * The is determined by the {@link GraphDatabaseSettings#check_point_policy} setting, and
  * based on this, the concrete policies are loaded and used to
- * {@link CheckPointThreshold#createThreshold(Config, SystemNanoClock, LogPruning, InternalLogProvider) create} the final and fully
+ * {@link CheckPointThreshold#createThreshold(Config, SystemNanoClock, LogPruning, InternalLogProvider, boolean) create} the final and fully
  * configured check point thresholds.
  */
 @Service

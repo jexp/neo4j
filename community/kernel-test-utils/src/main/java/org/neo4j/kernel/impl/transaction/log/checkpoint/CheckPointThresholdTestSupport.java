@@ -85,7 +85,7 @@ public class CheckPointThresholdTestSupport {
     }
 
     protected CheckPointThreshold createThreshold() {
-        return CheckPointThreshold.createThreshold(config, clock, logPruning, logProvider);
+        return CheckPointThreshold.createThreshold(config, clock, logPruning, logProvider, false);
     }
 
     protected void verifyTriggered(String... reason) {

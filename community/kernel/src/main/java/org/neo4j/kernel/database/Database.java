@@ -295,6 +295,7 @@ public class Database extends AbstractDatabase {
     private final boolean raftTriggersUpgrade;
     private SegmentTrackingFactory segmentTrackingFactory;
     private final AtomicBoolean mvccRollbackDone = new AtomicBoolean(false);
+    private final boolean mergedLogs;
 
     public Database(DatabaseCreationContext context) {
         super(
@@ -353,6 +354,7 @@ public class Database extends AbstractDatabase {
         this.logPruneStrategyFactory = context.logPruneStrategyFactory();
         this.chunkedTransactionTracker = new ChunkedTransactionTracker();
         this.raftTriggersUpgrade = context.raftTriggersUpgrade();
+        this.mergedLogs = context.mergedLogs();
     }
 
     /**
@@ -643,8 +645,6 @@ public class Database extends AbstractDatabase {
 
         CheckPointerImpl.ForceOperation forceOperation =
                 new DefaultForceOperation(indexingService, storageEngine, databasePageCache);
-        boolean isMergeLog =
-                databaseConfig.get(GraphDatabaseInternalSettings.merged_log) && !namedDatabaseId.isSystemDatabase();
         var segmentMetadataService =
                 segmentTrackingFactory.createSegmentMetadataService(getStoreId(), otherDatabaseMemoryTracker);
         databaseDependencies.satisfyDependency(segmentMetadataService);
@@ -660,8 +660,7 @@ public class Database extends AbstractDatabase {
                 cursorContextFactory,
                 storageEngineFactory.commandReaderFactory(),
                 otherDatabaseMemoryTracker,
-                segmentMetadataService,
-                isMergeLog);
+                segmentMetadataService);
         commitmentFactory = new TransactionCommitmentFactory(logMetadataProvider);
 
         databaseTransactionEventListeners =
@@ -1060,15 +1059,14 @@ public class Database extends AbstractDatabase {
             CursorContextFactory cursorContextFactory,
             CommandReaderFactory commandReaderFactory,
             MemoryTracker memoryTracker,
-            SegmentMetadataService segmentMetadataService,
-            boolean isMergedLog) {
+            SegmentMetadataService segmentMetadataService) {
         TransactionMetadataCache transactionMetadataCache = new TransactionMetadataCache();
         databaseDependencies.satisfyDependencies(transactionMetadataCache);
 
         BinarySupportedKernelVersions binarySupportedKernelVersions =
                 databaseDependencies.resolveDependency(BinarySupportedKernelVersions.class);
         Lock pruneLock = new ReentrantLock();
-        final LogPruning logPruning = isMergedLog && (mode == HostedOnMode.RAFT || mode == HostedOnMode.REPLICA)
+        final LogPruning logPruning = mergedLogs && (mode == HostedOnMode.RAFT || mode == HostedOnMode.REPLICA)
                 ? new CheckpointOnlyLogPruning(fs, logFiles, logProvider, databaseConfig, pruneLock)
                 : new LogPruningImpl(
                         fs,
@@ -1094,7 +1092,7 @@ public class Database extends AbstractDatabase {
                 transactionMetadataCache,
                 namedDatabaseId.name(),
                 storageEngineFactory.multiVersioned(),
-                isMergedLog && (mode == HostedOnMode.RAFT || mode == HostedOnMode.REPLICA));
+                mergedLogs && (mode == HostedOnMode.RAFT || mode == HostedOnMode.REPLICA));
         life.add(transactionAppender);
 
         final LogicalTransactionStore logicalTransactionStore = new PhysicalLogicalTransactionStore(
@@ -1107,7 +1105,7 @@ public class Database extends AbstractDatabase {
                 memoryTracker);
 
         CheckPointThreshold threshold =
-                CheckPointThreshold.createThreshold(databaseConfig, clock, logPruning, logProvider);
+                CheckPointThreshold.createThreshold(databaseConfig, clock, logPruning, logProvider, mergedLogs);
 
         final CheckPointerImpl checkPointer = new CheckPointerImpl(
                 logMetadataProvider,
@@ -1193,9 +1191,7 @@ public class Database extends AbstractDatabase {
 
         TransactionExecutionMonitor transactionExecutionMonitor =
                 getMonitors().newMonitor(TransactionExecutionMonitor.class);
-        var transactionIdGenerator = databaseConfig.get(GraphDatabaseInternalSettings.merged_log)
-                        && (mode == HostedOnMode.RAFT || mode == HostedOnMode.REPLICA)
-                        && !isSystem()
+        var transactionIdGenerator = mergedLogs && (mode == HostedOnMode.RAFT || mode == HostedOnMode.REPLICA)
                 ? TransactionIdGenerator.EXTERNAL_ID
                 : new IdStoreTransactionIdGenerator(logMetadataProvider);
         databaseDependencies.satisfyDependency(transactionIdGenerator);

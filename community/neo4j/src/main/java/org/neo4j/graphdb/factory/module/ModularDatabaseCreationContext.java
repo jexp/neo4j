@@ -139,6 +139,7 @@ public class ModularDatabaseCreationContext implements DatabaseCreationContext {
     private final DatabaseCreationOptions databaseCreationOptions;
     private final LogPruneStrategyFactory logPruneStrategyFactory;
     private final boolean raftTriggersUpgrade;
+    private final boolean mergedLogs;
 
     public ModularDatabaseCreationContext(
             HostedOnMode mode,
@@ -175,7 +176,8 @@ public class ModularDatabaseCreationContext implements DatabaseCreationContext {
             ExceptionHandlerService exceptionHandlerService,
             DatabaseCreationOptions databaseCreationOptions,
             LogPruneStrategyFactory logPruneStrategyFactory,
-            boolean raftTriggersUpgrade) {
+            boolean raftTriggersUpgrade,
+            boolean mergedLogs) {
         this.serverIdentity = serverIdentity;
         this.namedDatabaseId = namedDatabaseId;
         this.databaseConfig = databaseConfig;
@@ -194,6 +196,7 @@ public class ModularDatabaseCreationContext implements DatabaseCreationContext {
         this.databaseCreationOptions = databaseCreationOptions;
         this.logPruneStrategyFactory = logPruneStrategyFactory;
         this.raftTriggersUpgrade = raftTriggersUpgrade;
+        this.mergedLogs = mergedLogs;
         this.databaseLogService = new DatabaseLogService(databaseLogIdentifier, globalModule.getLogService());
         this.scheduler = globalModule.getJobScheduler();
         this.globalDependencies = globalDependencies;
@@ -487,6 +490,11 @@ public class ModularDatabaseCreationContext implements DatabaseCreationContext {
     @Override
     public boolean raftTriggersUpgrade() {
         return raftTriggersUpgrade;
+    }
+
+    @Override
+    public boolean mergedLogs() {
+        return mergedLogs;
     }
 
     private DatabaseAvailabilityGuard databaseAvailabilityGuardFactory(

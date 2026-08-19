@@ -19,7 +19,6 @@
  */
 package org.neo4j.kernel.impl.transaction.log.checkpoint;
 
-import static org.neo4j.configuration.GraphDatabaseInternalSettings.merged_log;
 import static org.neo4j.configuration.GraphDatabaseSettings.check_point_policy;
 
 import java.util.Locale;
@@ -81,17 +80,20 @@ public interface CheckPointThreshold {
      * Create and configure a {@link CheckPointThreshold} based on the given configurations.
      */
     static CheckPointThreshold createThreshold(
-            Config config, SystemNanoClock clock, LogPruning logPruning, InternalLogProvider logProvider) {
+            Config config,
+            SystemNanoClock clock,
+            LogPruning logPruning,
+            InternalLogProvider logProvider,
+            boolean mergedLogs) {
         CheckpointPolicy checkpointPolicy = config.get(check_point_policy);
-        if (checkpointPolicy == CheckpointPolicy.VOLUMETRIC && config.get(merged_log)) {
+        if (checkpointPolicy == CheckpointPolicy.VOLUMETRIC && mergedLogs) {
             logProvider
                     .getLog(CheckPointThreshold.class)
                     .warn(
-                            "'%s=%s' is not supported when the transaction log is merged with the replication log "
-                                    + "('%s=true'). Falling back to '%s=%s'.",
+                            "'%s=%s' is not supported when the transaction log is merged with the replication log"
+                                    + ". Falling back to '%s=%s'.",
                             check_point_policy.name(),
                             CheckpointPolicy.VOLUMETRIC,
-                            merged_log.name(),
                             check_point_policy.name(),
                             CheckpointPolicy.PERIODIC);
             checkpointPolicy = CheckpointPolicy.PERIODIC;

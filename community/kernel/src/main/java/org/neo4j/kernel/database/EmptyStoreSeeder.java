@@ -95,6 +95,7 @@ public class EmptyStoreSeeder implements StoreGenerator, StoreSeeder {
     private final int numShards;
     private final KernelVersion kernelVersionForSeed;
     private final DatabaseCreationOptions databaseCreationOptions;
+    private final boolean createForMergedLog;
 
     /**
      * Creates the empty database seed, returning the generated contents packaged up as a byte[].
@@ -108,7 +109,8 @@ public class EmptyStoreSeeder implements StoreGenerator, StoreSeeder {
             FileSystemAbstraction fs,
             DatabaseLayout databaseLayout,
             JobScheduler jobScheduler,
-            int numShards) {
+            int numShards,
+            boolean createForMergedLog) {
         this(
                 StoreAugmenter.NO_OP,
                 storageEngineFactorySupplier,
@@ -118,7 +120,8 @@ public class EmptyStoreSeeder implements StoreGenerator, StoreSeeder {
                 jobScheduler,
                 numShards,
                 null,
-                DatabaseCreationOptions.EMPTY_CREATION_OPTIONS);
+                DatabaseCreationOptions.EMPTY_CREATION_OPTIONS,
+                createForMergedLog);
     }
 
     /**
@@ -141,7 +144,8 @@ public class EmptyStoreSeeder implements StoreGenerator, StoreSeeder {
             JobScheduler jobScheduler,
             int numShards,
             KernelVersion kernelVersionForSeed,
-            DatabaseCreationOptions databaseCreationOptions) {
+            DatabaseCreationOptions databaseCreationOptions,
+            boolean createForMergedLog) {
         this.storeAugmenter = storeAugmenter;
         this.storageEngineFactorySupplier = storageEngineFactorySupplier;
         this.config = config;
@@ -151,6 +155,7 @@ public class EmptyStoreSeeder implements StoreGenerator, StoreSeeder {
         this.numShards = numShards;
         this.kernelVersionForSeed = kernelVersionForSeed;
         this.databaseCreationOptions = databaseCreationOptions;
+        this.createForMergedLog = createForMergedLog;
     }
 
     private static Config updateConfigVersion(Config config, KernelVersion kernelVersionForSeed) {
@@ -161,12 +166,6 @@ public class EmptyStoreSeeder implements StoreGenerator, StoreSeeder {
                 .fromConfig(config)
                 .set(GraphDatabaseInternalSettings.latest_kernel_version, kernelVersionForSeed.version())
                 .build();
-    }
-
-    private boolean createForMergedLog() {
-        var isSystem = databaseLayout.getDatabaseName().equalsIgnoreCase(GraphDatabaseSettings.SYSTEM_DATABASE_NAME);
-        return updateConfigVersion(config, kernelVersionForSeed).get(GraphDatabaseInternalSettings.merged_log)
-                && !isSystem;
     }
 
     /**
@@ -183,7 +182,7 @@ public class EmptyStoreSeeder implements StoreGenerator, StoreSeeder {
             var batchImporter = batchImporter(
                     storageEngineFactory, updatedConfig, tempDatabaseLayout, pageCache, indexProvidersAccess);
             batchImporter.doImport(new NoInput());
-            if (createForMergedLog()) {
+            if (createForMergedLog) {
                 // when creating an initial store seed for merged log we need to make sure there are no logs in the
                 // archive as Raft will create the logs already and expanding these would overwrite the log.
                 fs.deleteRecursively(tempDatabaseLayout.getTransactionLogsDirectory());
@@ -230,7 +229,7 @@ public class EmptyStoreSeeder implements StoreGenerator, StoreSeeder {
 
     @Override
     public void validateStoreId(StoreId storeId) throws IOException {
-        if (createForMergedLog()) {
+        if (createForMergedLog) {
             return;
         }
         var storageEngineFactory =

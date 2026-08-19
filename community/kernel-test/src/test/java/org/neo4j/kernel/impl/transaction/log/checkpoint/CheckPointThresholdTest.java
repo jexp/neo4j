@@ -236,7 +236,7 @@ class CheckPointThresholdTest extends CheckPointThresholdTestSupport {
                 .build();
 
         CheckPointThreshold threshold =
-                CheckPointThreshold.createThreshold(mergedLogConfig, clock, logPruning, logProvider);
+                CheckPointThreshold.createThreshold(mergedLogConfig, clock, logPruning, logProvider, true);
 
         assertThat(threshold.checkFrequencyMillis()).isEqualTo(DEFAULT_CHECKING_FREQUENCY_MILLIS);
         assertThat(logProvider)

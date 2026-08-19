@@ -174,4 +174,6 @@ public interface DatabaseCreationContext {
     LogPruneStrategyFactory logPruneStrategyFactory();
 
     boolean raftTriggersUpgrade();
+
+    boolean mergedLogs();
 }
