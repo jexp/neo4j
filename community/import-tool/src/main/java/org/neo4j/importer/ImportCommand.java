@@ -22,6 +22,7 @@ package org.neo4j.importer;
 import static java.lang.Math.toIntExact;
 import static java.lang.String.format;
 import static java.util.Arrays.stream;
+import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toSet;
 import static org.eclipse.collections.impl.tuple.Tuples.pair;
 import static org.neo4j.batchimport.api.Configuration.DEFAULT;
@@ -44,12 +45,13 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.SequencedSet;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Function;
@@ -1712,8 +1714,8 @@ public class ImportCommand {
 
     private static final String MULTI_FILE_DELIMITER = ",";
 
-    static class NodeFilesGroup extends InputFilesGroup<Set<String>> {
-        NodeFilesGroup(Set<String> key, String files) {
+    static class NodeFilesGroup extends InputFilesGroup<SequencedSet<String>> {
+        NodeFilesGroup(SequencedSet<String> key, String files) {
             super(key, files);
         }
     }
@@ -1755,12 +1757,14 @@ public class ImportCommand {
     static NodeFilesGroup parseNodeFilesGroup(String str) {
         final var p = parseInputFilesGroup(str, s -> {
             if (s == null) {
-                return Collections.<String>emptySet();
+                return new LinkedHashSet<String>();
             }
+            // The same import command must always apply the additional labels in the same order, so that their
+            // tokens are created in the same order too, therefore a LinkedHashSet
             return stream(s.split(":"))
                     .map(String::trim)
                     .filter(x -> !x.isEmpty())
-                    .collect(toSet());
+                    .collect(toCollection(LinkedHashSet::new));
         });
         return new NodeFilesGroup(p.getOne(), p.getTwo());
     }

@@ -19,7 +19,6 @@
  */
 package org.neo4j.importer;
 
-import static java.util.Collections.emptySet;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -33,8 +32,12 @@ import java.nio.charset.Charset;
 import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.SequencedSet;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.apache.commons.io.output.NullPrintStream;
 import org.apache.parquet.schema.LogicalTypeAnnotation;
@@ -48,6 +51,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.neo4j.batchimport.api.input.FileGroup;
+import org.neo4j.batchimport.api.input.FileGroup.NumberedFile;
 import org.neo4j.cli.ExecutionContext;
 import org.neo4j.configuration.Config;
 import org.neo4j.configuration.GraphDatabaseSettings;
@@ -99,7 +103,9 @@ class FileImporterTest {
                     .withStdOut(NullPrintStream.INSTANCE)
                     .withStdErr(NullPrintStream.INSTANCE)
                     .withLogProvider(importContext)
-                    .addNodeFiles(emptySet(), new FileGroup(new FileGroup.NumberedFile(0, inputFile.toAbsolutePath())))
+                    .addNodeFiles(
+                            new LinkedHashSet<>(),
+                            new FileGroup(new FileGroup.NumberedFile(0, inputFile.toAbsolutePath())))
                     .build();
 
             csvImporter.doImport(fullImport(), false, false);
@@ -153,7 +159,8 @@ class FileImporterTest {
                 .withPageCacheTracer(cacheTracer)
                 .withCursorContextFactory(
                         new CursorContextFactory(cacheTracer, new FixedVersionContextSupplier(BASE_TX_ID)))
-                .addNodeFiles(emptySet(), new FileGroup(new FileGroup.NumberedFile(0, inputFile.toAbsolutePath())))
+                .addNodeFiles(
+                        new LinkedHashSet<>(), new FileGroup(new FileGroup.NumberedFile(0, inputFile.toAbsolutePath())))
                 .build();
 
         fileImporter.doImport(fullImport(), false, false);
@@ -174,7 +181,8 @@ class FileImporterTest {
                 .withStdOut(NullPrintStream.INSTANCE)
                 .withStdErr(NullPrintStream.INSTANCE)
                 .withReportFile(testDir.file("report.txt"))
-                .addNodeFiles(emptySet(), new FileGroup(new FileGroup.NumberedFile(0, nodes.toAbsolutePath())))
+                .addNodeFiles(
+                        new LinkedHashSet<>(), new FileGroup(new FileGroup.NumberedFile(0, nodes.toAbsolutePath())))
                 .withBadTolerance(4)
                 .withSkipDuplicateNodes(true)
                 .build();
@@ -196,7 +204,8 @@ class FileImporterTest {
                 .withStdOut(NullPrintStream.INSTANCE)
                 .withStdErr(NullPrintStream.INSTANCE)
                 .withReportFile(testDir.file("report.txt"))
-                .addNodeFiles(emptySet(), new FileGroup(new FileGroup.NumberedFile(0, nodeFile.toAbsolutePath())))
+                .addNodeFiles(
+                        new LinkedHashSet<>(), new FileGroup(new FileGroup.NumberedFile(0, nodeFile.toAbsolutePath())))
                 .withBadTolerance(4)
                 .withSkipDuplicateNodes(true);
         context.configure(importerBuilder);
@@ -204,6 +213,55 @@ class FileImporterTest {
 
         var throwableAssert = assertThatThrownBy(() -> importer.doImport(fullImport(), false, false));
         context.assertException(throwableAssert);
+    }
+
+    @Test
+    void nodeFileGroupsAreTraversedInTheOrderTheyWereAdded() {
+        var importer = importerBuilder()
+                .withDatabaseConfig(dbConfig())
+                .withReportFile(testDir.file("report.txt"))
+                .addNodeFiles(labels("Person"), fileGroup(0))
+                .addNodeFiles(labels("Actor"), fileGroup(1))
+                .addNodeFiles(labels("Movie"), fileGroup(2, 3))
+                .addNodeFiles(new LinkedHashSet<>(), fileGroup(4))
+                .addNodeFiles(labels("Actor"), fileGroup(5))
+                .build();
+
+        // Groups sharing the same additional labels are traversed together, at the position where those labels
+        // were first added
+        assertThat(traversalOrder(importer.nodeFiles().values())).containsExactly(0, 1, 5, 2, 3, 4);
+    }
+
+    @Test
+    void relationshipFileGroupsAreTraversedInTheOrderTheyWereAdded() {
+        var importer = importerBuilder()
+                .withDatabaseConfig(dbConfig())
+                .withReportFile(testDir.file("report.txt"))
+                .addRelationshipFiles("KNOWS", fileGroup(0))
+                .addRelationshipFiles("DIRECTED", fileGroup(1, 2))
+                .addRelationshipFiles("ACTED_IN", fileGroup(3))
+                .addRelationshipFiles("KNOWS", fileGroup(4))
+                .build();
+
+        assertThat(traversalOrder(importer.relationshipFiles().values())).containsExactly(0, 4, 1, 2, 3);
+    }
+
+    private static SequencedSet<String> labels(String... labels) {
+        return new LinkedHashSet<>(List.of(labels));
+    }
+
+    private FileGroup fileGroup(int... globalIds) {
+        return new FileGroup(IntStream.of(globalIds)
+                .mapToObj(id -> new NumberedFile(id, testDir.file("file" + id)))
+                .toArray(NumberedFile[]::new));
+    }
+
+    private static List<Integer> traversalOrder(Collection<List<FileGroup>> fileGroups) {
+        return fileGroups.stream()
+                .flatMap(List::stream)
+                .flatMap(fileGroup -> Stream.of(fileGroup.files()))
+                .map(NumberedFile::globalId)
+                .toList();
     }
 
     private Config dbConfig() {

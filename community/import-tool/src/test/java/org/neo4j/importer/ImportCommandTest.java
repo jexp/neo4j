@@ -669,6 +669,13 @@ class ImportCommandTest {
             assertPathsFound(testDir, g, foo, bar);
         }
 
+        @Test
+        void labelsKeepTheOrderTheyWereSpecifiedIn() {
+            final var foo = testDir.createFile("foo.csv");
+            final var g = ImportCommand.parseNodeFilesGroup("Middle:Alpha:Zebra=" + foo);
+            assertThat(g.key).containsExactly("Middle", "Alpha", "Zebra");
+        }
+
         @ParameterizedTest
         @ValueSource(booleans = {true, false})
         void filesRegex(boolean useURIs) {

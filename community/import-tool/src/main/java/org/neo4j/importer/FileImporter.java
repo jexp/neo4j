@@ -20,6 +20,7 @@
 package org.neo4j.importer;
 
 import static java.lang.String.format;
+import static java.util.Collections.unmodifiableMap;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.exception.ExceptionUtils.getThrowableList;
 import static org.apache.commons.lang3.exception.ExceptionUtils.indexOfThrowable;
@@ -45,9 +46,10 @@ import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.Path;
 import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.SequencedSet;
 import java.util.Set;
 import java.util.function.Supplier;
 import org.neo4j.batchimport.api.Configuration;
@@ -125,8 +127,11 @@ public class FileImporter {
     private final boolean normalizeTypes;
     private final boolean verbose;
     private final boolean autoSkipHeaders;
-    private final Map<Set<String>, List<FileGroup>> nodeFiles;
-    private final Map<String, List<FileGroup>> relationshipFiles;
+
+    // The same import command must always read the input files in the same order, therefore LinkedHashMaps
+    private final LinkedHashMap<Set<String>, List<FileGroup>> nodeFiles;
+    private final LinkedHashMap<String, List<FileGroup>> relationshipFiles;
+
     private final FileSystemAbstraction fileSystem;
     private final PrintStream stdOut;
     private final PrintStream stdErr;
@@ -175,6 +180,22 @@ public class FileImporter {
 
     public FileInputType fileInputType() {
         return fileInputType;
+    }
+
+    /**
+     * @return the node input file groups, keyed by the additional labels applied to them, in the order the groups were
+     * given on the command line.
+     */
+    public Map<Set<String>, List<FileGroup>> nodeFiles() {
+        return unmodifiableMap(nodeFiles);
+    }
+
+    /**
+     * @return the relationship input file groups, keyed by their default relationship type, in the order the groups
+     * were given on the command line.
+     */
+    public Map<String, List<FileGroup>> relationshipFiles() {
+        return unmodifiableMap(relationshipFiles);
     }
 
     public void dryRun(ImportCommand.Base type) throws IOException {
@@ -561,8 +582,9 @@ public class FileImporter {
         private boolean normalizeTypes;
         private boolean verbose;
         private boolean autoSkipHeaders;
-        private final Map<Set<String>, List<FileGroup>> nodeFiles = new HashMap<>();
-        private final Map<String, List<FileGroup>> relationshipFiles = new HashMap<>();
+        // The same import command must always read the input files in the same order, therefore LinkedHashMaps
+        private final LinkedHashMap<Set<String>, List<FileGroup>> nodeFiles = new LinkedHashMap<>();
+        private final LinkedHashMap<String, List<FileGroup>> relationshipFiles = new LinkedHashMap<>();
         private FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction();
         private PageCacheTracer pageCacheTracer = PageCacheTracer.NULL;
         private CursorContextFactory contextFactory =
@@ -683,15 +705,19 @@ public class FileImporter {
             return this;
         }
 
-        public Builder addNodeFiles(Set<String> labels, FileGroup fileGroup) {
-            final var list = nodeFiles.computeIfAbsent(labels, unused -> new ArrayList<>());
-            list.add(fileGroup);
+        /**
+         * @param labels additional labels to apply to these files. A {@link SequencedSet} guarantees the same
+         * order of applying labels, which is required for resumability
+         */
+        public Builder addNodeFiles(SequencedSet<String> labels, FileGroup fileGroup) {
+            nodeFiles.computeIfAbsent(labels, unused -> new ArrayList<>()).add(fileGroup);
             return this;
         }
 
         public Builder addRelationshipFiles(String defaultRelType, FileGroup fileGroup) {
-            final var list = relationshipFiles.computeIfAbsent(defaultRelType, unused -> new ArrayList<>());
-            list.add(fileGroup);
+            relationshipFiles
+                    .computeIfAbsent(defaultRelType, unused -> new ArrayList<>())
+                    .add(fileGroup);
             return this;
         }
 
