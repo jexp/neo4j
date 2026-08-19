@@ -148,7 +148,7 @@ abstract class ServerCommandIT extends ServerProcessTestBase {
         Path log4jConfig = config.get(GraphDatabaseSettings.server_logging_config_path);
         FileSystemUtils.writeString(fs, log4jConfig, "<Configuration></Cunfigoratzion>", EmptyMemoryTracker.INSTANCE);
         int exitCode = execute("start");
-        assertThat(exitCode).isEqualTo(ExitCode.OK);
+        assertServerStartExitCode(ExitCode.OK, exitCode);
         assertThat(err.toString())
                 .contains(
                         "Warning at 1:18: The element type \"Configuration\" must be terminated by the matching end-tag \"</Configuration>\".");
@@ -251,13 +251,25 @@ abstract class ServerCommandIT extends ServerProcessTestBase {
         }
     }
 
+    /**
+     * The child process is the only place that knows why it refused to start, so surface its output on mismatch
+     * instead of leaving the reader with a bare exit code.
+     */
+    private void assertServerStartExitCode(int expected, int actual) {
+        assertThat(actual)
+                .withFailMessage(() -> String.format(
+                        "Expected server start to exit with %d but was %d.%nOut: %s%nErr: %s%nDebug log:%n%s",
+                        expected, actual, out, err, getDebugLogLines()))
+                .isEqualTo(expected);
+    }
+
     private void shouldBeAbleToStartAndStopRealServer() {
         shouldBeAbleToStartAndStopRealServer(INITIAL_HEAP_MB);
     }
 
     private void shouldBeAbleToStartAndStopRealServer(int initialHeapSize) {
         int startSig = execute(List.of("start"), Map.of());
-        assertThat(startSig).isEqualTo(EXIT_CODE_OK);
+        assertServerStartExitCode(EXIT_CODE_OK, startSig);
         String format = String.format("-Xms%dk, -Xmx%dk", initialHeapSize * 1024, MAX_HEAP_MB * 1024);
         assertEventually(this::getDebugLogLines, s -> s.contains(format), 5, MINUTES);
         assertEventually(this::getDebugLogLines, s -> s.contains("Remote interface available at"), 5, MINUTES);
