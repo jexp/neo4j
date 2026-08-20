@@ -27,6 +27,7 @@ import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.fleetmanagement.topology.model.Database;
 import org.neo4j.fleetmanagement.topology.model.GraphCount;
 import org.neo4j.fleetmanagement.topology.model.Server;
+import org.neo4j.fleetmanagement.transactions.model.TokenAndConnectionUrl;
 import org.neo4j.fleetmanagement.transactions.model.VersionAndEdition;
 
 @Service
@@ -37,7 +38,7 @@ public interface ITransactor {
 
     boolean getTokenRotationStatus();
 
-    String getToken();
+    TokenAndConnectionUrl getTokenAndConnectionUrl();
 
     VersionAndEdition getVersionAndEdition();
 

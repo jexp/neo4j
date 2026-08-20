@@ -21,6 +21,8 @@ package org.neo4j.fleetmanagement.transactions;
 
 import static org.neo4j.fleetmanagement.common.TransactionUtil.withSystemTransaction;
 import static org.neo4j.fleetmanagement.common.TransactionUtil.withTransaction;
+import static org.neo4j.fleetmanagement.transactions.model.TokenAndConnectionUrl.CONNECTION_URL_KEY;
+import static org.neo4j.fleetmanagement.transactions.model.TokenAndConnectionUrl.TOKEN_KEY;
 
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -33,6 +35,7 @@ import org.neo4j.fleetmanagement.configuration.State;
 import org.neo4j.fleetmanagement.topology.model.GraphCount;
 import org.neo4j.fleetmanagement.topology.model.Server;
 import org.neo4j.fleetmanagement.transactions.model.ResultMap;
+import org.neo4j.fleetmanagement.transactions.model.TokenAndConnectionUrl;
 import org.neo4j.fleetmanagement.transactions.model.VersionAndEdition;
 import org.neo4j.fleetmanagement.utils.Logger;
 import org.neo4j.graphdb.Label;
@@ -62,7 +65,7 @@ public abstract class AbstractTransactor {
         return withSystemTransaction(databaseManagementService, tx -> {
             try (var rs = tx.findNodes(Label.label("FleetManagementConfiguration"))) {
                 Optional<Node> maybeNode = rs.stream().findFirst();
-                return maybeNode.map(node -> node.hasProperty("token")).orElse(false);
+                return maybeNode.map(node -> node.hasProperty(TOKEN_KEY)).orElse(false);
             }
         });
     }
@@ -72,19 +75,27 @@ public abstract class AbstractTransactor {
             try (var rs = tx.findNodes(Label.label("FleetManagementConfiguration"))) {
                 Optional<Node> maybeNode = rs.stream().findFirst();
                 return maybeNode
-                        .map(node -> node.hasProperty("token")
-                                && node.getProperty("token").equals(TOKEN_ROTATION_STATE_INDICATOR))
+                        .map(node -> node.hasProperty(TOKEN_KEY)
+                                && node.getProperty(TOKEN_KEY).equals(TOKEN_ROTATION_STATE_INDICATOR))
                         .orElse(false);
             }
         });
     }
 
-    public String getToken() {
+    public TokenAndConnectionUrl getTokenAndConnectionUrl() {
         return withSystemTransaction(databaseManagementService, tx -> {
             try (var rs = tx.findNodes(Label.label("FleetManagementConfiguration"))) {
                 Optional<Node> maybeNode = rs.stream().findFirst();
                 return maybeNode
-                        .map(node -> node.getProperty("token").toString())
+                        .map(node -> {
+                            var tokenAndConnectionUrl = new TokenAndConnectionUrl();
+                            tokenAndConnectionUrl.token =
+                                    node.getProperty(TOKEN_KEY).toString();
+                            tokenAndConnectionUrl.connectionUrl = node.hasProperty(CONNECTION_URL_KEY)
+                                    ? node.getProperty(CONNECTION_URL_KEY).toString()
+                                    : null;
+                            return tokenAndConnectionUrl;
+                        })
                         .orElse(null);
             }
         });
@@ -162,7 +173,7 @@ public abstract class AbstractTransactor {
                 Optional<Node> maybeNode = rs.stream().findFirst();
                 Node node = maybeNode.orElseGet(() -> tx.createNode(Label.label("FleetManagementConfiguration")));
 
-                node.setProperty("token", token);
+                node.setProperty(TOKEN_KEY, token);
             }
             tx.commit();
         });
@@ -172,7 +183,7 @@ public abstract class AbstractTransactor {
         withSystemTransaction(databaseManagementService, tx -> {
             try (var rs = tx.findNodes(Label.label("FleetManagementConfiguration"))) {
                 Optional<Node> maybeNode = rs.stream().findFirst();
-                maybeNode.ifPresent(node -> node.setProperty("token", TOKEN_ROTATION_STATE_INDICATOR));
+                maybeNode.ifPresent(node -> node.setProperty(TOKEN_KEY, TOKEN_ROTATION_STATE_INDICATOR));
             }
             tx.commit();
         });

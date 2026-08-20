@@ -40,13 +40,14 @@ public class ClusterSync {
     }
 
     private void syncToken() {
-        String token = this.transactor.getToken();
-        if (token == null) {
+        var tokenAndConnectionUrl = this.transactor.getTokenAndConnectionUrl();
+        if (tokenAndConnectionUrl == null || tokenAndConnectionUrl.token == null) {
             return;
         }
 
         try {
-            this.upstream.setToken(token);
+            this.upstream.setToken(tokenAndConnectionUrl.token);
+            this.upstream.setConnectionUrl(tokenAndConnectionUrl.connectionUrl);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

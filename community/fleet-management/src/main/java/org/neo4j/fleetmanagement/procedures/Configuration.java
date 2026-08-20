@@ -20,11 +20,14 @@
 package org.neo4j.fleetmanagement.procedures;
 
 import static org.neo4j.fleetmanagement.common.TransactionUtil.withTransactionAndErrorHandling;
+import static org.neo4j.fleetmanagement.transactions.model.TokenAndConnectionUrl.CONNECTION_URL_KEY;
+import static org.neo4j.fleetmanagement.transactions.model.TokenAndConnectionUrl.TOKEN_KEY;
 
 import java.io.IOException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
+import org.apache.commons.lang3.StringUtils;
 import org.neo4j.fleetmanagement.configuration.State;
 import org.neo4j.fleetmanagement.utils.TokenUtils;
 import org.neo4j.graphdb.Label;
@@ -89,10 +92,18 @@ public class Configuration {
         @Description("Error message if token inspection fails.")
         public String errorMessage;
 
+        @Description("The URL that Fleet Manager connects to, if set.")
+        public String connectionUrl;
+
         public TokenInspectResult(String projectId, String expiry, String errorMessage) {
+            this(projectId, expiry, errorMessage, null);
+        }
+
+        public TokenInspectResult(String projectId, String expiry, String errorMessage, String connectionUrl) {
             this.projectId = projectId;
             this.tokenExpires = expiry;
             this.errorMessage = errorMessage;
+            this.connectionUrl = connectionUrl;
         }
     }
 
@@ -107,7 +118,13 @@ public class Configuration {
     @Admin
     @Description("Add a token for authenticating to Fleet Manager")
     public Stream<Result> registerToken(
-            @Name(value = "token", description = "A token obtained from Neo4j Aura.") String token) {
+            @Name(value = "token", description = "A token obtained from a fleet manager endpoint.") String token,
+            @Name(
+                            value = "connectionUrl",
+                            defaultValue = "",
+                            description =
+                                    "(optional) The URL of the service to connect to. Will connect to Neo4j Aura, if not provided.")
+                    String connectionUrl) {
         var active = getTokenStatus();
         var connected = state.isConnected();
 
@@ -117,7 +134,7 @@ public class Configuration {
                 tx -> {
                     try (var rs = tx.findNodes(Label.label("FleetManagementConfiguration"))) {
                         Optional<Node> maybeNode = rs.stream().findFirst();
-                        if (maybeNode.isPresent() && maybeNode.get().hasProperty("token")) {
+                        if (maybeNode.isPresent() && maybeNode.get().hasProperty(TOKEN_KEY)) {
                             if (active) {
                                 state.setActive(false);
                             }
@@ -128,7 +145,12 @@ public class Configuration {
                         }
                         Node node =
                                 maybeNode.orElseGet(() -> tx.createNode(Label.label("FleetManagementConfiguration")));
-                        node.setProperty("token", token);
+                        node.setProperty(TOKEN_KEY, token);
+                        if (StringUtils.isNotEmpty(connectionUrl)) {
+                            node.setProperty(CONNECTION_URL_KEY, connectionUrl);
+                        } else if (node.hasProperty(CONNECTION_URL_KEY)) {
+                            node.removeProperty(CONNECTION_URL_KEY);
+                        }
                     }
                     tx.commit();
 
@@ -170,10 +192,13 @@ public class Configuration {
 
                             Node node = maybeNode.get();
 
-                            var registeredToken = (String) node.getProperty("token");
+                            var registeredToken = (String) node.getProperty(TOKEN_KEY);
                             var apiKey = TokenUtils.parseToken(registeredToken);
+                            var connectionUrl = node.hasProperty(CONNECTION_URL_KEY)
+                                    ? node.getProperty(CONNECTION_URL_KEY).toString()
+                                    : null;
                             return Stream.of(new TokenInspectResult(
-                                    apiKey.projectId(), apiKey.expiryTime().toString(), null));
+                                    apiKey.projectId(), apiKey.expiryTime().toString(), null, connectionUrl));
                         }
                     },
                     e -> {
@@ -261,7 +286,7 @@ public class Configuration {
                 tx -> {
                     Optional<Node> maybeNode = tx.findNodes(Label.label("FleetManagementConfiguration")).stream()
                             .findFirst();
-                    return maybeNode.map(node -> node.hasProperty("token")).orElse(false);
+                    return maybeNode.map(node -> node.hasProperty(TOKEN_KEY)).orElse(false);
                 },
                 e -> {
                     String message = "An error occurred while fetching Fleet Manager token status: " + e.getMessage();

@@ -104,7 +104,7 @@ public class FleetManagement extends LifecycleAdapter {
             return thread;
         });
 
-        var upstream = new Upstream(transactor, log, config, this.state);
+        var upstream = new Upstream(transactor, log, this.state);
         var connectService =
                 new ConnectService(config, fs, transactor, serverIdentity, upstream, this.state, configuration);
         var reportingService =

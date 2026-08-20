@@ -30,10 +30,7 @@ import java.net.Socket;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.Date;
-import java.util.Objects;
 import javax.net.ssl.SSLSocketFactory;
-import org.neo4j.configuration.Config;
-import org.neo4j.configuration.GraphDatabaseInternalSettings;
 import org.neo4j.fleetmanagement.communication.Helpers;
 import org.neo4j.fleetmanagement.configuration.State;
 import org.neo4j.fleetmanagement.topology.TopologyMapper;
@@ -54,9 +51,11 @@ public class Upstream {
         MIGRATION_UPDATE_STATUS,
     }
 
+    private static final String DEFAULT_BASE_URL = "https://fleet-management-api.neo4j.io/api/v1";
+
     private static long maxTokenAge = 59 * 60 * 1000L; // 59 minutes
 
-    private final String baseUrl;
+    private volatile String baseUrl = DEFAULT_BASE_URL;
 
     private final ITransactor transactor;
     private ApiKeyProvider.ApiKey apiKey;
@@ -68,13 +67,22 @@ public class Upstream {
 
     private volatile String apiToken;
 
-    public Upstream(ITransactor transactor, Log userLog, Config config, State state) {
-        var customBaseUrl = config.get(GraphDatabaseInternalSettings.fleet_management_api_base_url);
-        this.baseUrl = Objects.requireNonNullElse(customBaseUrl, "https://fleet-management-api.neo4j.io/api/v1");
-
+    public Upstream(ITransactor transactor, Log userLog, State state) {
         this.transactor = transactor;
         this.userLog = userLog;
         this.state = state;
+    }
+
+    public void setConnectionUrl(String connectionUrl) {
+        this.baseUrl = (connectionUrl == null || connectionUrl.isEmpty()) ? DEFAULT_BASE_URL : connectionUrl;
+    }
+
+    public String getConnectionUrl() {
+        return this.baseUrl;
+    }
+
+    public boolean isConnectionUrlDefault() {
+        return this.baseUrl.equals(DEFAULT_BASE_URL);
     }
 
     public void setToken(String token) throws IOException {

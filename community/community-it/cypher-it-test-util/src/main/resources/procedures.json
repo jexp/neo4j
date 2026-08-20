@@ -4387,7 +4387,7 @@
     "description": "Inspect a Fleet Manager access token.",
     "mode": "DBMS",
     "worksOnSystem": true,
-    "signature": "fleetManagement.inspectToken(token =  :: STRING) :: (projectId :: STRING, tokenExpires :: STRING, errorMessage :: STRING)",
+    "signature": "fleetManagement.inspectToken(token =  :: STRING) :: (projectId :: STRING, tokenExpires :: STRING, errorMessage :: STRING, connectionUrl :: STRING)",
     "argumentDescription": [
       {
         "name": "token",
@@ -4415,6 +4415,12 @@
         "description": "Error message if token inspection fails.",
         "type": "STRING",
         "isDeprecated": false
+      },
+      {
+        "name": "connectionUrl",
+        "description": "The URL that Fleet Manager connects to, if set.",
+        "type": "STRING",
+        "isDeprecated": false
       }
     ],
     "admin": true,
@@ -4437,13 +4443,20 @@
     "description": "Add a token for authenticating to Fleet Manager",
     "mode": "DBMS",
     "worksOnSystem": true,
-    "signature": "fleetManagement.registerToken(token :: STRING) :: (result :: STRING)",
+    "signature": "fleetManagement.registerToken(token :: STRING, connectionUrl =  :: STRING) :: (result :: STRING)",
     "argumentDescription": [
       {
         "name": "token",
-        "description": "A token obtained from Neo4j Aura.",
+        "description": "A token obtained from a fleet manager endpoint.",
         "type": "STRING",
         "isDeprecated": false
+      },
+      {
+        "name": "connectionUrl",
+        "description": "(optional) The URL of the service to connect to. Will connect to Neo4j Aura, if not provided.",
+        "type": "STRING",
+        "isDeprecated": false,
+        "default": "DefaultParameterValue{value=, type=STRING}"
       }
     ],
     "returnDescription": [

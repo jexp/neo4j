@@ -31,6 +31,7 @@ import org.neo4j.fleetmanagement.topology.model.GraphCount;
 import org.neo4j.fleetmanagement.topology.model.Server;
 import org.neo4j.fleetmanagement.transactions.editions.CommunityTransactor;
 import org.neo4j.fleetmanagement.transactions.editions.EnterpriseTransactor;
+import org.neo4j.fleetmanagement.transactions.model.TokenAndConnectionUrl;
 import org.neo4j.fleetmanagement.transactions.model.VersionAndEdition;
 import org.neo4j.kernel.impl.factory.DbmsInfo;
 
@@ -72,8 +73,8 @@ public class Transactor implements ITransactor {
     }
 
     @Override
-    public String getToken() {
-        return this.editionTransactor.getToken();
+    public TokenAndConnectionUrl getTokenAndConnectionUrl() {
+        return this.editionTransactor.getTokenAndConnectionUrl();
     }
 
     @Override

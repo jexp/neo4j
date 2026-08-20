@@ -97,6 +97,9 @@ public class ConnectService extends BaseService {
             String payload = objectMapper.writeValueAsString(msg);
             this.fleetManagerLog.debug("Fleet manager connecting.");
             this.fleetManagerLog.payload("Fleet manager connecting with payload: %s", payload);
+            if (!upstream.isConnectionUrlDefault()) {
+                this.userLog.info("Fleet manager connecting to API at <%s>", upstream.getConnectionUrl());
+            }
 
             upstream.generateToken();
             Upstream.UpstreamPostRequest upstreamPostRequest = upstream.postTo(Upstream.Endpoint.CONNECT);
