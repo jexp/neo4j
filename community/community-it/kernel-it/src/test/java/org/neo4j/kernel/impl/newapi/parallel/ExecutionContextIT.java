@@ -85,6 +85,7 @@ public class ExecutionContextIT {
         executors.shutdown();
     }
 
+    @SkipOnSpd(reason = "Memory values are different in SPD")
     @RepeatedTest(10)
     void contextMemoryTracking() throws ExecutionException {
         try (Transaction transaction = databaseAPI.beginTx()) {
