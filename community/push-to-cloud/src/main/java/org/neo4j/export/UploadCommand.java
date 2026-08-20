@@ -112,6 +112,16 @@ public class UploadCommand extends AbstractAdminCommand {
             showDefaultValue = CommandLine.Help.Visibility.ALWAYS)
     private String to;
 
+    // order of evaluation
+    //   option, sys prop, env, bundle, default(false)
+    @Option(
+            names = "--dev-mode",
+            arity = "0..1",
+            defaultValue = "${" + DEV_MODE_VAR_NAME + ":-false}",
+            fallbackValue = "true",
+            hidden = true)
+    private boolean devMode;
+
     public UploadCommand(
             ExecutionContext ctx,
             AuraClient.AuraClientBuilder clientBuilder,
@@ -149,7 +159,7 @@ public class UploadCommand extends AbstractAdminCommand {
                 pass = password.toCharArray();
             }
 
-            boolean devMode = pushToCloudCLI.readDevMode(DEV_MODE_VAR_NAME);
+            boolean devMode = pushToCloudCLI.useDevMode(this.devMode);
 
             AuraConsole auraConsole = auraURLFactory.buildConsoleURI(boltURI, devMode, toDbId);
 

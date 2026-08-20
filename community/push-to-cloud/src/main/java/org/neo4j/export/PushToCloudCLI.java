@@ -30,8 +30,8 @@ interface PushToCloudCLI {
             }
 
             @Override
-            public boolean readDevMode(String devModeEnvVar) {
-                return Boolean.parseBoolean(System.getenv(devModeEnvVar));
+            public boolean useDevMode(boolean devMode) {
+                return devMode;
             }
         };
     }
@@ -49,7 +49,7 @@ interface PushToCloudCLI {
             }
 
             @Override
-            public boolean readDevMode(String devModeEnvVar) {
+            public boolean useDevMode(boolean ignored) {
                 return devMode;
             }
         };
@@ -59,5 +59,5 @@ interface PushToCloudCLI {
 
     char[] readPassword(String fmt, Object... args);
 
-    boolean readDevMode(String devModeEnvVar);
+    boolean useDevMode(boolean devMode);
 }
