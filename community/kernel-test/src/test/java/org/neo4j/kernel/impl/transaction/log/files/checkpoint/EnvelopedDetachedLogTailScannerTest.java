@@ -27,14 +27,17 @@ import static org.neo4j.storageengine.api.TransactionIdStore.UNKNOWN_CONSENSUS_I
 import static org.neo4j.storageengine.api.TransactionIdStore.UNKNOWN_TX_SEQUENCE_NUMBER;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.neo4j.configuration.Config;
 import org.neo4j.configuration.GraphDatabaseInternalSettings;
 import org.neo4j.dbms.database.DbmsRuntimeVersion;
+import org.neo4j.io.ByteUnit;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.KernelVersion;
@@ -43,9 +46,11 @@ import org.neo4j.kernel.impl.api.TestCommandReaderFactory;
 import org.neo4j.kernel.impl.transaction.log.CompleteCommandBatch;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryWriter;
+import org.neo4j.kernel.impl.transaction.log.entry.LogEnvelopeHeader;
 import org.neo4j.kernel.impl.transaction.log.entry.LogFormat;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
+import org.neo4j.kernel.impl.transaction.log.files.LogTailInformation;
 import org.neo4j.kernel.impl.transaction.tracing.LogCheckPointEvent;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.storageengine.api.Leases;
@@ -58,6 +63,7 @@ import org.neo4j.test.extension.Neo4jLayoutExtension;
 @Neo4jLayoutExtension
 public class EnvelopedDetachedLogTailScannerTest {
     private static final KernelVersion kernelVersion = KernelVersion.VERSION_ENVELOPED_TRANSACTION_LOGS_GUARANTEED;
+    private static final int SEGMENT_BLOCK_SIZE_BYTES = 1024;
 
     @Inject
     protected FileSystemAbstraction fs;
@@ -71,6 +77,10 @@ public class EnvelopedDetachedLogTailScannerTest {
     }
 
     private LogFiles setupLogFiles() throws IOException {
+        return setupLogFiles(4096L);
+    }
+
+    private LogFiles setupLogFiles(long rotationThreshold) throws IOException {
         var storeId = new StoreId(1, 2, "engine-1", "format-1", 3, 4);
         var config = Config.newBuilder()
                 .set(
@@ -82,8 +92,8 @@ public class EnvelopedDetachedLogTailScannerTest {
                         databaseLayout, fs, () -> kernelVersion, () -> LogFormat.fromKernelVersion(kernelVersion))
                 .withCommandReaderFactory(TestCommandReaderFactory.INSTANCE)
                 .withStoreId(storeId)
-                .withRotationThreshold(4096L)
-                .withEnvelopeSegmentBlockSizeBytes(1024)
+                .withRotationThreshold(rotationThreshold)
+                .withEnvelopeSegmentBlockSizeBytes(SEGMENT_BLOCK_SIZE_BYTES)
                 .withConfig(config)
                 .build();
     }
@@ -125,15 +135,104 @@ public class EnvelopedDetachedLogTailScannerTest {
         assertThat(logTailInformation.isRecoveryRequired()).isTrue();
     }
 
+    @Test
+    void checkpointAtSegmentBoundaryOfTruncatedLogShouldFindPostCheckpointEntries() throws IOException {
+        // The file shape a raw log pull (backup/catchup) produces: the pulled log is not pre-allocated
+        // and simply ends where the stream was cut, mid-segment, and the pull start position that gets
+        // checkpointed can land exactly on a segment boundary.
+        int segmentSize = SEGMENT_BLOCK_SIZE_BYTES;
+        LogPosition boundary = null;
+        LogPosition truncationPoint = null;
+        TransactionId checkpointedTx = null;
+        Path logFilePath;
+
+        var logLifeCycle = new LifeSupport();
+        var logFiles = setupLogFiles(ByteUnit.mebiBytes(1));
+        try {
+            logLifeCycle.start();
+            logLifeCycle.add(logFiles);
+            var logFile = logFiles.getLogFile();
+            var checkpointFile = logFiles.getCheckpointFile();
+            var logMetadataProvider = logFiles.logMetadataProvider();
+            var logWriter = logFile.getTransactionLogWriter();
+            LogEntryWriter<?> entryWriter = logWriter.getWriter();
+            int previousChecksum = BASE_TX_CHECKSUM;
+            long txId = 0;
+
+            // Vary the command size until a transaction ends so close to a segment boundary that the
+            // writer has to zero-pad, which makes the next entry start exactly on the boundary.
+            while (boundary == null) {
+                assertThat(++txId)
+                        .as("varying command sizes should hit the zero-padding zone of some segment")
+                        .isLessThan(2000);
+                long appendIndex = logMetadataProvider.nextAppendIndex();
+                previousChecksum = writeTxEntries(entryWriter, txId, appendIndex, previousChecksum, (int) (txId % 97));
+                var position = logWriter.getCurrentPosition();
+                long spaceLeftInSegment = segmentSize - position.getByteOffset() % segmentSize;
+                if (spaceLeftInSegment <= LogEnvelopeHeader.HEADER_SIZE) {
+                    boundary = new LogPosition(position.getLogVersion(), position.getByteOffset() + spaceLeftInSegment);
+                    checkpointedTx = new TransactionId(
+                            txId, appendIndex, kernelVersion, previousChecksum, 0, UNKNOWN_CONSENSUS_INDEX);
+                }
+            }
+
+            // Entries after the boundary, with the last one ending mid-segment (a pull cuts at batch ends).
+            for (int i = 0; i < 3 || truncationPoint == null; i++) {
+                long appendIndex = logMetadataProvider.nextAppendIndex();
+                previousChecksum = writeTxEntries(entryWriter, ++txId, appendIndex, previousChecksum, 40);
+                var position = logWriter.getCurrentPosition();
+                if (position.getByteOffset() % segmentSize != 0) {
+                    truncationPoint = position;
+                }
+            }
+            assertThat(truncationPoint.getLogVersion()).isEqualTo(boundary.getLogVersion());
+
+            checkpointFile
+                    .getCheckpointAppender()
+                    .checkPoint(
+                            LogCheckPointEvent.NULL,
+                            checkpointedTx,
+                            checkpointedTx.appendIndex(),
+                            kernelVersion,
+                            boundary,
+                            boundary,
+                            Instant.now(),
+                            "test");
+
+            var txLogPaths = Stream.of(logFiles.logFiles())
+                    .filter(path -> path.getFileName().toString().startsWith("neostore.transaction.db"))
+                    .toList();
+            assertThat(txLogPaths).hasSize(1);
+            logFilePath = txLogPaths.get(0);
+        } finally {
+            logLifeCycle.shutdown();
+        }
+
+        fs.truncate(logFilePath, truncationPoint.getByteOffset());
+
+        var logTailInformation =
+                (LogTailInformation) setupLogFiles(ByteUnit.mebiBytes(1)).getTailMetadata();
+        var lastCheckpoint = logTailInformation.getLastCheckPoint().orElseThrow();
+        assertThat(lastCheckpoint.transactionLogPosition()).isEqualTo(boundary);
+        assertThat(logTailInformation.hasRecordsToRecover()).isTrue();
+        assertThat(logTailInformation.isRecoveryRequired()).isTrue();
+    }
+
     private record LastTxInfo(long straddledTxId, long straddledAppendIndex, LogPosition afterStraddlePosition) {}
 
     private static int writeTxEntries(LogEntryWriter<?> entryWriter, long txId, long appendIndex, int previousChecksum)
+            throws IOException {
+        return writeTxEntries(entryWriter, txId, appendIndex, previousChecksum, 50);
+    }
+
+    private static int writeTxEntries(
+            LogEntryWriter<?> entryWriter, long txId, long appendIndex, int previousChecksum, int commandSize)
             throws IOException {
         byte[] emptyArray = new byte[0];
         entryWriter.writeStartEntry(
                 kernelVersion, 0, txId, appendIndex, UNKNOWN_TX_SEQUENCE_NUMBER, previousChecksum, emptyArray);
         CompleteCommandBatch commands = new CompleteCommandBatch(
-                List.of(new TestCommand(kernelVersion)),
+                List.of(new TestCommand(commandSize, kernelVersion)),
                 UNKNOWN_CONSENSUS_INDEX,
                 0,
                 txId - 1L,

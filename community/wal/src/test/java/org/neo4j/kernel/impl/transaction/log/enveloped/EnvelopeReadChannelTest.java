@@ -1473,6 +1473,168 @@ class EnvelopeReadChannelTest {
     }
 
     @Test
+    void reloadChannelStateAtSegmentBoundaryOfTruncatedFile() throws IOException {
+        // The file shape a raw tx log pull produces: never pre-allocated (TxLogCatchupSessionFactory
+        // disables it) and simply ending where the pulled stream was cut, mid-segment.
+        int segmentSize = 256;
+        final var bytes = bytes(random, TEST_DATA_SIZE);
+
+        var lastChecksumInFirstSegment = new MutableInt();
+        writeSomeData(buffer -> {
+            writeZeroSegment(buffer, segmentSize);
+            int checksum = writeHeaderAndPayload(
+                    buffer, EnvelopeType.FULL, BASE_TX_CHECKSUM, KERNEL_VERSION, bytes, 2L, CONTENT_TYPE, 100L);
+            checksum = writeHeaderAndPayload(
+                    buffer, EnvelopeType.FULL, checksum, KERNEL_VERSION, bytes, 3L, CONTENT_TYPE, 101L);
+            checksum = writeHeaderAndPayload(
+                    buffer, EnvelopeType.FULL, checksum, KERNEL_VERSION, bytes, 4L, CONTENT_TYPE, 102L);
+            checksum = writeHeaderAndPayload(
+                    buffer, EnvelopeType.FULL, checksum, KERNEL_VERSION, bytes, 5L, CONTENT_TYPE, 103L);
+            lastChecksumInFirstSegment.setValue(checksum);
+
+            buffer.put(new byte[4]); // padding
+            assertThat(buffer.position()).isEqualTo(segmentSize * 2);
+
+            writeHeaderAndPayload(buffer, EnvelopeType.FULL, checksum, KERNEL_VERSION, bytes, 6L, CONTENT_TYPE, 104L);
+        });
+
+        var logChannel = logChannel();
+        logChannel.position(segmentSize * 2L);
+        try (var channel = new EnvelopeReadChannel(
+                logChannel, segmentSize, NO_MORE_CHANNELS, EmptyMemoryTracker.INSTANCE, false)) {
+            channel.reloadChannelStateBeforeCurrentPosition();
+            assertThat(channel.position()).isEqualTo(segmentSize * 2L);
+            assertThat(channel.currentChecksum).isEqualTo(lastChecksumInFirstSegment.intValue());
+            assertThat(channel.currentIndex).isEqualTo(5L);
+            assertThat(channel.currentTerm).isEqualTo(103L);
+
+            assertThat(channel.goToNextEntry()).isEqualTo(segmentSize * 2L);
+            assertThat(channel.entryIndex()).isEqualTo(6L);
+        }
+    }
+
+    @Test
+    void reloadChannelStateAtSegmentBoundaryWithZeroEnvelopePadding() throws IOException {
+        // Same file shape as reloadChannelStateAtSegmentBoundaryOfTruncatedFile, but with padding wide
+        // enough to look like a real envelope header of zeros (unlike that test's 4-byte remainder).
+        // endOfContentInLoadedSegment() must recognise this as padding via the EnvelopeType.ZERO check,
+        // rather than the narrower "not enough room left for a header" exit that test relies on.
+        int segmentSize = 256;
+        final var bytes = bytes(random, TEST_DATA_SIZE);
+
+        var lastChecksumInFirstSegment = new MutableInt();
+        writeSomeData(buffer -> {
+            writeZeroSegment(buffer, segmentSize);
+            int checksum = writeHeaderAndPayload(
+                    buffer, EnvelopeType.FULL, BASE_TX_CHECKSUM, KERNEL_VERSION, bytes, 2L, CONTENT_TYPE, 100L);
+            checksum = writeHeaderAndPayload(
+                    buffer, EnvelopeType.FULL, checksum, KERNEL_VERSION, bytes, 3L, CONTENT_TYPE, 101L);
+            checksum = writeHeaderAndPayload(
+                    buffer, EnvelopeType.FULL, checksum, KERNEL_VERSION, bytes, 4L, CONTENT_TYPE, 102L);
+            lastChecksumInFirstSegment.setValue(checksum);
+
+            int paddingSize = segmentSize * 2 - buffer.position();
+            assertThat(paddingSize).isGreaterThanOrEqualTo(MAX_ZERO_PADDING_SIZE);
+            buffer.put(new byte[paddingSize]); // padding
+            assertThat(buffer.position()).isEqualTo(segmentSize * 2);
+
+            writeHeaderAndPayload(buffer, EnvelopeType.FULL, checksum, KERNEL_VERSION, bytes, 5L, CONTENT_TYPE, 103L);
+        });
+
+        var logChannel = logChannel();
+        logChannel.position(segmentSize * 2L);
+        try (var channel = new EnvelopeReadChannel(
+                logChannel, segmentSize, NO_MORE_CHANNELS, EmptyMemoryTracker.INSTANCE, false)) {
+            channel.reloadChannelStateBeforeCurrentPosition();
+            assertThat(channel.position()).isEqualTo(segmentSize * 2L);
+            assertThat(channel.currentChecksum).isEqualTo(lastChecksumInFirstSegment.intValue());
+            assertThat(channel.currentIndex).isEqualTo(4L);
+            assertThat(channel.currentTerm).isEqualTo(102L);
+
+            assertThat(channel.goToNextEntry()).isEqualTo(segmentSize * 2L);
+            assertThat(channel.entryIndex()).isEqualTo(5L);
+        }
+    }
+
+    @Test
+    void reloadChannelStateAtSegmentBoundaryDetectsCorruptedPadding() throws IOException {
+        // What endOfContentInLoadedSegment() treats as trailing zero padding must still be validated
+        // as such -- a stray non-zero byte in there is corruption, not padding, and reload must report
+        // it rather than silently trusting the region and standing at the segment boundary regardless.
+        int segmentSize = 256;
+        final var bytes = bytes(random, TEST_DATA_SIZE);
+
+        writeSomeData(buffer -> {
+            writeZeroSegment(buffer, segmentSize);
+            int checksum = writeHeaderAndPayload(
+                    buffer, EnvelopeType.FULL, BASE_TX_CHECKSUM, KERNEL_VERSION, bytes, 2L, CONTENT_TYPE, 100L);
+            checksum = writeHeaderAndPayload(
+                    buffer, EnvelopeType.FULL, checksum, KERNEL_VERSION, bytes, 3L, CONTENT_TYPE, 101L);
+            checksum = writeHeaderAndPayload(
+                    buffer, EnvelopeType.FULL, checksum, KERNEL_VERSION, bytes, 4L, CONTENT_TYPE, 102L);
+
+            int corruptedPosition = buffer.position() + 10;
+            int paddingSize = segmentSize * 2 - buffer.position();
+            assertThat(paddingSize).isGreaterThanOrEqualTo(MAX_ZERO_PADDING_SIZE);
+            buffer.put(new byte[paddingSize]); // padding
+            buffer.put(corruptedPosition, (byte) 0x42); // corrupt a byte inside the padding
+            assertThat(buffer.position()).isEqualTo(segmentSize * 2);
+
+            writeHeaderAndPayload(buffer, EnvelopeType.FULL, checksum, KERNEL_VERSION, bytes, 5L, CONTENT_TYPE, 103L);
+        });
+
+        var logChannel = logChannel();
+        logChannel.position(segmentSize * 2L);
+        try (var channel = new EnvelopeReadChannel(
+                logChannel, segmentSize, NO_MORE_CHANNELS, EmptyMemoryTracker.INSTANCE, false)) {
+            assertThatThrownBy(channel::reloadChannelStateBeforeCurrentPosition)
+                    .isInstanceOf(InvalidLogEnvelopeReadException.class);
+        }
+    }
+
+    @Test
+    void reloadChannelStateAtSegmentBoundaryWithLeadingStartOffset() throws IOException {
+        // A raw log pull that doesn't start at the very first segment writes a START_OFFSET envelope
+        // as the first thing in the segment it does start in. Confirm the reload logic still finds the
+        // true end of content past it -- not the START_OFFSET envelope's own length -- when the segment
+        // being reloaded (segment 1) begins with one.
+        int segmentSize = 256;
+        final var bytes = bytes(random, TEST_DATA_SIZE);
+
+        var lastChecksumInFirstSegment = new MutableInt();
+        writeSomeData(buffer -> {
+            writeZeroSegment(buffer, segmentSize);
+            writeHeaderAndPayload(buffer, EnvelopeType.START_OFFSET, 0, new byte[TEST_DATA_SIZE], 0);
+            int checksum = writeHeaderAndPayload(
+                    buffer, EnvelopeType.FULL, BASE_TX_CHECKSUM, KERNEL_VERSION, bytes, 2L, CONTENT_TYPE, 100L);
+            checksum = writeHeaderAndPayload(
+                    buffer, EnvelopeType.FULL, checksum, KERNEL_VERSION, bytes, 3L, CONTENT_TYPE, 101L);
+            checksum = writeHeaderAndPayload(
+                    buffer, EnvelopeType.FULL, checksum, KERNEL_VERSION, bytes, 4L, CONTENT_TYPE, 102L);
+            lastChecksumInFirstSegment.setValue(checksum);
+
+            buffer.put(new byte[4]); // padding
+            assertThat(buffer.position()).isEqualTo(segmentSize * 2);
+
+            writeHeaderAndPayload(buffer, EnvelopeType.FULL, checksum, KERNEL_VERSION, bytes, 5L, CONTENT_TYPE, 103L);
+        });
+
+        var logChannel = logChannel();
+        logChannel.position(segmentSize * 2L);
+        try (var channel = new EnvelopeReadChannel(
+                logChannel, segmentSize, NO_MORE_CHANNELS, EmptyMemoryTracker.INSTANCE, false)) {
+            channel.reloadChannelStateBeforeCurrentPosition();
+            assertThat(channel.position()).isEqualTo(segmentSize * 2L);
+            assertThat(channel.currentChecksum).isEqualTo(lastChecksumInFirstSegment.intValue());
+            assertThat(channel.currentIndex).isEqualTo(4L);
+            assertThat(channel.currentTerm).isEqualTo(102L);
+
+            assertThat(channel.goToNextEntry()).isEqualTo(segmentSize * 2L);
+            assertThat(channel.entryIndex()).isEqualTo(5L);
+        }
+    }
+
+    @Test
     void allowOpenOfEmptyFile() throws IOException {
         final var file = file(0);
         writeSomeData(file, buffer -> {});

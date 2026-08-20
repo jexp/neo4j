@@ -661,8 +661,11 @@ public class EnvelopeReadChannel implements ReadableLogChannel {
             }
             // read previous segment and set position at the end
             loadSegmentIntoBuffer(currentSegment - 1);
+            readAllEnvelopesUpToIncluding(endOfContentInLoadedSegment(), true);
+            // stand at the segment end with any zero padding consumed, as after a flush-ending segment
             buffer.position(buffer.limit());
-            readAllEnvelopesUpToIncluding(buffer.position(), true);
+            payloadStartOffset = buffer.limit();
+            payloadEndOffset = buffer.limit();
         } else {
             readAllEnvelopesUpToIncluding(buffer.position(), true);
             buffer.position(initialPosition);
@@ -690,6 +693,45 @@ public class EnvelopeReadChannel implements ReadableLogChannel {
 
     LogVersionedStoreChannel channel() {
         return channel;
+    }
+
+    private int endOfContentInLoadedSegment() throws IOException {
+        int offset = 0;
+        final int limit = buffer.limit();
+        while (limit - offset > HEADER_SIZE) {
+            if (buffer.get(offset + LogEnvelopeHeader.OFFSET_ENVELOPE_TYPE) == EnvelopeType.ZERO.typeValue) {
+                break;
+            }
+            int payloadLength = buffer.getInt(offset + LogEnvelopeHeader.OFFSET_PAYLOAD_LENGTH);
+            if (payloadLength <= 0) {
+                break;
+            }
+            offset += HEADER_SIZE + payloadLength;
+        }
+        int endOfContent = min(offset, limit);
+        enforceZerosFrom(endOfContent, limit);
+        return endOfContent;
+    }
+
+    // Same zero check readEnvelopeHeader()/enforceZeros() would have made had we walked this region
+    // envelope by envelope instead of jumping straight to it -- catches corruption in what should be
+    // trailing zero padding, using absolute gets so the buffer's position is left untouched.
+    private void enforceZerosFrom(int fromOffset, int limit) throws IOException {
+        int offset = fromOffset;
+        while (limit - offset >= Long.BYTES) {
+            if (buffer.getLong(offset) != 0) {
+                break;
+            }
+            offset += Long.BYTES;
+        }
+        while (offset < limit) {
+            if (buffer.get(offset) != 0) {
+                throw new InvalidLogEnvelopeReadException(
+                        "Unexpected non-zero data found at offset %d of segment %d. Expecting only zeros from offset %d onward."
+                                .formatted(offset, currentSegment - 1, fromOffset));
+            }
+            offset++;
+        }
     }
 
     private void readAllEnvelopesUpToIncluding(int bufferOffset, boolean forceReadingEvenIfAtEnd) throws IOException {
