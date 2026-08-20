@@ -260,10 +260,7 @@ public class Neo4jTransactionalContext implements TransactionalContext {
          * To still keep track of the running stream after switching transactions, we need to open the new transaction
          * before closing the old one. This way, a query will not disappear and appear when switching transactions.
          *
-         * Since our transactions are thread bound, we must first unbind the old transaction from the thread before
-         * creating a new one. And then we need to do that thread switching again to close the old transaction.
          */
-
         checkNotTerminated();
 
         // (1) Remember old statement
@@ -290,9 +287,13 @@ public class Neo4jTransactionalContext implements TransactionalContext {
         // (5) commit old transaction
         try {
             oldStatement.close();
+            long committedTransactionId;
             try (oldKernelTx) {
-                return oldKernelTx.commit(statisticsMonitor());
+                committedTransactionId = oldKernelTx.commit(statisticsMonitor());
             }
+            kernelTransaction.cursorContext().getVersionContext().initRead();
+            kernelTransaction.reportVisibilityBoundaryRefresh();
+            return committedTransactionId;
         } catch (Throwable t) {
             // Corner case: The old transaction might have been terminated by the user. Now we also need to
             // terminate the new transaction.

@@ -31,7 +31,7 @@ import org.neo4j.kernel.impl.coreapi.InternalTransaction;
 import org.neo4j.kernel.impl.query.statistic.StatisticProvider;
 import org.neo4j.values.ElementIdMapper;
 
-public interface TransactionalContext {
+public interface TransactionalContext extends AutoCloseable {
     ExecutingQuery executingQuery();
 
     KernelTransaction kernelTransaction();
@@ -51,6 +51,7 @@ public interface TransactionalContext {
      *
      * This does not close the underlying transaction.
      */
+    @Override
     void close();
 
     /**
