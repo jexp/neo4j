@@ -47,6 +47,7 @@ import org.neo4j.graphdb.event.DatabaseEventListener;
 import org.neo4j.graphdb.event.DatabaseEventListenerAdapter;
 import org.neo4j.graphdb.facade.DatabaseManagementServiceFactory;
 import org.neo4j.graphdb.facade.ExternalDependencies;
+import org.neo4j.index.internal.gbptree.SharedMultiRootLfuCache;
 import org.neo4j.internal.collector.RecentQueryBuffer;
 import org.neo4j.internal.diagnostics.DiagnosticsManager;
 import org.neo4j.internal.nativeimpl.NativeAccess;
@@ -294,6 +295,8 @@ public class GlobalModule {
                 tryResolveOrCreate(NativeAccess.class, NativeAccessProvider::getNativeAccess));
         pagePrefetcher = tryResolveOrCreate(PagePrefetcher.class, this::createPrefetcher);
         globalLife.add(pagePrefetcher);
+        globalDependencies.satisfyDependency(new SharedMultiRootLfuCache(
+                globalConfig.get(GraphDatabaseInternalSettings.dense_relationships_store_root_cache_size)));
     }
 
     private PagePrefetcher createPrefetcher() {

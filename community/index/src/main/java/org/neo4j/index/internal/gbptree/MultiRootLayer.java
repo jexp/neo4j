@@ -42,7 +42,6 @@ import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Supplier;
 import org.neo4j.common.DependencyResolver;
 import org.neo4j.index.internal.gbptree.RootMappingLayout.RootMappingValue;
-import org.neo4j.internal.helpers.collection.LfuCache;
 import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.io.pagecache.PagedFile;
 import org.neo4j.io.pagecache.context.CursorContext;
@@ -60,15 +59,13 @@ import org.neo4j.util.concurrent.Futures;
  * @param <DATA_VALUE> values used in the data entries in the data roots.
  */
 class MultiRootLayer<ROOT_KEY, DATA_KEY, DATA_VALUE> extends RootLayer<ROOT_KEY, DATA_KEY, DATA_VALUE> {
-    private static final int BYTE_SIZE_PER_CACHED_EXTERNAL_ROOT =
-            16 /*obj.overhead*/ + 16 /*obj.fields*/ + 16 /*inner root instance*/ + 8 /* cache references*/;
     private static final long NULL_ROOT_ID = -1;
     private static final long NOT_FOUND_ROOT_ID = 0;
     private static final Root NULL_ROOT = new Root(NULL_ROOT_ID, -1);
     private final Layout<ROOT_KEY, RootMappingValue> rootLayout;
     private final LeafNodeBehaviour<ROOT_KEY, RootMappingValue> rootLeafNode;
     private final InternalNodeBehaviour<ROOT_KEY> rootInternalNode;
-    private final LfuCache<ROOT_KEY, DataTreeRoot<ROOT_KEY>> rootMappingCache;
+    private final RootMappingCache<ROOT_KEY, DataTreeRoot<ROOT_KEY>> rootMappingCache;
     private final ValueMerger<ROOT_KEY, RootMappingValue> DONT_ALLOW_CREATE_EXISTING_ROOT =
             (existingKey, newKey, existingValue, newValue) -> {
                 throw new DataTreeAlreadyExistsException(existingKey);
@@ -82,7 +79,7 @@ class MultiRootLayer<ROOT_KEY, DATA_KEY, DATA_VALUE> extends RootLayer<ROOT_KEY,
             RootLayerSupport support,
             Layout<ROOT_KEY, RootMappingValue> rootLayout,
             Layout<DATA_KEY, DATA_VALUE> dataLayout,
-            int rootCacheSizeInBytes,
+            RootMappingCacheFactory rootMappingCacheFactory,
             TreeNodeSelector treeNodeSelector,
             DependencyResolver dependencyResolver) {
         super(support, treeNodeSelector);
@@ -91,8 +88,7 @@ class MultiRootLayer<ROOT_KEY, DATA_KEY, DATA_VALUE> extends RootLayer<ROOT_KEY,
 
         this.rootLayout = rootLayout;
         this.dataLayout = dataLayout;
-        this.rootMappingCache = new LfuCache<>(
-                "Root mapping cache", Math.max(100, rootCacheSizeInBytes / BYTE_SIZE_PER_CACHED_EXTERNAL_ROOT));
+        this.rootMappingCache = rootMappingCacheFactory.create("Root mapping cache");
         var rootMappingFormat = treeNodeSelector.selectByLayout(this.rootLayout);
         var format = treeNodeSelector.selectByLayout(dataLayout);
         OffloadStoreImpl<ROOT_KEY, RootMappingValue> rootOffloadStore = support.buildOffload(this.rootLayout);
@@ -675,6 +671,9 @@ class MultiRootLayer<ROOT_KEY, DATA_KEY, DATA_VALUE> extends RootLayer<ROOT_KEY,
         }
     }
 
+    /**
+     * Remove this tree's root mappings from the cache - essential if the cache is shared with other trees.
+     */
     @Override
     public void clearCache() {
         rootMappingCache.clear();

@@ -246,6 +246,9 @@ abstract class RootLayer<ROOT_KEY, DATA_KEY, DATA_VALUE> implements TreeRootExch
             ROOT_KEY toExclusiveKey)
             throws IOException;
 
+    /**
+     * Clears any cache used in this root layer.
+     */
     @VisibleForTesting
     public abstract void clearCache();
 

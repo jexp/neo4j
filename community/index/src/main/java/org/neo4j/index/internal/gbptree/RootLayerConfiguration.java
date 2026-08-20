@@ -31,8 +31,14 @@ public abstract sealed class RootLayerConfiguration<ROOT_KEY>
     }
 
     public static <ROOT_KEY> RootLayerConfiguration<ROOT_KEY> multipleRoots(
-            KeyLayout<ROOT_KEY> rootKeyLayout, int rootMappingCacheSize) {
-        return new MultiRootLayerConfiguration<>(rootKeyLayout, rootMappingCacheSize);
+            KeyLayout<ROOT_KEY> rootKeyLayout, long maxMemory) {
+        return new MultiRootLayerConfiguration<>(
+                rootKeyLayout, new RootMappingCacheFactory.LocalRootMappingCacheFactory(maxMemory));
+    }
+
+    public static <ROOT_KEY> RootLayerConfiguration<ROOT_KEY> multipleRoots(
+            KeyLayout<ROOT_KEY> rootKeyLayout, RootMappingCacheFactory rootMappingCacheFactory) {
+        return new MultiRootLayerConfiguration<>(rootKeyLayout, rootMappingCacheFactory);
     }
 
     abstract <VALUE, KEY> RootLayer<ROOT_KEY, KEY, VALUE> buildRootLayer(
@@ -63,11 +69,12 @@ public abstract sealed class RootLayerConfiguration<ROOT_KEY>
 
     static final class MultiRootLayerConfiguration<ROOT_KEY> extends RootLayerConfiguration<ROOT_KEY> {
         private final Layout<ROOT_KEY, RootMappingValue> rootKeyLayout;
-        private final int rootMappingCacheSize;
+        private final RootMappingCacheFactory rootMappingCacheFactory;
 
-        MultiRootLayerConfiguration(KeyLayout<ROOT_KEY> rootKeyLayout, int rootMappingCacheSize) {
+        MultiRootLayerConfiguration(
+                KeyLayout<ROOT_KEY> rootKeyLayout, RootMappingCacheFactory rootMappingCacheFactory) {
             this.rootKeyLayout = new RootMappingLayout<>(rootKeyLayout);
-            this.rootMappingCacheSize = rootMappingCacheSize;
+            this.rootMappingCacheFactory = rootMappingCacheFactory;
         }
 
         @Override
@@ -80,7 +87,7 @@ public abstract sealed class RootLayerConfiguration<ROOT_KEY>
                     rootLayerSupport,
                     rootKeyLayout,
                     dataLayout,
-                    rootMappingCacheSize,
+                    rootMappingCacheFactory,
                     treeNodeSelector,
                     dependencyResolver);
         }

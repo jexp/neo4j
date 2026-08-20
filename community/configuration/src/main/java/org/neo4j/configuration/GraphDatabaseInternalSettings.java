@@ -2211,6 +2211,19 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
             .addConstraint(min(1))
             .build();
 
+    @Internal
+    @Description("The size of the cache for holding recently accessed roots in the dense relationships store."
+            + " Accepted values are: plain numbers, byte values e.g 10M, percentage of heap e.g. 1% or 'auto'"
+            + " for an automatically chosen value, attempting to set the cache to an optimal size. "
+            + "This cache is shared between all block format databases in the dbms.")
+    public static final Setting<Long> dense_relationships_store_root_cache_size = newBuilder(
+                    "internal.db.block.dense_relationships_store_root_cache_size",
+                    new DenseRootCacheSizeSettingValueParser(),
+                    DenseRootCacheSizeSettingValueParser.clampedPercentageOfHeap(1))
+            .addConstraint(min(DenseRootCacheSizeSettingValueParser.MIN))
+            .addConstraint(max(DenseRootCacheSizeSettingValueParser.MAX))
+            .build();
+
     public static HeapEstimatorCacheConfig extractCustomHeapEstimatorCacheConfig(Config config) {
         return new HeapEstimatorCacheConfig(
                 config.get(GraphDatabaseInternalSettings.heap_estimator_cache_size_limit),

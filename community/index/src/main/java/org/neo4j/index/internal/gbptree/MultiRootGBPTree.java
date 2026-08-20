@@ -1410,6 +1410,9 @@ public class MultiRootGBPTree<ROOT_KEY, KEY, VALUE> implements Closeable {
         }
         try (pagedFile;
                 structureWriteLog) {
+            if (rootLayer != null) {
+                rootLayer.clearCache();
+            }
         } finally {
             closed = true;
         }
