@@ -486,7 +486,7 @@ class BatchingNeoStoresTest {
             // THEN
             assertThat(stores.getPageCache().maxCachedPages()
                             * stores.getPageCache().pageSize())
-                    .isCloseTo(BatchingNeoStores.MAX_PAGE_CACHE_MEMORY, Percentage.withPercentage(1));
+                    .isCloseTo(BatchingNeoStores.MAX_PAGE_CACHE_MEMORY, Percentage.withPercentage(2));
         }
     }
 
@@ -511,7 +511,7 @@ class BatchingNeoStoresTest {
             // THEN
             assertThat(stores.getPageCache().maxCachedPages()
                             * stores.getPageCache().pageSize())
-                    .isCloseTo(overridden, Percentage.withPercentage(1));
+                    .isCloseTo(overridden, Percentage.withPercentage(2));
         }
     }
 

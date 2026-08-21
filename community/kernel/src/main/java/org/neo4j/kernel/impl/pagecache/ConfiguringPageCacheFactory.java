@@ -19,11 +19,11 @@
  */
 package org.neo4j.kernel.impl.pagecache;
 
+import static java.util.function.Function.identity;
 import static org.neo4j.configuration.GraphDatabaseSettings.pagecache_async_io;
 import static org.neo4j.configuration.GraphDatabaseSettings.pagecache_memory;
 import static org.neo4j.configuration.GraphDatabaseSettings.preallocate_store_files;
 import static org.neo4j.configuration.SettingValueParsers.BYTES;
-import static org.neo4j.io.mem.MemoryAllocator.createAllocator;
 import static org.neo4j.memory.MemoryGroup.PAGE_CACHE;
 
 import java.util.function.Function;
@@ -33,7 +33,6 @@ import org.neo4j.configuration.pagecache.ConfigurableIOBufferFactory;
 import org.neo4j.internal.unsafe.UnsafeUtil;
 import org.neo4j.io.ByteUnit;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.mem.MemoryAllocator;
 import org.neo4j.io.os.OsBeanUtil;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.impl.muninn.MuninnPageCache;
@@ -41,7 +40,6 @@ import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.logging.InternalLog;
 import org.neo4j.memory.MachineMemory;
 import org.neo4j.memory.MemoryPools;
-import org.neo4j.memory.MemoryTracker;
 import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.time.SystemNanoClock;
 
@@ -64,7 +62,7 @@ public class ConfiguringPageCacheFactory {
             JobScheduler scheduler,
             SystemNanoClock clock,
             MemoryPools memoryPools) {
-        this(fs, config, pageCacheTracer, log, scheduler, clock, memoryPools, c -> c);
+        this(fs, config, pageCacheTracer, log, scheduler, clock, memoryPools, identity());
     }
 
     /**
@@ -112,13 +110,11 @@ public class ConfiguringPageCacheFactory {
 
         var memoryPool = memoryPools.pool(PAGE_CACHE, pageCacheMaxMemory, false, null);
         var memoryTracker = memoryPool.getPoolMemoryTracker();
-        MemoryAllocator memoryAllocator = buildMemoryAllocator(
-                pageCacheMaxMemory,
-                config.get(GraphDatabaseInternalSettings.page_cache_allocation_grab_size),
-                memoryTracker);
         var bufferFactory = new ConfigurableIOBufferFactory(config, memoryTracker);
-        MuninnPageCache.Configuration configuration = MuninnPageCache.config(memoryAllocator)
+        var configuration = MuninnPageCache.forMemory(pageCacheMaxMemory)
                 .memoryTracker(memoryTracker)
+                .preTouch(config.get(GraphDatabaseInternalSettings.page_cache_allocator_pre_touch))
+                .log(log::info)
                 .bufferFactory(bufferFactory)
                 .reservedPageBytes(PageCache.RESERVED_BYTES)
                 .preallocateStoreFiles(config.get(preallocate_store_files))
@@ -126,8 +122,7 @@ public class ConfiguringPageCacheFactory {
                 .pageCacheTracer(pageCacheTracer)
                 .withAsyncIO(asyncIO)
                 .closeAllocatorOnShutdown(config.get(GraphDatabaseInternalSettings.close_allocator_on_shutdown));
-        configuration = pageCacheConfigurator.apply(configuration);
-        return new MuninnPageCache(fs, scheduler, configuration);
+        return new MuninnPageCache(fs, scheduler, pageCacheConfigurator.apply(configuration));
     }
 
     private Boolean getAsyncSetting() {
@@ -136,11 +131,6 @@ public class ConfiguringPageCacheFactory {
             log.info("Page cache is configured to use async IO provider, if available.");
         }
         return async;
-    }
-
-    private static MemoryAllocator buildMemoryAllocator(
-            long pageCacheMaxMemory, Long grabSize, MemoryTracker memoryTracker) {
-        return createAllocator(pageCacheMaxMemory, grabSize, memoryTracker);
     }
 
     private long getPageCacheMaxMemory(Config config) {

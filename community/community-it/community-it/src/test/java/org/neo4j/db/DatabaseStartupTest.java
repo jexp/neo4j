@@ -243,7 +243,7 @@ class DatabaseStartupTest {
             StorageEngineFactory storageEngineFactory, DatabaseLayout databaseLayout, Consumer<MetadataProvider> tamper)
             throws Exception {
         try (var scheduler = JobSchedulerFactory.createInitialisedScheduler();
-                var pageCache = new MuninnPageCache(fs, scheduler, MuninnPageCache.config(1_000));
+                var pageCache = new MuninnPageCache(fs, scheduler, MuninnPageCache.forPages(1_000));
                 var metadataProvider = storageEngineFactory.transactionMetaDataStore(
                         fs, databaseLayout, Config.defaults(), pageCache, writable(), NULL_CONTEXT_FACTORY, NULL)) {
             tamper.accept(metadataProvider);

@@ -31,7 +31,7 @@ import static org.neo4j.internal.kernel.api.PropertyIndexQuery.fulltextSearch;
 import static org.neo4j.internal.schema.IndexType.FULLTEXT;
 import static org.neo4j.io.async.AsyncBlockAccessor.EMPTY_ASYNC_BLOCK_ACCESSOR;
 import static org.neo4j.io.pagecache.context.FixedVersionContextSupplier.EMPTY_CONTEXT_SUPPLIER;
-import static org.neo4j.io.pagecache.impl.muninn.MuninnPageCache.config;
+import static org.neo4j.io.pagecache.impl.muninn.MuninnPageCache.forPages;
 import static org.neo4j.io.pagecache.tracing.PageCacheTracer.NULL;
 import static org.neo4j.kernel.api.impl.fulltext.FulltextIndexProceduresUtil.FULLTEXT_CREATE;
 import static org.neo4j.kernel.api.impl.fulltext.FulltextIndexProceduresUtil.asNodeLabelStr;
@@ -543,7 +543,7 @@ class FulltextIndexProviderTest {
                     fileSystem, RecoveryCleanupWorkCollector.ignore(), cacheTracer, databaseLayout.getDatabaseName());
             try (JobScheduler scheduler = JobSchedulerFactory.createInitialisedScheduler();
                     PageCache pageCache = StandalonePageCacheFactory.createPageCache(
-                            fileSystem, scheduler, cacheTracer, config(100))) {
+                            fileSystem, scheduler, cacheTracer, forPages(100))) {
 
                 StoreFactory factory = new StoreFactory(
                         databaseLayout,

@@ -27,7 +27,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.neo4j.io.ByteUnit.MebiByte;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -47,17 +46,14 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.neo4j.internal.unsafe.UnsafeUtil;
-import org.neo4j.io.mem.MemoryAllocator;
 import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.io.pagecache.impl.muninn.swapper.PageSwapper;
 import org.neo4j.io.pagecache.tracing.DummyPageSwapper;
 import org.neo4j.io.pagecache.tracing.PinPageFaultEvent;
-import org.neo4j.memory.EmptyMemoryTracker;
 import org.neo4j.test.scheduler.DaemonThreadFactory;
 import org.neo4j.util.concurrent.Futures;
 
 public class AbstractPageMetadataTest {
-    private static final int ALIGNMENT = 8;
     protected static final Duration TIMEOUT = Duration.ofMinutes(1);
 
     private static final int[] pageIds = new int[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
@@ -69,18 +65,18 @@ public class AbstractPageMetadataTest {
     }
 
     protected ExecutorService executor;
-    private MemoryAllocator mman;
 
     @BeforeEach
     void setUpAbstract() {
         executor = Executors.newCachedThreadPool(new DaemonThreadFactory());
-        mman = MemoryAllocator.createAllocator(MebiByte.toBytes(1), EmptyMemoryTracker.INSTANCE);
     }
 
     @AfterEach
     void tearDownAbstract() {
-        mman.close();
-        mman = null;
+        if (pageMetadata != null) {
+            pageMetadata.close();
+            pageMetadata = null;
+        }
         executor.shutdown();
         executor = null;
     }
@@ -99,7 +95,7 @@ public class AbstractPageMetadataTest {
         nextPageId = (pageId + 1) % pageIds.length;
         pageSize = UnsafeUtil.pageSize();
 
-        pageMetadata = new PageMetadata(pageIds.length, pageSize, mman);
+        pageMetadata = new PageMetadata(pageIds.length, pageSize);
         pageRef = pageMetadata.deref(pageId);
         prevPageRef = pageMetadata.deref(prevPageId);
         nextPageRef = pageMetadata.deref(nextPageId);
@@ -113,10 +109,14 @@ public class AbstractPageMetadataTest {
         int pageCount;
 
         pageCount = 3;
-        assertThat(new PageMetadata(pageCount, pageSize, mman).getPageCount()).isEqualTo(pageCount);
+        try (PageMetadata metadata = new PageMetadata(pageCount, pageSize)) {
+            assertThat(metadata.getPageCount()).isEqualTo(pageCount);
+        }
 
         pageCount = 42;
-        assertThat(new PageMetadata(pageCount, pageSize, mman).getPageCount()).isEqualTo(pageCount);
+        try (PageMetadata metadata = new PageMetadata(pageCount, pageSize)) {
+            assertThat(metadata.getPageCount()).isEqualTo(pageCount);
+        }
     }
 
     @ParameterizedTest(name = "pageRef = {0}")
@@ -1302,17 +1302,6 @@ public class AbstractPageMetadataTest {
         assertFalse(PageMetadata.validateReadLock(pageRef, readStamp));
     }
 
-    // xxx ---[ Page state tests ]---
-
-    @ParameterizedTest(name = "pageRef = {0}")
-    @MethodSource("argumentsProvider")
-    public void mustExposeCachePageSize(int pageId) {
-        init(pageId);
-
-        PageMetadata metadata = new PageMetadata(0, 42, mman);
-        assertThat(metadata.getCachePageSize()).isEqualTo(42);
-    }
-
     @ParameterizedTest(name = "pageRef = {0}")
     @MethodSource("argumentsProvider")
     public void addressesMustBeZeroBeforeInitialisation(int pageId) {
@@ -1323,23 +1312,10 @@ public class AbstractPageMetadataTest {
 
     @ParameterizedTest(name = "pageRef = {0}")
     @MethodSource("argumentsProvider")
-    public void initialisingBufferMustConsumeMemoryFromMemoryManager(int pageId) {
-        init(pageId);
-
-        long initialUsedMemory = mman.usedMemory();
-        MuninnPageCache.ensurePageAllocated(pageRef, mman, pageSize, ALIGNMENT);
-        long resultingUsedMemory = mman.usedMemory();
-        int allocatedMemory = (int) (resultingUsedMemory - initialUsedMemory);
-        assertThat(allocatedMemory).isGreaterThanOrEqualTo(pageSize);
-        assertThat(allocatedMemory).isLessThanOrEqualTo(pageSize + ALIGNMENT);
-    }
-
-    @ParameterizedTest(name = "pageRef = {0}")
-    @MethodSource("argumentsProvider")
     public void addressMustNotBeZeroAfterInitialisation(int pageId) {
         init(pageId);
 
-        MuninnPageCache.ensurePageAllocated(pageRef, mman, pageSize, ALIGNMENT);
+        pageMetadata.ensurePageAllocated(pageRef);
         assertThat(PageMetadata.getAddress(pageRef)).isNotEqualTo(0L);
     }
 
@@ -1428,7 +1404,7 @@ public class AbstractPageMetadataTest {
         init(pageId);
 
         PageMetadata.unlockExclusive(pageRef);
-        MuninnPageCache.ensurePageAllocated(pageRef, mman, pageSize, ALIGNMENT);
+        pageMetadata.ensurePageAllocated(pageRef);
         assertThrows(
                 IllegalStateException.class,
                 () -> MuninnPagedFile.validatePageRefAndSetFilePageId(pageRef, DUMMY_SWAPPER, (short) 0, 0));
@@ -1452,7 +1428,7 @@ public class AbstractPageMetadataTest {
                 throw new IOException("Did not expect this file page id = " + fpId);
             }
         };
-        MuninnPageCache.ensurePageAllocated(pageRef, mman, pageSize, ALIGNMENT);
+        pageMetadata.ensurePageAllocated(pageRef);
         MuninnPageCursor.fault(pageRef, swapper, swapperId, filePageId, PinPageFaultEvent.NULL);
 
         long address = PageMetadata.getAddress(pageRef);
@@ -1477,7 +1453,7 @@ public class AbstractPageMetadataTest {
         // exclusive lock implied by constructor
         int swapperId = 1;
         long filePageId = 42;
-        MuninnPageCache.ensurePageAllocated(pageRef, mman, pageSize, ALIGNMENT);
+        pageMetadata.ensurePageAllocated(pageRef);
         MuninnPagedFile.validatePageRefAndSetFilePageId(pageRef, DUMMY_SWAPPER, swapperId, filePageId);
         MuninnPageCursor.fault(pageRef, DUMMY_SWAPPER, swapperId, filePageId, PinPageFaultEvent.NULL);
         assertThat(PageMetadata.getFilePageId(pageRef)).isEqualTo(filePageId);
@@ -1494,7 +1470,7 @@ public class AbstractPageMetadataTest {
         // exclusive lock implied by constructor
         int swapperId = 12;
         long filePageId = Integer.MAX_VALUE + 1L;
-        MuninnPageCache.ensurePageAllocated(pageRef, mman, pageSize, ALIGNMENT);
+        pageMetadata.ensurePageAllocated(pageRef);
         MuninnPagedFile.validatePageRefAndSetFilePageId(pageRef, DUMMY_SWAPPER, swapperId, filePageId);
         MuninnPageCursor.fault(pageRef, DUMMY_SWAPPER, swapperId, filePageId, PinPageFaultEvent.NULL);
         assertThat(PageMetadata.getFilePageId(pageRef)).isEqualTo(filePageId);
@@ -1517,7 +1493,7 @@ public class AbstractPageMetadataTest {
         };
         int swapperId = 1;
         long filePageId = 42;
-        MuninnPageCache.ensurePageAllocated(pageRef, mman, pageSize, ALIGNMENT);
+        pageMetadata.ensurePageAllocated(pageRef);
         assertThatThrownBy(() -> {
                     MuninnPagedFile.validatePageRefAndSetFilePageId(pageRef, swapper, swapperId, filePageId);
                     MuninnPageCursor.fault(pageRef, swapper, swapperId, filePageId, PinPageFaultEvent.NULL);
@@ -1538,7 +1514,7 @@ public class AbstractPageMetadataTest {
         // exclusive lock implied by constructor
         short swapperId = 1;
         long filePageId = 42;
-        MuninnPageCache.ensurePageAllocated(pageRef, mman, pageSize, ALIGNMENT);
+        pageMetadata.ensurePageAllocated(pageRef);
         MuninnPagedFile.validatePageRefAndSetFilePageId(pageRef, DUMMY_SWAPPER, swapperId, filePageId);
         MuninnPageCursor.fault(pageRef, DUMMY_SWAPPER, swapperId, filePageId, PinPageFaultEvent.NULL);
 
@@ -1566,7 +1542,7 @@ public class AbstractPageMetadataTest {
 
     private void doFailedFault(short swapperId, long filePageId) {
         assertTrue(PageMetadata.tryExclusiveLock(pageRef));
-        MuninnPageCache.ensurePageAllocated(pageRef, mman, pageSize, ALIGNMENT);
+        pageMetadata.ensurePageAllocated(pageRef);
         DummyPageSwapper swapper = new DummyPageSwapper("", pageSize) {
             @Override
             public long read(long filePageId, long bufferAddress) throws IOException {
@@ -1589,7 +1565,7 @@ public class AbstractPageMetadataTest {
         // exclusive lock implied by constructor
         short swapperId = 1;
         long filePageId = 42;
-        MuninnPageCache.ensurePageAllocated(pageRef, mman, pageSize, ALIGNMENT);
+        pageMetadata.ensurePageAllocated(pageRef);
         DummyPageSwapper swapper = new DummyPageSwapper("", pageSize) {
             @Override
             public long read(long filePageId, long bufferAddress) {
@@ -1730,7 +1706,7 @@ public class AbstractPageMetadataTest {
     private void doFault(int swapperId, long filePageId) throws IOException {
         assertTrue(PageMetadata.tryExclusiveLock(pageRef));
         MuninnPagedFile.validatePageRefAndSetFilePageId(pageRef, DUMMY_SWAPPER, swapperId, filePageId);
-        MuninnPageCache.ensurePageAllocated(pageRef, mman, pageSize, ALIGNMENT);
+        pageMetadata.ensurePageAllocated(pageRef);
         MuninnPageCursor.fault(pageRef, DUMMY_SWAPPER, swapperId, filePageId, PinPageFaultEvent.NULL);
     }
 }

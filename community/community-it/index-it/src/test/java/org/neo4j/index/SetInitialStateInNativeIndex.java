@@ -55,7 +55,7 @@ public class SetInitialStateInNativeIndex extends NativeIndexRestartAction {
             IndexDirectoryStructure indexDirectoryStructure,
             ImmutableSet<OpenOption> openOptions)
             throws IOException {
-        Configuration config = MuninnPageCache.config(100);
+        Configuration config = MuninnPageCache.forPages(100);
         try (PageCache pageCache = StandalonePageCacheFactory.createPageCache(
                 fs, JobSchedulerFactory.createInitialisedScheduler(), PageCacheTracer.NULL, config)) {
             int filesChanged = setInitialState(fs, indexDirectoryStructure.rootDirectory(), pageCache, openOptions);

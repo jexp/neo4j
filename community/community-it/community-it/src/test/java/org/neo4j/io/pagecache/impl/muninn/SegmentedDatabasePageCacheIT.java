@@ -111,7 +111,7 @@ public class SegmentedDatabasePageCacheIT {
 
     private DatabasePageCache createPageCache() {
         return new DatabasePageCache(
-                new MuninnPageCache(fs, jobScheduler, MuninnPageCache.config(1_000)),
+                new MuninnPageCache(fs, jobScheduler, MuninnPageCache.forPages(1_000)),
                 IOController.DISABLED,
                 VersionStorage.EMPTY_STORAGE,
                 databaseSegmentTracker,

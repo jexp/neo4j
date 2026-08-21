@@ -22,7 +22,7 @@ package org.neo4j.index.internal.gbptree;
 import static java.lang.ProcessBuilder.Redirect.INHERIT;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.neo4j.index.internal.gbptree.SimpleLongLayout.longLayout;
-import static org.neo4j.io.pagecache.impl.muninn.MuninnPageCache.config;
+import static org.neo4j.io.pagecache.impl.muninn.MuninnPageCache.forPages;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -86,7 +86,7 @@ class GBPTreePartialCreateFuzzIT {
         Path file = Path.of(args[0]);
         try (FileSystemAbstraction fs = new DefaultFileSystemAbstraction();
                 JobScheduler jobScheduler = new ThreadPoolJobScheduler()) {
-            try (PageCache pageCache = new MuninnPageCache(fs, jobScheduler, config(10))) {
+            try (PageCache pageCache = new MuninnPageCache(fs, jobScheduler, forPages(10))) {
                 fs.deleteFile(file);
                 new GBPTreeBuilder<>(pageCache, fs, file, longLayout().build())
                         .build()

@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.neo4j.collection.Dependencies.dependenciesOf;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
-import static org.neo4j.io.pagecache.impl.muninn.MuninnPageCache.config;
+import static org.neo4j.io.pagecache.impl.muninn.MuninnPageCache.forPages;
 import static org.neo4j.kernel.impl.index.schema.PointKeyUtil.SIZE_GEOMETRY_DERIVED_SPACE_FILLING_CURVE_VALUE;
 import static org.neo4j.kernel.impl.index.schema.Types.SIZE_BOOLEAN;
 import static org.neo4j.kernel.impl.index.schema.Types.SIZE_DATE;
@@ -379,7 +379,7 @@ public class RangeIndexKeySizeValidationIT {
         TestDatabaseManagementServiceBuilder builder = new TestDatabaseManagementServiceBuilder(neo4jLayout);
         scheduler = JobSchedulerFactory.createInitialisedScheduler();
         pageCache = StandalonePageCacheFactory.createPageCache(
-                fs, scheduler, PageCacheTracer.NULL, config(100).pageSize(pageSize));
+                fs, scheduler, PageCacheTracer.NULL, forPages(100).pageSize(pageSize));
         builder.setExternalDependencies(dependenciesOf(pageCache));
 
         dbms = builder.build();

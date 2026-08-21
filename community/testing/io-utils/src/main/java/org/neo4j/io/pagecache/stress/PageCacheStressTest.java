@@ -20,7 +20,7 @@
 package org.neo4j.io.pagecache.stress;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.neo4j.io.pagecache.impl.muninn.MuninnPageCache.config;
+import static org.neo4j.io.pagecache.impl.muninn.MuninnPageCache.forPages;
 import static org.neo4j.io.pagecache.tracing.PageCacheTracer.NULL;
 
 import java.nio.file.OpenOption;
@@ -87,7 +87,7 @@ public class PageCacheStressTest {
             try (PageCache pageCacheUnderTest = new MuninnPageCache(
                     fs,
                     jobScheduler,
-                    config(numberOfCachePages).pageCacheTracer(tracer).withAsyncIO(asyncIO))) {
+                    forPages(numberOfCachePages).pageCacheTracer(tracer).withAsyncIO(asyncIO))) {
                 PageCacheStresser pageCacheStresser =
                         new PageCacheStresser(numberOfPages, numberOfThreads, workingDirectory, openOptions);
                 pageCacheStresser.stress(pageCacheUnderTest, tracer, condition);

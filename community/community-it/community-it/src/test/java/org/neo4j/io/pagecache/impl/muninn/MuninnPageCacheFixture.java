@@ -23,7 +23,6 @@ import java.util.concurrent.CountDownLatch;
 import org.neo4j.configuration.Config;
 import org.neo4j.configuration.pagecache.ConfigurableIOBufferFactory;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.mem.MemoryAllocator;
 import org.neo4j.io.pagecache.PageCacheTestSupport;
 import org.neo4j.io.pagecache.buffer.IOBufferFactory;
 import org.neo4j.io.pagecache.impl.muninn.swapper.PageSwapperFactory;
@@ -33,7 +32,6 @@ import org.neo4j.scheduler.JobScheduler;
 
 public class MuninnPageCacheFixture extends PageCacheTestSupport.Fixture<MuninnPageCache> {
     CountDownLatch backgroundFlushLatch;
-    private MemoryAllocator allocator;
 
     @Override
     public MuninnPageCache createPageCache(
@@ -44,15 +42,15 @@ public class MuninnPageCacheFixture extends PageCacheTestSupport.Fixture<MuninnP
             IOBufferFactory bufferFactory,
             PageSwapperFactory swapperFactory) {
         int reservedBytes = getReservedBytes();
-        long memory = MuninnPageCache.memoryRequiredForPages(maxPages);
         var memoryTracker = new LocalMemoryTracker();
-        allocator = MemoryAllocator.createAllocator(memory, memoryTracker);
-        MuninnPageCache.Configuration configuration = MuninnPageCache.config(allocator)
+        var configuration = MuninnPageCache.forPages(maxPages)
+                .memoryTracker(memoryTracker)
                 .pageCacheTracer(tracer)
                 .bufferFactory(selectBufferFactory(bufferFactory, memoryTracker))
                 .swapperFactory(swapperFactory)
                 .reservedPageBytes(reservedBytes)
-                .withAsyncIO(asyncIO());
+                .withAsyncIO(asyncIO())
+                .closeAllocatorOnShutdown(closeAllocatorOnShutdown());
         if (!backgroundEvictionEnabled()) {
             configuration.disableEvictionThread();
         }
@@ -73,6 +71,5 @@ public class MuninnPageCacheFixture extends PageCacheTestSupport.Fixture<MuninnP
             backgroundFlushLatch = null;
         }
         pageCache.close();
-        allocator.close();
     }
 }

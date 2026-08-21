@@ -59,7 +59,6 @@ import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.layout.Neo4jLayout;
-import org.neo4j.io.mem.MemoryAllocator;
 import org.neo4j.io.pagecache.ExternallyManagedPageCache;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.context.CursorContext;
@@ -380,7 +379,7 @@ public class EmptyStoreSeeder implements StoreGenerator, StoreSeeder {
      * will be returned. If any of the steps along the way fails the state on disk doesn't matter at all.
      */
     private PageCache openNonForcingSmallPageCache(FileSystemAbstraction fs, JobScheduler jobScheduler) {
-        var config = MuninnPageCache.config(MemoryAllocator.createAllocator(mebiBytes(80), INSTANCE))
+        var config = MuninnPageCache.forMemory(mebiBytes(80))
                 .swapperFactory(new SingleFilePageSwapperFactory(fs, NULL, INSTANCE, false));
         return new MuninnPageCache(fs, jobScheduler, config);
     }

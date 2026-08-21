@@ -45,4 +45,9 @@ class AbsentNativeAccessTest {
         assertThat(absentNativeAccess.tryPreallocateSpace(1, 2L)).isEqualTo(SUCCESS);
         assertThat(absentNativeAccess.tryPreallocateSpace(3, 4L)).isEqualTo(SUCCESS);
     }
+
+    @Test
+    void absentNativeAccessPopulateMemoryAlwaysFails() {
+        assertThat(absentNativeAccess.tryPopulateMemory(4096, 4096).isError()).isTrue();
+    }
 }

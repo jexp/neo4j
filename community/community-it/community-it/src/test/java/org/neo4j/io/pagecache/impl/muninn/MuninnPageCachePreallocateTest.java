@@ -34,7 +34,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.layout.Neo4jLayout;
-import org.neo4j.io.mem.MemoryAllocator;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.PagedFile;
 import org.neo4j.io.pagecache.impl.muninn.swapper.PageSwapper;
@@ -140,10 +139,9 @@ class MuninnPageCacheExplicitPreallocateTest {
     }
 
     private MuninnPageCache createPageCache(boolean automaticPreAllocation) {
-        long memory = MuninnPageCache.memoryRequiredForPages(1024);
         var memoryTracker = new LocalMemoryTracker();
-        var allocator = MemoryAllocator.createAllocator(memory, memoryTracker);
-        MuninnPageCache.Configuration configuration = MuninnPageCache.config(allocator)
+        MuninnPageCache.Configuration configuration = MuninnPageCache.forPages(1024)
+                .memoryTracker(memoryTracker)
                 .preallocateStoreFiles(automaticPreAllocation)
                 .swapperFactory(
                         (path,

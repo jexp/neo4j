@@ -26,6 +26,7 @@ import static org.apache.commons.lang3.reflect.FieldUtils.getDeclaredField;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.neo4j.internal.nativeimpl.NativeAccess.ERROR;
 
+import com.sun.jna.Native;
 import java.io.FileDescriptor;
 import java.io.IOException;
 import java.nio.channels.Channel;
@@ -126,6 +127,39 @@ class LinuxNativeAccessTest {
         void ootOfDiskErrorCheck() {
             assertThat(nativeAccess.errorTranslator().isOutOfDiskSpace(new NativeCallResult(28, "Out of space jam!")))
                     .isTrue();
+        }
+
+        @Test
+        void failToPopulateMemoryForIncorrectAddressOrLength() {
+            assertThat(nativeAccess.tryPopulateMemory(0, 4096).isError()).isTrue();
+            assertThat(nativeAccess.tryPopulateMemory(-1, 4096).isError()).isTrue();
+            assertThat(nativeAccess.tryPopulateMemory(4096, 0).isError()).isTrue();
+            assertThat(nativeAccess.tryPopulateMemory(4096, -1).isError()).isTrue();
+        }
+
+        @Test
+        void populateMemoryOnAllocatedMemory() {
+            long alignment = 64 * 1024;
+            long bytes = 1024 * 1024;
+            long allocation = Native.malloc(bytes + alignment);
+            assertThat(allocation).isNotZero();
+            try {
+                long address = (allocation + alignment - 1) & -alignment;
+                var wholeRange = nativeAccess.tryPopulateMemory(address, bytes);
+                var subRange = nativeAccess.tryPopulateMemory(address + alignment, bytes - alignment);
+                if (populateSupportedByKernel(wholeRange)) {
+                    assertThat(wholeRange.isError()).isFalse();
+                    assertThat(subRange.isError()).isFalse();
+                } else {
+                    assertThat(subRange.getErrorCode()).isEqualTo(wholeRange.getErrorCode());
+                }
+            } finally {
+                Native.free(allocation);
+            }
+        }
+
+        private static boolean populateSupportedByKernel(NativeCallResult result) {
+            return result.getErrorCode() != LinuxErrorTranslator.EINVAL;
         }
 
         @Test

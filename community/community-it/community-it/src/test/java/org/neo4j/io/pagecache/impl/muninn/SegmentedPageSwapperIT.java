@@ -2083,11 +2083,11 @@ class SegmentedPageSwapperIT {
     }
 
     private MuninnPageCache newPageCache() {
-        return new MuninnPageCache(fs, jobScheduler, MuninnPageCache.config(1_000));
+        return new MuninnPageCache(fs, jobScheduler, MuninnPageCache.forPages(1_000));
     }
 
     private MuninnPageCache newPageCache(PageCacheTracer tracer) {
         return new MuninnPageCache(
-                fs, jobScheduler, MuninnPageCache.config(1_000).pageCacheTracer(tracer));
+                fs, jobScheduler, MuninnPageCache.forPages(1_000).pageCacheTracer(tracer));
     }
 }

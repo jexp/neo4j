@@ -3114,6 +3114,7 @@ public abstract class PageCacheTest<T extends PageCache> extends PageCacheTestSu
     @Test
     void readingAndRetryingOnPageWithOptimisticReadLockingAfterUnmappingMustThrow() {
         assertTimeoutPreemptively(ofMillis(SHORT_TIMEOUT_MILLIS), () -> {
+            doNotCloseAllocatorOnShutdown();
             configureStandardPageCache();
 
             generateFileWithRecords(

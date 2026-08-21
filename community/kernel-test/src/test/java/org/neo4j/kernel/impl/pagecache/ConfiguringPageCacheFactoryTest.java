@@ -35,6 +35,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseInternalSettings;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.impl.muninn.MuninnPageCache;
@@ -43,6 +44,7 @@ import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.logging.AssertableLogProvider;
 import org.neo4j.logging.LogAssertions;
 import org.neo4j.logging.NullLog;
+import org.neo4j.memory.MemoryGroup;
 import org.neo4j.memory.MemoryPools;
 import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.test.extension.Inject;
@@ -91,7 +93,7 @@ class ConfiguringPageCacheFactoryTest {
         // Then
         try (PageCache cache = factory.getOrCreatePageCache()) {
             assertThat(cache.pageSize()).isEqualTo(PAGE_SIZE);
-            assertThat(cache.maxCachedPages()).isEqualTo(pageCount);
+            assertThat(cache.maxCachedPages()).isBetween(pageCount - 2, pageCount);
         }
     }
 
@@ -134,6 +136,64 @@ class ConfiguringPageCacheFactoryTest {
         factory.dumpConfiguration();
 
         LogAssertions.assertThat(logProvider).containsMessages("Page cache: <not specified>");
+    }
+
+    @Test
+    void preTouchPageCacheMemory() {
+        long memory = MuninnPageCache.memoryRequiredForPages(60);
+        Config config = Config.newBuilder()
+                .set(pagecache_memory, memory)
+                .set(GraphDatabaseInternalSettings.page_cache_allocator_pre_touch, true)
+                .build();
+        AssertableLogProvider logProvider = new AssertableLogProvider();
+        MemoryPools memoryPools = new MemoryPools();
+        ConfiguringPageCacheFactory factory = new ConfiguringPageCacheFactory(
+                fs,
+                config,
+                PageCacheTracer.NULL,
+                logProvider.getLog(ConfiguringPageCacheFactory.class),
+                jobScheduler,
+                Clocks.nanoClock(),
+                memoryPools);
+
+        try (PageCache cache = factory.getOrCreatePageCache()) {
+            assertThat(cache.maxCachedPages()).isBetween(58L, 60L);
+            var pool = memoryPools.getPools().stream()
+                    .filter(p -> p.group() == MemoryGroup.PAGE_CACHE)
+                    .findFirst()
+                    .orElseThrow();
+            assertThat(pool.usedNative()).isLessThanOrEqualTo(memory + PAGE_SIZE); // extra page for victim
+            assertThat(pool.usedNative()).isGreaterThan(memory - 4L * PAGE_SIZE);
+            LogAssertions.assertThat(logProvider).containsMessages("Page cache memory pre-touch completed");
+        }
+    }
+
+    @Test
+    void preTouchedPageCacheMemoryMustStayWithinConfiguredSize() throws IOException {
+        long memory = 6 * MuninnPageCache.memoryRequiredForPages(60) + 12345;
+        Config config = Config.newBuilder()
+                .set(pagecache_memory, memory)
+                .set(GraphDatabaseInternalSettings.page_cache_allocator_pre_touch, true)
+                .build();
+        MemoryPools memoryPools = new MemoryPools();
+        ConfiguringPageCacheFactory factory = new ConfiguringPageCacheFactory(
+                fs, config, PageCacheTracer.NULL, NullLog.getInstance(), jobScheduler, Clocks.nanoClock(), memoryPools);
+
+        Path testFile = testDirectory.createFile("a");
+        try (PageCache cache = factory.getOrCreatePageCache()) {
+            var pool = memoryPools.getPools().stream()
+                    .filter(p -> p.group() == MemoryGroup.PAGE_CACHE)
+                    .findFirst()
+                    .orElseThrow();
+            try (var file = cache.map(new StoreFile(testFile), PAGE_SIZE, "foo");
+                    var io = file.io(0, PF_SHARED_WRITE_LOCK, NULL_CONTEXT)) {
+                for (int i = 0; i < cache.maxCachedPages(); i++) {
+                    assertThat(io.next()).isTrue();
+                }
+            }
+            assertThat(pool.usedNative()).isLessThanOrEqualTo(memory + PAGE_SIZE); // extra page for victim
+            assertThat(pool.usedNative()).isGreaterThan(memory - 4L * PAGE_SIZE);
+        }
     }
 
     @Test

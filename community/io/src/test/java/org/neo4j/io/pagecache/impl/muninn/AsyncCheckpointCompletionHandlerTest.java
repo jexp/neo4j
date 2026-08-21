@@ -20,17 +20,14 @@
 package org.neo4j.io.pagecache.impl.muninn;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.neo4j.io.ByteUnit.MebiByte;
 
 import org.junit.jupiter.api.Test;
 import org.neo4j.io.ByteUnit;
 import org.neo4j.io.async.AsyncVectorIOData;
-import org.neo4j.io.mem.MemoryAllocator;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.tracing.DatabaseFlushEvent;
 import org.neo4j.io.pagecache.tracing.DefaultPageCacheTracer;
 import org.neo4j.io.pagecache.tracing.async.AsyncFlushCompletion;
-import org.neo4j.memory.EmptyMemoryTracker;
 
 class AsyncCheckpointCompletionHandlerTest {
 
@@ -39,9 +36,7 @@ class AsyncCheckpointCompletionHandlerTest {
         int pageSize = (int) ByteUnit.kibiBytes(8);
         int pages = 10;
 
-        try (MemoryAllocator mman = MemoryAllocator.createAllocator(MebiByte.toBytes(2), EmptyMemoryTracker.INSTANCE)) {
-            PageMetadata pageMetadata = new PageMetadata(pages, pageSize, mman);
-
+        try (var pageMetadata = new PageMetadata(pages, pageSize)) {
             long pageRef = pageMetadata.deref(0);
             PageMetadata.unlockExclusive(pageRef);
 
@@ -69,9 +64,7 @@ class AsyncCheckpointCompletionHandlerTest {
         int pageSize = (int) ByteUnit.kibiBytes(8);
         int pages = 10;
 
-        try (MemoryAllocator mman = MemoryAllocator.createAllocator(MebiByte.toBytes(2), EmptyMemoryTracker.INSTANCE)) {
-            PageMetadata pageMetadata = new PageMetadata(pages, pageSize, mman);
-
+        try (var pageMetadata = new PageMetadata(pages, pageSize)) {
             long pageRef1 = pageMetadata.deref(0);
             long pageRef2 = pageMetadata.deref(1);
             long pageRef3 = pageMetadata.deref(2);
@@ -133,10 +126,7 @@ class AsyncCheckpointCompletionHandlerTest {
         DefaultPageCacheTracer defaultPageCacheTracer = new DefaultPageCacheTracer();
         try (DatabaseFlushEvent databaseFlush = defaultPageCacheTracer.beginDatabaseFlush()) {
 
-            try (MemoryAllocator mman =
-                    MemoryAllocator.createAllocator(MebiByte.toBytes(2), EmptyMemoryTracker.INSTANCE)) {
-                PageMetadata pageMetadata = new PageMetadata(pages, pageSize, mman);
-
+            try (var pageMetadata = new PageMetadata(pages, pageSize)) {
                 long pageRef1 = pageMetadata.deref(0);
                 long pageRef2 = pageMetadata.deref(1);
                 long pageRef3 = pageMetadata.deref(2);

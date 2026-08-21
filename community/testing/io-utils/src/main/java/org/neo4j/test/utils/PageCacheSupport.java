@@ -30,7 +30,6 @@ import org.apache.commons.lang3.ObjectUtils;
 import org.neo4j.adversaries.Adversary;
 import org.neo4j.adversaries.pagecache.AdversarialPageCache;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.mem.MemoryAllocator;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.checking.AccessCheckingPageCache;
 import org.neo4j.io.pagecache.impl.muninn.MuninnPageCache;
@@ -83,13 +82,12 @@ public class PageCacheSupport {
     public PageCache getPageCache(FileSystemAbstraction fileSystem, PageCacheConfig overriddenConfig, Random random) {
         closeExistingPageCache();
         var memoryTracker = new LocalMemoryTracker();
-        MemoryAllocator mman = MemoryAllocator.createAllocator(
-                parse(selectConfig(baseConfig.memory, overriddenConfig.memory, "8 MiB")), memoryTracker);
+        long memory = parse(selectConfig(baseConfig.memory, overriddenConfig.memory, "8 MiB"));
         if (clock == null) {
             clock = Clocks.nanoClock();
         }
-        MuninnPageCache.Configuration configuration =
-                MuninnPageCache.config(mman).memoryTracker(memoryTracker).clock(clock);
+        var configuration =
+                MuninnPageCache.forMemory(memory).memoryTracker(memoryTracker).clock(clock);
         Integer pageSize = selectConfig(baseConfig.pageSize, overriddenConfig.pageSize, null);
         configuration = pageSize != null ? configuration.pageSize(pageSize) : configuration;
         PageCacheTracer cacheTracer =

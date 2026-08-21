@@ -24,7 +24,7 @@ import static org.neo4j.index.internal.gbptree.GBPTreeCorruption.pageSpecificCor
 import static org.neo4j.index.internal.gbptree.GBPTreeTestUtil.consistencyCheck;
 import static org.neo4j.io.IOUtils.closeAll;
 import static org.neo4j.io.pagecache.context.CursorContext.NULL_CONTEXT;
-import static org.neo4j.io.pagecache.impl.muninn.MuninnPageCache.config;
+import static org.neo4j.io.pagecache.impl.muninn.MuninnPageCache.forPages;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -65,7 +65,7 @@ class MultiRootGBPTreeCorruptionTest {
     @BeforeEach
     void start() {
         jobScheduler = new ThreadPoolJobScheduler();
-        pageCache = new MuninnPageCache(fs, jobScheduler, config(10_000).pageSize(256));
+        pageCache = new MuninnPageCache(fs, jobScheduler, forPages(10_000).pageSize(256));
         tree = new GBPTreeBuilder<>(pageCache, fs, directory.file("tree"), dataLayout, rootLayout).buildMultiRoot();
     }
 

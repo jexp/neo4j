@@ -142,6 +142,10 @@ public abstract class PageCacheTestSupport<T extends PageCache> {
         getPageCache(fs, maxPages, PageCacheTracer.NULL);
     }
 
+    protected final void doNotCloseAllocatorOnShutdown() {
+        fixture.withCloseAllocatorOnShutdown(false);
+    }
+
     protected final void tearDownPageCache(T pageCache) {
         fixture.tearDownPageCache(pageCache);
     }
@@ -339,6 +343,7 @@ public abstract class PageCacheTestSupport<T extends PageCache> {
         private Function<String, Path> fileConstructor = Path::of;
         private IOBufferFactory bufferFactory;
         private int reservedBytes = PageCache.RESERVED_BYTES;
+        private boolean closeAllocatorOnShutdown = true;
 
         public abstract T createPageCache(
                 FileSystemAbstraction fs,
@@ -368,6 +373,15 @@ public abstract class PageCacheTestSupport<T extends PageCache> {
 
         public boolean backgroundEvictionEnabled() {
             return true;
+        }
+
+        public final boolean closeAllocatorOnShutdown() {
+            return closeAllocatorOnShutdown;
+        }
+
+        public final Fixture<T> withCloseAllocatorOnShutdown(boolean closeAllocatorOnShutdown) {
+            this.closeAllocatorOnShutdown = closeAllocatorOnShutdown;
+            return this;
         }
 
         public final Fixture<T> withFileSystemAbstraction(

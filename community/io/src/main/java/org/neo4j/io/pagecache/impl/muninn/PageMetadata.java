@@ -20,14 +20,18 @@
 package org.neo4j.io.pagecache.impl.muninn;
 
 import static java.lang.String.format;
+import static org.neo4j.function.Consumers.ignoreValue;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.lang.invoke.VarHandle;
+import java.util.function.Consumer;
 import org.neo4j.internal.unsafe.UnsafeUtil;
-import org.neo4j.io.mem.MemoryAllocator;
 import org.neo4j.io.pagecache.PageCursor;
+import org.neo4j.io.pagecache.impl.muninn.allocator.GrabAllocator;
 import org.neo4j.io.pagecache.tracing.PageReferenceTranslator;
+import org.neo4j.memory.EmptyMemoryTracker;
+import org.neo4j.memory.MemoryTracker;
 import org.neo4j.util.VisibleForTesting;
 
 /**
@@ -53,10 +57,9 @@ import org.neo4j.util.VisibleForTesting;
  * ┏━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ ┏━━┻━━━━━━━━━━━━━━━━━━━━━┓┏┻┓
  * PPPP PPPP PPPP PPPP PPPP PPPP PPPP PPPP PPPP PPPP SSSS SSSS SSSS SSSS SSSS SRRR
  */
-class PageMetadata implements PageReferenceTranslator {
+class PageMetadata implements PageReferenceTranslator, AutoCloseable {
 
     static final int META_DATA_BYTES_PER_PAGE = 32;
-    static final long MAX_PAGES = Integer.MAX_VALUE;
 
     private static final long UNBOUND_LAST_MODIFIED_TX_ID = 0;
     private static final long MAX_USAGE_COUNT = 4;
@@ -85,16 +88,48 @@ class PageMetadata implements PageReferenceTranslator {
     // UNKNOWN value of previous chain modifier. Page with this modifier is always flushable.
     private static final int UNKNOWN_CHAIN_MODIFIER = 0;
 
+    private final GrabAllocator memoryAllocator;
     private final int pageCount;
-    private final int cachePageSize;
     private final long baseAddress;
 
-    PageMetadata(int pageCount, int cachePageSize, MemoryAllocator memoryAllocator) {
-        this.pageCount = pageCount;
-        this.cachePageSize = cachePageSize;
-        long bytes = ((long) pageCount) * META_DATA_BYTES_PER_PAGE;
-        this.baseAddress = memoryAllocator.allocateAligned(bytes, Long.BYTES);
+    PageMetadata(
+            Integer requestedMaxPages,
+            Long requestedMaxMemory,
+            int pageSize,
+            MemoryTracker memoryTracker,
+            boolean preTouch,
+            Consumer<String> log) {
+        this.memoryAllocator = GrabAllocator.createAllocator(
+                requestedMaxPages,
+                requestedMaxMemory,
+                META_DATA_BYTES_PER_PAGE,
+                pageSize,
+                memoryTracker,
+                preTouch,
+                log);
+        this.pageCount = memoryAllocator.maxPages();
+        this.baseAddress = memoryAllocator.metadataAddress();
         clearMemory(baseAddress, pageCount);
+    }
+
+    @VisibleForTesting
+    PageMetadata(int pageCount, int pageSize) {
+        this(pageCount, null, pageSize, EmptyMemoryTracker.INSTANCE, false, ignoreValue());
+    }
+
+    long ensurePageAllocated(long pageRef) {
+        long address = getAddress(pageRef);
+        if (address != 0L) {
+            return address;
+        }
+        long allocated = memoryAllocator.allocatePage();
+        setAddress(pageRef, allocated);
+        return allocated;
+    }
+
+    @Override
+    public void close() {
+        memoryAllocator.close();
     }
 
     /**
@@ -126,11 +161,6 @@ class PageMetadata implements PageReferenceTranslator {
     public int toId(long pageRef) {
         // >> 5 is equivalent to dividing by 32, META_DATA_BYTES_PER_PAGE.
         return (int) ((pageRef - baseAddress) >> 5);
-    }
-
-    @VisibleForTesting
-    int getCachePageSize() {
-        return cachePageSize;
     }
 
     private static void clearMemory(long baseAddress, long pageCount) {

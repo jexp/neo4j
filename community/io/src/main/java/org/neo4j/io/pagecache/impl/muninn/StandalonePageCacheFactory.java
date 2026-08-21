@@ -20,13 +20,11 @@
 package org.neo4j.io.pagecache.impl.muninn;
 
 import static org.neo4j.io.ByteUnit.MebiByte;
-import static org.neo4j.io.pagecache.impl.muninn.MuninnPageCache.config;
+import static org.neo4j.io.pagecache.impl.muninn.MuninnPageCache.forMemory;
 
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.mem.MemoryAllocator;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
-import org.neo4j.memory.EmptyMemoryTracker;
 import org.neo4j.scheduler.JobScheduler;
 
 /*
@@ -58,9 +56,7 @@ public final class StandalonePageCacheFactory {
             PageCacheTracer cacheTracer,
             int pageSize) {
         long expectedMemory = Math.max(MebiByte.toBytes(8), 10L * pageSize);
-        MemoryAllocator memoryAllocator = MemoryAllocator.createAllocator(expectedMemory, EmptyMemoryTracker.INSTANCE);
-        MuninnPageCache.Configuration configuration =
-                config(memoryAllocator).pageCacheTracer(cacheTracer).pageSize(pageSize);
+        var configuration = forMemory(expectedMemory).pageSize(pageSize).pageCacheTracer(cacheTracer);
         return createPageCache(fileSystemAbstraction, configuration, jobScheduler);
     }
 

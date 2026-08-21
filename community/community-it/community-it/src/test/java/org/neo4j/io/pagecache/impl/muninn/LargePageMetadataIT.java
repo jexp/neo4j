@@ -23,27 +23,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.neo4j.io.ByteUnit.GibiByte;
+import static org.neo4j.io.ByteUnit.mebiBytes;
 
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
-import org.neo4j.io.ByteUnit;
-import org.neo4j.io.mem.MemoryAllocator;
-import org.neo4j.memory.EmptyMemoryTracker;
 
 class LargePageMetadataIT {
     @Test
-    void veryLargePageMetadataMustBeFullyAccessible() {
+    void veryLargePageMetadataMustNotOverflowAndBeAccessible() {
         // We need roughly 2 GiBs of memory for the meta-data here, which is why this is an IT and not a Test.
-        // We add one extra page worth of data to the size here, to avoid ending up on a "convenient" boundary.
-        int pageSize = (int) ByteUnit.kibiBytes(8);
-        long pageCacheSize = ByteUnit.gibiBytes(513) + pageSize;
-        int pages = Math.toIntExact(pageCacheSize / pageSize);
-
-        try (MemoryAllocator mman = MemoryAllocator.createAllocator(GibiByte.toBytes(2), EmptyMemoryTracker.INSTANCE)) {
-            PageMetadata pageMetadata = new PageMetadata(pages, pageSize, mman);
-
-            // Verify we end up with the correct number of pages.
+        // use small page size to avoid allocating huge buffer for the pages
+        int pageSize = 1;
+        int pages = Math.toIntExact((Integer.MAX_VALUE + mebiBytes(64)) / PageMetadata.META_DATA_BYTES_PER_PAGE);
+        try (var pageMetadata = new PageMetadata(pages, pageSize)) {
             assertThat(pageMetadata.getPageCount()).isEqualTo(pages);
 
             // Spot-check the accessibility in the bulk of the pages.

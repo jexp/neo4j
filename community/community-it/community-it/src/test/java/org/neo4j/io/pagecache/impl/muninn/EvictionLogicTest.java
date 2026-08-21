@@ -24,7 +24,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.neo4j.io.ByteUnit.MebiByte;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -34,12 +33,10 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.IntFunction;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.neo4j.internal.unsafe.UnsafeUtil;
-import org.neo4j.io.mem.MemoryAllocator;
 import org.neo4j.io.pagecache.impl.muninn.swapper.PageSwapper;
 import org.neo4j.io.pagecache.tracing.DummyPageSwapper;
 import org.neo4j.io.pagecache.tracing.EvictionEvent;
@@ -49,10 +46,8 @@ import org.neo4j.io.pagecache.tracing.FlushEvent;
 import org.neo4j.io.pagecache.tracing.PageReferenceTranslator;
 import org.neo4j.io.pagecache.tracing.PinPageFaultEvent;
 import org.neo4j.io.pagecache.tracing.async.AsyncEvictionEvent;
-import org.neo4j.memory.EmptyMemoryTracker;
 
 public class EvictionLogicTest {
-    private static final int ALIGNMENT = 8;
 
     private static final int[] pageIds = new int[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     private static final DummyPageSwapper DUMMY_SWAPPER = new DummyPageSwapper("", UnsafeUtil.pageSize());
@@ -62,17 +57,12 @@ public class EvictionLogicTest {
         return Arrays.stream(pageIds).mapToObj(toArguments);
     }
 
-    private MemoryAllocator mman;
-
-    @BeforeEach
-    void setUpt() {
-        mman = MemoryAllocator.createAllocator(MebiByte.toBytes(1), EmptyMemoryTracker.INSTANCE);
-    }
-
     @AfterEach
     void tearDown() {
-        mman.close();
-        mman = null;
+        if (pageMetadata != null) {
+            pageMetadata.close();
+            pageMetadata = null;
+        }
     }
 
     private long pageRef;
@@ -88,7 +78,7 @@ public class EvictionLogicTest {
         pageSize = UnsafeUtil.pageSize();
 
         swappers = new SwapperSet();
-        pageMetadata = new PageMetadata(pageIds.length, pageSize, mman);
+        pageMetadata = new PageMetadata(pageIds.length, pageSize);
         pageRef = pageMetadata.deref(pageId);
         prevPageRef = pageMetadata.deref(prevPageId);
         nextPageRef = pageMetadata.deref(nextPageId);
@@ -576,7 +566,7 @@ public class EvictionLogicTest {
     private void doFault(int swapperId, long filePageId) throws IOException {
         assertTrue(PageMetadata.tryExclusiveLock(pageRef));
         MuninnPagedFile.validatePageRefAndSetFilePageId(pageRef, DUMMY_SWAPPER, swapperId, filePageId);
-        MuninnPageCache.ensurePageAllocated(pageRef, mman, pageSize, ALIGNMENT);
+        pageMetadata.ensurePageAllocated(pageRef);
         MuninnPageCursor.fault(pageRef, DUMMY_SWAPPER, swapperId, filePageId, PinPageFaultEvent.NULL);
     }
 

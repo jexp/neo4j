@@ -150,11 +150,11 @@ class MuninnPageCursorTest {
     }
 
     private PageCache startPageCache() {
-        return createPageCacheWithConfig(MuninnPageCache.config(1_000));
+        return createPageCacheWithConfig(MuninnPageCache.forPages(1_000));
     }
 
     private PageCache startPageCache(PageSwapperFactory swapperFactory) {
-        return createPageCacheWithConfig(MuninnPageCache.config(1_000).swapperFactory(swapperFactory));
+        return createPageCacheWithConfig(MuninnPageCache.forPages(1_000).swapperFactory(swapperFactory));
     }
 
     private MuninnPageCache createPageCacheWithConfig(MuninnPageCache.Configuration config) {

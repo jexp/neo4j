@@ -242,6 +242,19 @@ public final class UnsafeUtil {
      */
     public static long allocateMemory(long bytes, MemoryTracker memoryTracker)
             throws NativeMemoryAllocationRefusedError {
+        long pointer = allocateUntouchedMemory(bytes, memoryTracker);
+        dirtyMemory(pointer, bytes);
+        return pointer;
+    }
+
+    /**
+     * Allocate a block of memory of the given size in bytes, and return a pointer to that memory.
+     * This method does not touch memory even when DIRTY_MEMORY is set
+     *
+     * @return a pointer to the allocated memory
+     */
+    public static long allocateUntouchedMemory(long bytes, MemoryTracker memoryTracker)
+            throws NativeMemoryAllocationRefusedError {
         memoryTracker.allocateNative(bytes);
 
         final long pointer = Native.malloc(bytes);
@@ -251,10 +264,16 @@ public final class UnsafeUtil {
         }
 
         addAllocatedPointer(pointer, bytes);
-        if (DIRTY_MEMORY) {
-            setMemory(pointer, bytes, (byte) 0xA5);
-        }
         return pointer;
+    }
+
+    /**
+     * Fill the given range with the dirty pattern, if dirtying is enabled.
+     */
+    public static void dirtyMemory(long address, long bytes) {
+        if (DIRTY_MEMORY) {
+            setMemory(address, bytes, (byte) 0xA5);
+        }
     }
 
     /**

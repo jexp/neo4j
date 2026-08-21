@@ -31,7 +31,6 @@ import static org.neo4j.io.ByteUnit.gibiBytes;
 import static org.neo4j.io.IOUtils.closeAll;
 import static org.neo4j.io.IOUtils.uncheckedConsumer;
 import static org.neo4j.io.async.AsyncBlockAccessor.EMPTY_ASYNC_BLOCK_ACCESSOR;
-import static org.neo4j.io.mem.MemoryAllocator.createAllocator;
 import static org.neo4j.kernel.impl.store.StoreType.PROPERTY;
 import static org.neo4j.kernel.impl.store.StoreType.PROPERTY_ARRAY;
 import static org.neo4j.kernel.impl.store.StoreType.PROPERTY_STRING;
@@ -69,7 +68,6 @@ import org.neo4j.io.layout.DatabaseFile;
 import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.layout.recordstorage.RecordDatabaseFile;
 import org.neo4j.io.layout.recordstorage.RecordDatabaseLayout;
-import org.neo4j.io.mem.MemoryAllocator;
 import org.neo4j.io.os.OsBeanUtil;
 import org.neo4j.io.pagecache.ExternallyManagedPageCache;
 import org.neo4j.io.pagecache.PageCache;
@@ -395,10 +393,9 @@ public class BatchingNeoStores implements AutoCloseable, MemoryStatsVisitor.Visi
             PageCacheTracer tracer,
             JobScheduler jobScheduler,
             MemoryTracker memoryTracker) {
-        MemoryAllocator memoryAllocator = createAllocator(config.get(pagecache_memory), memoryTracker);
-        MuninnPageCache.Configuration configuration = MuninnPageCache.config(memoryAllocator)
-                .pageCacheTracer(tracer)
+        var configuration = MuninnPageCache.forMemory(config.get(pagecache_memory))
                 .memoryTracker(memoryTracker)
+                .pageCacheTracer(tracer)
                 .bufferFactory(new ConfigurableIOBufferFactory(config, memoryTracker))
                 .faultLockStriping(1 << 11)
                 .reservedPageBytes(PageCache.RESERVED_BYTES)

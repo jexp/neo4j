@@ -182,7 +182,7 @@ class CsvInputEstimateCalculationIT {
 
             // then compare estimates with actual disk sizes
             try (PageCache pageCache = new MuninnPageCache(
-                            fs, jobScheduler, MuninnPageCache.config(1000).pageCacheTracer(cacheTracer));
+                            fs, jobScheduler, MuninnPageCache.forPages(1000).pageCacheTracer(cacheTracer));
                     NeoStores stores = new StoreFactory(
                                     databaseLayout,
                                     config,

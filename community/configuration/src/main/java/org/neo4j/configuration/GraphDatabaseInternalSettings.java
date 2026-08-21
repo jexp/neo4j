@@ -1661,11 +1661,9 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
             .build();
 
     @Internal
-    @Description(
-            "Size of the memory block used to allocate page cache memory. Default value calculated based on page cache size.")
-    public static final Setting<Long> page_cache_allocation_grab_size = newBuilder(
-                    "internal.dbms.page_cache_allocator_block_size", BYTES, null)
-            .addConstraint(min(1L))
+    @Description("Pre-touch every memory page of page cache on startup.")
+    public static final Setting<Boolean> page_cache_allocator_pre_touch = newBuilder(
+                    "internal.dbms.page_cache_allocator_pre_touch", BOOL, false)
             .build();
 
     @Internal

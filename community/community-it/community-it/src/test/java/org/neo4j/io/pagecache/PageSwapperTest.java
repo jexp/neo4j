@@ -26,7 +26,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.neo4j.io.ByteUnit.KibiByte;
 import static org.neo4j.io.pagecache.IOController.DISABLED;
 import static org.neo4j.io.pagecache.impl.muninn.EvictionBouncer.ALWAYS_ALLOW;
 import static org.neo4j.io.pagecache.segment.FileSegmentTracker.EMPTY_FILE_TRACKER;
@@ -37,6 +36,7 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
@@ -54,13 +54,13 @@ import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.parallel.Isolated;
+import org.neo4j.internal.helpers.Exceptions;
 import org.neo4j.internal.unsafe.UnsafeUtil;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.mem.MemoryAllocator;
 import org.neo4j.io.pagecache.impl.muninn.SwapperSet;
 import org.neo4j.io.pagecache.impl.muninn.swapper.PageSwapper;
 import org.neo4j.io.pagecache.impl.muninn.swapper.PageSwapperFactory;
-import org.neo4j.memory.LocalMemoryTracker;
+import org.neo4j.memory.EmptyMemoryTracker;
 import org.neo4j.test.extension.Inject;
 import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.utils.TestDirectory;
@@ -82,9 +82,11 @@ public abstract class PageSwapperTest {
     public static int PAYLOAD_SIZE;
     public static int cachePageSize;
     private final ConcurrentLinkedQueue<PageSwapper> openedSwappers = new ConcurrentLinkedQueue<>();
-    private final MemoryAllocator mman =
-            MemoryAllocator.createAllocator(KibiByte.toBytes(32), new LocalMemoryTracker());
     private final SwapperSet swapperSet = new SwapperSet();
+
+    private record AllocatedPage(long address, long size) {}
+
+    private final Queue<AllocatedPage> pages = new ConcurrentLinkedQueue<>();
 
     protected abstract PageSwapperFactory swapperFactory(FileSystemAbstraction fileSystem);
 
@@ -109,18 +111,26 @@ public abstract class PageSwapperTest {
         while ((swapper = openedSwappers.poll()) != null) {
             try {
                 swapper.close();
-            } catch (IOException e) {
-                if (exception == null) {
-                    exception = e;
-                } else {
-                    exception.addSuppressed(e);
-                }
+            } catch (Exception e) {
+                exception = Exceptions.chain(exception, e);
             }
         }
 
+        try {
+            freeCreatedPages();
+        } catch (Exception e) {
+            exception = Exceptions.chain(exception, e);
+        }
         if (exception != null) {
             throw exception;
         }
+    }
+
+    void freeCreatedPages() {
+        for (var page : pages) {
+            UnsafeUtil.free(page.address, page.size, EmptyMemoryTracker.INSTANCE);
+        }
+        pages.clear();
     }
 
     protected abstract FileSystemAbstraction getFs();
@@ -1075,9 +1085,11 @@ public abstract class PageSwapperTest {
 
     protected long createPage(int cachePageSize) {
         int size = cachePageSize + RESERVED_BYTES;
-        long address = mman.allocateAligned(size + Integer.BYTES, 1);
-        UnsafeUtil.putInt(address(address), size);
-        return address(address) + Integer.BYTES;
+        long bytes = size + Integer.BYTES;
+        long base = UnsafeUtil.allocateMemory(bytes, EmptyMemoryTracker.INSTANCE);
+        pages.add(new AllocatedPage(base, bytes));
+        UnsafeUtil.putInt(base, size);
+        return base + Integer.BYTES;
     }
 
     protected static void clear(long address) {

@@ -54,7 +54,7 @@ final class LatchMap {
     }
 
     static final int DEFAULT_FAULT_LOCK_STRIPING = 1024;
-    static final int faultLockStriping =
+    static final int FAULT_LOCK_STRIPING =
             FeatureToggles.getInteger(LatchMap.class, "faultLockStriping", DEFAULT_FAULT_LOCK_STRIPING);
 
     private final Latch[] latches;

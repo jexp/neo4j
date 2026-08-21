@@ -353,7 +353,7 @@ public class RandomPageCacheTestHarness implements Closeable {
         }
 
         JobScheduler jobScheduler = new ThreadPoolJobScheduler();
-        MuninnPageCache.Configuration configuration = MuninnPageCache.config(cachePageCount)
+        var configuration = MuninnPageCache.forPages(cachePageCount)
                 .pageCacheTracer(tracer)
                 // Don't use background eviction as that may race with the verification phase
                 .disableEvictionThread();

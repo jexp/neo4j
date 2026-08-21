@@ -69,12 +69,25 @@ public interface NativeAccess {
     NativeCallResult tryPreallocateSpace(int fd, long bytes);
 
     /**
+     * Try to populate, or prefault, the given range of memory, so that later accesses to it do not take
+     * first-touch page faults. The contents of the memory are left untouched.
+     * The start must be aligned to the system memory page size. The length is rounded up to a multiple of the page size.
+     * @param address start of the memory range, aligned to the system memory page size
+     * @param bytes   length of the memory range in bytes
+     * @return returns zero on success, or an error number on failure
+     */
+    default NativeCallResult tryPopulateMemory(long address, long bytes) {
+        return new NativeCallResult(ERROR, "Populating memory is not supported.");
+    }
+
+    /**
      * High level error translator to be able to map high level exceptions checks with low level error codes on particular system
      */
     ErrorTranslator errorTranslator();
 
     /**
      * Details about native access provider
+     *
      * @return details about native access
      */
     String describe();

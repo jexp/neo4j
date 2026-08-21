@@ -1150,7 +1150,9 @@ class GBPTreeTest {
         var forceCountingSwapper = new ForceCountingSwapperFactory();
         try (JobScheduler jobScheduler = new ThreadPoolJobScheduler();
                 PageCache pageCache = new MuninnPageCache(
-                        fileSystem, jobScheduler, MuninnPageCache.config(1_000).swapperFactory(forceCountingSwapper));
+                        fileSystem,
+                        jobScheduler,
+                        MuninnPageCache.forPages(1_000).swapperFactory(forceCountingSwapper));
                 GBPTree<MutableLong, MutableLong> index = index(pageCache).build()) {
             forceCountingSwapper.reset();
             index.checkpoint(FileFlushEvent.NULL, asyncBlockAccessor, NULL_CONTEXT);

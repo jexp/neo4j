@@ -85,11 +85,13 @@ import org.eclipse.collections.api.list.primitive.MutableLongList;
 import org.eclipse.collections.api.set.primitive.MutableIntSet;
 import org.eclipse.collections.impl.factory.primitive.IntSets;
 import org.eclipse.collections.impl.factory.primitive.LongLists;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.neo4j.configuration.Config;
 import org.neo4j.configuration.pagecache.ConfigurableIOBufferFactory;
 import org.neo4j.internal.helpers.Exceptions;
@@ -143,6 +145,7 @@ import org.neo4j.io.pagecache.tracing.recording.RecordingPageCursorTracer.Fault;
 import org.neo4j.io.pagecache.tracing.version.FileTruncateEvent;
 import org.neo4j.memory.DefaultScopedMemoryTracker;
 import org.neo4j.memory.EmptyMemoryTracker;
+import org.neo4j.memory.LocalMemoryTracker;
 import org.neo4j.test.Race;
 import org.neo4j.util.concurrent.Runnables;
 
@@ -150,6 +153,11 @@ public class MuninnPageCacheTest extends PageCacheTest<MuninnPageCache> {
     private static final long X = 0xCAFEBABEDEADBEEFL;
     private static final long Y = 0xDECAFC0FFEEDECAFL;
     private MuninnPageCacheFixture fixture;
+
+    @BeforeAll
+    static void warmUpVictimPage() {
+        VictimPageReference.getVictimPage(PAGE_SIZE, INSTANCE);
+    }
 
     @Override
     protected Fixture<MuninnPageCache> createFixture() {
@@ -196,6 +204,24 @@ public class MuninnPageCacheTest extends PageCacheTest<MuninnPageCache> {
             assertEquals(PAGE_SIZE, pageFile.pageSize());
             assertEquals(PAGE_SIZE - reservedBytes, pageFile.payloadSize());
             assertEquals(reservedBytes, pageFile.pageSize() - pageFile.payloadSize());
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void pageCacheMustStayWithinConfiguredBudget(boolean preTouch) throws IOException {
+        long budget = ByteUnit.mebiBytes(4) + 12345;
+        var memoryTracker = new LocalMemoryTracker();
+        var configuration = MuninnPageCache.forMemory(budget).preTouch(preTouch).memoryTracker(memoryTracker);
+        try (var pageCache = new MuninnPageCache(fs, jobScheduler, configuration);
+                var pageFile = map(pageCache, file("a"), pageCache.pageSize());
+                var cursor = pageFile.io(0, PF_SHARED_WRITE_LOCK, NULL_CONTEXT)) {
+            for (int i = 0; i < pageCache.maxCachedPages(); i++) {
+                assertTrue(cursor.next());
+            }
+            long pageSize = pageCache.pageSize();
+            assertThat(memoryTracker.usedNativeMemory()).isLessThanOrEqualTo(budget);
+            assertThat(memoryTracker.usedNativeMemory()).isGreaterThan(budget - 4L * pageSize);
         }
     }
 
@@ -3378,10 +3404,10 @@ public class MuninnPageCacheTest extends PageCacheTest<MuninnPageCache> {
         assertTimeoutPreemptively(ofMillis(SHORT_TIMEOUT_MILLIS), () -> {
             DefaultPageCacheTracer tracer = new DefaultPageCacheTracer(true);
             var contextFactory = new CursorContextFactory(tracer, EMPTY_CONTEXT_SUPPLIER);
-            getPageCache(fs, LatchMap.faultLockStriping * 2, tracer);
+            getPageCache(fs, LatchMap.FAULT_LOCK_STRIPING * 2, tracer);
             Path file = file("a");
 
-            int toTouch = LatchMap.faultLockStriping + 27;
+            int toTouch = LatchMap.FAULT_LOCK_STRIPING + 27;
             var fileSize = toTouch * 4;
             generateFile(file, fileSize);
 
