@@ -40,10 +40,10 @@ import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.database.Database;
 import org.neo4j.notifications.NotificationCodeWithDescription;
 import org.neo4j.queryapi.QueryApiTestUtil;
-import org.neo4j.queryapi.annotation.QueryAPITestExtension;
-import org.neo4j.queryapi.testclient.QueryAPITestClient;
-import org.neo4j.queryapi.testclient.QueryApiTestClientException;
-import org.neo4j.queryapi.testclient.QueryRequest;
+import org.neo4j.queryapi.test.annotation.QueryAPITestExtension;
+import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
+import org.neo4j.queryapi.test.testclient.QueryApiTestClientException;
+import org.neo4j.queryapi.test.testclient.QueryRequest;
 import org.neo4j.server.queryapi.request.AccessMode;
 import org.neo4j.server.queryapi.tx.TransactionManager;
 

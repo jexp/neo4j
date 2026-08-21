@@ -32,9 +32,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.queryapi.QueryApiTestUtil;
 import org.neo4j.queryapi.QueryResponseJsonlAssertions;
-import org.neo4j.queryapi.annotation.QueryAPITestExtension;
-import org.neo4j.queryapi.testclient.QueryAPITestClient;
-import org.neo4j.queryapi.testclient.QueryContentType;
+import org.neo4j.queryapi.test.annotation.QueryAPITestExtension;
+import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
+import org.neo4j.queryapi.test.testclient.QueryContentType;
 import org.neo4j.server.queryapi.QueryMimeTypes;
 import org.neo4j.test.extension.SkipOnSpd;
 
@@ -54,7 +54,7 @@ class QueryResourceErrorJsonlIT {
         var httpRequest = QueryApiTestUtil.baseRequestBuilderJsonl(queryEndpoint, "neo4j")
                 .POST(HttpRequest.BodyPublishers.noBody())
                 .build();
-        var response = client.send(httpRequest, HttpResponse.BodyHandlers.ofLines());
+        var response = QueryAPITestClient.send(client, httpRequest, HttpResponse.BodyHandlers.ofLines());
 
         QueryResponseJsonlAssertions.assertThat(response)
                 .hasContentType(QueryContentType.UNTYPED_L)
@@ -69,7 +69,7 @@ class QueryResourceErrorJsonlIT {
         var httpRequest = QueryApiTestUtil.baseRequestBuilderJsonl(queryEndpoint, "neo4j")
                 .GET()
                 .build();
-        var response = client.send(httpRequest, HttpResponse.BodyHandlers.ofLines());
+        var response = QueryAPITestClient.send(client, httpRequest, HttpResponse.BodyHandlers.ofLines());
 
         QueryResponseJsonlAssertions.assertThat(response)
                 .hasContentType(QueryContentType.UNTYPED_L)
@@ -88,7 +88,7 @@ class QueryResourceErrorJsonlIT {
                 .POST(HttpRequest.BodyPublishers.ofString("This is not acceptable"))
                 .build();
 
-        var response = client.send(httpRequest, HttpResponse.BodyHandlers.ofLines());
+        var response = QueryAPITestClient.send(client, httpRequest, HttpResponse.BodyHandlers.ofLines());
 
         QueryResponseJsonlAssertions.assertThat(response)
                 .hasContentType(QueryContentType.UNTYPED_L)
@@ -107,7 +107,7 @@ class QueryResourceErrorJsonlIT {
                 .POST(HttpRequest.BodyPublishers.ofString("This is not acceptable"))
                 .build();
 
-        var response = client.send(httpRequest, HttpResponse.BodyHandlers.ofLines());
+        var response = QueryAPITestClient.send(client, httpRequest, HttpResponse.BodyHandlers.ofLines());
 
         QueryResponseJsonlAssertions.assertThat(response)
                 .hasContentType(QueryContentType.UNTYPED_L)
@@ -124,7 +124,7 @@ class QueryResourceErrorJsonlIT {
                 .POST(HttpRequest.BodyPublishers.ofString("{\"statement\": \"RETURN 1\"}"))
                 .build();
 
-        var response = client.send(httpRequest, HttpResponse.BodyHandlers.ofLines());
+        var response = QueryAPITestClient.send(client, httpRequest, HttpResponse.BodyHandlers.ofLines());
 
         QueryResponseJsonlAssertions.assertThat(response)
                 .hasContentType(QueryContentType.UNTYPED_L)
@@ -138,7 +138,7 @@ class QueryResourceErrorJsonlIT {
         var httpRequest = QueryApiTestUtil.baseRequestBuilderJsonl(queryEndpoint, "neo4j")
                 .POST(HttpRequest.BodyPublishers.ofString("This is a random string!"))
                 .build();
-        var response = client.send(httpRequest, HttpResponse.BodyHandlers.ofLines());
+        var response = QueryAPITestClient.send(client, httpRequest, HttpResponse.BodyHandlers.ofLines());
 
         QueryResponseJsonlAssertions.assertThat(response)
                 .hasContentType(QueryContentType.UNTYPED_L)
@@ -153,7 +153,7 @@ class QueryResourceErrorJsonlIT {
                 .POST(HttpRequest.BodyPublishers.ofString("{\"statement\": \"RETURN 1\"}"))
                 .build();
 
-        var response = client.send(httpRequest, HttpResponse.BodyHandlers.ofLines());
+        var response = QueryAPITestClient.send(client, httpRequest, HttpResponse.BodyHandlers.ofLines());
 
         QueryResponseJsonlAssertions.assertThat(response)
                 .hasContentType(QueryContentType.UNTYPED_L)
@@ -189,7 +189,7 @@ class QueryResourceErrorJsonlIT {
                 .POST(HttpRequest.BodyPublishers.ofString("{\"statement\": \"MATCH (n)\"}"))
                 .build();
 
-        var response = client.send(request, HttpResponse.BodyHandlers.ofLines());
+        var response = QueryAPITestClient.send(client, request, HttpResponse.BodyHandlers.ofLines());
 
         QueryResponseJsonlAssertions.assertThat(response)
                 .hasContentType(mimeType)
@@ -225,7 +225,7 @@ class QueryResourceErrorJsonlIT {
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
 
-        var response = client.send(request, HttpResponse.BodyHandlers.ofLines());
+        var response = QueryAPITestClient.send(client, request, HttpResponse.BodyHandlers.ofLines());
 
         QueryResponseJsonlAssertions.assertThat(response)
                 .hasContentType(QueryContentType.UNTYPED_L)
@@ -268,7 +268,7 @@ class QueryResourceErrorJsonlIT {
         var httpRequest = QueryApiTestUtil.baseRequestBuilderJsonl(queryEndpoint, "neo4j")
                 .POST(HttpRequest.BodyPublishers.noBody())
                 .build();
-        var response = client.send(httpRequest, HttpResponse.BodyHandlers.ofLines());
+        var response = QueryAPITestClient.send(client, httpRequest, HttpResponse.BodyHandlers.ofLines());
 
         QueryResponseJsonlAssertions.assertThat(response)
                 .hasContentType(QueryContentType.UNTYPED_L)

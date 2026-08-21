@@ -30,10 +30,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.neo4j.kernel.api.exceptions.Status;
-import org.neo4j.queryapi.annotation.QueryAPITestExtension;
-import org.neo4j.queryapi.testclient.QueryAPITestClient;
-import org.neo4j.queryapi.testclient.QueryContentType;
-import org.neo4j.queryapi.testclient.QueryRequest;
+import org.neo4j.queryapi.test.annotation.QueryAPITestExtension;
+import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
+import org.neo4j.queryapi.test.testclient.QueryContentType;
+import org.neo4j.queryapi.test.testclient.QueryRequest;
 
 @QueryAPITestExtension
 class QueryResourceTxMetadataIT {

@@ -29,8 +29,8 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import org.junit.jupiter.api.Test;
-import org.neo4j.queryapi.annotation.QueryAPITestExtension;
-import org.neo4j.queryapi.testclient.QueryAPITestClient;
+import org.neo4j.queryapi.test.annotation.QueryAPITestExtension;
+import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
 import org.neo4j.test.extension.SkipOnSpd;
 
 @QueryAPITestExtension(authEnabled = true)
@@ -62,7 +62,7 @@ class QueryResourceErrorWithAuthIT {
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
 
-        var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        var response = QueryAPITestClient.send(client, request, HttpResponse.BodyHandlers.ofString());
 
         assertThat(response.statusCode()).isEqualTo(400);
         assertThat(response.body()).contains("""

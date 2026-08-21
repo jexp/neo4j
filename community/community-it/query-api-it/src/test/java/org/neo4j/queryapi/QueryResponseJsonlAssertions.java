@@ -41,7 +41,7 @@ import org.assertj.core.api.Assertions;
 import org.assertj.core.api.ObjectArrayAssert;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.notifications.NotificationCodeWithDescription;
-import org.neo4j.queryapi.testclient.QueryContentType;
+import org.neo4j.queryapi.test.testclient.QueryContentType;
 
 public class QueryResponseJsonlAssertions
         extends AbstractAssert<QueryResponseJsonlAssertions, HttpResponse<Stream<String>>> {

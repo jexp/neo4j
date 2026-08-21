@@ -1,4 +1,4 @@
-package org.neo4j.queryapi.testclient;
+package org.neo4j.queryapi.test.testclient;
 
 import java.util.stream.Stream;
 

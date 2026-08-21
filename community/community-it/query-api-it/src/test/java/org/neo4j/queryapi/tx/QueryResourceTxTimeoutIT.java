@@ -28,10 +28,10 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.neo4j.kernel.api.exceptions.Status;
-import org.neo4j.queryapi.annotation.QueryAPITestExtension;
-import org.neo4j.queryapi.testclient.QueryAPITestClient;
-import org.neo4j.queryapi.testclient.QueryApiTestClientException;
-import org.neo4j.queryapi.testclient.QueryRequest;
+import org.neo4j.queryapi.test.annotation.QueryAPITestExtension;
+import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
+import org.neo4j.queryapi.test.testclient.QueryApiTestClientException;
+import org.neo4j.queryapi.test.testclient.QueryRequest;
 import org.neo4j.server.queryapi.tx.TransactionManager;
 
 @QueryAPITestExtension(

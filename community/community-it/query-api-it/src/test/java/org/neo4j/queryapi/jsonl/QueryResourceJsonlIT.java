@@ -21,7 +21,7 @@ package org.neo4j.queryapi.jsonl;
 
 import static java.util.List.of;
 import static org.neo4j.queryapi.QueryResponseJsonlAssertions.assertThat;
-import static org.neo4j.queryapi.testclient.QueryRequest.returnOne;
+import static org.neo4j.queryapi.test.testclient.QueryRequest.returnOne;
 
 import java.io.IOException;
 import java.util.List;
@@ -38,11 +38,11 @@ import org.neo4j.kernel.database.Database;
 import org.neo4j.queryapi.QueryApiTestUtil;
 import org.neo4j.queryapi.QueryResponseJsonlAssertions;
 import org.neo4j.queryapi.TransactionType;
-import org.neo4j.queryapi.annotation.QueryAPITestExtension;
-import org.neo4j.queryapi.assertions.Capture;
-import org.neo4j.queryapi.testclient.QueryAPITestClient;
-import org.neo4j.queryapi.testclient.QueryContentType;
-import org.neo4j.queryapi.testclient.QueryRequest;
+import org.neo4j.queryapi.test.annotation.QueryAPITestExtension;
+import org.neo4j.queryapi.test.assertions.Capture;
+import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
+import org.neo4j.queryapi.test.testclient.QueryContentType;
+import org.neo4j.queryapi.test.testclient.QueryRequest;
 
 @QueryAPITestExtension(
         contentType = QueryContentType.UNTYPED,

@@ -37,9 +37,9 @@ import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.queryapi.QueryApiTestUtil;
 import org.neo4j.queryapi.QueryResponseJsonlAssertions;
 import org.neo4j.queryapi.TransactionType;
-import org.neo4j.queryapi.annotation.QueryAPITestExtension;
-import org.neo4j.queryapi.testclient.QueryAPITestClient;
-import org.neo4j.queryapi.testclient.QueryContentType;
+import org.neo4j.queryapi.test.annotation.QueryAPITestExtension;
+import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
+import org.neo4j.queryapi.test.testclient.QueryContentType;
 
 @QueryAPITestExtension
 class QueryResourceConfigJsonlIT {
@@ -61,7 +61,7 @@ class QueryResourceConfigJsonlIT {
                 .POST(HttpRequest.BodyPublishers.ofString("{\"statement\": \"CREATE (n) RETURN n\"}"))
                 .build();
 
-        var response = client.send(httpRequest, HttpResponse.BodyHandlers.ofLines());
+        var response = QueryAPITestClient.send(client, httpRequest, HttpResponse.BodyHandlers.ofLines());
 
         QueryResponseJsonlAssertions.assertThat(response)
                 .hasContentType(QueryContentType.UNTYPED_L)
@@ -80,7 +80,7 @@ class QueryResourceConfigJsonlIT {
                         "{\"statement\": \"CREATE (n) RETURN n\",\"accessMode\": \"" + input + "\"}"))
                 .build();
 
-        var response = client.send(httpRequest, HttpResponse.BodyHandlers.ofLines());
+        var response = QueryAPITestClient.send(client, httpRequest, HttpResponse.BodyHandlers.ofLines());
 
         QueryResponseJsonlAssertions.assertThat(response)
                 .hasContentType(QueryContentType.UNTYPED_L)
@@ -101,7 +101,7 @@ class QueryResourceConfigJsonlIT {
                         "{\"statement\": \"RETURN 1\",\"accessMode\": \"" + input + "\"}"))
                 .build();
 
-        var response = client.send(httpRequest, HttpResponse.BodyHandlers.ofLines());
+        var response = QueryAPITestClient.send(client, httpRequest, HttpResponse.BodyHandlers.ofLines());
 
         QueryResponseJsonlAssertions.assertThat(response)
                 .hasContentType(QueryContentType.UNTYPED_L)
@@ -122,7 +122,7 @@ class QueryResourceConfigJsonlIT {
                         "{\"statement\": \"CREATE (n) RETURN n\",\"accessMode\": \"READ\"}"))
                 .build();
 
-        var response = client.send(httpRequest, HttpResponse.BodyHandlers.ofLines());
+        var response = QueryAPITestClient.send(client, httpRequest, HttpResponse.BodyHandlers.ofLines());
 
         QueryResponseJsonlAssertions.assertThat(response)
                 .hasContentType(QueryContentType.UNTYPED_L)
@@ -141,7 +141,7 @@ class QueryResourceConfigJsonlIT {
                         "{\"statement\": \"CREATE (n) RETURN n\",\"accessMode\": \"bananas\"}"))
                 .build();
 
-        var response = client.send(httpRequest, HttpResponse.BodyHandlers.ofLines());
+        var response = QueryAPITestClient.send(client, httpRequest, HttpResponse.BodyHandlers.ofLines());
 
         QueryResponseJsonlAssertions.assertThat(response)
                 .hasContentType(QueryContentType.UNTYPED_L)
@@ -157,7 +157,7 @@ class QueryResourceConfigJsonlIT {
         var httpRequest = QueryApiTestUtil.baseRequestBuilderJsonl(transactionType.endpoint(queryEndpoint), "neo4j")
                 .POST(HttpRequest.BodyPublishers.ofString("{\"statement\": \"EXPLAIN RETURN 1\"}"))
                 .build();
-        var response = client.send(httpRequest, HttpResponse.BodyHandlers.ofLines());
+        var response = QueryAPITestClient.send(client, httpRequest, HttpResponse.BodyHandlers.ofLines());
 
         QueryResponseJsonlAssertions.assertThat(response)
                 .hasContentType(QueryContentType.UNTYPED_L)
@@ -187,7 +187,7 @@ class QueryResourceConfigJsonlIT {
         var httpRequest = QueryApiTestUtil.baseRequestBuilderJsonl(transactionType.endpoint(queryEndpoint), "neo4j")
                 .POST(HttpRequest.BodyPublishers.ofString("{\"statement\": \"PROFILE RETURN 1\"}"))
                 .build();
-        var response = client.send(httpRequest, HttpResponse.BodyHandlers.ofLines());
+        var response = QueryAPITestClient.send(client, httpRequest, HttpResponse.BodyHandlers.ofLines());
 
         QueryResponseJsonlAssertions.assertThat(response)
                 .hasContentType(QueryContentType.UNTYPED_L)

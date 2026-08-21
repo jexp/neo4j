@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package org.neo4j.queryapi.annotation.support;
+package org.neo4j.queryapi.test.annotation.support;
 
 import static java.time.Duration.ofSeconds;
 import static org.neo4j.queryapi.QueryApiTestUtil.resolveDependency;
@@ -37,6 +37,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.junit.jupiter.api.extension.ParameterResolver;
+import org.junit.jupiter.api.extension.TestExecutionExceptionHandler;
 import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.configuration.connectors.BoltConnector;
 import org.neo4j.configuration.connectors.BoltConnectorInternalSettings;
@@ -46,15 +47,20 @@ import org.neo4j.configuration.connectors.HttpConnector;
 import org.neo4j.configuration.helpers.SocketAddress;
 import org.neo4j.kernel.api.procedure.GlobalProcedures;
 import org.neo4j.queryapi.QueryApiTestUtil;
-import org.neo4j.queryapi.annotation.BoltTransportType;
-import org.neo4j.queryapi.annotation.QueryAPITestExtension;
-import org.neo4j.queryapi.testclient.QueryAPITestClient;
+import org.neo4j.queryapi.test.QueryAPITestRetryException;
+import org.neo4j.queryapi.test.annotation.BoltTransportType;
+import org.neo4j.queryapi.test.annotation.QueryAPITestExtension;
+import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
 import org.neo4j.server.configuration.ServerSettings;
 import org.neo4j.server.queryapi.tx.TransactionManager;
 import org.neo4j.test.TestDatabaseManagementServiceBuilder;
 
 public class QueryAPITestSupportExtension
-        implements ClassTemplateInvocationContextProvider, ParameterResolver, BeforeAllCallback, AfterAllCallback {
+        implements ClassTemplateInvocationContextProvider,
+                ParameterResolver,
+                BeforeAllCallback,
+                AfterAllCallback,
+                TestExecutionExceptionHandler {
 
     private final List<QueryAPIClassTemplateInvocationContext> invocationContexts;
 
@@ -152,5 +158,36 @@ public class QueryAPITestSupportExtension
     public Stream<? extends ClassTemplateInvocationContext> provideClassTemplateInvocationContexts(
             ExtensionContext context) {
         return invocationContexts.stream();
+    }
+
+    @Override
+    public void handleTestExecutionException(ExtensionContext context, Throwable throwable) throws Throwable {
+        var currentException = throwable;
+
+        if (throwable instanceof QueryAPITestRetryException) {
+            // The root cause should be used as cause of failure
+            currentException = throwable.getCause();
+        } else {
+            throw throwable;
+        }
+
+        var testClass = context.getRequiredTestClass();
+        var annotation = testClass.getAnnotation(QueryAPITestExtension.class);
+
+        for (int attempt = 1; attempt < annotation.maxAttempts(); attempt++) {
+            try {
+                context.getExecutableInvoker()
+                        .invoke(context.getRequiredTestMethod(), context.getRequiredTestInstance());
+                return;
+            } catch (Throwable t) {
+                if (t instanceof QueryAPITestRetryException) {
+                    currentException = t.getCause();
+                } else {
+                    throw t;
+                }
+            }
+        }
+
+        throw currentException;
     }
 }

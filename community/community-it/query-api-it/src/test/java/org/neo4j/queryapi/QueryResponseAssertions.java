@@ -44,8 +44,10 @@ import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.Assertions;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.notifications.NotificationCodeWithDescription;
-import org.neo4j.queryapi.testclient.QueryContentType;
-import org.neo4j.queryapi.testclient.QueryResponse;
+import org.neo4j.queryapi.test.QueryAPITestRetryException;
+import org.neo4j.queryapi.test.testclient.QueryContentType;
+import org.neo4j.queryapi.test.testclient.QueryResponse;
+import org.neo4j.server.queryapi.exception.TransactionIdCollisionException;
 
 public final class QueryResponseAssertions
         extends AbstractAssert<QueryResponseAssertions, HttpResponse<QueryResponse>> {
@@ -68,6 +70,21 @@ public final class QueryResponseAssertions
     }
 
     public QueryResponseAssertions wasSuccessful() {
+        if (queryResponse.statusCode() != 202
+                && queryResponse.body() != null
+                && queryResponse.body().errors() != null
+                && !queryResponse.body().errors().isEmpty()) {
+            var errorCode = queryResponse.body().errors().get(0).get(ERROR_CODE).asText();
+            var errorMessage =
+                    queryResponse.body().errors().get(0).get(ERROR_MESSAGE).asText();
+            if (errorCode.equals(Status.Request.ResourceExhaustion.code().serialize())) {
+                var transactionIdCollisionException = new TransactionIdCollisionException();
+                if (transactionIdCollisionException.getMessage().equals(errorMessage)) {
+                    throw new QueryAPITestRetryException("Transaction ID Collision", transactionIdCollisionException);
+                }
+            }
+        }
+
         Assertions.assertThat(queryResponse.statusCode())
                 .as(
                         "Expected successful response but was a %s with body: %s",
@@ -79,27 +96,11 @@ public final class QueryResponseAssertions
     }
 
     public QueryResponseAssertions wasNotFound() {
-        Assertions.assertThat(queryResponse.statusCode()).isEqualTo(404);
-        Assertions.assertThat(queryResponse.body().errors().size()).isEqualTo(1);
-        Assertions.assertThat(
-                        queryResponse.body().errors().get(0).get(ERROR_CODE).asText())
-                .isEqualTo(Status.Request.Invalid.code().serialize());
-        Assertions.assertThat(
-                        queryResponse.body().errors().get(0).get(ERROR_MESSAGE).asText())
-                .isNotBlank();
-        return this;
+        return hasErrorStatus(404, Status.Request.Invalid);
     }
 
     public QueryResponseAssertions wasDatabaseNotFound() {
-        Assertions.assertThat(queryResponse.statusCode()).isEqualTo(404);
-        Assertions.assertThat(queryResponse.body().errors().size()).isEqualTo(1);
-        Assertions.assertThat(
-                        queryResponse.body().errors().get(0).get(ERROR_CODE).asText())
-                .isEqualTo(Status.Database.DatabaseNotFound.code().serialize());
-        Assertions.assertThat(
-                        queryResponse.body().errors().get(0).get(ERROR_MESSAGE).asText())
-                .isNotBlank();
-        return this;
+        return hasErrorStatus(404, Status.Database.DatabaseNotFound);
     }
 
     public QueryResponseAssertions hasErrorStatus(int httpCode, Status status) {
@@ -112,27 +113,27 @@ public final class QueryResponseAssertions
     }
 
     public QueryResponseAssertions hasErrorStatus(int httpCode, Status status, Consumer<String> messageRequirements) {
-        Assertions.assertThat(queryResponse.statusCode()).isEqualTo(httpCode);
         Assertions.assertThat(queryResponse.body().errors().size()).isEqualTo(1);
-        Assertions.assertThat(
-                        queryResponse.body().errors().get(0).get(ERROR_CODE).asText())
-                .isEqualTo(status.code().serialize());
+        var errorCode = queryResponse.body().errors().get(0).get(ERROR_CODE).asText();
+        var errorMessage =
+                queryResponse.body().errors().get(0).get(ERROR_MESSAGE).asText();
+
+        if (!status.equals(Status.Request.ResourceExhaustion)
+                && errorCode.equals(Status.Request.ResourceExhaustion.code().serialize())) {
+            var transactionIdCollisionException = new TransactionIdCollisionException();
+            if (transactionIdCollisionException.getMessage().equals(errorMessage)) {
+                throw new QueryAPITestRetryException("Transaction ID Collision", transactionIdCollisionException);
+            }
+        }
+
+        Assertions.assertThat(queryResponse.statusCode()).isEqualTo(httpCode);
+
+        Assertions.assertThat(errorCode).isEqualTo(status.code().serialize());
         if (messageRequirements == null) {
-            Assertions.assertThat(queryResponse
-                            .body()
-                            .errors()
-                            .get(0)
-                            .get(ERROR_MESSAGE)
-                            .asText())
-                    .isNotBlank();
+            Assertions.assertThat(errorMessage).isNotBlank();
+
         } else {
-            Assertions.assertThat(queryResponse
-                            .body()
-                            .errors()
-                            .get(0)
-                            .get(ERROR_MESSAGE)
-                            .asText())
-                    .satisfies(messageRequirements);
+            Assertions.assertThat(errorMessage).satisfies(messageRequirements);
         }
 
         return this;

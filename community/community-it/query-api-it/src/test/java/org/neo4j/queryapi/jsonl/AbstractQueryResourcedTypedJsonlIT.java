@@ -41,10 +41,10 @@ import org.neo4j.graphdb.Label;
 import org.neo4j.queryapi.QueryResponseJsonlAssertions;
 import org.neo4j.queryapi.QueryResponseJsonlAssertions.CypherValueAssertions;
 import org.neo4j.queryapi.TransactionType;
-import org.neo4j.queryapi.assertions.Capture;
-import org.neo4j.queryapi.testclient.QueryAPITestClient;
-import org.neo4j.queryapi.testclient.QueryContentType;
-import org.neo4j.queryapi.testclient.QueryRequest;
+import org.neo4j.queryapi.test.assertions.Capture;
+import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
+import org.neo4j.queryapi.test.testclient.QueryContentType;
+import org.neo4j.queryapi.test.testclient.QueryRequest;
 import org.neo4j.server.queryapi.response.format.Fieldnames;
 
 abstract class AbstractQueryResourcedTypedJsonlIT {

@@ -22,9 +22,9 @@ package org.neo4j.queryapi;
 import java.io.IOException;
 import java.net.http.HttpResponse;
 import java.util.function.Function;
-import org.neo4j.queryapi.testclient.QueryAPITestClient;
-import org.neo4j.queryapi.testclient.QueryRequest;
-import org.neo4j.queryapi.testclient.QueryResponse;
+import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
+import org.neo4j.queryapi.test.testclient.QueryRequest;
+import org.neo4j.queryapi.test.testclient.QueryResponse;
 
 public enum TransactionType {
     IMPLICIT("Implicit Transaction", Function.identity(), QueryAPITestClient::autoCommit),

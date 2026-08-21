@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package org.neo4j.queryapi.annotation;
+package org.neo4j.queryapi.test.annotation;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -26,8 +26,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import org.junit.jupiter.api.ClassTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.neo4j.queryapi.annotation.support.QueryAPITestSupportExtension;
-import org.neo4j.queryapi.testclient.QueryContentType;
+import org.neo4j.queryapi.test.annotation.support.QueryAPITestSupportExtension;
+import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
+import org.neo4j.queryapi.test.testclient.QueryContentType;
 
 /**
  * Extension for running test against Query API.
@@ -35,7 +36,7 @@ import org.neo4j.queryapi.testclient.QueryContentType;
  * This extension initiates a {@link org.neo4j.dbms.api.DatabaseManagementService} for
  * each {@link BoltTransportType} configured before all tests start to run.
  * {@link org.neo4j.server.queryapi.tx.TransactionManager} and
- * {@link org.neo4j.queryapi.testclient.QueryAPITestClient} are also created.
+ * {@link QueryAPITestClient} are also created.
  * Those are types are resolved for parameters in methods and constructor of classes
  * annotated with this annotation.
  */
@@ -55,7 +56,7 @@ public @interface QueryAPITestExtension {
 
     /**
      * When true, enables the authentication in the dbms.
-     * The {@link org.neo4j.queryapi.testclient.QueryAPITestClient} is configure with
+     * The {@link QueryAPITestClient} is configure with
      * the auth params.
      * The credentials must be changed.
      */
@@ -95,13 +96,19 @@ public @interface QueryAPITestExtension {
 
     /**
      * The content type which the body of the request are encoded on the provided
-     * {@link org.neo4j.queryapi.testclient.QueryAPITestClient}
+     * {@link QueryAPITestClient}
      */
     QueryContentType contentType() default QueryContentType.UNTYPED;
 
     /**
      * The list of accepted content types which the body of the response received by the provided
-     * {@link org.neo4j.queryapi.testclient.QueryAPITestClient}
+     * {@link QueryAPITestClient}
      */
     QueryContentType[] acceptedContentTypes() default {QueryContentType.UNTYPED};
+
+    /**
+     * Define the number of attempts for running a given test when it aborted
+     * by {@link org.neo4j.queryapi.test.QueryAPITestRetryException}
+     */
+    int maxAttempts() default 3;
 }

@@ -17,14 +17,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package org.neo4j.queryapi.annotation.support;
+package org.neo4j.queryapi.test.annotation.support;
 
 import java.util.List;
 import org.junit.jupiter.api.extension.ClassTemplateInvocationContext;
 import org.junit.jupiter.api.extension.Extension;
 import org.neo4j.dbms.api.DatabaseManagementService;
-import org.neo4j.queryapi.annotation.BoltTransportType;
-import org.neo4j.queryapi.testclient.QueryAPITestClient;
+import org.neo4j.queryapi.test.annotation.BoltTransportType;
+import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
 import org.neo4j.server.queryapi.tx.TransactionManager;
 
 public record QueryAPIClassTemplateInvocationContext(

@@ -33,9 +33,9 @@ import org.junit.jupiter.api.Timeout;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.queryapi.QueryApiTestUtil;
 import org.neo4j.queryapi.QueryResponseJsonlAssertions;
-import org.neo4j.queryapi.annotation.QueryAPITestExtension;
-import org.neo4j.queryapi.testclient.QueryAPITestClient;
-import org.neo4j.queryapi.testclient.QueryContentType;
+import org.neo4j.queryapi.test.annotation.QueryAPITestExtension;
+import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
+import org.neo4j.queryapi.test.testclient.QueryContentType;
 
 /**
  * TODO: Enabled extension to configured to start and stop
@@ -68,7 +68,7 @@ class QueryResourceAuthenticationJsonlIT {
                 .POST(HttpRequest.BodyPublishers.ofString("{\"statement\": \"SHOW USERS\"}"))
                 .build();
 
-        var response = client.send(httpRequest, HttpResponse.BodyHandlers.ofLines());
+        var response = QueryAPITestClient.send(client, httpRequest, HttpResponse.BodyHandlers.ofLines());
 
         QueryResponseJsonlAssertions.assertThat(response)
                 .hasContentType(QueryContentType.UNTYPED_L)
@@ -87,7 +87,7 @@ class QueryResourceAuthenticationJsonlIT {
                 .POST(HttpRequest.BodyPublishers.ofString("{\"statement\": \"RETURN 1\"}"))
                 .build();
 
-        var response = client.send(accessRequest, HttpResponse.BodyHandlers.ofLines());
+        var response = QueryAPITestClient.send(client, accessRequest, HttpResponse.BodyHandlers.ofLines());
 
         QueryResponseJsonlAssertions.assertThat(response)
                 .hasContentType(QueryContentType.UNTYPED_L)
@@ -106,7 +106,7 @@ class QueryResourceAuthenticationJsonlIT {
                 .POST(HttpRequest.BodyPublishers.ofString("{\"statement\": \"RETURN 1\"}"))
                 .build();
 
-        var response = client.send(httpRequest, HttpResponse.BodyHandlers.ofLines());
+        var response = QueryAPITestClient.send(client, httpRequest, HttpResponse.BodyHandlers.ofLines());
 
         QueryResponseJsonlAssertions.assertThat(response)
                 .hasContentType(QueryContentType.UNTYPED_L)
@@ -122,7 +122,7 @@ class QueryResourceAuthenticationJsonlIT {
                 .POST(HttpRequest.BodyPublishers.ofString("{\"statement\": \"RETURN 1\"}"))
                 .build();
 
-        var response = client.send(httpRequest, HttpResponse.BodyHandlers.ofLines());
+        var response = QueryAPITestClient.send(client, httpRequest, HttpResponse.BodyHandlers.ofLines());
 
         QueryResponseJsonlAssertions.assertThat(response)
                 .hasContentType(QueryContentType.UNTYPED_L)
@@ -139,7 +139,7 @@ class QueryResourceAuthenticationJsonlIT {
                 .POST(HttpRequest.BodyPublishers.ofString("{\"statement\": \"RETURN 1\"}"))
                 .build();
 
-        var response = client.send(httpRequest, HttpResponse.BodyHandlers.ofLines());
+        var response = QueryAPITestClient.send(client, httpRequest, HttpResponse.BodyHandlers.ofLines());
 
         QueryResponseJsonlAssertions.assertThat(response)
                 .hasContentType(QueryContentType.UNTYPED_L)
@@ -161,7 +161,7 @@ class QueryResourceAuthenticationJsonlIT {
                     .header("Authorization", QueryApiTestUtil.encodedCredentials("neo4j", "WrongPasswordBud"))
                     .POST(HttpRequest.BodyPublishers.ofString("shouldn't be parsing this"))
                     .build();
-            response = client.send(req, HttpResponse.BodyHandlers.ofLines());
+            response = QueryAPITestClient.send(client, req, HttpResponse.BodyHandlers.ofLines());
         } while (response.statusCode() != 429);
 
         QueryResponseJsonlAssertions.assertThat(response)
@@ -180,7 +180,8 @@ class QueryResourceAuthenticationJsonlIT {
                         "{\"statement\": \"ALTER CURRENT USER SET PASSWORD FROM 'neo4j' TO 'secretPassword'\"}"))
                 .build();
 
-        var updatePasswordResp = client.send(updatePasswordReq, HttpResponse.BodyHandlers.ofLines());
+        var updatePasswordResp =
+                QueryAPITestClient.send(client, updatePasswordReq, HttpResponse.BodyHandlers.ofLines());
 
         QueryResponseJsonlAssertions.assertThat(updatePasswordResp)
                 .hasContentType(QueryContentType.UNTYPED_L)

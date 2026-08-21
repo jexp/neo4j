@@ -26,10 +26,10 @@ import org.junit.jupiter.api.Test;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.notifications.NotificationCodeWithDescription;
 import org.neo4j.queryapi.QueryResponseJsonlAssertions;
-import org.neo4j.queryapi.annotation.QueryAPITestExtension;
-import org.neo4j.queryapi.testclient.QueryAPITestClient;
-import org.neo4j.queryapi.testclient.QueryContentType;
-import org.neo4j.queryapi.testclient.QueryRequest;
+import org.neo4j.queryapi.test.annotation.QueryAPITestExtension;
+import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
+import org.neo4j.queryapi.test.testclient.QueryContentType;
+import org.neo4j.queryapi.test.testclient.QueryRequest;
 
 @QueryAPITestExtension(
         contentType = QueryContentType.UNTYPED,

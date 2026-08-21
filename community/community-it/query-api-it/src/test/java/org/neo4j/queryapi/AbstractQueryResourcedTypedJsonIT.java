@@ -40,9 +40,9 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.Label;
-import org.neo4j.queryapi.testclient.QueryAPITestClient;
-import org.neo4j.queryapi.testclient.QueryContentType;
-import org.neo4j.queryapi.testclient.QueryRequest;
+import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
+import org.neo4j.queryapi.test.testclient.QueryContentType;
+import org.neo4j.queryapi.test.testclient.QueryRequest;
 import org.neo4j.server.queryapi.response.format.Fieldnames;
 
 abstract class AbstractQueryResourcedTypedJsonIT {

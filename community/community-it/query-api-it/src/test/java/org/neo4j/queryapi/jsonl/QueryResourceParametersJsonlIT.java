@@ -34,10 +34,10 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.queryapi.QueryApiTestUtil;
 import org.neo4j.queryapi.QueryResponseJsonlAssertions;
-import org.neo4j.queryapi.annotation.QueryAPITestExtension;
-import org.neo4j.queryapi.testclient.QueryAPITestClient;
-import org.neo4j.queryapi.testclient.QueryContentType;
-import org.neo4j.queryapi.testclient.QueryRequest;
+import org.neo4j.queryapi.test.annotation.QueryAPITestExtension;
+import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
+import org.neo4j.queryapi.test.testclient.QueryContentType;
+import org.neo4j.queryapi.test.testclient.QueryRequest;
 
 @QueryAPITestExtension(
         contentType = QueryContentType.UNTYPED,
@@ -178,7 +178,7 @@ class QueryResourceParametersJsonlIT {
                 .POST(HttpRequest.BodyPublishers.ofString(
                         "{\"statement\": \"RETURN $parameter\"," + "\"parameters\": 123}"))
                 .build();
-        var response = client.send(httpRequest, HttpResponse.BodyHandlers.ofLines());
+        var response = QueryAPITestClient.send(client, httpRequest, HttpResponse.BodyHandlers.ofLines());
 
         QueryResponseJsonlAssertions.assertThat(response)
                 .hasContentType(QueryContentType.UNTYPED_L)

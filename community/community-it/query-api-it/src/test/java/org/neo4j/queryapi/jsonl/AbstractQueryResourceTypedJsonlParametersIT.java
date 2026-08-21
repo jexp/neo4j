@@ -42,8 +42,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.queryapi.QueryResponseJsonlAssertions;
 import org.neo4j.queryapi.QueryResponseJsonlAssertions.CypherValueAssertions;
-import org.neo4j.queryapi.testclient.QueryAPITestClient;
-import org.neo4j.queryapi.testclient.QueryContentType;
+import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
+import org.neo4j.queryapi.test.testclient.QueryContentType;
 
 abstract class AbstractQueryResourceTypedJsonlParametersIT {
 

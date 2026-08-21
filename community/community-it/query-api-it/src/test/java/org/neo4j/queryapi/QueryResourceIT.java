@@ -21,7 +21,7 @@ package org.neo4j.queryapi;
 
 import static java.util.List.of;
 import static org.neo4j.queryapi.QueryResponseAssertions.assertThat;
-import static org.neo4j.queryapi.testclient.QueryRequest.returnOne;
+import static org.neo4j.queryapi.test.testclient.QueryRequest.returnOne;
 import static org.neo4j.server.queryapi.response.format.Fieldnames.VALUES_KEY;
 
 import java.io.IOException;
@@ -37,9 +37,9 @@ import org.neo4j.fabric.bolt.QueryRouterBookmark;
 import org.neo4j.fabric.bookmark.BookmarkFormat;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.database.Database;
-import org.neo4j.queryapi.annotation.QueryAPITestExtension;
-import org.neo4j.queryapi.testclient.QueryAPITestClient;
-import org.neo4j.queryapi.testclient.QueryRequest;
+import org.neo4j.queryapi.test.annotation.QueryAPITestExtension;
+import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
+import org.neo4j.queryapi.test.testclient.QueryRequest;
 
 @QueryAPITestExtension(bookmarkReadyTimeoutInSeconds = 1)
 class QueryResourceIT {

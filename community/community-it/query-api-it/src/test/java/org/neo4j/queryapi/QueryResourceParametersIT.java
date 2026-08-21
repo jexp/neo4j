@@ -34,9 +34,9 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.neo4j.queryapi.annotation.QueryAPITestExtension;
-import org.neo4j.queryapi.testclient.QueryAPITestClient;
-import org.neo4j.queryapi.testclient.QueryRequest;
+import org.neo4j.queryapi.test.annotation.QueryAPITestExtension;
+import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
+import org.neo4j.queryapi.test.testclient.QueryRequest;
 
 @QueryAPITestExtension
 class QueryResourceParametersIT {
@@ -151,7 +151,7 @@ class QueryResourceParametersIT {
                 .POST(HttpRequest.BodyPublishers.ofString(
                         "{\"statement\": \"RETURN $parameter\"," + "\"parameters\": 123}"))
                 .build();
-        var response = client.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+        var response = QueryAPITestClient.send(client, httpRequest, HttpResponse.BodyHandlers.ofString());
 
         assertThat(response.statusCode()).isEqualTo(400);
 

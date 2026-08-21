@@ -17,24 +17,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package org.neo4j.queryapi.assertions;
+package org.neo4j.queryapi.test;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Consumer;
+import org.opentest4j.TestAbortedException;
 
-public class Capture<T> {
-    private final List<T> captures;
+public class QueryAPITestRetryException extends TestAbortedException {
 
-    public Capture() {
-        this.captures = new ArrayList<>();
-    }
-
-    public Consumer<T> capture() {
-        return this.captures::add;
-    }
-
-    public List<T> getCaptured() {
-        return this.captures;
+    public QueryAPITestRetryException(String message, Throwable cause) {
+        super("Retrying test due to permissible failure:: " + message, cause);
     }
 }

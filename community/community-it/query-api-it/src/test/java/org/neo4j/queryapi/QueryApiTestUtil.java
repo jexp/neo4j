@@ -43,6 +43,7 @@ import org.neo4j.kernel.api.procedure.CallableProcedure;
 import org.neo4j.kernel.api.procedure.Context;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.logging.log4j.Log4jLogProvider;
+import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
 import org.neo4j.storageengine.api.TransactionIdStore;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.storable.IntegralValue;
@@ -70,7 +71,7 @@ public final class QueryApiTestUtil {
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();
 
-        return client.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+        return QueryAPITestClient.send(client, httpRequest, HttpResponse.BodyHandlers.ofString());
     }
 
     public static HttpResponse<Stream<String>> simpleRequestJsonl(
@@ -80,7 +81,7 @@ public final class QueryApiTestUtil {
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();
 
-        return client.send(httpRequest, HttpResponse.BodyHandlers.ofLines());
+        return QueryAPITestClient.send(client, httpRequest, HttpResponse.BodyHandlers.ofLines());
     }
 
     public static HttpResponse<Stream<String>> simpleRequestJsonl(

@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package org.neo4j.queryapi.testclient;
+package org.neo4j.queryapi.test.testclient;
 
 import static org.neo4j.queryapi.QueryApiTestUtil.encodedCredentials;
 
@@ -35,6 +35,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.neo4j.queryapi.TransactionType;
+import org.neo4j.queryapi.test.QueryAPITestRetryException;
 
 public class QueryAPITestClient {
 
@@ -235,7 +236,8 @@ public class QueryAPITestClient {
 
     public <T> HttpResponse<T> rollbackTx(String txId, String database, HttpResponse.BodyHandler<T> responseHandler)
             throws IOException, InterruptedException {
-        return client.send(
+        return QueryAPITestClient.send(
+                client,
                 HttpRequest.newBuilder(URI.create(endpoint.replace("{databaseName}", database) + "/tx/" + txId))
                         .header("Content-Type", this.contentType.mimeType())
                         .header("Accept", this.acceptedContentTypesHeader())
@@ -272,7 +274,8 @@ public class QueryAPITestClient {
 
     private <T> HttpResponse<T> sendRawBeginTx(String rawJson, HttpResponse.BodyHandler<T> responseHandler)
             throws IOException, InterruptedException {
-        return client.send(
+        return QueryAPITestClient.send(
+                client,
                 HttpRequest.newBuilder()
                         .uri(URI.create(endpoint.replace("{databaseName}", "neo4j") + "/tx"))
                         .header("Content-Type", this.contentType.mimeType())
@@ -284,7 +287,8 @@ public class QueryAPITestClient {
 
     private <T> HttpResponse<T> sendRaw(String rawJson, HttpResponse.BodyHandler<T> responseHandler)
             throws IOException, InterruptedException {
-        return client.send(
+        return QueryAPITestClient.send(
+                client,
                 HttpRequest.newBuilder()
                         .uri(URI.create(endpoint.replace("{databaseName}", "neo4j")))
                         .header("Content-Type", this.contentType.mimeType())
@@ -318,7 +322,7 @@ public class QueryAPITestClient {
         }
 
         var builtRequest = reqBuilder.build();
-        return client.send(builtRequest, responseHandler);
+        return QueryAPITestClient.send(client, builtRequest, responseHandler);
     }
 
     private HttpResponse.BodyHandler<QueryResponse> responseHandler() {
@@ -359,5 +363,15 @@ public class QueryAPITestClient {
         return this.acceptedContentTypes.stream()
                 .map(QueryContentType::mimeType)
                 .collect(Collectors.joining(","));
+    }
+
+    public static <T> HttpResponse<T> send(
+            HttpClient client, HttpRequest request, HttpResponse.BodyHandler<T> responseHandler)
+            throws InterruptedException {
+        try {
+            return client.send(request, responseHandler);
+        } catch (IOException exception) {
+            throw new QueryAPITestRetryException("Can't connect to HTTP Endpoint.", exception);
+        }
     }
 }

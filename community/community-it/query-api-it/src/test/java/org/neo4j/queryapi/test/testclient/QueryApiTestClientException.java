@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package org.neo4j.queryapi.testclient;
+package org.neo4j.queryapi.test.testclient;
 
 import static org.neo4j.server.queryapi.response.format.Fieldnames.ERROR_CODE;
 import static org.neo4j.server.queryapi.response.format.Fieldnames.ERROR_MESSAGE;
