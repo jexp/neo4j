@@ -40,6 +40,7 @@ import java.io.IOException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseInternalSettings;
 import org.neo4j.exceptions.UnderlyingStorageException;
 import org.neo4j.io.fs.ReadableChannel;
 import org.neo4j.kernel.KernelVersion;
@@ -48,9 +49,12 @@ import org.neo4j.kernel.impl.transaction.log.CheckpointInfo;
 import org.neo4j.kernel.impl.transaction.log.LogFile;
 import org.neo4j.kernel.impl.transaction.log.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
+import org.neo4j.kernel.impl.transaction.log.entry.LogFormat;
+import org.neo4j.kernel.impl.transaction.log.entry.LogHeader;
 import org.neo4j.kernel.impl.transaction.log.files.LogRangeInfo;
 import org.neo4j.kernel.impl.transaction.log.files.LogTailInformation;
 import org.neo4j.kernel.recovery.RecoveryStartInformationProvider.Monitor;
+import org.neo4j.storageengine.api.StoreIdentifier;
 import org.neo4j.storageengine.api.TransactionId;
 import org.neo4j.test.LatestVersions;
 
@@ -273,5 +277,85 @@ class RecoveryStartInformationProviderTest {
         assertThatThrownBy(provider::get)
                 .isInstanceOf(UnderlyingStorageException.class)
                 .hasMessage(expectedMessage);
+    }
+
+    @Test
+    void shouldRecoverMergedLogStartingAboveVersionZeroWhenLowestHeaderShowsCompleteHistory() throws IOException {
+        // given: raft bootstrap advances a merged log's start version without appending anything before it,
+        // so the lowest header records no prior append index
+        var header = mergedLogHeader(1, 0);
+        when(logFile.extractHeader(1)).thenReturn(header);
+        when(logFile.getLogRangeInfo()).thenReturn(new LogRangeInfo(1, null, 100, null));
+        when(logFiles.getTailMetadata()).thenReturn(recoveryRequiredTailWithoutCheckpoint());
+
+        // when
+        RecoveryStartInformation recoveryStartInformation =
+                new RecoveryStartInformationProvider(logFiles, monitor, mergedLogConfig()).get();
+
+        // then
+        verify(monitor).noCheckPointFound();
+        assertEquals(header.getStartPosition(), recoveryStartInformation.transactionLogPosition());
+        assertTrue(recoveryStartInformation.isRecoveryRequired());
+    }
+
+    @Test
+    void shouldFailMergedLogRecoveryWhenLowestHeaderShowsPrunedHistory() throws IOException {
+        // given: the lowest header records a real prior append index, meaning earlier files were pruned;
+        // recovering without a checkpoint would silently start mid-history
+        when(logFile.extractHeader(1)).thenReturn(mergedLogHeader(1, 5));
+        when(logFile.getLogRangeInfo()).thenReturn(new LogRangeInfo(1, null, 100, null));
+        when(logFiles.getTailMetadata()).thenReturn(recoveryRequiredTailWithoutCheckpoint());
+
+        RecoveryStartInformationProvider provider =
+                new RecoveryStartInformationProvider(logFiles, monitor, mergedLogConfig());
+        assertThatThrownBy(provider::get)
+                .isInstanceOf(UnderlyingStorageException.class)
+                .hasMessageContaining("Lowest found log file is 1");
+    }
+
+    @Test
+    void shouldRecoverMergedLogFromAnyStartVersionWhenLowestHeaderShowsCompleteHistory() throws IOException {
+        var header = mergedLogHeader(5, 0);
+        when(logFile.extractHeader(5)).thenReturn(header);
+        when(logFile.getLogRangeInfo()).thenReturn(new LogRangeInfo(5, null, 100, null));
+        when(logFiles.getTailMetadata()).thenReturn(recoveryRequiredTailWithoutCheckpoint());
+
+        RecoveryStartInformation recoveryStartInformation =
+                new RecoveryStartInformationProvider(logFiles, monitor, mergedLogConfig()).get();
+
+        verify(monitor).noCheckPointFound();
+        assertEquals(header.getStartPosition(), recoveryStartInformation.transactionLogPosition());
+    }
+
+    private static LogHeader mergedLogHeader(long logVersion, long lastAppendIndex) {
+        return LogFormat.V11.newHeader(
+                logVersion,
+                lastAppendIndex,
+                ReadableChannel.BASE_TERM,
+                StoreIdentifier.newStoreIdentifier(12345),
+                LogFormat.V11.getDefaultSegmentBlockSize(),
+                BASE_TX_CHECKSUM,
+                KernelVersion.GLORIOUS_FUTURE,
+                UNSPECIFIED_CREATION_TIME);
+    }
+
+    private LogTailInformation recoveryRequiredTailWithoutCheckpoint() {
+        return new LogTailInformation(
+                true,
+                10L,
+                false,
+                currentLogVersion,
+                LatestVersions.LATEST_KERNEL_VERSION.version(),
+                kernelProv,
+                LATEST_LOG_FORMAT_PROVIDER,
+                UNKNOWN_TERM_PROVIDER,
+                EMPTY_LAST_APPEND_BATCH_INFO_PROVIDER,
+                null);
+    }
+
+    private static Config mergedLogConfig() {
+        return Config.newBuilder()
+                .set(GraphDatabaseInternalSettings.merged_log, true)
+                .build();
     }
 }

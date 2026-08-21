@@ -21,6 +21,7 @@ package org.neo4j.kernel.recovery;
 
 import static org.neo4j.kernel.recovery.RecoveryStartInformation.MISSING_LOGS;
 import static org.neo4j.kernel.recovery.RecoveryStartInformation.NO_RECOVERY_REQUIRED;
+import static org.neo4j.storageengine.AppendIndexProvider.BASE_APPEND_INDEX;
 import static org.neo4j.storageengine.api.LogVersionRepository.INITIAL_LOG_VERSION;
 
 import java.io.IOException;
@@ -31,7 +32,9 @@ import org.neo4j.function.ThrowingSupplier;
 import org.neo4j.kernel.impl.transaction.log.CheckpointInfo;
 import org.neo4j.kernel.impl.transaction.log.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
+import org.neo4j.kernel.impl.transaction.log.entry.LogHeader;
 import org.neo4j.kernel.impl.transaction.log.files.LogTailInformation;
+import org.neo4j.storageengine.api.LogVersionRepository;
 
 /**
  * Utility class to find the log position to start recovery from
@@ -128,27 +131,34 @@ public class RecoveryStartInformationProvider implements ThrowingSupplier<Recove
 
     private RecoveryStartInformation noCheckpointRecordRecoveryInfo(long appendIndexAfterLastCheckPoint) {
         long lowestLogVersion = logFiles.getLogFile().getLogRangeInfo().lowestVersion();
-        if (lowestLogVersion != INITIAL_LOG_VERSION
-                // TODO MERGELOG For now merged log starts on 1, let's allow that to be able to create an
-                //  initial checkpoint. To be removed or altered later
-                && !(config.get(GraphDatabaseInternalSettings.merged_log) && lowestLogVersion == 1)) {
+        if (lowestLogVersion != INITIAL_LOG_VERSION && !mergedLogWithCompleteHistory(lowestLogVersion)) {
             throw new UnderlyingStorageException("No check point found in any log file and transaction log "
                     + "files do not exist from expected version " + INITIAL_LOG_VERSION
                     + ". Lowest found log file is "
                     + lowestLogVersion + ".");
         }
         monitor.noCheckPointFound();
-        LogPosition position = tryExtractHeaderAndGetStartPosition(lowestLogVersion);
+        LogPosition position = tryExtractHeader(lowestLogVersion).getStartPosition();
         return new RecoveryStartInformation(position, position, null, appendIndexAfterLastCheckPoint);
     }
 
-    private LogPosition tryExtractHeaderAndGetStartPosition(long lowestLogVersion) {
+    /**
+     * A merged log may legitimately start above {@link LogVersionRepository#INITIAL_LOG_VERSION}: raft bootstrap
+     * advances the file version without appending anything before it. Completeness is proven by the lowest file's
+     * own header - it records what was appended before that file, so a recorded real append index means earlier
+     * files have been pruned away and no-checkpoint recovery would silently start mid-history.
+     */
+    private boolean mergedLogWithCompleteHistory(long lowestLogVersion) {
+        return config.get(GraphDatabaseInternalSettings.merged_log)
+                && tryExtractHeader(lowestLogVersion).getLastAppendIndex() < BASE_APPEND_INDEX;
+    }
+
+    private LogHeader tryExtractHeader(long logVersion) {
         try {
-            return logFiles.getLogFile().extractHeader(lowestLogVersion).getStartPosition();
+            return logFiles.getLogFile().extractHeader(logVersion);
         } catch (IOException e) {
             monitor.failToExtractInitialFileHeader(e);
-            throw new UnderlyingStorageException(
-                    "Unable to read header from log file with version " + INITIAL_LOG_VERSION, e);
+            throw new UnderlyingStorageException("Unable to read header from log file with version " + logVersion, e);
         }
     }
 }
