@@ -148,23 +148,25 @@ import org.neo4j.kernel.impl.coreapi.InternalTransaction;
 import org.neo4j.kernel.impl.coreapi.schema.IndexDefinitionImpl;
 import org.neo4j.kernel.impl.transaction.log.CheckpointInfo;
 import org.neo4j.kernel.impl.transaction.log.FlushableLogPositionAwareChannel;
+import org.neo4j.kernel.impl.transaction.log.LogFile;
+import org.neo4j.kernel.impl.transaction.log.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.LogTailMetadata;
 import org.neo4j.kernel.impl.transaction.log.LoggingLogFileMonitor;
+import org.neo4j.kernel.impl.transaction.log.TransactionLogWriter;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointerImpl;
+import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckpointFile;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.DetachedCheckpointAppender;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.LatestCheckpointInfo;
+import org.neo4j.kernel.impl.transaction.log.checkpoint.LogCheckPointEvent;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.SimpleTriggerInfo;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryFactory;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEnvelopeHeader;
 import org.neo4j.kernel.impl.transaction.log.enveloped.InconsistentLogFilesException;
-import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.kernel.impl.transaction.log.files.LogRangeInfo;
-import org.neo4j.kernel.impl.transaction.log.files.checkpoint.CheckpointFile;
 import org.neo4j.kernel.impl.transaction.tracing.DatabaseTracer;
-import org.neo4j.kernel.impl.transaction.tracing.LogCheckPointEvent;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.kernel.lifecycle.Lifecycle;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
@@ -392,7 +394,7 @@ class RecoveryIT {
 
         checkpointer.forceCheckPoint(new SimpleTriggerInfo("test"));
 
-        LogPosition position = logFiles.getLogFile().getTransactionLogWriter().getCurrentPosition();
+        LogPosition position = getTransactionLogWriter(logFiles.getLogFile()).getCurrentPosition();
 
         // our test big transaction
         try (Transaction tx = database.beginTx()) {
@@ -437,7 +439,7 @@ class RecoveryIT {
 
         checkpointer.forceCheckPoint(new SimpleTriggerInfo("test"));
 
-        LogPosition position = logFiles.getLogFile().getTransactionLogWriter().getCurrentPosition();
+        LogPosition position = getTransactionLogWriter(logFiles.getLogFile()).getCurrentPosition();
 
         // our test big transaction
         try (Transaction tx = database.beginTx()) {
@@ -484,7 +486,7 @@ class RecoveryIT {
         var checkpointer = database.getDependencyResolver().resolveDependency(CheckPointer.class);
         var logFileToManipulate = logFiles.getLogFile().getLogRangeInfo().highestFile();
         var positionForCorruption =
-                logFiles.getLogFile().getTransactionLogWriter().getCurrentPosition();
+                getTransactionLogWriter(logFiles.getLogFile()).getCurrentPosition();
 
         checkpointer.forceCheckPoint(new SimpleTriggerInfo("test"));
         managementService.shutdown();
@@ -502,7 +504,7 @@ class RecoveryIT {
         LogFiles recoveredDbLogFiles = recoveredDatabase.getDependencyResolver().resolveDependency(LogFiles.class);
         assertEquals(
                 positionForCorruption,
-                recoveredDbLogFiles.getLogFile().getTransactionLogWriter().getCurrentPosition());
+                getTransactionLogWriter(recoveredDbLogFiles.getLogFile()).getCurrentPosition());
         //
         try (var tx = recoveredDatabase.beginTx()) {
             tx.createNode();
@@ -690,7 +692,7 @@ class RecoveryIT {
 
         var logFiles = database.getDependencyResolver().resolveDependency(LogFiles.class);
         var logFile = logFiles.getLogFile();
-        var currentPosition = logFile.getTransactionLogWriter().getCurrentPosition();
+        var currentPosition = getTransactionLogWriter(logFile).getCurrentPosition();
         var logFileToMutate = logFile.getLogFileForVersion(currentPosition.getLogVersion());
 
         managementService.shutdown();
@@ -710,7 +712,7 @@ class RecoveryIT {
 
         var logFiles = database.getDependencyResolver().resolveDependency(LogFiles.class);
         var logFile = logFiles.getLogFile();
-        var currentPosition = logFile.getTransactionLogWriter().getCurrentPosition();
+        var currentPosition = getTransactionLogWriter(logFile).getCurrentPosition();
         var logFileToMutate = logFile.getLogFileForVersion(currentPosition.getLogVersion());
 
         managementService.shutdown();
@@ -739,7 +741,7 @@ class RecoveryIT {
 
         var logFiles = database.getDependencyResolver().resolveDependency(LogFiles.class);
         var logFile = logFiles.getLogFile();
-        var currentPosition = logFile.getTransactionLogWriter().getCurrentPosition();
+        var currentPosition = getTransactionLogWriter(logFile).getCurrentPosition();
         long fileSizeBeforeMutation = currentPosition.getByteOffset();
         var logFileToMutate = logFile.getLogFileForVersion(currentPosition.getLogVersion());
 
@@ -764,7 +766,7 @@ class RecoveryIT {
 
         var logFiles = database.getDependencyResolver().resolveDependency(LogFiles.class);
         var logFile = logFiles.getLogFile();
-        var currentPosition = logFile.getTransactionLogWriter().getCurrentPosition();
+        var currentPosition = getTransactionLogWriter(logFile).getCurrentPosition();
         long fileSizeBeforeMutation = currentPosition.getByteOffset();
         var logFileToMutate = logFile.getLogFileForVersion(currentPosition.getLogVersion());
 
@@ -793,7 +795,7 @@ class RecoveryIT {
 
         var logFiles = database.getDependencyResolver().resolveDependency(LogFiles.class);
         var logFile = logFiles.getLogFile();
-        var currentPosition = logFile.getTransactionLogWriter().getCurrentPosition();
+        var currentPosition = getTransactionLogWriter(logFile).getCurrentPosition();
         var logFileToMutate = logFile.getLogFileForVersion(currentPosition.getLogVersion());
 
         managementService.shutdown();
@@ -2481,11 +2483,7 @@ class RecoveryIT {
         checkPointer.forceCheckPoint(new SimpleTriggerInfo("My checkpoint"));
         LatestCheckpointInfo latestCheckpointInfo = checkPointer.latestCheckPointInfo();
 
-        FlushableLogPositionAwareChannel channel = db.getDependencyResolver()
-                .resolveDependency(LogFiles.class)
-                .getLogFile()
-                .getTransactionLogWriter()
-                .getChannel();
+        FlushableLogPositionAwareChannel channel = getTransactionLogWriter(db).getChannel();
         channel.beginChecksumForWriting();
         channel.putVersion(LATEST_KERNEL_VERSION.version());
         channel.putContentType(LogEnvelopeHeader.KERNEL_CONTENT_TYPE);
@@ -2549,10 +2547,7 @@ class RecoveryIT {
         LatestCheckpointInfo latestCheckpointInfo = checkPointer.latestCheckPointInfo();
 
         // Append an extra dummy tx after maxPosition which we shouldn't read
-        var txWriter = db.getDependencyResolver()
-                .resolveDependency(LogFiles.class)
-                .getLogFile()
-                .getTransactionLogWriter();
+        TransactionLogWriter txWriter = getTransactionLogWriter(db);
         txWriter.getWriter()
                 .writeStartEntry(LogEntryFactory.newStartEntry(
                         LATEST_KERNEL_VERSION,
@@ -2628,11 +2623,7 @@ class RecoveryIT {
 
         generateSomeData(db);
 
-        FlushableLogPositionAwareChannel channel = db.getDependencyResolver()
-                .resolveDependency(LogFiles.class)
-                .getLogFile()
-                .getTransactionLogWriter()
-                .getChannel();
+        FlushableLogPositionAwareChannel channel = getTransactionLogWriter(db).getChannel();
         LogPosition position = channel.getCurrentLogPosition();
         channel.beginChecksumForWriting();
         channel.putVersion(LATEST_KERNEL_VERSION.version());
@@ -2696,6 +2687,15 @@ class RecoveryIT {
         RecoveryPredicate predicate = recoveryCriteria.toPredicate();
 
         assertThrows(RuntimeException.class, () -> isRecoveryRequired(databaseLayout, defaults(), predicate));
+    }
+
+    private static TransactionLogWriter getTransactionLogWriter(GraphDatabaseAPI db) {
+        return getTransactionLogWriter(
+                db.getDependencyResolver().resolveDependency(LogFiles.class).getLogFile());
+    }
+
+    private static TransactionLogWriter getTransactionLogWriter(LogFile logFile) {
+        return (TransactionLogWriter) logFile.getTransactionLogWriter();
     }
 
     private void prepareEmptyZeroedLogFile(Path victimFilePath) throws IOException {

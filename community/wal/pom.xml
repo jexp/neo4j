@@ -36,6 +36,10 @@
       <artifactId>eclipse-collections</artifactId>
     </dependency>
     <dependency>
+      <groupId>org.eclipse.collections</groupId>
+      <artifactId>eclipse-collections-api</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.neo4j</groupId>
       <artifactId>neo4j-collections</artifactId>
       <version>${project.version}</version>

@@ -79,9 +79,10 @@ import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.layout.Neo4jLayout;
 import org.neo4j.io.locker.Locker;
+import org.neo4j.kernel.impl.transaction.log.LogFile;
+import org.neo4j.kernel.impl.transaction.log.LogFiles;
+import org.neo4j.kernel.impl.transaction.log.TransactionLogWriter;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryWriter;
-import org.neo4j.kernel.impl.transaction.log.files.LogFile;
-import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.kernel.internal.locker.DatabaseLocker;
@@ -251,7 +252,7 @@ class DumpCommandIT {
                 .build();
         try (Lifespan ignored = new Lifespan(logFiles)) {
             LogFile logFile = logFiles.getLogFile();
-            LogEntryWriter<?> writer = logFile.getTransactionLogWriter().getWriter();
+            LogEntryWriter<?> writer = ((TransactionLogWriter) logFile.getTransactionLogWriter()).getWriter();
             writer.writeStartEntry(
                     LatestVersions.LATEST_KERNEL_VERSION,
                     0x123456789ABCDEFL,

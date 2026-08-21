@@ -47,8 +47,6 @@ import org.neo4j.kernel.KernelVersion;
 import org.neo4j.kernel.impl.api.TestCommand;
 import org.neo4j.kernel.impl.api.TestCommandReaderFactory;
 import org.neo4j.kernel.impl.transaction.CommittedCommandBatchRepresentation;
-import org.neo4j.kernel.impl.transaction.log.files.LogFile;
-import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.kernel.impl.transaction.log.files.LogRangeInfo;
 import org.neo4j.kernel.lifecycle.LifeSupport;
@@ -188,9 +186,8 @@ class EagerlyReversedCommandBatchCursorTest {
     }
 
     private List<LogPosition> writeTransactions(int count, boolean large) throws IOException {
-        FlushableLogPositionAwareChannel channel =
-                logFile.getTransactionLogWriter().getChannel();
-        TransactionLogWriter writer = logFile.getTransactionLogWriter();
+        TransactionLogWriter writer = (TransactionLogWriter) logFile.getTransactionLogWriter();
+        FlushableLogPositionAwareChannel channel = writer.getChannel();
         int previousChecksum = BASE_TX_CHECKSUM;
         var positions = new ArrayList<LogPosition>(count);
         for (int i = 0; i < count; i++) {

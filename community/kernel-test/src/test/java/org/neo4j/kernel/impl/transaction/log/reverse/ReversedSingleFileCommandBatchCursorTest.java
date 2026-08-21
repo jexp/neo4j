@@ -53,16 +53,17 @@ import org.neo4j.kernel.impl.transaction.CommittedCommandBatchRepresentation;
 import org.neo4j.kernel.impl.transaction.log.CompleteCommandBatch;
 import org.neo4j.kernel.impl.transaction.log.FlushableLogPositionAwareChannel;
 import org.neo4j.kernel.impl.transaction.log.LogAppendEvent;
+import org.neo4j.kernel.impl.transaction.log.LogFile;
+import org.neo4j.kernel.impl.transaction.log.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.LogVersionBridge;
+import org.neo4j.kernel.impl.transaction.log.LogWriter;
 import org.neo4j.kernel.impl.transaction.log.PhysicalLogVersionedStoreChannel;
 import org.neo4j.kernel.impl.transaction.log.ReadAheadLogChannel;
 import org.neo4j.kernel.impl.transaction.log.ReaderLogVersionBridge;
 import org.neo4j.kernel.impl.transaction.log.TransactionLogWriter;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryWriter;
 import org.neo4j.kernel.impl.transaction.log.entry.LogFormat;
-import org.neo4j.kernel.impl.transaction.log.files.LogFile;
-import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.kernel.impl.transaction.log.rotation.LogRotation;
 import org.neo4j.kernel.lifecycle.LifeSupport;
@@ -227,7 +228,7 @@ class ReversedSingleFileCommandBatchCursorTest {
 
     @Test
     void respectMaxPosition() throws IOException {
-        TransactionLogWriter writer = logFile.getTransactionLogWriter();
+        LogWriter writer = logFile.getTransactionLogWriter();
         int firstBatch = 99;
         writeTransactions(firstBatch, 1, 1);
         LogPosition offsetAfterFirstBatch = writer.getCurrentPosition();
@@ -260,7 +261,7 @@ class ReversedSingleFileCommandBatchCursorTest {
 
     @Test
     void handleMaxPositionWithoutAnythingToReturnInLastFile() throws IOException {
-        TransactionLogWriter writer = logFile.getTransactionLogWriter();
+        LogWriter writer = logFile.getTransactionLogWriter();
         int firstBatch = 1;
         writeTransactions(firstBatch, 1, 1);
         logFile.getLogRotation().rotateLogFile(LogAppendEvent.NULL);
@@ -351,9 +352,8 @@ class ReversedSingleFileCommandBatchCursorTest {
 
     private List<LogPosition> writeTransactions(int transactionCount, int minTransactionSize, int maxTransactionSize)
             throws IOException {
-        FlushableLogPositionAwareChannel channel =
-                logFile.getTransactionLogWriter().getChannel();
-        TransactionLogWriter writer = logFile.getTransactionLogWriter();
+        TransactionLogWriter writer = (TransactionLogWriter) logFile.getTransactionLogWriter();
+        FlushableLogPositionAwareChannel channel = writer.getChannel();
         int previousChecksum = BASE_TX_CHECKSUM;
         List<LogPosition> startPositions = new ArrayList<>(transactionCount);
         for (int i = 0; i < transactionCount; i++) {
@@ -375,7 +375,7 @@ class ReversedSingleFileCommandBatchCursorTest {
     }
 
     private void appendCorruptedTransaction() throws IOException {
-        var channel = logFile.getTransactionLogWriter().getChannel();
+        var channel = ((TransactionLogWriter) logFile.getTransactionLogWriter()).getChannel();
         TransactionLogWriter writer = new TransactionLogWriter(
                 channel,
                 new CorruptedLogEntryWriter<>(channel),

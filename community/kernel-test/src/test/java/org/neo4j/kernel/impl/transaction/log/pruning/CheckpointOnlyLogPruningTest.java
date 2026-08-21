@@ -35,8 +35,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.neo4j.configuration.Config;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
-import org.neo4j.kernel.impl.transaction.log.files.checkpoint.CheckpointFile;
+import org.neo4j.kernel.impl.transaction.log.LogFiles;
+import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckpointFile;
 import org.neo4j.logging.NullLogProvider;
 
 class CheckpointOnlyLogPruningTest {

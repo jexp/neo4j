@@ -22,7 +22,6 @@ package org.neo4j.kernel.impl.transaction.log;
 import static org.neo4j.configuration.GraphDatabaseInternalSettings.dedicated_transaction_appender;
 
 import org.neo4j.configuration.DatabaseConfig;
-import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.logging.InternalLogProvider;
 import org.neo4j.monitoring.Panic;
 import org.neo4j.scheduler.JobScheduler;

@@ -90,6 +90,8 @@ import org.neo4j.kernel.impl.transaction.SimpleLogVersionRepository;
 import org.neo4j.kernel.impl.transaction.SimpleTransactionIdStore;
 import org.neo4j.kernel.impl.transaction.log.AppendedChunkLogVersionLocator;
 import org.neo4j.kernel.impl.transaction.log.LogAppendEvent;
+import org.neo4j.kernel.impl.transaction.log.LogFile;
+import org.neo4j.kernel.impl.transaction.log.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.TransactionLogWriter;
 import org.neo4j.kernel.impl.transaction.log.entry.IncompleteLogHeaderException;
@@ -259,7 +261,7 @@ class TransactionLogFileTest {
 
         // WHEN
         LogFile logFile = logFiles.getLogFile();
-        TransactionLogWriter transactionLogWriter = logFile.getTransactionLogWriter();
+        TransactionLogWriter transactionLogWriter = (TransactionLogWriter) logFile.getTransactionLogWriter();
         var channel = transactionLogWriter.getChannel();
         LogPosition currentPosition = transactionLogWriter.getCurrentPosition();
         int intValue = 45;
@@ -290,7 +292,7 @@ class TransactionLogFileTest {
 
         // WHEN
         LogFile logFile = logFiles.getLogFile();
-        TransactionLogWriter logWriter = logFile.getTransactionLogWriter();
+        TransactionLogWriter logWriter = (TransactionLogWriter) logFile.getTransactionLogWriter();
         var writer = logWriter.getChannel();
         LogPosition position1 = logWriter.getCurrentPosition();
         int intValue = 45;
@@ -340,7 +342,7 @@ class TransactionLogFileTest {
         life.add(logFiles);
 
         LogFile logFile = logFiles.getLogFile();
-        var transactionLogWriter = logFile.getTransactionLogWriter();
+        var transactionLogWriter = (TransactionLogWriter) logFile.getTransactionLogWriter();
         var writer = transactionLogWriter.getChannel();
         LogPosition position = transactionLogWriter.getCurrentPosition();
         writer.beginChecksumForWriting();
@@ -432,7 +434,7 @@ class TransactionLogFileTest {
         life.add(logFiles);
 
         LogFile logFile = logFiles.getLogFile();
-        var channel = logFile.getTransactionLogWriter().getChannel();
+        var channel = ((TransactionLogWriter) logFile.getTransactionLogWriter()).getChannel();
 
         life.shutdown();
 

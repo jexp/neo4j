@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.time.Instant;
 import org.neo4j.kernel.KernelVersion;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
-import org.neo4j.kernel.impl.transaction.tracing.LogCheckPointEvent;
 import org.neo4j.storageengine.api.TransactionId;
 
 public interface CheckpointAppender {

@@ -62,8 +62,11 @@ import org.neo4j.kernel.impl.transaction.EmptyBatchRepresentation;
 import org.neo4j.kernel.impl.transaction.log.CompleteCommandBatch;
 import org.neo4j.kernel.impl.transaction.log.FlushableLogPositionAwareChannel;
 import org.neo4j.kernel.impl.transaction.log.LogAppendEvent;
+import org.neo4j.kernel.impl.transaction.log.LogFile;
+import org.neo4j.kernel.impl.transaction.log.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.LogVersionBridge;
+import org.neo4j.kernel.impl.transaction.log.LogWriter;
 import org.neo4j.kernel.impl.transaction.log.PhysicalLogVersionedStoreChannel;
 import org.neo4j.kernel.impl.transaction.log.ReadableLogChannel;
 import org.neo4j.kernel.impl.transaction.log.ReaderLogVersionBridge;
@@ -71,8 +74,6 @@ import org.neo4j.kernel.impl.transaction.log.TransactionLogWriter;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryWriter;
 import org.neo4j.kernel.impl.transaction.log.entry.LogFormat;
 import org.neo4j.kernel.impl.transaction.log.enveloped.EnvelopeReadChannel;
-import org.neo4j.kernel.impl.transaction.log.files.LogFile;
-import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.kernel.impl.transaction.log.files.LogRangeInfo;
 import org.neo4j.kernel.impl.transaction.log.rotation.LogRotation;
@@ -157,7 +158,7 @@ class ReversedEnvelopedCommandBatchCursorTest {
 
     @Test
     void positionShouldBeStartOfCurrentBatch() throws Exception {
-        TransactionLogWriter writer = logFile.getTransactionLogWriter();
+        LogWriter writer = logFile.getTransactionLogWriter();
         LogPosition firstTxStart = writer.getCurrentPosition();
         writeTransactions(1, 1, 1);
         LogPosition secondTxStart = writer.getCurrentPosition();
@@ -408,7 +409,7 @@ class ReversedEnvelopedCommandBatchCursorTest {
         writeTransactions(1, 200000, 200000);
         validateRolled();
         // Locate end of final transaction
-        TransactionLogWriter writer = logFile.getTransactionLogWriter();
+        LogWriter writer = logFile.getTransactionLogWriter();
         LogPosition txEnd = writer.getCurrentPosition();
         // truncate the rollover file
         try (var channel = logFile.createLogChannelForExistingVersion(txEnd.getLogVersion())) {
@@ -427,7 +428,7 @@ class ReversedEnvelopedCommandBatchCursorTest {
 
     @Test
     void respectMaxPosition() throws IOException {
-        TransactionLogWriter writer = logFile.getTransactionLogWriter();
+        LogWriter writer = logFile.getTransactionLogWriter();
         int firstBatch = 99;
         writeTransactions(firstBatch, 1, 1);
         LogPosition offsetAfterFirstBatch = writer.getCurrentPosition();
@@ -475,10 +476,9 @@ class ReversedEnvelopedCommandBatchCursorTest {
 
     @Test
     void treatsNonKernelContentAsEmptyTx() throws IOException {
-        TransactionLogWriter writer = logFile.getTransactionLogWriter();
+        TransactionLogWriter writer = (TransactionLogWriter) logFile.getTransactionLogWriter();
 
-        FlushableLogPositionAwareChannel channel =
-                logFile.getTransactionLogWriter().getChannel();
+        FlushableLogPositionAwareChannel channel = writer.getChannel();
 
         // Add tx content
         txId++;
@@ -589,9 +589,8 @@ class ReversedEnvelopedCommandBatchCursorTest {
 
     private void writeTransactions(int transactionCount, int minTransactionSize, int maxTransactionSize)
             throws IOException {
-        FlushableLogPositionAwareChannel channel =
-                logFile.getTransactionLogWriter().getChannel();
-        TransactionLogWriter writer = logFile.getTransactionLogWriter();
+        TransactionLogWriter writer = (TransactionLogWriter) logFile.getTransactionLogWriter();
+        FlushableLogPositionAwareChannel channel = writer.getChannel();
         int previousChecksum = BASE_TX_CHECKSUM;
         for (int i = 0; i < transactionCount; i++) {
             long transactionId = ++txId;
@@ -609,7 +608,7 @@ class ReversedEnvelopedCommandBatchCursorTest {
     }
 
     private void appendCorruptedTransaction() throws IOException {
-        var channel = logFile.getTransactionLogWriter().getChannel();
+        var channel = ((TransactionLogWriter) logFile.getTransactionLogWriter()).getChannel();
         TransactionLogWriter writer = new TransactionLogWriter(
                 channel,
                 new CorruptedLogEntryWriter<>(channel),

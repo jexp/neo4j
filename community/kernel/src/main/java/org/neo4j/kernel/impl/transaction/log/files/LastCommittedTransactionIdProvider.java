@@ -19,6 +19,8 @@
  */
 package org.neo4j.kernel.impl.transaction.log.files;
 
+import org.neo4j.kernel.impl.transaction.log.LogFiles;
+
 @FunctionalInterface
 public interface LastCommittedTransactionIdProvider {
     long getLastCommittedTransactionId(LogFiles logFiles);

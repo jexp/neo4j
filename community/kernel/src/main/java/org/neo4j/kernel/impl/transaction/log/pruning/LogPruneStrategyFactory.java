@@ -23,7 +23,7 @@ import static org.neo4j.kernel.impl.transaction.log.pruning.ThresholdConfigParse
 
 import java.time.Clock;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
+import org.neo4j.kernel.impl.transaction.log.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.pruning.ThresholdConfigParser.ThresholdConfigValue;
 import org.neo4j.logging.InternalLogProvider;
 import org.neo4j.util.VisibleForTesting;

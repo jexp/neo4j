@@ -60,15 +60,16 @@ import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.impl.api.TestCommandReaderFactory;
 import org.neo4j.kernel.impl.transaction.SimpleLogVersionRepository;
 import org.neo4j.kernel.impl.transaction.log.FlushableLogPositionAwareChannel;
+import org.neo4j.kernel.impl.transaction.log.LogFile;
+import org.neo4j.kernel.impl.transaction.log.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
+import org.neo4j.kernel.impl.transaction.log.TransactionLogWriter;
+import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckpointFile;
+import org.neo4j.kernel.impl.transaction.log.checkpoint.LogCheckPointEvent;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEnvelopeHeader;
-import org.neo4j.kernel.impl.transaction.log.files.LogFile;
-import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.kernel.impl.transaction.log.files.LogRangeInfo;
 import org.neo4j.kernel.impl.transaction.log.files.TransactionLogFilesHelper;
-import org.neo4j.kernel.impl.transaction.log.files.checkpoint.CheckpointFile;
-import org.neo4j.kernel.impl.transaction.tracing.LogCheckPointEvent;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.storageengine.api.StoreId;
 import org.neo4j.storageengine.api.TransactionId;
@@ -195,7 +196,7 @@ class CorruptedLogsTruncatorTest {
 
         var logFile = logFiles.getLogFile();
         FlushableLogPositionAwareChannel channel =
-                logFile.getTransactionLogWriter().getChannel();
+                ((TransactionLogWriter) logFile.getTransactionLogWriter()).getChannel();
         // Pad with zeroes before the corrupted byte
         int beforeZeroes = random.nextInt(100, 10240);
         channel.putVersion(LATEST_KERNEL_VERSION.version());
@@ -372,7 +373,7 @@ class CorruptedLogsTruncatorTest {
 
         LogFile logFile = logFiles.getLogFile();
         FlushableLogPositionAwareChannel writer =
-                logFile.getTransactionLogWriter().getChannel();
+                ((TransactionLogWriter) logFile.getTransactionLogWriter()).getChannel();
         // Fill up all but the last log file
         while (logFile.getLogRangeInfo().highestVersion() < TOTAL_NUMBER_OF_TRANSACTION_LOG_FILES - 1) {
             writer.beginChecksumForWriting();

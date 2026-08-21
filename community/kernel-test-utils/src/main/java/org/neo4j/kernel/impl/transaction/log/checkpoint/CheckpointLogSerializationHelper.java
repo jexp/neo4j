@@ -22,7 +22,7 @@ package org.neo4j.kernel.impl.transaction.log.checkpoint;
 import static org.neo4j.io.ByteUnit.kibiBytes;
 import static org.neo4j.kernel.KernelVersion.VERSION_CHECKPOINT_NOT_COMPLETED_POSITION_INTRODUCED;
 import static org.neo4j.kernel.KernelVersion.VERSION_CHECKPOINT_POWER_OF_2_IN_ENVELOPES;
-import static org.neo4j.kernel.impl.transaction.tracing.LogCheckPointEvent.NULL;
+import static org.neo4j.kernel.impl.transaction.log.checkpoint.LogCheckPointEvent.NULL;
 import static org.neo4j.test.LatestVersions.LATEST_KERNEL_VERSION;
 import static org.neo4j.test.LatestVersions.LATEST_LOG_FORMAT;
 

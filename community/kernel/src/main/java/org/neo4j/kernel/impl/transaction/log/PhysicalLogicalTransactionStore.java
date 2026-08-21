@@ -27,8 +27,6 @@ import java.nio.file.NoSuchFileException;
 import org.neo4j.configuration.Config;
 import org.neo4j.kernel.BinarySupportedKernelVersions;
 import org.neo4j.kernel.impl.transaction.log.entry.VersionAwareLogEntryReader;
-import org.neo4j.kernel.impl.transaction.log.files.LogFile;
-import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.reverse.ReversedMultiFileCommandBatchCursor;
 import org.neo4j.kernel.impl.transaction.log.reverse.ReversedTransactionCursorMonitor;
 import org.neo4j.memory.MemoryTracker;

@@ -23,9 +23,9 @@ import java.io.IOException;
 import org.neo4j.kernel.impl.transaction.CommittedCommandBatchRepresentation;
 import org.neo4j.kernel.impl.transaction.log.CommandBatchCursor;
 import org.neo4j.kernel.impl.transaction.log.CommittedCommandBatchCursor;
+import org.neo4j.kernel.impl.transaction.log.LogFile;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryReader;
-import org.neo4j.kernel.impl.transaction.log.files.LogFile;
 
 /**
  * Similar to {@link CommittedCommandBatchCursor} and actually uses it internally. This main difference is that batches

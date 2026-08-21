@@ -40,8 +40,6 @@ import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.impl.api.TestCommandReaderFactory;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEnvelopeHeader;
 import org.neo4j.kernel.impl.transaction.log.enveloped.InvalidEndOfFileReadException;
-import org.neo4j.kernel.impl.transaction.log.files.LogFile;
-import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.storageengine.api.LogVersionRepository;
@@ -109,7 +107,7 @@ class TransactionLogFileRotateAndReadRaceIT {
                 .build();
         life.add(logFiles);
         LogFile logFile = logFiles.getLogFile();
-        var writer = logFile.getTransactionLogWriter();
+        var writer = (TransactionLogWriter) logFile.getTransactionLogWriter();
         LogPositionMarker startPosition = new LogPositionMarker();
         writer.getCurrentPosition(startPosition);
 

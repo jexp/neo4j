@@ -66,16 +66,20 @@ import org.neo4j.io.memory.NativeScopedBuffer;
 import org.neo4j.kernel.KernelVersion;
 import org.neo4j.kernel.KernelVersionProvider;
 import org.neo4j.kernel.impl.transaction.log.LogEntryCursor;
+import org.neo4j.kernel.impl.transaction.log.LogFile;
+import org.neo4j.kernel.impl.transaction.log.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.LogForceEvent;
 import org.neo4j.kernel.impl.transaction.log.LogForceEvents;
 import org.neo4j.kernel.impl.transaction.log.LogForceWaitEvent;
 import org.neo4j.kernel.impl.transaction.log.LogFormatVersionProvider;
 import org.neo4j.kernel.impl.transaction.log.LogHeaderCache;
+import org.neo4j.kernel.impl.transaction.log.LogHeaderVisitor;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.LogTermProvider;
 import org.neo4j.kernel.impl.transaction.log.LogTracers;
 import org.neo4j.kernel.impl.transaction.log.LogVersionBridge;
 import org.neo4j.kernel.impl.transaction.log.LogVersionedStoreChannel;
+import org.neo4j.kernel.impl.transaction.log.LogWriter;
 import org.neo4j.kernel.impl.transaction.log.PhysicalFlushableLogPositionAwareChannel;
 import org.neo4j.kernel.impl.transaction.log.PhysicalLogVersionedStoreChannel;
 import org.neo4j.kernel.impl.transaction.log.ReadAheadUtils;
@@ -130,7 +134,7 @@ public class TransactionLogFile extends LifecycleAdapter implements LogFile {
     private PhysicalFlushableLogPositionAwareChannel writer;
     private LogVersionRepository logVersionRepository;
     private volatile TransactionLogFilesProviders transactionLogFilesProviders;
-    private TransactionLogWriter transactionLogWriter;
+    private LogWriter transactionLogWriter;
     private volatile boolean initCalled;
 
     TransactionLogFile(LogFiles logFiles, TransactionLogFilesContext context) {
@@ -482,7 +486,7 @@ public class TransactionLogFile extends LifecycleAdapter implements LogFile {
     }
 
     @Override
-    public TransactionLogWriter getTransactionLogWriter() {
+    public LogWriter getTransactionLogWriter() {
         if (context.readOnly()) {
             throw new UnsupportedOperationException("Trying to create writer in read only mode.");
         }

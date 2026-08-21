@@ -21,9 +21,8 @@ package org.neo4j.kernel.impl.transaction.log;
 
 import java.io.IOException;
 import java.nio.file.NoSuchFileException;
+import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckpointFile;
 import org.neo4j.kernel.impl.transaction.log.entry.IncompleteLogHeaderException;
-import org.neo4j.kernel.impl.transaction.log.files.LogFile;
-import org.neo4j.kernel.impl.transaction.log.files.checkpoint.CheckpointFile;
 
 /**
  * {@link LogVersionBridge} naturally transitioning from one {@link LogVersionedStoreChannel} to the next,

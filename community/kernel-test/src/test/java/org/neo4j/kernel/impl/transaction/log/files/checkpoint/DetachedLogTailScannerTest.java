@@ -64,17 +64,18 @@ import org.neo4j.kernel.impl.api.TestCommandReaderFactory;
 import org.neo4j.kernel.impl.transaction.SimpleAppendIndexProvider;
 import org.neo4j.kernel.impl.transaction.SimpleLogVersionRepository;
 import org.neo4j.kernel.impl.transaction.log.AppendBatchInfo;
+import org.neo4j.kernel.impl.transaction.log.LogFile;
+import org.neo4j.kernel.impl.transaction.log.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.LogIndexEncoding;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.LogTailMetadata;
 import org.neo4j.kernel.impl.transaction.log.TransactionLogWriter;
+import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckpointFile;
+import org.neo4j.kernel.impl.transaction.log.checkpoint.LogCheckPointEvent;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryWriter;
 import org.neo4j.kernel.impl.transaction.log.entry.LogFormat;
-import org.neo4j.kernel.impl.transaction.log.files.LogFile;
-import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.kernel.impl.transaction.log.files.LogTailInformation;
-import org.neo4j.kernel.impl.transaction.tracing.LogCheckPointEvent;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.logging.AssertableLogProvider;
 import org.neo4j.storageengine.api.LogVersionRepository;
@@ -1046,7 +1047,7 @@ class DetachedLogTailScannerTest {
                 var checkpointFile = logFiles.getCheckpointFile();
                 int previousChecksum = BASE_TX_CHECKSUM;
                 try {
-                    TransactionLogWriter logWriter = logFile.getTransactionLogWriter();
+                    TransactionLogWriter logWriter = (TransactionLogWriter) logFile.getTransactionLogWriter();
                     LogEntryWriter<?> writer = logWriter.getWriter();
                     LogPosition lastCommitEntryPosition = logWriter.getCurrentPosition();
                     for (Entry entry : entries) {

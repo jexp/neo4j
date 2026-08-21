@@ -47,14 +47,15 @@ import org.neo4j.io.fs.StoreChannel;
 import org.neo4j.io.memory.ByteBuffers;
 import org.neo4j.kernel.KernelVersion;
 import org.neo4j.kernel.impl.transaction.log.FlushableLogPositionAwareChannel;
+import org.neo4j.kernel.impl.transaction.log.LogFile;
+import org.neo4j.kernel.impl.transaction.log.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
+import org.neo4j.kernel.impl.transaction.log.TransactionLogWriter;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEnvelopeHeader;
 import org.neo4j.kernel.impl.transaction.log.entry.LogFormat;
 import org.neo4j.kernel.impl.transaction.log.entry.LogHeader;
 import org.neo4j.kernel.impl.transaction.log.entry.LogHeaderReader;
 import org.neo4j.kernel.impl.transaction.log.entry.v202608.DetachedCheckpointLogEntrySerializerV2026_08;
-import org.neo4j.kernel.impl.transaction.log.files.LogFile;
-import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.logging.LogAssertions;
 import org.neo4j.storageengine.api.LogMetadataProvider;
@@ -146,11 +147,8 @@ class EnvelopedRecoveryCorruptedTransactionLogIT extends RecoveryCorruptedTransa
         generateTransaction(database);
 
         // Write a non kernel entry
-        FlushableLogPositionAwareChannel channel = database.getDependencyResolver()
-                .resolveDependency(LogFiles.class)
-                .getLogFile()
-                .getTransactionLogWriter()
-                .getChannel();
+        FlushableLogPositionAwareChannel channel =
+                getTransactionLogWriter(database).getChannel();
         channel.beginChecksumForWriting();
         channel.putVersion(VERSION_ENVELOPED_TRANSACTION_LOGS_GUARANTEED.version());
         channel.putContentType((byte) 5); // Non-kernel type
@@ -173,6 +171,13 @@ class EnvelopedRecoveryCorruptedTransactionLogIT extends RecoveryCorruptedTransa
 
         // The non kernel content should have been seen as a tx
         assertEquals(numberOfClosedTransactions + 1, recoveryMonitor.getNumberOfRecoveredTransactions());
+    }
+
+    private static TransactionLogWriter getTransactionLogWriter(GraphDatabaseAPI database) {
+        return (TransactionLogWriter) database.getDependencyResolver()
+                .resolveDependency(LogFiles.class)
+                .getLogFile()
+                .getTransactionLogWriter();
     }
 
     private static Stream<Arguments> provideStoreIdAndMode() {

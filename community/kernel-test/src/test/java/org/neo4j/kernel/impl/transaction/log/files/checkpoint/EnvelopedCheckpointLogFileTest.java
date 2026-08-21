@@ -21,7 +21,7 @@ package org.neo4j.kernel.impl.transaction.log.files.checkpoint;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.neo4j.kernel.KernelVersionProviders.fixed;
-import static org.neo4j.kernel.impl.transaction.tracing.LogCheckPointEvent.NULL;
+import static org.neo4j.kernel.impl.transaction.log.checkpoint.LogCheckPointEvent.NULL;
 import static org.neo4j.storageengine.api.TransactionIdStore.BASE_TX_COMMIT_TIMESTAMP;
 import static org.neo4j.storageengine.api.TransactionIdStore.UNKNOWN_CONSENSUS_INDEX;
 
@@ -39,13 +39,14 @@ import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.KernelVersion;
 import org.neo4j.kernel.impl.api.TestCommandReaderFactory;
 import org.neo4j.kernel.impl.transaction.SimpleTransactionIdStore;
+import org.neo4j.kernel.impl.transaction.log.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
+import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckpointFile;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEnvelopeHeader;
 import org.neo4j.kernel.impl.transaction.log.entry.LogFormat;
 import org.neo4j.kernel.impl.transaction.log.entry.LogSegments;
 import org.neo4j.kernel.impl.transaction.log.entry.v202608.DetachedCheckpointLogEntrySerializerV2026_08;
 import org.neo4j.kernel.impl.transaction.log.entry.v522.DetachedCheckpointLogEntrySerializerV5_22;
-import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.storageengine.api.StoreId;

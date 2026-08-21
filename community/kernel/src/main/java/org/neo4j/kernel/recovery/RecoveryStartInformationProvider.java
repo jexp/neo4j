@@ -29,8 +29,8 @@ import org.neo4j.configuration.GraphDatabaseInternalSettings;
 import org.neo4j.exceptions.UnderlyingStorageException;
 import org.neo4j.function.ThrowingSupplier;
 import org.neo4j.kernel.impl.transaction.log.CheckpointInfo;
+import org.neo4j.kernel.impl.transaction.log.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
-import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogTailInformation;
 
 /**

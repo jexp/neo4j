@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package org.neo4j.kernel.impl.transaction.log.files;
+package org.neo4j.kernel.impl.transaction.log;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -30,14 +30,7 @@ import org.neo4j.io.fs.ReadableChannel;
 import org.neo4j.io.fs.StoreChannel;
 import org.neo4j.io.memory.NativeScopedBuffer;
 import org.neo4j.kernel.KernelVersionProvider;
-import org.neo4j.kernel.impl.transaction.log.LogForceEvents;
-import org.neo4j.kernel.impl.transaction.log.LogFormatVersionProvider;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
-import org.neo4j.kernel.impl.transaction.log.LogTermProvider;
-import org.neo4j.kernel.impl.transaction.log.PhysicalLogVersionedStoreChannel;
-import org.neo4j.kernel.impl.transaction.log.ReadableLogChannel;
-import org.neo4j.kernel.impl.transaction.log.ReadableLogPositionAwareChannel;
-import org.neo4j.kernel.impl.transaction.log.TransactionLogWriter;
+import org.neo4j.kernel.impl.transaction.log.files.LogVersionVisitor;
 import org.neo4j.kernel.impl.transaction.log.rotation.LogRotation;
 
 /**
@@ -52,7 +45,7 @@ public interface LogFile extends VersionedFile, RotatableFile {
     /**
      * @return transaction writer capable to append transaction representation into transaction log
      */
-    TransactionLogWriter getTransactionLogWriter();
+    LogWriter getTransactionLogWriter();
 
     /**
      * @return transaction log rotation

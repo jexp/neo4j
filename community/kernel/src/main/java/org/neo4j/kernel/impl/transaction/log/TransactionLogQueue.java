@@ -31,8 +31,6 @@ import java.util.concurrent.locks.LockSupport;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscUnboundedXaddArrayQueue;
 import org.neo4j.graphdb.DatabaseShutdownException;
-import org.neo4j.kernel.impl.transaction.log.files.LogFile;
-import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.rotation.LogRotation;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 import org.neo4j.logging.InternalLog;
@@ -176,7 +174,7 @@ public class TransactionLogQueue extends LifecycleAdapter {
 
     private static class TransactionWriter implements Runnable {
         private final MpscUnboundedXaddArrayQueue<TxQueueElement> txQueue;
-        private final TransactionLogWriter transactionLogWriter;
+        private final LogWriter transactionLogWriter;
         private final LogFile logFile;
         private final Panic databasePanic;
         private final LogRotation logRotation;
@@ -251,7 +249,7 @@ public class TransactionLogQueue extends LifecycleAdapter {
 
         private static class TxConsumer implements MessagePassingQueue.Consumer<TxQueueElement> {
             private final Panic databasePanic;
-            private final TransactionLogWriter transactionLogWriter;
+            private final LogWriter transactionLogWriter;
 
             private int checksum;
             private final AppendIndexProvider appendIndexProvider;
@@ -263,7 +261,7 @@ public class TransactionLogQueue extends LifecycleAdapter {
 
             TxConsumer(
                     Panic databasePanic,
-                    TransactionLogWriter transactionLogWriter,
+                    LogWriter transactionLogWriter,
                     int checksum,
                     AppendIndexProvider appendIndexProvider,
                     TransactionMetadataCache metadataCache) {

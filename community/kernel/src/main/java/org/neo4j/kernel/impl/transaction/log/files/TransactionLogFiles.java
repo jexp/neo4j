@@ -24,8 +24,10 @@ import java.io.UncheckedIOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Path;
 import org.neo4j.internal.helpers.ArrayUtil;
+import org.neo4j.kernel.impl.transaction.log.LogFile;
+import org.neo4j.kernel.impl.transaction.log.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.LogTailMetadata;
-import org.neo4j.kernel.impl.transaction.log.files.checkpoint.CheckpointFile;
+import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckpointFile;
 import org.neo4j.kernel.impl.transaction.log.files.checkpoint.CheckpointLogFile;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
@@ -40,7 +42,7 @@ public class TransactionLogFiles extends LifecycleAdapter implements LogFiles {
     public static final DirectoryStream.Filter<Path> DEFAULT_FILENAME_FILTER =
             TransactionLogFilesHelper.DEFAULT_FILENAME_FILTER;
 
-    private final CheckpointFile checkpointLogFile;
+    private final CheckpointLogFile checkpointLogFile;
     private final TransactionLogFilesOverrides overrides;
     private final TransactionLogFile logFile;
     private final Path logsDirectory;

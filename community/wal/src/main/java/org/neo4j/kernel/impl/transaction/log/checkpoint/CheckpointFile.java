@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package org.neo4j.kernel.impl.transaction.log.files.checkpoint;
+package org.neo4j.kernel.impl.transaction.log.checkpoint;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -25,10 +25,8 @@ import java.util.List;
 import java.util.Optional;
 import org.neo4j.kernel.impl.transaction.log.CheckpointInfo;
 import org.neo4j.kernel.impl.transaction.log.LogTailMetadata;
-import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckpointAppender;
-import org.neo4j.kernel.impl.transaction.log.files.RotatableFile;
-import org.neo4j.kernel.impl.transaction.log.files.TransactionLogFilesProviders;
-import org.neo4j.kernel.impl.transaction.log.files.VersionedFile;
+import org.neo4j.kernel.impl.transaction.log.RotatableFile;
+import org.neo4j.kernel.impl.transaction.log.VersionedFile;
 import org.neo4j.kernel.lifecycle.Lifecycle;
 import org.neo4j.logging.InternalLog;
 
@@ -36,7 +34,6 @@ import org.neo4j.logging.InternalLog;
  * Access to underlying store checkpoints, that can be stored in multiple log files, separate log files etc.
  */
 public interface CheckpointFile extends Lifecycle, VersionedFile, RotatableFile {
-    void initialize(TransactionLogFilesProviders transactionLogFilesProviders);
 
     /**
      * Last available checkpoint

@@ -38,10 +38,12 @@ import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.KernelVersion;
 import org.neo4j.kernel.impl.transaction.log.CompleteCommandBatch;
 import org.neo4j.kernel.impl.transaction.log.LogAppendEvent;
+import org.neo4j.kernel.impl.transaction.log.LogFile;
+import org.neo4j.kernel.impl.transaction.log.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
-import org.neo4j.kernel.impl.transaction.log.TransactionLogWriter;
-import org.neo4j.kernel.impl.transaction.log.files.checkpoint.CheckpointFile;
-import org.neo4j.kernel.impl.transaction.tracing.LogCheckPointEvent;
+import org.neo4j.kernel.impl.transaction.log.LogWriter;
+import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckpointFile;
+import org.neo4j.kernel.impl.transaction.log.checkpoint.LogCheckPointEvent;
 import org.neo4j.kernel.lifecycle.Lifespan;
 import org.neo4j.logging.NullLog;
 import org.neo4j.monitoring.DatabaseHealth;
@@ -195,7 +197,7 @@ public class TransactionLogInitializer {
         long appendIndex = logMetadataProvider.nextAppendIndex();
         KernelVersion kernelVersion = logMetadataProvider.kernelVersion();
         LogFile logFile = logFiles.getLogFile();
-        TransactionLogWriter transactionLogWriter = logFile.getTransactionLogWriter();
+        LogWriter transactionLogWriter = logFile.getTransactionLogWriter();
         CompleteCommandBatch emptyTx = emptyTransaction(timestamp, upgradeTransactionId, kernelVersion, consensusIndex);
         int checksum = transactionLogWriter.append(
                 emptyTx,

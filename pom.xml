@@ -1996,6 +1996,7 @@
                 <ignoredUsedUndeclaredDependency>com.neo4j:*</ignoredUsedUndeclaredDependency>
               </ignoredUsedUndeclaredDependencies>
               <ignoredNonTestScopedDependencies>
+                <ignoredNonTestScopedDependency>org.neo4j:neo4j-wal</ignoredNonTestScopedDependency>
                 <ignoredNonTestScopedDependency>org.neo4j:neo4j-graphdb-api</ignoredNonTestScopedDependency>
                 <ignoredNonTestScopedDependency>org.neo4j:neo4j-gql-status</ignoredNonTestScopedDependency>
                 <ignoredNonTestScopedDependency>io.github.json4s:json4s-native_${scala.binary.version}</ignoredNonTestScopedDependency>

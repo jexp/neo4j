@@ -19,6 +19,7 @@
  */
 package org.neo4j.kernel.impl.transaction.log.files;
 
+import org.neo4j.kernel.impl.transaction.log.LogFiles;
 import org.neo4j.kernel.lifecycle.Lifespan;
 
 public class LogFilesSpan implements AutoCloseable {

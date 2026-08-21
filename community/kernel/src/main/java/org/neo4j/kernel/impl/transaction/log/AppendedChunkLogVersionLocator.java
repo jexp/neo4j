@@ -21,7 +21,6 @@ package org.neo4j.kernel.impl.transaction.log;
 
 import java.util.Optional;
 import org.neo4j.kernel.impl.transaction.log.entry.LogHeader;
-import org.neo4j.kernel.impl.transaction.log.files.LogHeaderVisitor;
 
 public class AppendedChunkLogVersionLocator implements LogHeaderVisitor {
     private final long appendIndex;

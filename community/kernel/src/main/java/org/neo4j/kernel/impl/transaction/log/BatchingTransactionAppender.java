@@ -22,8 +22,6 @@ package org.neo4j.kernel.impl.transaction.log;
 import static org.neo4j.storageengine.AppendIndexProvider.BASE_APPEND_INDEX;
 
 import java.io.IOException;
-import org.neo4j.kernel.impl.transaction.log.files.LogFile;
-import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 import org.neo4j.monitoring.Panic;
 import org.neo4j.storageengine.AppendIndexProvider;
@@ -40,7 +38,7 @@ class BatchingTransactionAppender extends LifecycleAdapter implements Transactio
     private final TransactionMetadataCache metadataCache;
     private final Panic databasePanic;
 
-    private TransactionLogWriter transactionLogWriter;
+    private LogWriter transactionLogWriter;
     private int previousChecksum;
 
     BatchingTransactionAppender(

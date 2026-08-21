@@ -25,6 +25,7 @@ import org.neo4j.kernel.impl.transaction.log.LogAppendEvent;
 import org.neo4j.kernel.impl.transaction.log.LogFileCreateEvent;
 import org.neo4j.kernel.impl.transaction.log.LogFileFlushEvent;
 import org.neo4j.kernel.impl.transaction.log.LogTracers;
+import org.neo4j.kernel.impl.transaction.log.checkpoint.LogCheckPointEvent;
 
 public interface DatabaseTracer extends TransactionTracer, CheckPointTracer, LogTracers {
     DatabaseTracer NULL = new DatabaseTracer() {

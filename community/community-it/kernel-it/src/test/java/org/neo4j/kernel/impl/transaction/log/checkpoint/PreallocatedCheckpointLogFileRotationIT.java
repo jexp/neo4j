@@ -22,7 +22,7 @@ package org.neo4j.kernel.impl.transaction.log.checkpoint;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.neo4j.kernel.impl.transaction.log.checkpoint.CheckpointLogSerializationHelper.ACTUAL_ROTATION_THRESHOLD;
 import static org.neo4j.kernel.impl.transaction.log.checkpoint.CheckpointLogSerializationHelper.fillWithCheckpointsWithCallback;
-import static org.neo4j.kernel.impl.transaction.tracing.LogCheckPointEvent.NULL;
+import static org.neo4j.kernel.impl.transaction.log.checkpoint.LogCheckPointEvent.NULL;
 import static org.neo4j.test.LatestVersions.LATEST_KERNEL_VERSION;
 
 import java.io.IOException;
@@ -34,7 +34,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
-import org.neo4j.kernel.impl.transaction.log.files.checkpoint.CheckpointFile;
 import org.neo4j.storageengine.api.TransactionId;
 import org.neo4j.test.LatestVersions;
 

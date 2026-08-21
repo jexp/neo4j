@@ -30,7 +30,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.Test;
-import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
+import org.neo4j.kernel.impl.transaction.log.LogFiles;
 import org.neo4j.test.TestDatabaseManagementServiceBuilder;
 import org.neo4j.test.extension.DbmsExtension;
 import org.neo4j.test.extension.ExtensionCallback;

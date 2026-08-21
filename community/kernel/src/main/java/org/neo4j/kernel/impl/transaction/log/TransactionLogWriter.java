@@ -36,7 +36,7 @@ import org.neo4j.kernel.impl.transaction.log.rotation.LogRotation;
 import org.neo4j.storageengine.api.CommandBatch;
 import org.neo4j.util.VisibleForTesting;
 
-public class TransactionLogWriter {
+public class TransactionLogWriter implements LogWriter {
     private final FlushableLogPositionAwareChannel channel;
     private final LogEntryWriter<FlushableLogPositionAwareChannel> writer;
     private final KernelVersionProvider versionProvider;
@@ -77,6 +77,7 @@ public class TransactionLogWriter {
         this.logRotation = logRotation;
     }
 
+    @Override
     public LogPosition beforeAppendPosition() {
         return logPositionMarker.newPosition();
     }
@@ -94,6 +95,7 @@ public class TransactionLogWriter {
     * The first chunk of chunked transactions comes also with a start entry.
     * The last chunk in the chunked transaction comes with a commit entry at the end.
     */
+    @Override
     public int append(
             CommandBatch batch,
             long transactionId,
@@ -160,18 +162,22 @@ public class TransactionLogWriter {
         return commandBatch.serialize(writer);
     }
 
+    @Override
     public LogPosition getCurrentPosition() throws IOException {
         return channel.getCurrentLogPosition();
     }
 
+    @Override
     public void resetAppendedBytesCounter() {
         channel.resetAppendedBytesCounter();
     }
 
+    @Override
     public long getAppendedBytes() {
         return channel.getAppendedBytes();
     }
 
+    @Override
     public LogPositionMarker getCurrentPosition(LogPositionMarker logPositionMarker) throws IOException {
         return channel.getCurrentLogPosition(logPositionMarker);
     }
@@ -181,6 +187,7 @@ public class TransactionLogWriter {
         return channel;
     }
 
+    @Override
     public int append(
             ByteBuffer byteBuffer,
             LogAppendEvent logAppendEvent,
@@ -225,6 +232,7 @@ public class TransactionLogWriter {
         return writer;
     }
 
+    @Override
     public boolean handlesRotationInternally() {
         return channel.handlesRotationInternally();
     }

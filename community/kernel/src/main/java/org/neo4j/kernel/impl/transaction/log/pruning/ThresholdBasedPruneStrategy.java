@@ -21,7 +21,7 @@ package org.neo4j.kernel.impl.transaction.log.pruning;
 
 import static org.neo4j.storageengine.api.LogVersionRepository.INITIAL_LOG_VERSION;
 
-import org.neo4j.kernel.impl.transaction.log.files.LogFile;
+import org.neo4j.kernel.impl.transaction.log.LogFile;
 import org.neo4j.util.VisibleForTesting;
 
 public class ThresholdBasedPruneStrategy implements LogPruneStrategy {

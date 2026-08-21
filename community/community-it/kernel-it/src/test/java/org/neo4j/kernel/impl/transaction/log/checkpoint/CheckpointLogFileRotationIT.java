@@ -28,7 +28,7 @@ import static org.neo4j.kernel.impl.transaction.log.checkpoint.CheckpointLogSeri
 import static org.neo4j.kernel.impl.transaction.log.checkpoint.CheckpointLogSerializationHelper.LOG_POSITION;
 import static org.neo4j.kernel.impl.transaction.log.checkpoint.CheckpointLogSerializationHelper.TRANSACTION_ID;
 import static org.neo4j.kernel.impl.transaction.log.checkpoint.CheckpointLogSerializationHelper.fillWithCheckpoints;
-import static org.neo4j.kernel.impl.transaction.tracing.LogCheckPointEvent.NULL;
+import static org.neo4j.kernel.impl.transaction.log.checkpoint.LogCheckPointEvent.NULL;
 import static org.neo4j.test.LatestVersions.LATEST_KERNEL_VERSION;
 
 import java.io.IOException;
@@ -36,7 +36,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.neo4j.configuration.GraphDatabaseSettings;
-import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
+import org.neo4j.kernel.impl.transaction.log.LogFiles;
 import org.neo4j.test.TestDatabaseManagementServiceBuilder;
 import org.neo4j.test.extension.DbmsExtension;
 import org.neo4j.test.extension.ExtensionCallback;

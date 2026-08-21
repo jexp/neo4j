@@ -100,6 +100,8 @@ import org.neo4j.kernel.impl.transaction.log.CompleteCommandBatch;
 import org.neo4j.kernel.impl.transaction.log.FlushableLogPositionAwareChannel;
 import org.neo4j.kernel.impl.transaction.log.InMemoryVersionableReadableClosablePositionAwareChannel;
 import org.neo4j.kernel.impl.transaction.log.LogAppendEvent;
+import org.neo4j.kernel.impl.transaction.log.LogFile;
+import org.neo4j.kernel.impl.transaction.log.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.LogPositionMarker;
 import org.neo4j.kernel.impl.transaction.log.ReadAheadUtils;
@@ -107,7 +109,9 @@ import org.neo4j.kernel.impl.transaction.log.ReadableLogChannel;
 import org.neo4j.kernel.impl.transaction.log.TransactionLogWriter;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointerImpl;
+import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckpointFile;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.DetachedCheckpointAppender;
+import org.neo4j.kernel.impl.transaction.log.checkpoint.LogCheckPointEvent;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.SimpleTriggerInfo;
 import org.neo4j.kernel.impl.transaction.log.entry.BadLogEntryException;
 import org.neo4j.kernel.impl.transaction.log.entry.IncompleteLogHeaderException;
@@ -117,13 +121,9 @@ import org.neo4j.kernel.impl.transaction.log.entry.UnsupportedLogVersionExceptio
 import org.neo4j.kernel.impl.transaction.log.entry.VersionAwareLogEntryReader;
 import org.neo4j.kernel.impl.transaction.log.entry.v202608.DetachedCheckpointLogEntrySerializerV2026_08;
 import org.neo4j.kernel.impl.transaction.log.enveloped.InvalidLogEnvelopeReadException;
-import org.neo4j.kernel.impl.transaction.log.files.LogFile;
-import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.kernel.impl.transaction.log.files.TransactionLogFiles;
-import org.neo4j.kernel.impl.transaction.log.files.checkpoint.CheckpointFile;
 import org.neo4j.kernel.impl.transaction.log.rotation.LogRotation;
-import org.neo4j.kernel.impl.transaction.tracing.LogCheckPointEvent;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.kernel.lifecycle.Lifespan;
 import org.neo4j.logging.AssertableLogProvider;
@@ -1135,7 +1135,8 @@ class RecoveryCorruptedTransactionLogIT {
         // Destroy the tx log a bit so we can only recover the first 10 transactions
         DependencyResolver dependencyResolver = database.getDependencyResolver();
         LogFiles logFiles1 = dependencyResolver.resolveDependency(LogFiles.class);
-        TransactionLogWriter transactionLogWriter = logFiles1.getLogFile().getTransactionLogWriter();
+        TransactionLogWriter transactionLogWriter =
+                (TransactionLogWriter) logFiles1.getLogFile().getTransactionLogWriter();
         FlushableLogPositionAwareChannel channel = transactionLogWriter.getChannel();
         LogPositionMarker logPositionMarker = new LogPositionMarker();
         logPositionMarker.mark(
@@ -1195,7 +1196,8 @@ class RecoveryCorruptedTransactionLogIT {
         // Destroy the tx log a bit so we can only recover the first 10 transactions
         DependencyResolver dependencyResolver = database.getDependencyResolver();
         LogFiles logFiles1 = dependencyResolver.resolveDependency(LogFiles.class);
-        TransactionLogWriter transactionLogWriter = logFiles1.getLogFile().getTransactionLogWriter();
+        TransactionLogWriter transactionLogWriter =
+                (TransactionLogWriter) logFiles1.getLogFile().getTransactionLogWriter();
         FlushableLogPositionAwareChannel channel = transactionLogWriter.getChannel();
         LogPositionMarker logPositionMarker = new LogPositionMarker();
         logPositionMarker.mark(
@@ -1541,7 +1543,7 @@ class RecoveryCorruptedTransactionLogIT {
         try (Lifespan lifespan = new Lifespan(internalLogFiles)) {
             LogFile transactionLogFile = internalLogFiles.getLogFile();
             LogEntryWriter<FlushableLogPositionAwareChannel> realLogEntryWriter =
-                    transactionLogFile.getTransactionLogWriter().getWriter();
+                    ((TransactionLogWriter) transactionLogFile.getTransactionLogWriter()).getWriter();
             LogEntryWriter<FlushableLogPositionAwareChannel> wrappedLogEntryWriter =
                     logEntryWriterWrapper.wrap(realLogEntryWriter, BINARY_VERSIONS);
             TransactionLogWriter writer = new TransactionLogWriter(
