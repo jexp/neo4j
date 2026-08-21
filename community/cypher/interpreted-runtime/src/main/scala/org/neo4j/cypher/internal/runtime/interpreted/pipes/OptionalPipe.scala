@@ -27,8 +27,8 @@ import org.neo4j.values.storable.Values
 case class OptionalPipe(nullableVariables: Set[String], source: Pipe)(val id: Id = Id.INVALID_ID)
     extends PipeWithSource(source) {
 
-  private def notFoundExecutionContext(initialContext: Option[CypherRow]): CypherRow = {
-    val context = initialContext.getOrElse(CypherRow.empty)
+  private def notFoundExecutionContext(state: QueryState): CypherRow = {
+    val context = state.newRow(rowFactory)
     nullableVariables.foreach(v => context.set(v, Values.NO_VALUE))
     context
   }
@@ -37,6 +37,6 @@ case class OptionalPipe(nullableVariables: Set[String], source: Pipe)(val id: Id
     input: ClosingIterator[CypherRow],
     state: QueryState
   ): ClosingIterator[CypherRow] =
-    if (input.isEmpty) ClosingIterator.single(notFoundExecutionContext(state.initialContext))
+    if (input.isEmpty) ClosingIterator.single(notFoundExecutionContext(state))
     else input
 }
