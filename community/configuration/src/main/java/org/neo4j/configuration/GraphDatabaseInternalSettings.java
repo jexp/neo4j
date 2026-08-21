@@ -1980,6 +1980,12 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
 
     @Internal
     @Description("")
+    public static final Setting<Integer> spd_import_entity_executor_preallocation_size = newBuilder(
+                    "internal.db.spd_import.entity_executor_preallocation_size", INT, 10_000)
+            .build();
+
+    @Internal
+    @Description("")
     public static final Setting<Long> spd_import_entity_encoding_buffer_initial_capacity = newBuilder(
                     "internal.db.spd_import.entity_encoding_buffer_initial_capacity", BYTES, 10 * 1024L)
             .build();
