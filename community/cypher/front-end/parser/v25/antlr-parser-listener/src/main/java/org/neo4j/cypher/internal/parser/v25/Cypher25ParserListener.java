@@ -613,6 +613,8 @@ public interface Cypher25ParserListener extends ParseTreeListener {
 
     void exitUserRemoveTagsClause(Cypher25Parser.UserRemoveTagsClauseContext ctx);
 
+    void exitExplicitUserTags(Cypher25Parser.ExplicitUserTagsContext ctx);
+
     void exitPassword(Cypher25Parser.PasswordContext ctx);
 
     void exitPasswordOnly(Cypher25Parser.PasswordOnlyContext ctx);

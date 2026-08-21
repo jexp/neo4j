@@ -480,6 +480,8 @@ public abstract class AbstractCypher25AstBuilder implements Cypher25ParserListen
                 exitUserAddTagsClause((Cypher25Parser.UserAddTagsClauseContext) ctx);
             case Cypher25Parser.RULE_userRemoveTagsClause ->
                 exitUserRemoveTagsClause((Cypher25Parser.UserRemoveTagsClauseContext) ctx);
+            case Cypher25Parser.RULE_explicitUserTags ->
+                exitExplicitUserTags((Cypher25Parser.ExplicitUserTagsContext) ctx);
             case Cypher25Parser.RULE_password -> exitPassword((Cypher25Parser.PasswordContext) ctx);
             case Cypher25Parser.RULE_passwordOnly -> exitPasswordOnly((Cypher25Parser.PasswordOnlyContext) ctx);
             case Cypher25Parser.RULE_passwordExpression ->

@@ -324,18 +324,12 @@ trait DdlBuilder extends Cypher25ParserListener {
   final override def exitTagToken(ctx: Cypher25Parser.TagTokenContext): Unit = {}
 
   final override def exitUserSetTagsClause(ctx: Cypher25Parser.UserSetTagsClauseContext): Unit = {
-    val tags =
-      if (ctx.stringLiteral() != null) ctx.stringLiteral().ast[StringLiteral]()
-      else if (ctx.stringListLiteral() != null) ctx.stringListLiteral().ast[ListLiteral]()
-      else ctx.parameter().ast[Parameter]()
+    val tags = ctx.explicitUserTags().ast[Expression]()
     ctx.ast = SetTags(tags)(pos(ctx))
   }
 
   final override def exitUserAddTagsClause(ctx: Cypher25Parser.UserAddTagsClauseContext): Unit = {
-    val tags =
-      if (ctx.stringLiteral() != null) ctx.stringLiteral().ast[StringLiteral]()
-      else if (ctx.stringListLiteral() != null) ctx.stringListLiteral().ast[ListLiteral]()
-      else ctx.parameter().ast[Parameter]()
+    val tags = ctx.explicitUserTags().ast[Expression]()
     ctx.ast = AddTags(tags)(pos(ctx))
   }
 
@@ -343,12 +337,16 @@ trait DdlBuilder extends Cypher25ParserListener {
     if (ctx.ALL() != null) {
       ctx.ast = RemoveAllTags()(pos(ctx))
     } else {
-      val tags =
-        if (ctx.stringLiteral() != null) ctx.stringLiteral().ast[StringLiteral]()
-        else if (ctx.stringListLiteral() != null) ctx.stringListLiteral().ast[ListLiteral]()
-        else ctx.parameter().ast[Parameter]()
+      val tags = ctx.explicitUserTags().ast[Expression]()
       ctx.ast = RemoveTags(tags)(pos(ctx))
     }
+  }
+
+  final override def exitExplicitUserTags(ctx: Cypher25Parser.ExplicitUserTagsContext): Unit = {
+    ctx.ast =
+      if (ctx.stringLiteral() != null) ctx.stringLiteral().ast[StringLiteral]()
+      else if (ctx.stringListLiteral() != null) ctx.stringListLiteral().ast[ListLiteral]()
+      else ctx.parameter().ast[Parameter]()
   }
 
   final override def exitAlterUser(
