@@ -41,6 +41,7 @@ import org.neo4j.internal.kernel.api.Read;
 import org.neo4j.internal.kernel.api.RelationshipScanCursor;
 import org.neo4j.internal.kernel.api.TokenRead;
 import org.neo4j.io.pagecache.context.CursorContext;
+import org.neo4j.kernel.api.AssertOpen;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.memory.MemoryTracker;
 import org.neo4j.token.api.NamedToken;
@@ -57,6 +58,7 @@ public class SchemaCalculator {
     private final CursorContext cursorContext;
     private final MemoryTracker memoryTracker;
     private final boolean useCypherTypes;
+    private final AssertOpen assertOpen;
 
     SchemaCalculator(KernelTransaction ktx, boolean useCypherTypes) {
         this.dataRead = ktx.dataRead();
@@ -65,6 +67,7 @@ public class SchemaCalculator {
         this.cursorContext = ktx.cursorContext();
         this.memoryTracker = ktx.memoryTracker();
         this.useCypherTypes = useCypherTypes;
+        this.assertOpen = ktx;
 
         // the only one that is common for both nodes and rels so thats why we can do it here
         propertyIdToPropertyNameMapping = HashMap.newHashMap(tokenRead.propertyKeyCount());
@@ -189,6 +192,7 @@ public class SchemaCalculator {
                 PropertyCursor propertyCursor = cursors.allocatePropertyCursor(cursorContext, memoryTracker)) {
             dataRead.allRelationshipsScan(relationshipScanCursor);
             while (relationshipScanCursor.next()) {
+                assertOpen.assertOpen();
                 int typeId = relationshipScanCursor.type();
                 relationshipScanCursor.properties(propertyCursor);
                 MutableIntSet propertyIds = IntSets.mutable.empty();
@@ -249,6 +253,7 @@ public class SchemaCalculator {
                 PropertyCursor propertyCursor = cursors.allocatePropertyCursor(cursorContext, memoryTracker)) {
             dataRead.allNodesScan(nodeCursor);
             while (nodeCursor.next()) {
+                assertOpen.assertOpen();
                 // each node
                 SortedLabels labels = SortedLabels.from(nodeCursor.labels());
                 nodeCursor.properties(propertyCursor);
