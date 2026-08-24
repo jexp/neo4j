@@ -36,13 +36,18 @@ public class Utils {
     private Utils() {}
 
     public static void checkWritableDirectory(Path directory) throws FileSystemException {
-        if (!(exists(directory) || StoragePath.isStorageDir(directory))) {
+        if (StoragePath.isStorageDir(directory)) {
+            // backends that don't have real directories have nothing here that can be checked, and probing them
+            // anyway costs a listing of the whole prefix per call
+            return;
+        }
+        if (!exists(directory)) {
             throw new NoSuchFileException(directory.toString());
         }
         if (isRegularFile(directory)) {
             throw new FileSystemException(directory + ": Not a directory");
         }
-        if (!(isWritable(directory) || StoragePath.isStorageDir(directory))) {
+        if (!isWritable(directory)) {
             throw new AccessDeniedException(directory.toString());
         }
     }
