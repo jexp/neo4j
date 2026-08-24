@@ -344,7 +344,7 @@ class RuntimeTestSupport[CONTEXT <: RuntimeContext](
   }
 
   /**
-   * NOTE: This has some default values, because it is also used directly from LogicalPlanFuzzTesting,
+   * NOTE: This has some default values, because it is also used directly from the logical plan fuzz tests,
    *       alongside RuntimeTestSupportExecution like the rest of the execution methods.
    */
   def executeAndConsumeTransactionally(
