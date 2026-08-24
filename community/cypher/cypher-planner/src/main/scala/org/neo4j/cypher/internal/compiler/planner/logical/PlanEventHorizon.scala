@@ -243,7 +243,7 @@ case object PlanEventHorizon extends EventHorizonPlanner {
         updateSolvedOrdering
       ))
 
-    val planSkipAndLimit = step("planSkipAndLimit")(skipAndLimit(_, query, context))
+    val planSkipAndLimit = step("planSkipAndLimit")(skipAndLimit.planHorizon(_, query, context))
 
     def planWhere(selections: Selections) = step("planWhere")((p: LogicalPlan) =>
       if (selections.isEmpty) {

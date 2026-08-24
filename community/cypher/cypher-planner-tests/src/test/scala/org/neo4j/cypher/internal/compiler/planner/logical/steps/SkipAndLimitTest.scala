@@ -52,7 +52,7 @@ class SkipAndLimitTest extends CypherPlannerTestSuite with LogicalPlanningTestSu
     )
 
     // when
-    val result = skipAndLimit(startPlan, query, context)
+    val result = skipAndLimit.planHorizon(startPlan, query, context)
 
     // then
     result should equal(Skip(startPlan, x))
@@ -70,7 +70,7 @@ class SkipAndLimitTest extends CypherPlannerTestSuite with LogicalPlanningTestSu
     )
 
     // when
-    val result = skipAndLimit(startPlan, query, context)
+    val result = skipAndLimit.planHorizon(startPlan, query, context)
 
     // then
     result should equal(Limit(startPlan, x))
@@ -88,7 +88,7 @@ class SkipAndLimitTest extends CypherPlannerTestSuite with LogicalPlanningTestSu
     )
 
     // when
-    val result = skipAndLimit(startPlan, query, context)
+    val result = skipAndLimit.planHorizon(startPlan, query, context)
 
     // then
     result should equal(Skip(Limit(startPlan, add(x, y)), y))

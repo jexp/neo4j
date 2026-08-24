@@ -21,7 +21,6 @@ package org.neo4j.cypher.internal.compiler.planner.logical.steps
 
 import org.neo4j.cypher.internal.compiler.planner.logical.ExpressionEvaluator
 import org.neo4j.cypher.internal.compiler.planner.logical.LogicalPlanningContext
-import org.neo4j.cypher.internal.compiler.planner.logical.PlanTransformer
 import org.neo4j.cypher.internal.expressions.Expression
 import org.neo4j.cypher.internal.expressions.SignedDecimalIntegerLiteral
 import org.neo4j.cypher.internal.ir.QueryPagination
@@ -38,7 +37,7 @@ import org.neo4j.cypher.internal.util.attribution.IdGen
 
 import scala.annotation.tailrec
 
-object skipAndLimit extends PlanTransformer {
+object skipAndLimit {
 
   @tailrec
   def shouldPlanExhaustiveLimit(plan: LogicalPlan, limit: Option[Long]): Boolean = plan match {
@@ -71,7 +70,7 @@ object skipAndLimit extends PlanTransformer {
     else Limit(plan, countExpr)(idGen)
   }
 
-  def apply(plan: LogicalPlan, query: SinglePlannerQuery, context: LogicalPlanningContext): LogicalPlan = {
+  def planHorizon(plan: LogicalPlan, query: SinglePlannerQuery, context: LogicalPlanningContext): LogicalPlan = {
     plan match {
       // A remoteBatchProperties operator will run on a fixed batch size irrespective of the actual limit.
       // Since the remoteBatchProperties operator will not affect the overall correctness of the output,
