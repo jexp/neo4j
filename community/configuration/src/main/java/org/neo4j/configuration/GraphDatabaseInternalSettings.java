@@ -1961,12 +1961,6 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
 
     @Internal
     @Description("")
-    public static final Setting<Long> spd_import_max_memory = newBuilder(
-                    "internal.db.spd_import.max_memory", BYTES, gibiBytes(20))
-            .build();
-
-    @Internal
-    @Description("")
     public static final Setting<Integer> spd_import_merge_step =
             newBuilder("internal.db.spd_import.merge_step", INT, 50).build();
 
@@ -2029,14 +2023,6 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
     @Description("")
     public static final Setting<Duration> spd_import_rpc_request_timeout = newBuilder(
                     "internal.db.spd_import.rpc.request_timeout", DURATION, ofMinutes(5))
-            .build();
-
-    @Internal
-    @Description("Coefficient applied to the number of available processors to determine how many worker threads "
-            + "are used to process input CSV files during SPD import. For example, a value of 1.0 uses one worker "
-            + "thread per available processor. At least one worker thread is always used.")
-    public static final Setting<Double> spd_import_csv_worker_threads_coefficient = newBuilder(
-                    "internal.db.spd_import.csv_worker_threads_coefficient", DOUBLE, 1.0)
             .build();
 
     @Internal
