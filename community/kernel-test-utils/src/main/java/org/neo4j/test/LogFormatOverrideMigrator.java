@@ -29,6 +29,10 @@ import org.neo4j.logging.InternalLog;
 public class LogFormatOverrideMigrator implements SettingMigrator {
     public static final String OVERRIDE_LOG_FORMAT_KEY = "NEO4J_OVERRIDE_LOG_FORMAT";
     public static final String ENVELOPES = "envelopes";
+    public static final String OVERRIDE_RAFT_LOG_IMPLEMENTATION_KEY = "NEO4J_OVERRIDE_RAFT_LOG_IMPL";
+    public static final String ENVELOPED = "enveloped";
+    public static final String MERGED = "merged";
+    public static final String MERGED_ON_LATEST = "merged_on_latest";
 
     @Override
     public void migrate(Map<String, String> values, Map<String, String> defaultValues, InternalLog log) {
@@ -40,6 +44,11 @@ public class LogFormatOverrideMigrator implements SettingMigrator {
             } catch (RuntimeException ex) {
                 log.warn("Unable to override the log format to " + overrideLogFormat, ex);
             }
+        }
+        // For public kernel classes enable sufficient flags to move to V11 LogFormat
+        String logImplementation = System.getProperty(OVERRIDE_RAFT_LOG_IMPLEMENTATION_KEY);
+        if (MERGED.equals(logImplementation) || MERGED_ON_LATEST.equals(logImplementation)) {
+            defaultValues.put(GraphDatabaseInternalSettings.merged_log.name(), "true");
         }
     }
 }
