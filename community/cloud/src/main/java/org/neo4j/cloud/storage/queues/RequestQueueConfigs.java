@@ -21,6 +21,7 @@ package org.neo4j.cloud.storage.queues;
 
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
+import static org.neo4j.cloud.storage.StorageSettingsDeclaration.READ_IS_FOR_DESCRIPTION_FLAG;
 import static org.neo4j.cloud.storage.StorageSettingsDeclaration.READ_IS_FOR_SAMPLING_FLAG;
 import static org.neo4j.cloud.storage.StorageSettingsDeclaration.pullQueueChunkSize;
 import static org.neo4j.cloud.storage.StorageSettingsDeclaration.pullQueuePollTimeout;
@@ -50,21 +51,31 @@ public record RequestQueueConfigs(QueueConfig pushConfig, QueueConfig pullConfig
 
     public static final int SAMPLING_PULL_QUEUE_CHUNK_SIZE = (int) (mebiBytes(2) + kibiBytes(100));
 
+    /**
+     * This field and {@link RequestQueueConfigs#DESCRIPTION_PULL_QUEUE_CHUNK_SIZE} ensure that an archive's description
+     * can be read with a single request. A ZSTD compressed archive needs the 4 byte magic prefix plus the 131075 bytes
+     * that {@code ZSTD_DStreamInSize} asks the underlying stream for before it will decode the first block; anything
+     * smaller than that costs an extra round trip per description
+     */
+    public static final int DESCRIPTION_PULL_QUEUE_SIZE = 1;
+
+    public static final int DESCRIPTION_PULL_QUEUE_CHUNK_SIZE = (int) kibiBytes(132);
+
     public RequestQueueConfigs {
         requireNonNull(pushConfig);
         requireNonNull(pullConfig);
     }
 
     public static RequestQueueConfigs create(StoragePath path) {
-        // adapt the number of queue slots for when sampling is being used (ex. getting headers, estimating sizes in
-        // CSV imports, etc.) In this case, only a small amount of the initial content is required so a large queue
-        // is unnecessary. In the 'normal' access style, a larger queue would be beneficial to help saturate the
-        // network interface and speed up downloads
-        return new RequestQueueConfigs(pushQueueConfig(path), pullQueueConfig(path, isForSampling(path)));
+        // adapt the number of queue slots for when only the start of an object is being read (ex. getting headers,
+        // estimating sizes in CSV imports, reading an archive's description, etc.) In this case, only a small amount
+        // of the initial content is required so a large queue is unnecessary. In the 'normal' access style, a larger
+        // queue would be beneficial to help saturate the network interface and speed up downloads
+        return new RequestQueueConfigs(pushQueueConfig(path), pullQueueConfig(path));
     }
 
-    private static boolean isForSampling(StoragePath path) {
-        return path.metadata().getOrDefault(READ_IS_FOR_SAMPLING_FLAG, Boolean.FALSE) == Boolean.TRUE;
+    private static boolean isFlagged(StoragePath path, String flag) {
+        return path.metadata().getOrDefault(flag, Boolean.FALSE) == Boolean.TRUE;
     }
 
     private static QueueConfig pushQueueConfig(StoragePath path) {
@@ -75,16 +86,16 @@ public record RequestQueueConfigs(QueueConfig pushConfig, QueueConfig pullConfig
                 config.get(pushQueuePollTimeout(path)));
     }
 
-    private static QueueConfig pullQueueConfig(StoragePath path, boolean isForSampling) {
+    private static QueueConfig pullQueueConfig(StoragePath path) {
         final var config = StorageSystemProvider.config(path);
-        if (isForSampling) {
-            return new QueueConfig(
-                    SAMPLING_PULL_QUEUE_SIZE, SAMPLING_PULL_QUEUE_CHUNK_SIZE, config.get(pullQueuePollTimeout(path)));
+        final var pollTimeout = config.get(pullQueuePollTimeout(path));
+        if (isFlagged(path, READ_IS_FOR_DESCRIPTION_FLAG)) {
+            return new QueueConfig(DESCRIPTION_PULL_QUEUE_SIZE, DESCRIPTION_PULL_QUEUE_CHUNK_SIZE, pollTimeout);
+        } else if (isFlagged(path, READ_IS_FOR_SAMPLING_FLAG)) {
+            return new QueueConfig(SAMPLING_PULL_QUEUE_SIZE, SAMPLING_PULL_QUEUE_CHUNK_SIZE, pollTimeout);
         } else {
             return new QueueConfig(
-                    config.get(pullQueueSlotSize(path)),
-                    toIntExact(config.get(pullQueueChunkSize(path))),
-                    config.get(pullQueuePollTimeout(path)));
+                    config.get(pullQueueSlotSize(path)), toIntExact(config.get(pullQueueChunkSize(path))), pollTimeout);
         }
     }
 

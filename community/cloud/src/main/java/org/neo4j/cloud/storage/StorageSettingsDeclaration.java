@@ -49,6 +49,8 @@ public abstract class StorageSettingsDeclaration implements SettingsDeclaration 
 
     public static final String READ_IS_FOR_SAMPLING_FLAG = "cloud.storage.read.sampling";
 
+    public static final String READ_IS_FOR_DESCRIPTION_FLAG = "cloud.storage.read.description";
+
     private static final SettingConstraint<Long> CHUNK_RANGE = range(mebiBytes(1), gibiBytes(1));
 
     static final String INTERNAL_CONFIG_PREFIX = "internal.dbms.cloud.storage";
@@ -60,6 +62,16 @@ public abstract class StorageSettingsDeclaration implements SettingsDeclaration 
      */
     public static StoragePath adaptPathForSampling(StoragePath path) {
         return path.copy().addMetadata(READ_IS_FOR_SAMPLING_FLAG, Boolean.TRUE);
+    }
+
+    /**
+     * Adapts a {@link StoragePath} so that reads of an archive's description can use an optimised, much smaller,
+     * request size than the {@link #adaptPathForSampling(StoragePath) sampling} one
+     * @param path the path to adapt
+     * @return a new {@link StoragePath} that has the {@link #READ_IS_FOR_DESCRIPTION_FLAG} set to <code>true</code>
+     */
+    public static StoragePath adaptPathForDescription(StoragePath path) {
+        return path.copy().addMetadata(READ_IS_FOR_DESCRIPTION_FLAG, Boolean.TRUE);
     }
 
     /**

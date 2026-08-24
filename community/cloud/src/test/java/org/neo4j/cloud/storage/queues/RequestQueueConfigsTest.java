@@ -26,7 +26,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.neo4j.cloud.storage.StorageSettingsDeclaration.READ_IS_FOR_DESCRIPTION_FLAG;
 import static org.neo4j.cloud.storage.StorageSettingsDeclaration.READ_IS_FOR_SAMPLING_FLAG;
+import static org.neo4j.cloud.storage.queues.RequestQueueConfigs.DESCRIPTION_PULL_QUEUE_CHUNK_SIZE;
+import static org.neo4j.cloud.storage.queues.RequestQueueConfigs.DESCRIPTION_PULL_QUEUE_SIZE;
 import static org.neo4j.cloud.storage.queues.RequestQueueConfigs.SAMPLING_PULL_QUEUE_CHUNK_SIZE;
 import static org.neo4j.cloud.storage.queues.RequestQueueConfigs.SAMPLING_PULL_QUEUE_SIZE;
 import static org.neo4j.io.ByteUnit.mebiBytes;
@@ -57,6 +60,8 @@ class RequestQueueConfigsTest {
     private static final Duration PUSH_TIMEOUT = Duration.ofSeconds(42);
     private static final Duration PULL_TIMEOUT = Duration.ofSeconds(69);
 
+    private static final String NO_READ_FLAG = "cloud.storage.read.none";
+
     @Test
     void adaptPathForSampling() {
         final var path = mock(StoragePath.class);
@@ -68,6 +73,16 @@ class RequestQueueConfigsTest {
     }
 
     @Test
+    void adaptPathForDescription() {
+        final var path = mock(StoragePath.class);
+        when(path.scheme()).thenReturn(TestSettings.SCHEME);
+        when(path.copy()).thenReturn(path);
+
+        StorageSettingsDeclaration.adaptPathForDescription(path);
+        verify(path, times(1)).addMetadata(eq(READ_IS_FOR_DESCRIPTION_FLAG), eq(Boolean.TRUE));
+    }
+
+    @Test
     void queueConfigConstructor() {
         assertThatThrownBy(() -> new QueueConfig(0, 1, PUSH_TIMEOUT)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new QueueConfig(1, 0, PULL_TIMEOUT)).isInstanceOf(IllegalArgumentException.class);
@@ -75,8 +90,8 @@ class RequestQueueConfigsTest {
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = {true, false})
-    void create(boolean isForSampling) {
+    @ValueSource(strings = {NO_READ_FLAG, READ_IS_FOR_SAMPLING_FLAG, READ_IS_FOR_DESCRIPTION_FLAG})
+    void create(String readFlag) {
         var provider = mock(StorageSystemProvider.class);
         when(provider.config())
                 .thenReturn(Config.newBuilder()
@@ -94,7 +109,20 @@ class RequestQueueConfigsTest {
         var path = mock(StoragePath.class);
         when(path.scheme()).thenReturn(TestSettings.SCHEME);
         when(path.getFileSystem()).thenReturn(fs);
-        when(path.metadata()).thenReturn(Maps.immutable.of(READ_IS_FOR_SAMPLING_FLAG, isForSampling));
+        when(path.metadata()).thenReturn(Maps.immutable.of(readFlag, Boolean.TRUE));
+
+        final var expectedSlots =
+                switch (readFlag) {
+                    case READ_IS_FOR_SAMPLING_FLAG -> SAMPLING_PULL_QUEUE_SIZE;
+                    case READ_IS_FOR_DESCRIPTION_FLAG -> DESCRIPTION_PULL_QUEUE_SIZE;
+                    default -> PULL_SLOTS;
+                };
+        final var expectedChunks =
+                switch (readFlag) {
+                    case READ_IS_FOR_SAMPLING_FLAG -> SAMPLING_PULL_QUEUE_CHUNK_SIZE;
+                    case READ_IS_FOR_DESCRIPTION_FLAG -> DESCRIPTION_PULL_QUEUE_CHUNK_SIZE;
+                    default -> (int) PULL_CHUNKS;
+                };
 
         var queueConfigs = RequestQueueConfigs.create(path);
 
@@ -106,9 +134,8 @@ class RequestQueueConfigsTest {
         });
 
         assertThat(queueConfigs.pullConfig()).isNotNull().satisfies(config -> {
-            assertThat(config.queueSize()).isEqualTo(isForSampling ? SAMPLING_PULL_QUEUE_SIZE : PULL_SLOTS);
-            assertThat(config.chunkSize())
-                    .isEqualTo(isForSampling ? SAMPLING_PULL_QUEUE_CHUNK_SIZE : (int) PULL_CHUNKS);
+            assertThat(config.queueSize()).isEqualTo(expectedSlots);
+            assertThat(config.chunkSize()).isEqualTo(expectedChunks);
             assertThat(config.pollingTimeout()).isEqualTo(PULL_TIMEOUT);
         });
     }
