@@ -9,7 +9,8 @@
     <available file="${shell.zip}" property="zip.present"/>
     <echo>Checking if ${shell.zip} exists: ${zip.present}</echo>
   </target>
-  <target name="extract-shell-zip" depends="find-shell-zip" if="zip.present">
+  <target name="extract-shell-zip" depends="find-shell-zip">
+    <fail unless="zip.present" message="cypher-shell zip not found at ${shell.zip} — build the cypher-shell module first; the distribution must not ship without bin/cypher-shell"/>
     <echo>Unzipping...</echo>
     <unzip src="${shell.zip}" dest="src/main/distribution/cypher-shell">
       <cutdirsmapper dirs="1"/>

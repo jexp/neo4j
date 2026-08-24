@@ -26,6 +26,9 @@
     <assembly-suffix />
     <executable-suffix />
     <jline.version>3.21.0</jline.version>
+    <!-- Disable caching to ensure target/cypher-shell-<v>.zip is created and
+         bin/cypher-shell is shipped in the tarball. -->
+    <maven.build.cache.enabled>false</maven.build.cache.enabled>
     <moduleName>org.neo4j.shell</moduleName>
     <name-of-main-class>org.neo4j.shell.Main</name-of-main-class>
     <native-maven-plugin.version>0.9.9</native-maven-plugin.version>
