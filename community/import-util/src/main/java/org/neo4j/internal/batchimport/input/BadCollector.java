@@ -422,4 +422,10 @@ public final class BadCollector implements Collector {
         // Drop the entries reported after the checkpoint, they get reported again as the input is revisited
         problemHandler.resumeFromCheckpoint(inputStream.readLong());
     }
+
+    @Override
+    public void resumeFromStart() throws IOException {
+        badEntries.set(0);
+        problemHandler.resumeFromCheckpoint(0);
+    }
 }

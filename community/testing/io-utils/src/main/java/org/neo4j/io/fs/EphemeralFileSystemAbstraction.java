@@ -620,4 +620,9 @@ public class EphemeralFileSystemAbstraction implements FileSystemAbstraction {
         } while (!directories.add(tmp));
         return tmp;
     }
+
+    @Override
+    public boolean supportsDirectoryChannel(Path directory) {
+        return false;
+    }
 }

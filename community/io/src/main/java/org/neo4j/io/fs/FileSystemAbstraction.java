@@ -19,6 +19,7 @@
  */
 package org.neo4j.io.fs;
 
+import static java.lang.String.format;
 import static org.neo4j.io.ByteUnit.kibiBytes;
 
 import java.io.Closeable;
@@ -533,6 +534,12 @@ public interface FileSystemAbstraction extends Closeable {
     Path createTempDirectory(Path dir, String prefix) throws IOException;
 
     /**
+     * @return whether this file system abstraction supports opening a directory channel for the given path.
+     * The given path must be a directory.
+     */
+    boolean supportsDirectoryChannel(Path directory);
+
+    /**
      * Match files using a glob pattern.
      * @param dir base directory to match files in.
      * @param style style of pattern to use to match files, e.g.: regex or glob.
@@ -563,6 +570,30 @@ public interface FileSystemAbstraction extends Closeable {
             }
         }
         return matches;
+    }
+
+    /**
+     * Try forcing changes in a directory to disk, e.g. file renames in the directory, if the underlying file system
+     * supports it.
+     */
+    default void tryForceDirectory(Path directory) throws IOException {
+        if (!fileExists(directory)) {
+            return;
+        } else if (!isDirectory(directory)) {
+            throw new NotDirectoryException(
+                    format("The path %s must refer to a directory!", directory.toAbsolutePath()));
+        }
+
+        if (!supportsDirectoryChannel(directory)) {
+            return;
+        }
+
+        // Attempts to fsync the directory, guarantying e.g. file creation/deletion/rename events are durable
+        // See http://mail.openjdk.java.net/pipermail/nio-dev/2015-May/003140.html
+        // See also https://github.com/apache/lucene-solr/commit/7bea628bf3961a10581833935e4c1b61ad708c5c
+        try (StoreChannel channel = read(directory)) {
+            channel.force(true);
+        }
     }
 
     enum PatternStyle {

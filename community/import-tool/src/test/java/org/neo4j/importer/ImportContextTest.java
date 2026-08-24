@@ -1000,6 +1000,80 @@ class ImportContextTest {
     }
 
     @Test
+    void noCheckpointToReadBeforeOneWasWritten() {
+        try (var importContext = ImportContext.create(fs, DB, null, config, null, List.of(), false, true, false)) {
+            assertThat(importContext.lastCheckpoint()).isNull();
+        }
+    }
+
+    @Test
+    void checkpointIsReadBackOnResume() throws IOException {
+        Path baseDir;
+        try (var importContext = ImportContext.create(fs, DB, null, config, null, List.of(), false, true, false)) {
+            baseDir = importContext.baseDir();
+            importContext.writeCheckpoint(checkpointOf(42));
+        }
+
+        try (var importContext = ImportContext.create(fs, DB, baseDir, config, null, List.of(), false, true, false);
+                var checkpoint = importContext.lastCheckpoint()) {
+            assertThat(checkpoint).isNotNull();
+            assertThat(checkpoint.readLong()).isEqualTo(42);
+        }
+    }
+
+    @Test
+    void checkpointReplacesThePreviousOne() throws IOException {
+        try (var importContext = ImportContext.create(fs, DB, null, config, null, List.of(), false, true, false)) {
+            importContext.writeCheckpoint(checkpointOf(42));
+            importContext.writeCheckpoint(checkpointOf(43));
+
+            try (var checkpoint = importContext.lastCheckpoint()) {
+                assertThat(checkpoint.readLong()).isEqualTo(43);
+                assertThat(checkpoint.read())
+                        .as("no leftovers of the replaced checkpoint")
+                        .isEqualTo(-1);
+            }
+        }
+    }
+
+    @Test
+    void checkpointOfThePreviousAttemptSurvivesAFailedReplacement() throws IOException {
+        // when the replacement never gets written out in full
+        var failing = new DelegatingFileSystemAbstraction(fs) {
+            @Override
+            public StoreChannel open(Path fileName, Set<OpenOption> options) throws IOException {
+                StoreChannel out = super.open(fileName, options);
+                if (!fileName.getFileName().toString().startsWith(ImportContext.CHECKPOINT_FILE_NAME)) {
+                    return out;
+                }
+                return new DelegatingStoreChannel<>(out) {
+                    @Override
+                    public void writeAll(ByteBuffer src) throws IOException {
+                        throw new IOException("No space left on device");
+                    }
+                };
+            }
+        };
+        Path baseDir;
+        try (var importContext = ImportContext.create(fs, DB, null, config, null, List.of(), false, true, false)) {
+            baseDir = importContext.baseDir();
+            importContext.writeCheckpoint(checkpointOf(42));
+        }
+
+        try (var importContext =
+                ImportContext.create(failing, DB, baseDir, config, null, List.of(), false, true, false)) {
+            assertThatExceptionOfType(IOException.class)
+                    .isThrownBy(() -> importContext.writeCheckpoint(checkpointOf(43)));
+        }
+
+        // then the checkpoint of the attempt being resumed is still the one on record
+        try (var importContext = ImportContext.create(fs, DB, baseDir, config, null, List.of(), false, true, false);
+                var checkpoint = importContext.lastCheckpoint()) {
+            assertThat(checkpoint.readLong()).isEqualTo(42);
+        }
+    }
+
+    @Test
     void cliArgsOfThePreviousAttemptSurviveAFailedRewriteOnResume() throws IOException {
         var args = List.of("--nodes=foo.csv");
         Path baseDir;
@@ -1044,6 +1118,10 @@ class ImportContextTest {
         }
         // then what the attempt being resumed was invoked with is still on record
         assertThat(ImportContext.readCliArgs(fs, baseDir)).contains(args);
+    }
+
+    private static byte[] checkpointOf(long content) {
+        return ByteBuffer.allocate(Long.BYTES).putLong(content).array();
     }
 
     /**

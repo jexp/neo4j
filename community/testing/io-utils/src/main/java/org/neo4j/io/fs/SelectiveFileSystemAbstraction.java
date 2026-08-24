@@ -219,6 +219,11 @@ public class SelectiveFileSystemAbstraction implements FileSystemAbstraction {
         return defaultFileSystem.matchFiles(dir, patternStyle, pattern);
     }
 
+    @Override
+    public boolean supportsDirectoryChannel(Path directory) {
+        return chooseFileSystem(directory).supportsDirectoryChannel(directory);
+    }
+
     private FileSystemAbstraction chooseFileSystem(Path file) {
         return file.equals(specialFile) ? specialFileSystem : defaultFileSystem;
     }

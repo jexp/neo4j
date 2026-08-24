@@ -98,8 +98,11 @@ public class ProblemReporters {
 
             @Override
             public void resumeFromCheckpoint(long position) {
-                throw new UnsupportedOperationException(
-                        "A report written to a plain OutputStream cannot be truncated back to position " + position);
+                if (position != 0) {
+                    throw new UnsupportedOperationException(
+                            "A report written to a plain OutputStream cannot be truncated back to position "
+                                    + position);
+                }
             }
 
             @Override

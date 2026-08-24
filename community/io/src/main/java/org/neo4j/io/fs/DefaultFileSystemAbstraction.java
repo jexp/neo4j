@@ -46,6 +46,7 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import org.apache.commons.lang3.SystemUtils;
 import org.neo4j.io.fs.watcher.DefaultFileSystemWatcher;
 import org.neo4j.io.fs.watcher.FileWatcher;
 import org.neo4j.io.memory.NativeScopedBuffer;
@@ -240,6 +241,12 @@ public class DefaultFileSystemAbstraction implements FileSystemAbstraction {
     @Override
     public Path createTempDirectory(Path dir, String prefix) throws IOException {
         return Files.createTempDirectory(dir, prefix);
+    }
+
+    @Override
+    public boolean supportsDirectoryChannel(Path directory) {
+        // Windows doesn't allow us to open a FileChannel against a directory
+        return !SystemUtils.IS_OS_WINDOWS;
     }
 
     @Override

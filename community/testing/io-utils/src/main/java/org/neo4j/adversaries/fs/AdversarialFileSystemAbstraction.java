@@ -269,6 +269,11 @@ public class AdversarialFileSystemAbstraction implements FileSystemAbstraction {
     }
 
     @Override
+    public boolean supportsDirectoryChannel(Path directory) {
+        return delegate.supportsDirectoryChannel(directory);
+    }
+
+    @Override
     public void close() throws IOException {
         adversary.injectFailure(IOException.class, SecurityException.class);
         delegate.close();

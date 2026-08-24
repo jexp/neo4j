@@ -375,6 +375,14 @@ public class SchemeFileSystemAbstraction implements FileSystemAbstraction, Stora
     }
 
     @Override
+    public boolean supportsDirectoryChannel(Path directory) {
+        if (directory instanceof StoragePath) {
+            return false;
+        }
+        return fs.supportsDirectoryChannel(directory);
+    }
+
+    @Override
     public void close() throws IOException {
         try {
             IOUtils.closeAll(schemesToProvider.values());

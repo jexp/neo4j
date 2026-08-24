@@ -218,4 +218,9 @@ public class DelegatingFileSystemAbstraction implements FileSystemAbstraction {
     public void close() throws IOException {
         delegate.close();
     }
+
+    @Override
+    public boolean supportsDirectoryChannel(Path directory) {
+        return delegate.supportsDirectoryChannel(directory);
+    }
 }

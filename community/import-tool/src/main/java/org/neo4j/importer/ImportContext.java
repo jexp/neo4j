@@ -37,6 +37,7 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import java.io.BufferedOutputStream;
 import java.io.Closeable;
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -107,6 +108,7 @@ public class ImportContext extends Monitor.Delegate implements InternalLogProvid
     public static final String CONFIG_FILE_NAME = "config";
     public static final String SUCCESS_FILE_NAME = "success";
     public static final String TEMP_FILE_SUFFIX = ".tmp";
+    public static final String CHECKPOINT_FILE_NAME = "checkpoint";
 
     private final String dbName;
 
@@ -366,13 +368,22 @@ public class ImportContext extends Monitor.Delegate implements InternalLogProvid
         }
     }
 
-    private void writeToTempFileAndReplaceAtomically(Path path, String content) throws IOException {
-        Path tmpPath = path.resolveSibling(path.getFileName().toString() + TEMP_FILE_SUFFIX);
+    private void writeToTempFileAndReplaceAtomically(Path parentPath, String fileName, String content)
+            throws IOException {
+        writeToTempFileAndReplaceAtomically(parentPath, fileName, content.getBytes(UTF_8));
+    }
+
+    private void writeToTempFileAndReplaceAtomically(Path parentPath, String fileName, byte[] content)
+            throws IOException {
+        Path path = parentPath.resolve(fileName);
+        Path tmpPath = parentPath.resolve(fileName + TEMP_FILE_SUFFIX);
         try (StoreChannel channel = fs.open(tmpPath, TRUNCATE_OPTIONS)) {
-            channel.writeAll(ByteBuffer.wrap(content.getBytes(UTF_8)));
+            channel.writeAll(ByteBuffer.wrap(content));
             channel.force(false);
         }
         fs.renameFile(tmpPath, path, ATOMIC_MOVE, REPLACE_EXISTING);
+        // the move is atomic, but only forcing the directory it happened in makes it durable.
+        fs.tryForceDirectory(parentPath);
     }
 
     private StoreChannel channel(Path path, boolean append) throws UncheckedIOException {
@@ -387,13 +398,13 @@ public class ImportContext extends Monitor.Delegate implements InternalLogProvid
     /**
      * Persists the CLI arguments the import was invoked with into the context directory, one per line - a single
      * argument (e.g. a file path) may itself contain whitespace, so joining/splitting on whitespace would corrupt it.
-     * Written {@link #writeProtected(Path, String) write-protected}, since a hand edit would quietly change what a
+     * Written {@link #writeProtected(Path, String, String) write-protected}, since a hand edit would quietly change what a
      * later '--resume' replays.
      */
     public void persistCliArgs() {
         try {
             fs.mkdirs(baseDir());
-            writeProtected(baseDir().resolve(CLI_ARGS_FILE_NAME), String.join("\n", originalArgs));
+            writeProtected(baseDir(), CLI_ARGS_FILE_NAME, String.join("\n", originalArgs));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -409,14 +420,13 @@ public class ImportContext extends Monitor.Delegate implements InternalLogProvid
      * temporary intermediary data, the node id ranges the work was divided into), so it is only safe to continue if
      * the settings that shaped that state still hold the same values, which this makes it possible to tell.
      * <p>
-     * Written {@link #writeProtected(Path, String) write-protected}, since a hand edit would decide whether a resume
+     * Written {@link #writeProtected(Path, String, String) write-protected}, since a hand edit would decide whether a resume
      * is allowed to run at all.
      */
     public void persistConfig() {
         try {
             fs.mkdirs(baseDir());
-            writeProtected(
-                    baseDir().resolve(CONFIG_FILE_NAME), asConfigFile(configValuesStringMapping(databaseConfig)));
+            writeProtected(baseDir(), CONFIG_FILE_NAME, asConfigFile(configValuesStringMapping(databaseConfig)));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -458,6 +468,25 @@ public class ImportContext extends Monitor.Delegate implements InternalLogProvid
         }
     }
 
+    @Override
+    public void writeCheckpoint(byte[] checkpoint) throws IOException {
+        fs.mkdirs(baseDir());
+        writeToTempFileAndReplaceAtomically(baseDir(), CHECKPOINT_FILE_NAME, checkpoint);
+    }
+
+    @Override
+    public DataInputStream lastCheckpoint() {
+        try {
+            Path checkpoint = baseDir().resolve(CHECKPOINT_FILE_NAME);
+            if (!fs.fileExists(checkpoint)) {
+                return null;
+            }
+            return new DataInputStream(fs.openAsInputStream(checkpoint));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
     /**
      * A setting that holds a different value now than it did for the attempt being resumed. A value is null when the
      * setting had none at all on that side.
@@ -483,7 +512,7 @@ public class ImportContext extends Monitor.Delegate implements InternalLogProvid
      * imports record one, and they are the only ones a resume accepts anyway, so this is an attempt from before the
      * configuration was recorded.
      */
-    public static List<SettingChange> resumeSensitiveChanges(Path contextDir, Config current) throws IOException {
+    public static List<SettingChange> resumeSensitiveChanges(Path contextDir, Config current) {
         Path configPath = contextDir.resolve(CONFIG_FILE_NAME);
         if (!Files.exists(configPath)) {
             return List.of();
@@ -502,12 +531,12 @@ public class ImportContext extends Monitor.Delegate implements InternalLogProvid
      * by an attempt that did not finish. A retained directory outlives a successful import (see
      * {@link #create(FileSystemAbstraction, NormalizedDatabaseName, Path, Config, Path, List, boolean, boolean, boolean)}),
      * and without this there is nothing in it that says the import got all the way through. Written
-     * {@link #writeProtected(Path, String) write-protected}, like the other records of an attempt.
+     * {@link #writeProtected(Path, String, String) write-protected}, like the other records of an attempt.
      */
     public void markSuccessful() {
         try {
             fs.mkdirs(baseDir());
-            writeProtected(baseDir().resolve(SUCCESS_FILE_NAME), "");
+            writeProtected(baseDir(), SUCCESS_FILE_NAME, "");
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -520,10 +549,11 @@ public class ImportContext extends Monitor.Delegate implements InternalLogProvid
      * instead, which leaves deletion alone. A filesystem offering neither leaves the file writable rather than
      * undeletable. The owner can always put the permission back.
      */
-    private void writeProtected(Path path, String content) throws IOException {
+    private void writeProtected(Path parentPath, String fileName, String content) throws IOException {
+        Path path = parentPath.resolve(fileName);
         makeSureIsInBaseDir(path);
         writeUnprotect(path);
-        writeToTempFileAndReplaceAtomically(path, content);
+        writeToTempFileAndReplaceAtomically(parentPath, fileName, content);
         writeProtect(path);
     }
 

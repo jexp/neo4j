@@ -110,6 +110,14 @@ public interface Collector extends AutoCloseable {
     void resumeFromCheckpoint(DataInputStream inputStream) throws IOException;
 
     /**
+     * Restores the state from before anything was collected, discarding whatever an earlier attempt that never
+     * reached a {@link #checkpoint(DataOutputStream) checkpoint} reported.
+     * <p>
+     * Must be called before any collection happens.
+     */
+    void resumeFromStart() throws IOException;
+
+    /**
      * Flushes whatever changes to the underlying resource supplied from the importer.
      */
     @Override
@@ -290,6 +298,9 @@ public interface Collector extends AutoCloseable {
 
         @Override
         public void resumeFromCheckpoint(DataInputStream inputStream) {}
+
+        @Override
+        public void resumeFromStart() {}
     };
 
     Collector STRICT = new Collector() {
@@ -412,6 +423,9 @@ public interface Collector extends AutoCloseable {
 
         @Override
         public void resumeFromCheckpoint(DataInputStream inputStream) {}
+
+        @Override
+        public void resumeFromStart() {}
     };
 
     class Adapter implements Collector {
@@ -493,5 +507,8 @@ public interface Collector extends AutoCloseable {
 
         @Override
         public void resumeFromCheckpoint(DataInputStream inputStream) {}
+
+        @Override
+        public void resumeFromStart() {}
     }
 }

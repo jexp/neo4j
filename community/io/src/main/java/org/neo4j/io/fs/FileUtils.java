@@ -19,7 +19,6 @@
  */
 package org.neo4j.io.fs;
 
-import static java.lang.String.format;
 import static java.nio.file.FileVisitResult.CONTINUE;
 import static java.nio.file.FileVisitResult.SKIP_SUBTREE;
 import static java.nio.file.Files.createDirectory;
@@ -31,7 +30,6 @@ import static java.nio.file.StandardCopyOption.COPY_ATTRIBUTES;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static java.nio.file.StandardOpenOption.READ;
 import static java.nio.file.StandardOpenOption.WRITE;
-import static java.util.Collections.singleton;
 import static java.util.Objects.requireNonNull;
 import static org.neo4j.function.Predicates.alwaysTrue;
 import static org.neo4j.util.Preconditions.checkArgument;
@@ -64,7 +62,6 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.apache.commons.lang3.SystemUtils;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction.NativeByteBufferOutputStream;
 
 /**
@@ -395,24 +392,8 @@ public final class FileUtils {
     }
 
     public static void tryForceDirectory(Path directory) throws IOException {
-        if (notExists(directory)) {
-            return;
-        } else if (!isDirectory(directory)) {
-            throw new NotDirectoryException(
-                    format("The path %s must refer to a directory!", directory.toAbsolutePath()));
-        }
-
-        if (SystemUtils.IS_OS_WINDOWS) {
-            // Windows doesn't allow us to open a FileChannel against a directory for reading, so we can't attempt to
-            // "fsync" there
-            return;
-        }
-
-        // Attempts to fsync the directory, guaranting e.g. file creation/deletion/rename events are durable
-        // See http://mail.openjdk.java.net/pipermail/nio-dev/2015-May/003140.html
-        // See also https://github.com/apache/lucene-solr/commit/7bea628bf3961a10581833935e4c1b61ad708c5c
-        try (FileChannel directoryChannel = FileChannel.open(directory, singleton(READ))) {
-            directoryChannel.force(true);
+        try (var fs = new DefaultFileSystemAbstraction()) {
+            fs.tryForceDirectory(directory);
         }
     }
 
