@@ -399,6 +399,7 @@ public class BatchingNeoStores implements AutoCloseable, MemoryStatsVisitor.Visi
                 .bufferFactory(new ConfigurableIOBufferFactory(config, memoryTracker))
                 .faultLockStriping(1 << 11)
                 .reservedPageBytes(PageCache.RESERVED_BYTES)
+                .closeAllocatorOnShutdown(true)
                 .disableEvictionThread();
         return new MuninnPageCache(fileSystem, jobScheduler, configuration);
     }

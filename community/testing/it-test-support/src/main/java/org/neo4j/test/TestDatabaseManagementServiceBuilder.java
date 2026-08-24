@@ -20,6 +20,7 @@
 package org.neo4j.test;
 
 import static java.lang.Boolean.FALSE;
+import static java.lang.Boolean.TRUE;
 import static org.neo4j.test.DynamicPorts.OS_SELECTED_DYNAMIC_PORT;
 import static org.neo4j.test.TestDatabaseManagementServiceFactorySupplier.FACTORY_SUPPLIER;
 import static org.neo4j.util.Preconditions.checkState;
@@ -193,7 +194,8 @@ public class TestDatabaseManagementServiceBuilder extends DatabaseManagementServ
                 .setDefault(HttpsConnector.advertised_address, new SocketAddress("localhost", OS_SELECTED_DYNAMIC_PORT))
                 .setDefault(
                         GraphDatabaseInternalSettings.shutdown_terminated_transaction_wait_timeout,
-                        Duration.ofSeconds(1));
+                        Duration.ofSeconds(1))
+                .setDefault(GraphDatabaseInternalSettings.close_allocator_on_shutdown, TRUE);
         return builder.build();
     }
 
