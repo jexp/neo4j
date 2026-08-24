@@ -307,7 +307,6 @@ public class ImportCommand {
             @Option(
                     names = MULTILINE_FIELDS,
                     required = true,
-                    showDefaultValue = ALWAYS,
                     paramLabel = "true|false|<path>[,<path>]",
                     fallbackValue = "true",
                     description =
@@ -323,6 +322,7 @@ public class ImportCommand {
                     names = MULTILINE_FIELDS_FORMAT,
                     converter = MultilineFormatConverter.class,
                     showDefaultValue = ALWAYS,
+                    defaultValue = "v1",
                     paramLabel = "v1|v2",
                     description = "Controls the parsing of input source that can span multiple lines, i.e. contain "
                             + "newline characters. When set to v1, the value for " + MULTILINE_FIELDS + " can only be "
