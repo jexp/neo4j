@@ -25,21 +25,14 @@ public interface EnvelopeLogRangeReader {
 
     /**
      * Prepares all the relevant files to be transferred in a {@link StoreChannelsForTransfer}.
-     * The first file is positioned at the start of {@code fromIndex}. All other files are positioned at the starting
-     * point of the file (meaning at the beginning of the second segment), so any leading START_OFFSET envelope is
-     * part of the delivered bytes.
+     * Every channel is positioned at its first entry byte: the first file at the start of {@code fromIndex}, the
+     * others past their file header and any leading START_OFFSET filler, so local layout never reaches the consumer.
+     * Each channel's intra-segment grid offset is {@link StoreChannelsForTransfer#segmentOffset(int)}.
      * @param fromIndex start of range. This is required to start the range. Pass -1 for earliest available.
      * @param desiredToIndex desired end of range. This is not required to be the end of the range. If the log
      *                       cannot serve this index it will still return a lower index.
      * @return  Returns a {@link StoreChannelsForTransfer} for the given {@code fromIndex} and {@code desiredToIndex}.
      * @throws IOException
-     */
-    StoreChannelsForTransfer storeChannels(long fromIndex, long desiredToIndex) throws IOException;
-
-    /**
-     * Same range resolution as {@link #storeChannels(long, long)}, but every channel is positioned at its first
-     * entry byte: file headers and leading START_OFFSET fillers never reach the consumer. Each channel's
-     * intra-segment grid offset is {@link StoreChannelsForTransfer#segmentOffset(int)}.
      */
     StoreChannelsForTransfer entryStreamChannels(long fromIndex, long desiredToIndex) throws IOException;
 

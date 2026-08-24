@@ -56,7 +56,7 @@ import org.neo4j.wal.entry.LogFormat;
 import org.neo4j.wal.pruning.ThresholdFactory;
 
 /**
- * Stress test that exercises {@link EnvelopedLogFiles#storeChannels} concurrently with appends. The
+ * Stress test that exercises {@link EnvelopedLogFiles#entryStreamChannels} concurrently with appends. The
  * log files are sized so that they rotate frequently and the index range spans multiple files, which
  * means the binary search in {@link LogBinarySearch} will run at the same time as new log files are
  * being created and old ones pruned. Any safety issue with binary search for log files during file
@@ -121,7 +121,7 @@ public class EnvelopedConcurrentLogFilesBinarySearchIT {
             totalReads += f.get(); // main purpose is to rethrow any exception from the reader
         }
         assertThat(totalReads)
-                .as("readers should have called storeChannels at least once")
+                .as("readers should have called entryStreamChannels at least once")
                 .isGreaterThan(0);
     }
 
@@ -193,7 +193,7 @@ public class EnvelopedConcurrentLogFilesBinarySearchIT {
                 }
                 long fromIndex = randomSupport.nextLong(0, toIndex + 1);
                 try {
-                    var channels = rangeReader.storeChannels(fromIndex, toIndex);
+                    var channels = rangeReader.entryStreamChannels(fromIndex, toIndex);
                     IOUtils.closeAllSilently(channels.storeChannels());
                 } catch (NoSuchFileException e) {
                     // Ignore this - it's still possible for a log version to get pruned after we've decided

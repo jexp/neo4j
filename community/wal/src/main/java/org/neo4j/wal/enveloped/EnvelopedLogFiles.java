@@ -710,18 +710,8 @@ public class EnvelopedLogFiles implements EnvelopeReadChannelProvider, AutoClose
         logsRepository.deleteLogFilesFrom(0);
     }
 
-    /** Channels over the physical byte range, leading START_OFFSET fillers included. */
-    public StoreChannelsForTransfer storeChannels(long fromIndex, long toIndex) throws IOException {
-        return storeChannels(fromIndex, toIndex, false);
-    }
-
     /** Channels over the pure entry stream, per the {@link EnvelopeLogRangeReader#entryStreamChannels} contract. */
     public StoreChannelsForTransfer entryStreamChannels(long fromIndex, long toIndex) throws IOException {
-        return storeChannels(fromIndex, toIndex, true);
-    }
-
-    private StoreChannelsForTransfer storeChannels(long fromIndex, long toIndex, boolean skipLocalLayout)
-            throws IOException {
         if (toIndex < fromIndex) {
             throw new IllegalArgumentException(
                     String.format("From index %d is higher than to index %d", fromIndex, toIndex));
@@ -780,12 +770,10 @@ public class EnvelopedLogFiles implements EnvelopeReadChannelProvider, AutoClose
                 midChannel.position(segmentBlockSize);
             }
 
-            if (skipLocalLayout) {
-                // The first channel is at an entry already (goToEntry lands past any START_OFFSET filler);
-                // follow-on channels sit at their file's first data segment and may need the skip.
-                for (var i = 1; i < storeChannels.size(); i++) {
-                    skipLeadingStartOffset(storeChannels.get(i));
-                }
+            // The first channel is at an entry already (goToEntry lands past any START_OFFSET filler);
+            // follow-on channels sit at their file's first data segment and may need the skip.
+            for (var i = 1; i < storeChannels.size(); i++) {
+                skipLeadingStartOffset(storeChannels.get(i));
             }
 
             return new StoreChannelsForTransfer(storeChannels, toPosition, fromIndex, toIndex, segmentBlockSize);

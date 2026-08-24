@@ -1355,7 +1355,7 @@ class EnvelopedLogFilesTest {
         writeData(writeChannel, largeData); // index 4
         writeChannel.prepareForFlush().flush();
 
-        var storeChannels = envelopedLogFiles.storeChannels(0, 4);
+        var storeChannels = envelopedLogFiles.entryStreamChannels(0, 4);
         try {
 
             assertThat(storeChannels.fromIndex()).isZero();
@@ -1399,7 +1399,7 @@ class EnvelopedLogFilesTest {
         writeChannel.prepareForFlush().flush();
 
         // Processing is more complex when the "to" entry spans 3+ files, hence "to" is 5 here
-        var storeChannels = envelopedLogFiles.storeChannels(2, 5);
+        var storeChannels = envelopedLogFiles.entryStreamChannels(2, 5);
         try {
             assertThat(storeChannels.fromIndex()).isEqualTo(2);
             assertThat(storeChannels.toIndex()).isEqualTo(5);
@@ -1438,7 +1438,7 @@ class EnvelopedLogFilesTest {
         writeData(writeChannel, largeData); // index 4
         writeChannel.prepareForFlush().flush();
 
-        var storeChannels = envelopedLogFiles.storeChannels(2, 4);
+        var storeChannels = envelopedLogFiles.entryStreamChannels(2, 4);
         try {
 
             assertThat(storeChannels.fromIndex()).isEqualTo(2);
@@ -1474,21 +1474,17 @@ class EnvelopedLogFilesTest {
         writeChannel.prepareForFlush().flush();
         cutOffset -= smallData.length + LogEnvelopeHeader.HEADER_SIZE; // entry 2 was cut too
 
-        var physical = envelopedLogFiles.storeChannels(0, 2);
-        try {
-            assertThat(physical.storeChannels()).hasSize(2);
-            assertThat(physical.storeChannels().get(1).position()).isEqualTo(segmentBlockSize);
-            assertThat(physical.segmentOffset(1)).isZero();
-        } finally {
-            IOUtils.closeAllSilently(physical.storeChannels());
-        }
-
         var entryStream = envelopedLogFiles.entryStreamChannels(0, 2);
         try {
             assertThat(entryStream.storeChannels()).hasSize(2);
             assertThat(entryStream.storeChannels().get(1).position()).isEqualTo(segmentBlockSize + cutOffset);
             assertThat(entryStream.segmentOffset(1)).isEqualTo((int) cutOffset);
             assertThat(entryStream.segmentOffset(0)).isZero();
+
+            // Rewinding restores the physical layout: the filler is back in the delivered bytes
+            entryStream.rewindFollowOnChannelsToSegmentStart();
+            assertThat(entryStream.storeChannels().get(1).position()).isEqualTo(segmentBlockSize);
+            assertThat(entryStream.segmentOffset(1)).isZero();
         } finally {
             IOUtils.closeAllSilently(entryStream.storeChannels());
         }
@@ -1536,7 +1532,7 @@ class EnvelopedLogFilesTest {
         writeData(writeChannel, largeData); // index 4
         writeChannel.prepareForFlush().flush();
 
-        var storeChannels = envelopedLogFiles.storeChannels(0, 2);
+        var storeChannels = envelopedLogFiles.entryStreamChannels(0, 2);
         try {
 
             assertThat(storeChannels.fromIndex()).isZero();
@@ -1567,7 +1563,7 @@ class EnvelopedLogFilesTest {
         writeData(writeChannel, largeData); // index 4
         writeChannel.prepareForFlush().flush();
 
-        var storeChannels = envelopedLogFiles.storeChannels(3, 3);
+        var storeChannels = envelopedLogFiles.entryStreamChannels(3, 3);
         try {
 
             assertThat(storeChannels.fromIndex()).isEqualTo(3);
@@ -1589,7 +1585,7 @@ class EnvelopedLogFilesTest {
         writeData(writeChannel, new byte[] {'b'});
         writeChannel.prepareForFlush().flush();
 
-        assertThatThrownBy(() -> envelopedLogFiles.storeChannels(2, 2)).isInstanceOf(ReadPastEndException.class);
+        assertThatThrownBy(() -> envelopedLogFiles.entryStreamChannels(2, 2)).isInstanceOf(ReadPastEndException.class);
     }
 
     @Test
@@ -1601,12 +1597,13 @@ class EnvelopedLogFilesTest {
         writeData(writeChannel, new byte[] {'b'});
         writeChannel.prepareForFlush().flush();
         setMaxStackTraceElementsDisplayed(100);
-        assertThatThrownBy(() -> envelopedLogFiles.storeChannels(0, 3)).isInstanceOf(ReadPastEndException.class);
+        assertThatThrownBy(() -> envelopedLogFiles.entryStreamChannels(0, 3)).isInstanceOf(ReadPastEndException.class);
     }
 
     @Test
     void shouldFailIfToIsBehindFrom() {
-        assertThatThrownBy(() -> envelopedLogFiles.storeChannels(4, 3)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> envelopedLogFiles.entryStreamChannels(4, 3))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

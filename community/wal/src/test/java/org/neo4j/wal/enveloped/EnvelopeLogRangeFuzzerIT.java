@@ -103,7 +103,9 @@ class EnvelopeLogRangeFuzzerIT {
 
         var from = randomSupport.nextLong(lowestIndex, highestIndex);
         var to = randomSupport.nextLong(from, highestIndex);
-        var storeChannels = envelopeLogFilesRangeReader.storeChannels(from, to);
+        var storeChannels = envelopeLogFilesRangeReader.entryStreamChannels(from, to);
+        // The raw EnvelopeReadChannel below consumes the physical layout, fillers included
+        storeChannels.rewindFollowOnChannelsToSegmentStart();
         var storeChannelsQueue = new LinkedList<>(storeChannels.storeChannels());
         var storeChannel = storeChannelsQueue.poll();
         var versionedChannel = createChannel(storeChannel);
