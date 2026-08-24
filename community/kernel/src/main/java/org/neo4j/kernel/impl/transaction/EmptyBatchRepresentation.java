@@ -26,9 +26,9 @@ import static org.neo4j.storageengine.api.TransactionIdStore.UNKNOWN_TX_SEQUENCE
 import java.io.IOException;
 import org.neo4j.io.fs.WritableChannel;
 import org.neo4j.kernel.KernelVersion;
-import org.neo4j.kernel.impl.transaction.log.EmptyCommandBatch;
-import org.neo4j.kernel.impl.transaction.log.entry.LogEntryWriter;
 import org.neo4j.storageengine.api.CommandBatch;
+import org.neo4j.wal.EmptyCommandBatch;
+import org.neo4j.wal.entry.LogEntryWriter;
 
 public record EmptyBatchRepresentation(KernelVersion kernelVersion, long appendIndex)
         implements CommittedCommandBatchRepresentation {

@@ -27,8 +27,8 @@ import org.neo4j.dbms.DbmsRuntimeVersionProvider;
 import org.neo4j.dbms.database.DbmsRuntimeVersion;
 import org.neo4j.kernel.KernelVersion;
 import org.neo4j.kernel.KernelVersionProvider;
-import org.neo4j.kernel.impl.transaction.log.LogFormatVersionProvider;
-import org.neo4j.kernel.impl.transaction.log.entry.LogFormat;
+import org.neo4j.wal.LogFormatVersionProvider;
+import org.neo4j.wal.entry.LogFormat;
 
 public class DbmsRuntimeFallbackKernelVersionProvider implements KernelVersionProvider, LogFormatVersionProvider {
     private final KernelVersionProvider kernelVersionProvider;

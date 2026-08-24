@@ -19,11 +19,11 @@
  */
 package org.neo4j.storageengine.api;
 
-import static org.neo4j.kernel.impl.transaction.log.LogPosition.UNSPECIFIED;
 import static org.neo4j.storageengine.AppendIndexProvider.UNKNOWN_APPEND_INDEX;
+import static org.neo4j.wal.LogPosition.UNSPECIFIED;
 
 import org.neo4j.kernel.KernelVersion;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
+import org.neo4j.wal.LogPosition;
 
 /**
  * Metadata concerning the position of an entry in a log. If log position is not available on creation, then use of the

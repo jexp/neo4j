@@ -35,9 +35,6 @@ import org.neo4j.internal.batchimport.cache.idmapping.string.Workers;
 import org.neo4j.internal.counts.GBPTreeCountsStore;
 import org.neo4j.io.pagecache.context.CursorContext;
 import org.neo4j.kernel.impl.transaction.EmptyBatchRepresentation;
-import org.neo4j.kernel.impl.transaction.log.TransactionCommitmentFactory;
-import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
-import org.neo4j.kernel.impl.transaction.log.checkpoint.SimpleTriggerInfo;
 import org.neo4j.kernel.impl.transaction.tracing.TransactionWriteEvent;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.memory.EmptyMemoryTracker;
@@ -50,6 +47,9 @@ import org.neo4j.test.extension.ExtensionCallback;
 import org.neo4j.test.extension.ImpermanentDbmsExtension;
 import org.neo4j.test.extension.Inject;
 import org.neo4j.test.extension.SkipOnSpd;
+import org.neo4j.wal.TransactionCommitmentFactory;
+import org.neo4j.wal.checkpoint.CheckPointer;
+import org.neo4j.wal.checkpoint.SimpleTriggerInfo;
 
 @ImpermanentDbmsExtension(configurationCallback = "configure")
 class InternalTransactionCommitProcessIT {

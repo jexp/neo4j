@@ -49,18 +49,6 @@ import org.neo4j.kernel.database.Database;
 import org.neo4j.kernel.impl.api.ChunkedTransactionTracker;
 import org.neo4j.kernel.impl.api.LeaseService;
 import org.neo4j.kernel.impl.transaction.CommittedCommandBatchRepresentation;
-import org.neo4j.kernel.impl.transaction.log.LogFile;
-import org.neo4j.kernel.impl.transaction.log.LogFiles;
-import org.neo4j.kernel.impl.transaction.log.LogFormatVersionProvider;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
-import org.neo4j.kernel.impl.transaction.log.PartialRecoveryOutcome;
-import org.neo4j.kernel.impl.transaction.log.PhysicalFlushableLogPositionAwareChannel;
-import org.neo4j.kernel.impl.transaction.log.PhysicalLogVersionedStoreChannel;
-import org.neo4j.kernel.impl.transaction.log.RecoveryOutcome;
-import org.neo4j.kernel.impl.transaction.log.entry.LogEntryWriter;
-import org.neo4j.kernel.impl.transaction.log.entry.LogFormat;
-import org.neo4j.kernel.impl.transaction.log.rotation.LogRotateEvents;
-import org.neo4j.kernel.impl.transaction.log.rotation.LogRotation;
 import org.neo4j.kernel.impl.transaction.tracing.DatabaseTracer;
 import org.neo4j.kernel.lifecycle.Lifecycle;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
@@ -68,6 +56,18 @@ import org.neo4j.kernel.recovery.TransactionIdTracker.PartialLastTransactionChun
 import org.neo4j.storageengine.AppendIndexProvider;
 import org.neo4j.storageengine.api.OpenTransactionMetadata;
 import org.neo4j.storageengine.api.TransactionId;
+import org.neo4j.wal.LogFile;
+import org.neo4j.wal.LogFiles;
+import org.neo4j.wal.LogFormatVersionProvider;
+import org.neo4j.wal.LogPosition;
+import org.neo4j.wal.PartialRecoveryOutcome;
+import org.neo4j.wal.PhysicalFlushableLogPositionAwareChannel;
+import org.neo4j.wal.PhysicalLogVersionedStoreChannel;
+import org.neo4j.wal.RecoveryOutcome;
+import org.neo4j.wal.entry.LogEntryWriter;
+import org.neo4j.wal.entry.LogFormat;
+import org.neo4j.wal.rotation.LogRotateEvents;
+import org.neo4j.wal.rotation.LogRotation;
 
 /**
  * This is the process of doing a recovery on the transaction log and store, and is executed

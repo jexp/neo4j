@@ -93,8 +93,6 @@ import org.neo4j.kernel.impl.api.index.IndexPopulationFailure;
 import org.neo4j.kernel.impl.api.index.IndexProxy;
 import org.neo4j.kernel.impl.api.index.IndexingService;
 import org.neo4j.kernel.impl.scheduler.JobSchedulerFactory;
-import org.neo4j.kernel.impl.transaction.log.LogTailLogVersionsMetadata;
-import org.neo4j.kernel.impl.transaction.log.entry.LogFormat;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.logging.internal.NullLogService;
 import org.neo4j.scheduler.JobScheduler;
@@ -113,6 +111,8 @@ import org.neo4j.token.TokenHolders;
 import org.neo4j.token.api.NamedToken;
 import org.neo4j.token.api.TokenHolder;
 import org.neo4j.values.ElementIdMapper;
+import org.neo4j.wal.LogTailLogVersionsMetadata;
+import org.neo4j.wal.entry.LogFormat;
 
 @RandomSupportExtension
 @Neo4jLayoutExtension

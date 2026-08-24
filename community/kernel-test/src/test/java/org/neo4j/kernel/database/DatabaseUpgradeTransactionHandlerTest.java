@@ -53,8 +53,6 @@ import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.impl.api.KernelImpl;
 import org.neo4j.kernel.impl.api.KernelTransactions;
 import org.neo4j.kernel.impl.locking.LockManager;
-import org.neo4j.kernel.impl.transaction.log.LogFormatVersionProvider;
-import org.neo4j.kernel.impl.transaction.log.entry.LogFormat;
 import org.neo4j.kernel.internal.event.DatabaseTransactionEventListeners;
 import org.neo4j.kernel.internal.event.InternalTransactionEventListener;
 import org.neo4j.lock.Lock;
@@ -62,6 +60,8 @@ import org.neo4j.logging.AssertableLogProvider;
 import org.neo4j.logging.LogAssertions;
 import org.neo4j.test.LatestVersions;
 import org.neo4j.test.Race;
+import org.neo4j.wal.LogFormatVersionProvider;
+import org.neo4j.wal.entry.LogFormat;
 
 class DatabaseUpgradeTransactionHandlerTest {
     private volatile KernelVersion currentKernelVersion;

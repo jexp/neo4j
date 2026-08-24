@@ -1,0 +1,220 @@
+/*
+ * Copyright (c) "Neo4j"
+ * Neo4j Sweden AB [https://neo4j.com]
+ *
+ * This file is part of Neo4j.
+ *
+ * Neo4j is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package org.neo4j.wal.files;
+
+import static org.neo4j.storageengine.api.TransactionIdStore.emptyVersionedTransaction;
+
+import java.util.Optional;
+import org.neo4j.kernel.KernelVersion;
+import org.neo4j.kernel.KernelVersionProvider;
+import org.neo4j.storageengine.api.StoreIdentifier;
+import org.neo4j.storageengine.api.TransactionId;
+import org.neo4j.wal.AppendBatchInfo;
+import org.neo4j.wal.CheckpointInfo;
+import org.neo4j.wal.LastAppendBatchInfoProvider;
+import org.neo4j.wal.LogFormatVersionProvider;
+import org.neo4j.wal.LogPosition;
+import org.neo4j.wal.LogTailMetadata;
+import org.neo4j.wal.LogTermProvider;
+import org.neo4j.wal.entry.LogFormat;
+import org.neo4j.wal.files.checkpoint.DetachedLogTailScanner;
+
+public class LogTailInformation implements LogTailMetadata {
+    public final CheckpointInfo lastCheckPoint;
+    public final long firstAppendIndexAfterLastCheckPoint;
+    public final boolean filesNotFound;
+    public final long currentLogVersion;
+    public final byte firstLogEntryVersionAfterCheckpoint;
+    private final boolean hasRecordsToRecover;
+    private final StoreIdentifier storeIdentifier;
+    private final KernelVersionProvider fallbackKernelVersionProvider;
+    private final LogFormatVersionProvider logFormatProvider;
+    private final LogTermProvider logTermProvider;
+    private final LastAppendBatchInfoProvider lastAppendBatchInfoProvider;
+    private AppendBatchInfo lastBatchInfo;
+
+    public LogTailInformation(
+            boolean hasRecordsToRecover,
+            long firstAppendIndexAfterLastCheckPoint,
+            boolean filesNotFound,
+            long currentLogVersion,
+            byte firstLogEntryVersionAfterCheckpoint,
+            KernelVersionProvider fallbackKernelVersionProvider,
+            LogFormatVersionProvider logFormatProvider,
+            LogTermProvider logTermProvider,
+            LastAppendBatchInfoProvider lastAppendBatchInfoProvider,
+            StoreIdentifier storeIdentifier) {
+        this(
+                null,
+                hasRecordsToRecover,
+                firstAppendIndexAfterLastCheckPoint,
+                filesNotFound,
+                currentLogVersion,
+                firstLogEntryVersionAfterCheckpoint,
+                storeIdentifier,
+                fallbackKernelVersionProvider,
+                logFormatProvider,
+                logTermProvider,
+                lastAppendBatchInfoProvider);
+    }
+
+    public LogTailInformation(
+            CheckpointInfo lastCheckPoint,
+            boolean hasRecordsToRecover,
+            long firstAppendIndexAfterLastCheckPoint,
+            boolean filesNotFound,
+            long currentLogVersion,
+            byte firstLogEntryVersionAfterCheckpoint,
+            StoreIdentifier storeIdentifier,
+            KernelVersionProvider fallbackKernelVersionProvider,
+            LogFormatVersionProvider logFormatProvider,
+            LogTermProvider logTermProvider,
+            LastAppendBatchInfoProvider lastAppendBatchInfoProvider) {
+        this.lastCheckPoint = lastCheckPoint;
+        this.firstAppendIndexAfterLastCheckPoint = firstAppendIndexAfterLastCheckPoint;
+        this.filesNotFound = filesNotFound;
+        this.currentLogVersion = currentLogVersion;
+        this.firstLogEntryVersionAfterCheckpoint = firstLogEntryVersionAfterCheckpoint;
+        this.hasRecordsToRecover = hasRecordsToRecover;
+        this.storeIdentifier = storeIdentifier;
+        this.fallbackKernelVersionProvider = fallbackKernelVersionProvider;
+        this.logFormatProvider = logFormatProvider;
+        this.logTermProvider = logTermProvider;
+        this.lastAppendBatchInfoProvider = lastAppendBatchInfoProvider;
+    }
+
+    public boolean hasRecordsToRecover() {
+        return hasRecordsToRecover;
+    }
+
+    @Override
+    public boolean logsMissing() {
+        return lastCheckPoint == null && filesNotFound;
+    }
+
+    @Override
+    public boolean hasUnreadableBytesInCheckpointLogs() {
+        return lastCheckPoint != null
+                && !lastCheckPoint
+                        .channelPositionAfterCheckpoint()
+                        .equals(lastCheckPoint.checkpointFilePostReadPosition());
+    }
+
+    @Override
+    public boolean isRecoveryRequired() {
+        return hasRecordsToRecover || logsMissing() || hasUnreadableBytesInCheckpointLogs();
+    }
+
+    @Override
+    public Optional<StoreIdentifier> getStoreIdentifier() {
+        return Optional.ofNullable(storeIdentifier);
+    }
+
+    @Override
+    public Optional<CheckpointInfo> getLastCheckPoint() {
+        return Optional.ofNullable(lastCheckPoint);
+    }
+
+    @Override
+    public String toString() {
+        return "LogTailInformation{" + "lastCheckPoint=" + lastCheckPoint + ", firstAppendIndexAfterLastCheckPoint="
+                + firstAppendIndexAfterLastCheckPoint + ", filesNotFound="
+                + filesNotFound + ", currentLogVersion=" + currentLogVersion + ", firstLogEntryVersionAfterCheckpoint="
+                + firstLogEntryVersionAfterCheckpoint
+                + ", hasRecordsToRecover=" + hasRecordsToRecover + ", storeIdentifier= " + storeIdentifier + '}';
+    }
+
+    @Override
+    public long getCheckpointLogVersion() {
+        if (lastCheckPoint == null) {
+            return EMPTY_LOG_TAIL.getCheckpointLogVersion();
+        }
+        return lastCheckPoint.channelPositionAfterCheckpoint().getLogVersion();
+    }
+
+    @Override
+    public KernelVersion kernelVersion() {
+        if (lastCheckPoint != null) {
+            return lastCheckPoint.kernelVersion();
+        }
+
+        // No checkpoint, but we did find some transactions. Since a recovery will happen in this case we
+        // can just say we are on the version we saw in the first transaction. If we are on a later version we
+        // will run into the upgrade transaction which will update this
+        if (firstLogEntryVersionAfterCheckpoint != DetachedLogTailScanner.NO_ENTRY) {
+            return KernelVersion.getForVersion(firstLogEntryVersionAfterCheckpoint);
+        }
+
+        // There was no checkpoint since it is the first start, or we restart after logs removal,
+        // use the version specified as the fallback
+        return fallbackKernelVersionProvider.kernelVersion();
+    }
+
+    @Override
+    public long getLogVersion() {
+        return filesNotFound ? EMPTY_LOG_TAIL.getLogVersion() : currentLogVersion;
+    }
+
+    @Override
+    public TransactionId getLastCommittedTransaction() {
+        if (lastCheckPoint == null) {
+            return emptyVersionedTransaction(kernelVersion());
+        }
+        return lastCheckPoint.transactionId();
+    }
+
+    @Override
+    public LogPosition getLastTransactionLogPosition() {
+        if (lastCheckPoint == null) {
+            return EMPTY_LOG_TAIL.getLastTransactionLogPosition();
+        }
+        return lastCheckPoint.transactionLogPosition();
+    }
+
+    @Override
+    public long getLastCheckpointedAppendIndex() {
+        if (lastCheckPoint == null) {
+            return EMPTY_LOG_TAIL.getLastCheckpointedAppendIndex();
+        }
+        return lastCheckPoint.appendIndex();
+    }
+
+    @Override
+    public AppendBatchInfo lastBatch() {
+        if (filesNotFound) {
+            return EMPTY_LOG_TAIL.lastBatch();
+        }
+        if (lastBatchInfo != null) {
+            return lastBatchInfo;
+        }
+        lastBatchInfo = lastAppendBatchInfoProvider.get();
+        return lastBatchInfo;
+    }
+
+    @Override
+    public LogFormat getCurrentLogFormat() {
+        return logFormatProvider.getCurrentLogFormat();
+    }
+
+    @Override
+    public long getCurrentTerm() {
+        return logTermProvider.getCurrentTerm();
+    }
+}

@@ -23,10 +23,10 @@ import java.io.IOException;
 import org.neo4j.io.fs.ReadableChannel;
 import org.neo4j.io.fs.WritableChannel;
 import org.neo4j.kernel.KernelVersion;
-import org.neo4j.kernel.impl.transaction.log.LogPositionAwareChannel;
 import org.neo4j.memory.MemoryTracker;
 import org.neo4j.storageengine.api.BaseCommandReader;
 import org.neo4j.storageengine.api.StorageCommand;
+import org.neo4j.wal.LogPositionAwareChannel;
 
 public abstract class LogCommandSerialization extends BaseCommandReader {
     private final KernelVersion kernelVersion;

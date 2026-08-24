@@ -58,10 +58,6 @@ import org.neo4j.kernel.impl.api.CompleteTransaction;
 import org.neo4j.kernel.impl.store.record.NodeRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipRecord;
 import org.neo4j.kernel.impl.transaction.CompleteBatchRepresentation;
-import org.neo4j.kernel.impl.transaction.log.CompleteCommandBatch;
-import org.neo4j.kernel.impl.transaction.log.LogTailLogVersionsMetadata;
-import org.neo4j.kernel.impl.transaction.log.entry.LogEntryCommit;
-import org.neo4j.kernel.impl.transaction.log.entry.LogEntryStart;
 import org.neo4j.lock.LockService;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.memory.EmptyMemoryTracker;
@@ -76,6 +72,10 @@ import org.neo4j.test.extension.EphemeralNeo4jLayoutExtension;
 import org.neo4j.test.extension.Inject;
 import org.neo4j.test.extension.pagecache.EphemeralPageCacheExtension;
 import org.neo4j.token.TokenHolders;
+import org.neo4j.wal.CompleteCommandBatch;
+import org.neo4j.wal.LogTailLogVersionsMetadata;
+import org.neo4j.wal.entry.LogEntryCommit;
+import org.neo4j.wal.entry.LogEntryStart;
 
 @EphemeralPageCacheExtension
 @EphemeralNeo4jLayoutExtension

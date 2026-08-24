@@ -89,7 +89,6 @@ import org.neo4j.kernel.impl.locking.LockManager;
 import org.neo4j.kernel.impl.monitoring.TransactionMonitor;
 import org.neo4j.kernel.impl.query.TransactionExecutionMonitor;
 import org.neo4j.kernel.impl.security.URIAccessRules;
-import org.neo4j.kernel.impl.transaction.log.TransactionCommitmentFactory;
 import org.neo4j.kernel.impl.transaction.tracing.TransactionWriteEvent;
 import org.neo4j.kernel.internal.event.DatabaseTransactionEventListeners;
 import org.neo4j.lock.LockTracer;
@@ -125,6 +124,7 @@ import org.neo4j.token.TokenHolders;
 import org.neo4j.token.api.TokenHolder;
 import org.neo4j.values.ElementIdMapper;
 import org.neo4j.values.storable.Value;
+import org.neo4j.wal.TransactionCommitmentFactory;
 
 class KernelTransactionTestBase {
     protected final ServerIdentity serverIdentity = mock(ServerIdentity.class);

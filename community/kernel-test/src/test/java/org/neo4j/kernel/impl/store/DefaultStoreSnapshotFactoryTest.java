@@ -29,11 +29,11 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.neo4j.collection.Dependencies.dependenciesOf;
-import static org.neo4j.kernel.impl.transaction.log.entry.LogHeader.UNSPECIFIED_CREATION_TIME;
 import static org.neo4j.storageengine.AppendIndexProvider.UNKNOWN_APPEND_INDEX;
 import static org.neo4j.storageengine.api.TransactionIdStore.UNKNOWN_TRANSACTION_ID;
 import static org.neo4j.test.LatestVersions.LATEST_KERNEL_VERSION;
 import static org.neo4j.test.LatestVersions.LATEST_LOG_FORMAT;
+import static org.neo4j.wal.entry.LogHeader.UNSPECIFIED_CREATION_TIME;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -44,18 +44,18 @@ import org.neo4j.internal.helpers.collection.Iterators;
 import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.availability.DatabaseAvailabilityGuard;
 import org.neo4j.kernel.database.Database;
-import org.neo4j.kernel.impl.transaction.log.LogFile;
-import org.neo4j.kernel.impl.transaction.log.LogFiles;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
-import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
-import org.neo4j.kernel.impl.transaction.log.checkpoint.LatestCheckpointInfo;
-import org.neo4j.kernel.impl.transaction.log.checkpoint.StoreCopyCheckPointMutex;
 import org.neo4j.logging.internal.DatabaseLogProvider;
 import org.neo4j.storageengine.api.StoreIdentifier;
 import org.neo4j.storageengine.api.StoreResource;
 import org.neo4j.test.extension.Inject;
 import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.utils.TestDirectory;
+import org.neo4j.wal.LogFile;
+import org.neo4j.wal.LogFiles;
+import org.neo4j.wal.LogPosition;
+import org.neo4j.wal.checkpoint.CheckPointer;
+import org.neo4j.wal.checkpoint.LatestCheckpointInfo;
+import org.neo4j.wal.checkpoint.StoreCopyCheckPointMutex;
 
 @TestDirectoryExtension
 class DefaultStoreSnapshotFactoryTest {

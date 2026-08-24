@@ -63,8 +63,6 @@ import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.kernel.api.impl.schema.vector.VectorIndexVersion;
 import org.neo4j.kernel.database.DatabaseTracers;
 import org.neo4j.kernel.impl.newapi.ReadOnlyTokenRead;
-import org.neo4j.kernel.impl.transaction.log.LogTailLogVersionsMetadata;
-import org.neo4j.kernel.impl.transaction.log.LogTailMetadata;
 import org.neo4j.kernel.recovery.LogTailExtractor;
 import org.neo4j.memory.EmptyMemoryTracker;
 import org.neo4j.memory.MemoryTracker;
@@ -74,6 +72,8 @@ import org.neo4j.storageengine.api.SchemaRule44.Index;
 import org.neo4j.storageengine.api.StorageEngineFactory;
 import org.neo4j.storageengine.migration.SchemaRuleMigrationAccessExtended;
 import org.neo4j.token.TokenHolders;
+import org.neo4j.wal.LogTailLogVersionsMetadata;
+import org.neo4j.wal.LogTailMetadata;
 
 public class SchemaMigrator {
 

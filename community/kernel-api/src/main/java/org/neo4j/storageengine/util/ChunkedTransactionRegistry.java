@@ -22,8 +22,8 @@ package org.neo4j.storageengine.util;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.storageengine.api.OpenTransactionMetadata;
+import org.neo4j.wal.LogPosition;
 
 public class ChunkedTransactionRegistry {
     private final NavigableMap<Long, ChunkEntry> chunkEntries = new ConcurrentSkipListMap<>();

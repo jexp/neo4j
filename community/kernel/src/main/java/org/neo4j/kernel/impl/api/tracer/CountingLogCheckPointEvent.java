@@ -23,11 +23,11 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 import org.neo4j.io.pagecache.tracing.DatabaseFlushEvent;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
-import org.neo4j.kernel.impl.transaction.log.LogForceEvent;
-import org.neo4j.kernel.impl.transaction.log.LogForceWaitEvent;
-import org.neo4j.kernel.impl.transaction.log.checkpoint.LogCheckPointEvent;
-import org.neo4j.kernel.impl.transaction.log.rotation.CountingLogRotateEvent;
-import org.neo4j.kernel.impl.transaction.log.rotation.LogRotateEvent;
+import org.neo4j.wal.LogForceEvent;
+import org.neo4j.wal.LogForceWaitEvent;
+import org.neo4j.wal.checkpoint.LogCheckPointEvent;
+import org.neo4j.wal.rotation.CountingLogRotateEvent;
+import org.neo4j.wal.rotation.LogRotateEvent;
 
 /**
  * Log checkpoint event that counts number of checkpoint that occurred and amount of time elapsed

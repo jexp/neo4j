@@ -28,13 +28,13 @@ import static org.neo4j.kernel.KernelVersion.VERSION_ENVELOPED_TRANSACTION_LOGS_
 import static org.neo4j.kernel.TxLogValidationUtils.assertLogHeaderExpectedVersion;
 import static org.neo4j.kernel.TxLogValidationUtils.assertWholeTransactionsIn;
 import static org.neo4j.kernel.TxLogValidationUtils.assertWholeTransactionsWithCorrectVersionInSpecificLogVersion;
-import static org.neo4j.kernel.impl.transaction.log.entry.LogSegments.DEFAULT_LOG_SEGMENT_SIZE;
 import static org.neo4j.storageengine.api.LogVersionRepository.INITIAL_LOG_VERSION;
 import static org.neo4j.test.LatestVersions.LATEST_KERNEL_VERSION;
 import static org.neo4j.test.UpgradeTestUtil.assertKernelVersion;
 import static org.neo4j.test.UpgradeTestUtil.createWriteTransaction;
 import static org.neo4j.test.UpgradeTestUtil.upgradeDatabase;
 import static org.neo4j.test.UpgradeTestUtil.upgradeDbms;
+import static org.neo4j.wal.entry.LogSegments.DEFAULT_LOG_SEGMENT_SIZE;
 
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -57,8 +57,6 @@ import org.neo4j.io.layout.Neo4jLayout;
 import org.neo4j.kernel.KernelVersion;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.impl.coreapi.TransactionImpl;
-import org.neo4j.kernel.impl.transaction.log.LogFiles;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.kernel.internal.event.InternalTransactionEventListener;
 import org.neo4j.storageengine.api.CommandReaderFactory;
@@ -69,6 +67,8 @@ import org.neo4j.test.Race;
 import org.neo4j.test.TestDatabaseManagementServiceBuilder;
 import org.neo4j.test.extension.Inject;
 import org.neo4j.test.extension.Neo4jLayoutExtension;
+import org.neo4j.wal.LogFiles;
+import org.neo4j.wal.LogPosition;
 
 @Neo4jLayoutExtension
 class TransactionLogsUpgradeIT {

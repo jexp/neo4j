@@ -26,8 +26,8 @@ import org.neo4j.io.async.AsyncBlockAccessor;
 import org.neo4j.io.pagecache.context.CursorContext;
 import org.neo4j.io.pagecache.tracing.DatabaseFlushEvent;
 import org.neo4j.kernel.impl.api.index.IndexingService;
-import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointerImpl;
 import org.neo4j.storageengine.api.StorageEngine;
+import org.neo4j.wal.checkpoint.CheckPointerImpl;
 
 public class DefaultForceOperation implements CheckPointerImpl.ForceOperation {
     private final IndexingService indexingService;

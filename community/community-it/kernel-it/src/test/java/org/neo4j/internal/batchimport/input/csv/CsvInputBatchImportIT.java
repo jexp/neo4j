@@ -99,8 +99,6 @@ import org.neo4j.kernel.DatabaseCreationOptions;
 import org.neo4j.kernel.impl.index.schema.IndexImporterFactoryImpl;
 import org.neo4j.kernel.impl.store.NeoStores;
 import org.neo4j.kernel.impl.store.TokenStore;
-import org.neo4j.kernel.impl.transaction.log.EmptyLogTailMetadata;
-import org.neo4j.kernel.impl.transaction.log.files.TransactionLogInitializer;
 import org.neo4j.kernel.impl.util.AutoCreatingHashMap;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.logging.LogTimeZone;
@@ -117,6 +115,8 @@ import org.neo4j.token.api.NamedToken;
 import org.neo4j.token.api.TokenConstants;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
 import org.neo4j.values.storable.PointValue;
+import org.neo4j.wal.EmptyLogTailMetadata;
+import org.neo4j.wal.files.TransactionLogInitializer;
 
 @Neo4jLayoutExtension
 @RandomSupportExtension

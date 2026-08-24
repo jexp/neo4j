@@ -31,10 +31,6 @@ import org.neo4j.io.pagecache.context.CursorContext;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.io.pagecache.tracing.version.VersionStorageTracer;
 import org.neo4j.kernel.database.NamedDatabaseId;
-import org.neo4j.kernel.impl.transaction.log.LogAppendEvent;
-import org.neo4j.kernel.impl.transaction.log.LogFileCreateEvent;
-import org.neo4j.kernel.impl.transaction.log.LogFileFlushEvent;
-import org.neo4j.kernel.impl.transaction.log.checkpoint.LogCheckPointEvent;
 import org.neo4j.kernel.impl.transaction.tracing.DatabaseAsyncRollbackEvent;
 import org.neo4j.kernel.impl.transaction.tracing.DatabaseTracer;
 import org.neo4j.kernel.impl.transaction.tracing.StoreApplyEvent;
@@ -50,6 +46,10 @@ import org.neo4j.test.TestDatabaseManagementServiceBuilder;
 import org.neo4j.test.extension.DbmsExtension;
 import org.neo4j.test.extension.ExtensionCallback;
 import org.neo4j.test.extension.Inject;
+import org.neo4j.wal.LogAppendEvent;
+import org.neo4j.wal.LogFileCreateEvent;
+import org.neo4j.wal.LogFileFlushEvent;
+import org.neo4j.wal.checkpoint.LogCheckPointEvent;
 
 @DbmsExtension(configurationCallback = "configure")
 public class TransactionalBatchIT {

@@ -74,9 +74,6 @@ import org.neo4j.kernel.api.index.IndexProvidersAccess;
 import org.neo4j.kernel.impl.api.index.IndexProviderMap;
 import org.neo4j.kernel.impl.locking.LockManager;
 import org.neo4j.kernel.impl.locking.LockMonitor;
-import org.neo4j.kernel.impl.transaction.log.LogTailLogVersionsMetadata;
-import org.neo4j.kernel.impl.transaction.log.LogTailMetadata;
-import org.neo4j.kernel.impl.transaction.log.LogTailMetadataFactory;
 import org.neo4j.lock.LockService;
 import org.neo4j.logging.InternalLog;
 import org.neo4j.logging.InternalLogProvider;
@@ -92,6 +89,9 @@ import org.neo4j.storageengine.migration.SchemaRuleMigrationAccessExtended;
 import org.neo4j.storageengine.migration.StoreMigrationParticipant;
 import org.neo4j.time.SystemNanoClock;
 import org.neo4j.token.TokenHolders;
+import org.neo4j.wal.LogTailLogVersionsMetadata;
+import org.neo4j.wal.LogTailMetadata;
+import org.neo4j.wal.LogTailMetadataFactory;
 
 /**
  * Represents a type of storage engine and is capable of creating/instantiating {@link StorageEngine storage engines}, where each such

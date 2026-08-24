@@ -29,8 +29,8 @@ import org.neo4j.kernel.KernelVersion;
 import org.neo4j.kernel.KernelVersionProvider;
 import org.neo4j.kernel.KernelVersionProviders;
 import org.neo4j.kernel.api.impl.schema.vector.VectorIndexVersion;
-import org.neo4j.kernel.impl.transaction.log.LogFormatVersionProvider;
-import org.neo4j.kernel.impl.transaction.log.entry.LogFormat;
+import org.neo4j.wal.LogFormatVersionProvider;
+import org.neo4j.wal.entry.LogFormat;
 
 public final class LatestVersions {
     private LatestVersions() {}

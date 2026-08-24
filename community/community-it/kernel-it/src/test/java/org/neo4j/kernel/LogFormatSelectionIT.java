@@ -61,10 +61,6 @@ import org.neo4j.internal.helpers.collection.MapUtil;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.layout.Neo4jLayout;
-import org.neo4j.kernel.impl.transaction.log.LogFiles;
-import org.neo4j.kernel.impl.transaction.log.LogFormatVersionProvider;
-import org.neo4j.kernel.impl.transaction.log.entry.LogFormat;
-import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.storemigration.StoreMigrationTestUtils;
 import org.neo4j.test.LatestVersions;
@@ -74,6 +70,10 @@ import org.neo4j.test.extension.Inject;
 import org.neo4j.test.extension.Neo4jLayoutExtension;
 import org.neo4j.test.extension.SkipOnSpd;
 import org.neo4j.test.utils.TestDirectory;
+import org.neo4j.wal.LogFiles;
+import org.neo4j.wal.LogFormatVersionProvider;
+import org.neo4j.wal.entry.LogFormat;
+import org.neo4j.wal.files.LogFilesBuilder;
 import picocli.CommandLine;
 
 @Neo4jLayoutExtension

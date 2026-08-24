@@ -19,6 +19,6 @@
  */
 package org.neo4j.kernel.recovery;
 
-import org.neo4j.kernel.impl.transaction.log.RecoveryOutcome;
+import org.neo4j.wal.RecoveryOutcome;
 
 public record RecoveryResult(boolean recoveryPerformed, RecoveryOutcome outcome) {}

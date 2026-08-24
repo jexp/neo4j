@@ -20,8 +20,8 @@
 package org.neo4j.storageengine.api;
 
 import org.neo4j.kernel.KernelVersion;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.util.concurrent.OutOfOrderSequence;
+import org.neo4j.wal.LogPosition;
 
 public record ClosedBatchMetadata(long appendIndex, KernelVersion kernelVersion, LogPosition logPosition) {
     public ClosedBatchMetadata(OutOfOrderSequence.NumberWithMeta metadata) {

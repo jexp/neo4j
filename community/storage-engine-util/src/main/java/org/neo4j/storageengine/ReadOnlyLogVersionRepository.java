@@ -19,8 +19,8 @@
  */
 package org.neo4j.storageengine;
 
-import org.neo4j.kernel.impl.transaction.log.LogTailMetadata;
 import org.neo4j.storageengine.api.LogVersionRepository;
+import org.neo4j.wal.LogTailMetadata;
 
 public class ReadOnlyLogVersionRepository implements LogVersionRepository {
     private final FixedLogVersion logVersion;

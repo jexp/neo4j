@@ -22,12 +22,12 @@ package org.neo4j.storageengine.util;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
-import org.neo4j.kernel.impl.transaction.log.AppendBatchInfo;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.test.Race;
 import org.neo4j.test.RandomSupport;
 import org.neo4j.test.extension.Inject;
 import org.neo4j.test.extension.RandomSupportExtension;
+import org.neo4j.wal.AppendBatchInfo;
+import org.neo4j.wal.LogPosition;
 
 @RandomSupportExtension
 class HighestAppendBatchTest {

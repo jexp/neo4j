@@ -25,12 +25,12 @@ import static org.neo4j.storageengine.AppendIndexProvider.UNKNOWN_APPEND_INDEX;
 
 import org.neo4j.graphdb.TransactionRollbackException;
 import org.neo4j.kernel.impl.transaction.CommittedCommandBatchRepresentation;
-import org.neo4j.kernel.impl.transaction.log.CommandBatchCursor;
-import org.neo4j.kernel.impl.transaction.log.LogicalTransactionStore;
 import org.neo4j.kernel.impl.transaction.tracing.TransactionRollbackEvent;
 import org.neo4j.memory.MemoryTracker;
 import org.neo4j.storageengine.api.StorageEngine;
 import org.neo4j.storageengine.api.TransactionApplicationMode;
+import org.neo4j.wal.CommandBatchCursor;
+import org.neo4j.wal.LogicalTransactionStore;
 
 public final class MultiVersionTransactionRollbackProcess implements TransactionRollbackProcess {
     private final LogicalTransactionStore transactionStore;

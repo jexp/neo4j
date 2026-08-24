@@ -21,15 +21,15 @@ package org.neo4j.storageengine;
 
 import org.neo4j.io.pagecache.context.TransactionIdSnapshot;
 import org.neo4j.kernel.KernelVersion;
-import org.neo4j.kernel.impl.transaction.log.AppendBatchInfo;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
-import org.neo4j.kernel.impl.transaction.log.LogTailLogVersionsMetadata;
 import org.neo4j.storageengine.api.ClosedBatchMetadata;
 import org.neo4j.storageengine.api.ClosedTransactionMetadata;
 import org.neo4j.storageengine.api.OpenTransactionMetadata;
 import org.neo4j.storageengine.api.TransactionId;
 import org.neo4j.storageengine.api.TransactionIdStore;
 import org.neo4j.util.concurrent.OutOfOrderSequence;
+import org.neo4j.wal.AppendBatchInfo;
+import org.neo4j.wal.LogPosition;
+import org.neo4j.wal.LogTailLogVersionsMetadata;
 
 public class ReadOnlyTransactionIdStore implements TransactionIdStore {
     private final LogPosition logPosition;

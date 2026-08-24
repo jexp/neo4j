@@ -24,8 +24,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
-import org.neo4j.kernel.impl.transaction.log.LogPositionMarker;
+import org.neo4j.wal.LogPosition;
+import org.neo4j.wal.LogPositionMarker;
 
 class LogPositionMarkerTest {
     @Test

@@ -96,7 +96,6 @@ import org.neo4j.kernel.impl.store.format.RecordFormatSelector;
 import org.neo4j.kernel.impl.store.format.RecordFormats;
 import org.neo4j.kernel.impl.store.format.RecordStorageCapability;
 import org.neo4j.kernel.impl.store.record.RelationshipGroupRecord;
-import org.neo4j.kernel.impl.transaction.log.files.LogFilesMatcher;
 import org.neo4j.kernel.recovery.RecoveryStartupChecker;
 import org.neo4j.logging.InternalLogProvider;
 import org.neo4j.logging.internal.LogService;
@@ -104,6 +103,7 @@ import org.neo4j.memory.MemoryTracker;
 import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.storageengine.api.LogMetadataProvider;
 import org.neo4j.token.TokenHolders;
+import org.neo4j.wal.files.LogFilesMatcher;
 
 /**
  * Creator and accessor of {@link NeoStores} with some logic to provide very batch friendly services to the

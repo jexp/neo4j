@@ -26,14 +26,14 @@ import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.KernelVersionProvider;
 import org.neo4j.kernel.KernelVersionProviders;
 import org.neo4j.kernel.database.DatabaseTracers;
-import org.neo4j.kernel.impl.transaction.log.LogFiles;
-import org.neo4j.kernel.impl.transaction.log.LogFormatVersionProvider;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
-import org.neo4j.kernel.impl.transaction.log.LogTailMetadata;
-import org.neo4j.kernel.impl.transaction.log.entry.LogFormat;
-import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.memory.MemoryTracker;
 import org.neo4j.storageengine.api.StorageEngineFactory;
+import org.neo4j.wal.LogFiles;
+import org.neo4j.wal.LogFormatVersionProvider;
+import org.neo4j.wal.LogPosition;
+import org.neo4j.wal.LogTailMetadata;
+import org.neo4j.wal.entry.LogFormat;
+import org.neo4j.wal.files.LogFilesBuilder;
 
 public class LogTailExtractor {
     private final FileSystemAbstraction fs;

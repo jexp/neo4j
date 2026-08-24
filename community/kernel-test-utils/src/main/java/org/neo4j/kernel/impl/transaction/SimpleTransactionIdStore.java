@@ -19,17 +19,15 @@
  */
 package org.neo4j.kernel.impl.transaction;
 
-import static org.neo4j.kernel.impl.transaction.log.EmptyLogTailMetadata.EMPTY_APPEND_BATCH_INFO;
 import static org.neo4j.storageengine.AppendIndexProvider.BASE_APPEND_INDEX;
 import static org.neo4j.storageengine.api.LogVersionRepository.BASE_TX_LOG_BYTE_OFFSET;
 import static org.neo4j.storageengine.api.LogVersionRepository.BASE_TX_LOG_VERSION;
+import static org.neo4j.wal.EmptyLogTailMetadata.EMPTY_APPEND_BATCH_INFO;
 
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.neo4j.io.pagecache.context.TransactionIdSnapshot;
 import org.neo4j.kernel.KernelVersion;
-import org.neo4j.kernel.impl.transaction.log.AppendBatchInfo;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.storageengine.api.ClosedBatchMetadata;
 import org.neo4j.storageengine.api.ClosedTransactionMetadata;
 import org.neo4j.storageengine.api.OpenTransactionMetadata;
@@ -39,6 +37,8 @@ import org.neo4j.storageengine.util.HighestAppendBatch;
 import org.neo4j.util.concurrent.ArrayQueueOutOfOrderSequence;
 import org.neo4j.util.concurrent.OutOfOrderSequence;
 import org.neo4j.util.concurrent.OutOfOrderSequence.Meta;
+import org.neo4j.wal.AppendBatchInfo;
+import org.neo4j.wal.LogPosition;
 
 /**
  * Simple implementation of a {@link TransactionIdStore}.

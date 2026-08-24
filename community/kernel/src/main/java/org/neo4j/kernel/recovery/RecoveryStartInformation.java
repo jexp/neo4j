@@ -19,10 +19,10 @@
  */
 package org.neo4j.kernel.recovery;
 
-import static org.neo4j.kernel.impl.transaction.log.LogPosition.UNSPECIFIED;
+import static org.neo4j.wal.LogPosition.UNSPECIFIED;
 
-import org.neo4j.kernel.impl.transaction.log.CheckpointInfo;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
+import org.neo4j.wal.CheckpointInfo;
+import org.neo4j.wal.LogPosition;
 
 public record RecoveryStartInformation(
         LogPosition transactionLogPosition,

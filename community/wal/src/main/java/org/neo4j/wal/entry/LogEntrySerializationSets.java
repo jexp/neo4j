@@ -1,0 +1,84 @@
+/*
+ * Copyright (c) "Neo4j"
+ * Neo4j Sweden AB [https://neo4j.com]
+ *
+ * This file is part of Neo4j.
+ *
+ * Neo4j is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package org.neo4j.wal.entry;
+
+import static java.lang.String.format;
+
+import java.util.EnumMap;
+import org.neo4j.kernel.BinarySupportedKernelVersions;
+import org.neo4j.kernel.KernelVersion;
+
+public class LogEntrySerializationSets {
+    private static final EnumMap<KernelVersion, LogEntrySerializationSet> SERIALIZATION_SETS =
+            new EnumMap<>(KernelVersion.class);
+
+    static {
+        SERIALIZATION_SETS.put(KernelVersion.V4_0, new LogEntrySerializationSetV4_0());
+        SERIALIZATION_SETS.put(KernelVersion.V4_2, new LogEntrySerializationSetV4_2());
+        SERIALIZATION_SETS.put(KernelVersion.V4_3_D4, new LogEntrySerializationSetV4_2(KernelVersion.V4_3_D4));
+        SERIALIZATION_SETS.put(KernelVersion.V4_4, new LogEntrySerializationSetV4_2(KernelVersion.V4_4));
+        SERIALIZATION_SETS.put(KernelVersion.V5_0, new LogEntrySerializationSetV5_0());
+        SERIALIZATION_SETS.put(KernelVersion.V5_7, new LogEntrySerializationSetV5_7());
+        SERIALIZATION_SETS.put(KernelVersion.V5_8, new LogEntrySerializationSetV5_7(KernelVersion.V5_8));
+        SERIALIZATION_SETS.put(KernelVersion.V5_9, new LogEntrySerializationSetV5_7(KernelVersion.V5_9));
+        SERIALIZATION_SETS.put(KernelVersion.V5_10, new LogEntrySerializationSetV5_7(KernelVersion.V5_10));
+        SERIALIZATION_SETS.put(KernelVersion.V5_11, new LogEntrySerializationSetV5_7(KernelVersion.V5_11));
+        SERIALIZATION_SETS.put(KernelVersion.V5_12, new LogEntrySerializationSetV5_7(KernelVersion.V5_12));
+        SERIALIZATION_SETS.put(KernelVersion.V5_13, new LogEntrySerializationSetV5_7(KernelVersion.V5_13));
+        SERIALIZATION_SETS.put(KernelVersion.V5_14, new LogEntrySerializationSetV5_7(KernelVersion.V5_14));
+        SERIALIZATION_SETS.put(KernelVersion.V5_15, new LogEntrySerializationSetV5_7(KernelVersion.V5_15));
+        SERIALIZATION_SETS.put(KernelVersion.V5_18, new LogEntrySerializationSetV5_7(KernelVersion.V5_18));
+        SERIALIZATION_SETS.put(KernelVersion.V5_19, new LogEntrySerializationSetV5_7(KernelVersion.V5_19));
+        SERIALIZATION_SETS.put(KernelVersion.V5_20, new LogEntrySerializationSetV5_20());
+        SERIALIZATION_SETS.put(KernelVersion.V5_22, new LogEntrySerializationSetV5_22());
+        SERIALIZATION_SETS.put(KernelVersion.V5_23, new LogEntrySerializationSetV5_22(KernelVersion.V5_23));
+        SERIALIZATION_SETS.put(KernelVersion.V5_25, new LogEntrySerializationSetV5_22(KernelVersion.V5_25));
+        SERIALIZATION_SETS.put(KernelVersion.V2025_04, new LogEntrySerializationSetV5_22(KernelVersion.V2025_04));
+        SERIALIZATION_SETS.put(KernelVersion.V2025_05, new LogEntrySerializationSetV2025_05());
+        SERIALIZATION_SETS.put(KernelVersion.V2025_07, new LogEntrySerializationSetV2025_05(KernelVersion.V2025_07));
+        SERIALIZATION_SETS.put(KernelVersion.V2025_08, new LogEntrySerializationSetV2025_05(KernelVersion.V2025_08));
+        SERIALIZATION_SETS.put(KernelVersion.V2025_09, new LogEntrySerializationSetV2025_05(KernelVersion.V2025_09));
+        SERIALIZATION_SETS.put(KernelVersion.V2025_10, new LogEntrySerializationSetV2025_05(KernelVersion.V2025_10));
+        SERIALIZATION_SETS.put(KernelVersion.V2025_11, new LogEntrySerializationSetV2025_05(KernelVersion.V2025_11));
+        SERIALIZATION_SETS.put(KernelVersion.V2026_01, new LogEntrySerializationSetV2025_05(KernelVersion.V2026_01));
+        SERIALIZATION_SETS.put(KernelVersion.V2026_02, new LogEntrySerializationSetV2025_05(KernelVersion.V2026_02));
+        SERIALIZATION_SETS.put(KernelVersion.V2026_06, new LogEntrySerializationSetV2026_06());
+        SERIALIZATION_SETS.put(KernelVersion.V2026_07, new LogEntrySerializationSetV2026_06(KernelVersion.V2026_07));
+        SERIALIZATION_SETS.put(KernelVersion.V2026_08, new LogEntrySerializationSetV2026_08());
+    }
+
+    /**
+     * @param version the {@link KernelVersion} to get the {@link LogEntrySerializationSet} for. The returned serializer is capable of reading
+     * and writing all types of log entries.
+     * @return LogEntrySerializationSet for the given {@code version}.
+     */
+    public static LogEntrySerializationSet serializationSet(
+            KernelVersion version, BinarySupportedKernelVersions binarySupportedKernelVersions) {
+        LogEntrySerializationSet parserSet = SERIALIZATION_SETS.get(version);
+        if (parserSet == null) {
+            if (version == KernelVersion.GLORIOUS_FUTURE
+                    && binarySupportedKernelVersions.latestSupportedIsAtLeast(version)) {
+                return new LogEntrySerializationSetVGloriousFuture();
+            }
+            throw new IllegalArgumentException(format("No log entries version matching %s", version));
+        }
+        return parserSet;
+    }
+}

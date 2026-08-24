@@ -23,7 +23,7 @@ import java.time.Instant;
 import java.util.function.Predicate;
 import org.neo4j.internal.helpers.Format;
 import org.neo4j.kernel.impl.transaction.CommittedCommandBatchRepresentation;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
+import org.neo4j.wal.LogPosition;
 
 public interface RecoveryPredicate extends Predicate<CommittedCommandBatchRepresentation> {
     RecoveryPredicate ALL = new AllTransactionsPredicate();

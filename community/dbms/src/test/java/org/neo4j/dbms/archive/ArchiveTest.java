@@ -45,10 +45,10 @@ import org.neo4j.dbms.archive.Dumper.DumpFormat;
 import org.neo4j.dbms.archive.Dumper.FileOutput;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.layout.DatabaseLayout;
-import org.neo4j.kernel.impl.transaction.log.files.TransactionLogFilesHelper;
 import org.neo4j.test.extension.Inject;
 import org.neo4j.test.extension.Neo4jLayoutExtension;
 import org.neo4j.test.utils.TestDirectory;
+import org.neo4j.wal.files.TransactionLogFilesHelper;
 
 @Neo4jLayoutExtension
 class ArchiveTest {

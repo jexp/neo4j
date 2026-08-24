@@ -73,7 +73,6 @@ import org.neo4j.kernel.impl.monitoring.TransactionMonitor;
 import org.neo4j.kernel.impl.query.TransactionExecutionMonitor;
 import org.neo4j.kernel.impl.security.URIAccessRules;
 import org.neo4j.kernel.impl.transaction.SimpleTransactionIdStore;
-import org.neo4j.kernel.impl.transaction.log.TransactionCommitmentFactory;
 import org.neo4j.kernel.internal.event.DatabaseTransactionEventListeners;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.memory.MemoryPools;
@@ -92,6 +91,7 @@ import org.neo4j.time.Clocks;
 import org.neo4j.token.TokenHolders;
 import org.neo4j.token.api.TokenHolder;
 import org.neo4j.values.ElementIdMapper;
+import org.neo4j.wal.TransactionCommitmentFactory;
 
 public final class KernelTransactionFactory {
     public static class Instances {

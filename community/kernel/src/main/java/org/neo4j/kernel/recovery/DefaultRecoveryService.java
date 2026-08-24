@@ -32,13 +32,6 @@ import org.neo4j.io.pagecache.context.CursorContextFactory;
 import org.neo4j.io.pagecache.context.TransactionIdSnapshot;
 import org.neo4j.kernel.KernelVersionProvider;
 import org.neo4j.kernel.impl.transaction.CommittedCommandBatchRepresentation.BatchInformation;
-import org.neo4j.kernel.impl.transaction.log.CommandBatchCursor;
-import org.neo4j.kernel.impl.transaction.log.LogFiles;
-import org.neo4j.kernel.impl.transaction.log.LogFormatVersionProvider;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
-import org.neo4j.kernel.impl.transaction.log.LogicalTransactionStore;
-import org.neo4j.kernel.impl.transaction.log.RecoveryOutcome;
-import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckpointFile;
 import org.neo4j.kernel.recovery.Recovery.StoreFileChecker;
 import org.neo4j.kernel.recovery.RecoveryStartInformationProvider.Monitor;
 import org.neo4j.logging.InternalLog;
@@ -47,6 +40,13 @@ import org.neo4j.storageengine.api.LogVersionRepository;
 import org.neo4j.storageengine.api.StorageEngine;
 import org.neo4j.storageengine.api.TransactionApplicationMode;
 import org.neo4j.storageengine.api.TransactionIdStore;
+import org.neo4j.wal.CommandBatchCursor;
+import org.neo4j.wal.LogFiles;
+import org.neo4j.wal.LogFormatVersionProvider;
+import org.neo4j.wal.LogPosition;
+import org.neo4j.wal.LogicalTransactionStore;
+import org.neo4j.wal.RecoveryOutcome;
+import org.neo4j.wal.checkpoint.CheckpointFile;
 
 public class DefaultRecoveryService implements RecoveryService {
     private final RecoveryStartInformationProvider recoveryStartInformationProvider;

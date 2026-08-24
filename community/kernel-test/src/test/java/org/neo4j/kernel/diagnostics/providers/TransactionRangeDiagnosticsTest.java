@@ -21,11 +21,11 @@ package org.neo4j.kernel.diagnostics.providers;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.neo4j.kernel.impl.transaction.log.entry.LogHeader.UNSPECIFIED_CREATION_TIME;
 import static org.neo4j.logging.LogAssertions.assertThat;
 import static org.neo4j.storageengine.api.TransactionIdStore.BASE_TX_CHECKSUM;
 import static org.neo4j.test.LatestVersions.LATEST_KERNEL_VERSION;
 import static org.neo4j.test.LatestVersions.LATEST_LOG_FORMAT;
+import static org.neo4j.wal.entry.LogHeader.UNSPECIFIED_CREATION_TIME;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -41,19 +41,6 @@ import org.neo4j.io.fs.ReadableChannel;
 import org.neo4j.io.fs.StoreChannel;
 import org.neo4j.io.fs.filename.SequentialFileNameHelper;
 import org.neo4j.kernel.database.Database;
-import org.neo4j.kernel.impl.transaction.log.CheckpointInfo;
-import org.neo4j.kernel.impl.transaction.log.EmptyLogTailMetadata;
-import org.neo4j.kernel.impl.transaction.log.LogFile;
-import org.neo4j.kernel.impl.transaction.log.LogFiles;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
-import org.neo4j.kernel.impl.transaction.log.LogTailMetadata;
-import org.neo4j.kernel.impl.transaction.log.VersionedFile;
-import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckpointFile;
-import org.neo4j.kernel.impl.transaction.log.entry.v50.LogEntryDetachedCheckpointV5_0;
-import org.neo4j.kernel.impl.transaction.log.files.LogRangeInfo;
-import org.neo4j.kernel.impl.transaction.log.files.TransactionLogFiles;
-import org.neo4j.kernel.impl.transaction.log.files.TransactionLogFilesHelper;
-import org.neo4j.kernel.impl.transaction.log.files.checkpoint.CheckpointInfoFactory;
 import org.neo4j.logging.AssertableLogProvider;
 import org.neo4j.logging.InternalLog;
 import org.neo4j.storageengine.api.StoreId;
@@ -64,6 +51,19 @@ import org.neo4j.test.LatestVersions;
 import org.neo4j.test.extension.Inject;
 import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.utils.TestDirectory;
+import org.neo4j.wal.CheckpointInfo;
+import org.neo4j.wal.EmptyLogTailMetadata;
+import org.neo4j.wal.LogFile;
+import org.neo4j.wal.LogFiles;
+import org.neo4j.wal.LogPosition;
+import org.neo4j.wal.LogTailMetadata;
+import org.neo4j.wal.VersionedFile;
+import org.neo4j.wal.checkpoint.CheckpointFile;
+import org.neo4j.wal.entry.v50.LogEntryDetachedCheckpointV5_0;
+import org.neo4j.wal.files.LogRangeInfo;
+import org.neo4j.wal.files.TransactionLogFiles;
+import org.neo4j.wal.files.TransactionLogFilesHelper;
+import org.neo4j.wal.files.checkpoint.CheckpointInfoFactory;
 
 @TestDirectoryExtension
 class TransactionRangeDiagnosticsTest {

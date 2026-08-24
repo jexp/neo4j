@@ -34,27 +34,28 @@ import org.neo4j.configuration.Config;
 import org.neo4j.configuration.GraphDatabaseInternalSettings;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.fs.ReadPastEndException;
-import org.neo4j.kernel.impl.transaction.log.LogFile;
-import org.neo4j.kernel.impl.transaction.log.LogFiles;
-import org.neo4j.kernel.impl.transaction.log.LogVersionBridge;
-import org.neo4j.kernel.impl.transaction.log.ReadAheadUtils;
-import org.neo4j.kernel.impl.transaction.log.ReadableLogChannel;
-import org.neo4j.kernel.impl.transaction.log.ReaderLogVersionBridge;
-import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckpointFile;
-import org.neo4j.kernel.impl.transaction.log.entry.LogEntry;
-import org.neo4j.kernel.impl.transaction.log.entry.LogEntryCommand;
-import org.neo4j.kernel.impl.transaction.log.entry.LogEntryCommit;
-import org.neo4j.kernel.impl.transaction.log.entry.LogEntryEmpty;
-import org.neo4j.kernel.impl.transaction.log.entry.LogEntryReader;
-import org.neo4j.kernel.impl.transaction.log.entry.LogEntryStart;
-import org.neo4j.kernel.impl.transaction.log.entry.LogEnvelopeHeader;
-import org.neo4j.kernel.impl.transaction.log.entry.LogHeader;
-import org.neo4j.kernel.impl.transaction.log.entry.LogHeaderReader;
-import org.neo4j.kernel.impl.transaction.log.entry.VersionAwareLogEntryReader;
-import org.neo4j.kernel.impl.transaction.log.entry.v202608.LogEntryDetachedCheckpointV2026_08;
 import org.neo4j.memory.EmptyMemoryTracker;
 import org.neo4j.storageengine.AppendIndexProvider;
 import org.neo4j.storageengine.api.CommandReaderFactory;
+import org.neo4j.wal.LogFile;
+import org.neo4j.wal.LogFiles;
+import org.neo4j.wal.LogVersionBridge;
+import org.neo4j.wal.ReadAheadUtils;
+import org.neo4j.wal.ReadableLogChannel;
+import org.neo4j.wal.ReaderLogVersionBridge;
+import org.neo4j.wal.checkpoint.CheckpointFile;
+import org.neo4j.wal.entry.LogEntry;
+import org.neo4j.wal.entry.LogEntryCommand;
+import org.neo4j.wal.entry.LogEntryCommit;
+import org.neo4j.wal.entry.LogEntryEmpty;
+import org.neo4j.wal.entry.LogEntryReader;
+import org.neo4j.wal.entry.LogEntryStart;
+import org.neo4j.wal.entry.LogEnvelopeHeader;
+import org.neo4j.wal.entry.LogFormat;
+import org.neo4j.wal.entry.LogHeader;
+import org.neo4j.wal.entry.LogHeaderReader;
+import org.neo4j.wal.entry.VersionAwareLogEntryReader;
+import org.neo4j.wal.entry.v202608.LogEntryDetachedCheckpointV2026_08;
 
 public class TxLogValidationUtils {
     private TxLogValidationUtils() {}
@@ -310,7 +311,7 @@ public class TxLogValidationUtils {
 
     /**
      * The append index and enveloped term of a single log entry, as read back from an enveloped
-     * ({@link org.neo4j.kernel.impl.transaction.log.entry.LogFormat#usesSegments() segmented}) transaction log file.
+     * ({@link LogFormat#usesSegments() segmented}) transaction log file.
      */
     public record EntryTerm(long appendIndex, long term) {}
 

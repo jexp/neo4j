@@ -133,9 +133,6 @@ import org.neo4j.kernel.impl.store.record.PropertyRecord;
 import org.neo4j.kernel.impl.store.record.Record;
 import org.neo4j.kernel.impl.store.record.RelationshipGroupRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipRecord;
-import org.neo4j.kernel.impl.transaction.log.EmptyLogTailMetadata;
-import org.neo4j.kernel.impl.transaction.log.InMemoryVersionableReadableClosablePositionAwareChannel;
-import org.neo4j.kernel.impl.transaction.log.ReadableLogChannel;
 import org.neo4j.lock.LockService;
 import org.neo4j.lock.ResourceLocker;
 import org.neo4j.lock.ResourceType;
@@ -160,6 +157,9 @@ import org.neo4j.test.extension.Inject;
 import org.neo4j.test.extension.pagecache.EphemeralPageCacheExtension;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
+import org.neo4j.wal.EmptyLogTailMetadata;
+import org.neo4j.wal.InMemoryVersionableReadableClosablePositionAwareChannel;
+import org.neo4j.wal.ReadableLogChannel;
 
 @EphemeralNeo4jLayoutExtension
 @EphemeralPageCacheExtension

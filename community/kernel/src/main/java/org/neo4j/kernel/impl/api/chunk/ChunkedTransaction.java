@@ -31,12 +31,12 @@ import org.neo4j.kernel.availability.MvccIncompleteTransactionAvailabilityServic
 import org.neo4j.kernel.impl.api.ChunkedTransactionTracker;
 import org.neo4j.kernel.impl.api.txid.TransactionIdGenerator;
 import org.neo4j.kernel.impl.transaction.CommittedCommandBatchRepresentation;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.storageengine.api.CommandBatch;
 import org.neo4j.storageengine.api.Commitment;
 import org.neo4j.storageengine.api.LogPositionMetadata;
 import org.neo4j.storageengine.api.StorageEngineTransaction;
 import org.neo4j.storageengine.api.cursor.StoreCursors;
+import org.neo4j.wal.LogPosition;
 
 public class ChunkedTransaction implements StorageEngineTransaction {
 

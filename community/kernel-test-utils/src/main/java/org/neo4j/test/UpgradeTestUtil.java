@@ -38,11 +38,11 @@ import org.neo4j.kernel.impl.transaction.ChunkedRollbackBatchRepresentation;
 import org.neo4j.kernel.impl.transaction.CommittedCommandBatchRepresentation;
 import org.neo4j.kernel.impl.transaction.CompleteBatchRepresentation;
 import org.neo4j.kernel.impl.transaction.EmptyBatchRepresentation;
-import org.neo4j.kernel.impl.transaction.log.CommandBatchCursor;
-import org.neo4j.kernel.impl.transaction.log.LogicalTransactionStore;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.storageengine.api.CommandBatch;
 import org.neo4j.storageengine.api.StorageCommand;
+import org.neo4j.wal.CommandBatchCursor;
+import org.neo4j.wal.LogicalTransactionStore;
 
 public class UpgradeTestUtil {
 

@@ -30,16 +30,16 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 import org.neo4j.configuration.Config;
 import org.neo4j.kernel.KernelVersion;
-import org.neo4j.kernel.impl.transaction.log.EmptyLogTailLogVersionsMetadata;
-import org.neo4j.kernel.impl.transaction.log.EmptyLogTailMetadata;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
-import org.neo4j.kernel.impl.transaction.log.LogTailLogVersionsMetadata;
-import org.neo4j.kernel.impl.transaction.log.LogTailMetadata;
-import org.neo4j.kernel.impl.transaction.log.entry.LogFormat;
 import org.neo4j.test.Race;
 import org.neo4j.test.RandomSupport;
 import org.neo4j.test.extension.Inject;
 import org.neo4j.test.extension.RandomSupportExtension;
+import org.neo4j.wal.EmptyLogTailLogVersionsMetadata;
+import org.neo4j.wal.EmptyLogTailMetadata;
+import org.neo4j.wal.LogPosition;
+import org.neo4j.wal.LogTailLogVersionsMetadata;
+import org.neo4j.wal.LogTailMetadata;
+import org.neo4j.wal.entry.LogFormat;
 
 @RandomSupportExtension
 class LogMetadataProviderImplTest {

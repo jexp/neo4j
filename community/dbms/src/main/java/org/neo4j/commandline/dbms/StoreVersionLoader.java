@@ -36,7 +36,6 @@ import org.neo4j.kernel.KernelVersionProviders;
 import org.neo4j.kernel.database.DatabaseTracers;
 import org.neo4j.kernel.impl.pagecache.ConfiguringPageCacheFactory;
 import org.neo4j.kernel.impl.scheduler.JobSchedulerFactory;
-import org.neo4j.kernel.impl.transaction.log.entry.UnsupportedLogVersionException;
 import org.neo4j.kernel.recovery.LogTailExtractor;
 import org.neo4j.logging.NullLog;
 import org.neo4j.logging.internal.NullLogService;
@@ -47,6 +46,7 @@ import org.neo4j.storageengine.api.StorageEngineFactory;
 import org.neo4j.storageengine.api.StoreVersionCheck;
 import org.neo4j.storageengine.api.StoreVersionIdentifier;
 import org.neo4j.time.Clocks;
+import org.neo4j.wal.entry.UnsupportedLogVersionException;
 
 public class StoreVersionLoader implements AutoCloseable {
     private final FileSystemAbstraction fs;

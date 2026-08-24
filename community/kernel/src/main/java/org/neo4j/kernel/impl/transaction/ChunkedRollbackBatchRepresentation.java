@@ -31,8 +31,8 @@ import org.neo4j.io.fs.WritableChannel;
 import org.neo4j.kernel.KernelVersion;
 import org.neo4j.kernel.impl.api.chunk.ChunkMetadata;
 import org.neo4j.kernel.impl.api.chunk.ChunkedCommandBatch;
-import org.neo4j.kernel.impl.transaction.log.entry.LogEntryWriter;
 import org.neo4j.storageengine.api.CommandBatch;
+import org.neo4j.wal.entry.LogEntryWriter;
 
 public record ChunkedRollbackBatchRepresentation(
         KernelVersion kernelVersion,

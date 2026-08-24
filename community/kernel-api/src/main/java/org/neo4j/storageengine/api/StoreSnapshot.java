@@ -25,7 +25,7 @@ import java.util.Optional;
 import java.util.stream.Stream;
 import org.neo4j.graphdb.Resource;
 import org.neo4j.kernel.KernelVersion;
-import org.neo4j.kernel.impl.transaction.log.entry.LogFormat;
+import org.neo4j.wal.entry.LogFormat;
 
 /**
  * Represents a "snapshot" of a Neo4j store.

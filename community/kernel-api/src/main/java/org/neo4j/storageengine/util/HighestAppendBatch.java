@@ -20,8 +20,8 @@
 package org.neo4j.storageengine.util;
 
 import java.util.concurrent.atomic.AtomicReference;
-import org.neo4j.kernel.impl.transaction.log.AppendBatchInfo;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
+import org.neo4j.wal.AppendBatchInfo;
+import org.neo4j.wal.LogPosition;
 
 /**
  * Can accept offerings about {@link AppendBatchInfo}, but will always only keep the highest one,

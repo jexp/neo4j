@@ -28,8 +28,6 @@ import java.util.List;
 import java.util.function.LongConsumer;
 import org.neo4j.common.Subject;
 import org.neo4j.io.pagecache.context.CursorContext;
-import org.neo4j.kernel.impl.transaction.log.CompleteCommandBatch;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.storageengine.api.CommandBatch;
 import org.neo4j.storageengine.api.Leases;
 import org.neo4j.storageengine.api.LogPositionMetadata;
@@ -38,6 +36,8 @@ import org.neo4j.storageengine.api.StorageEngineTransaction;
 import org.neo4j.storageengine.api.TransactionIdStore;
 import org.neo4j.storageengine.api.cursor.StoreCursors;
 import org.neo4j.test.LatestVersions;
+import org.neo4j.wal.CompleteCommandBatch;
+import org.neo4j.wal.LogPosition;
 
 public class GroupOfCommands implements StorageEngineTransaction {
     private final long transactionId;

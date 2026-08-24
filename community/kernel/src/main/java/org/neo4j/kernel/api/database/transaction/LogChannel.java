@@ -21,8 +21,8 @@ package org.neo4j.kernel.api.database.transaction;
 
 import org.neo4j.io.fs.StoreChannel;
 import org.neo4j.kernel.KernelVersion;
-import org.neo4j.kernel.impl.transaction.log.entry.LogFormat;
 import org.neo4j.storageengine.api.LogVersionRepository;
+import org.neo4j.wal.entry.LogFormat;
 
 /**
  * @param startAppendIndex first append index in this channel.

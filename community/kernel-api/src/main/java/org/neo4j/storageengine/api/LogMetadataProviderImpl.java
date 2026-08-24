@@ -19,23 +19,23 @@
  */
 package org.neo4j.storageengine.api;
 
-import static org.neo4j.kernel.impl.transaction.log.RecoveryOutcome.EMPTY_OUTCOME;
+import static org.neo4j.wal.RecoveryOutcome.EMPTY_OUTCOME;
 
 import java.util.concurrent.atomic.AtomicLong;
 import org.neo4j.io.pagecache.context.TransactionIdSnapshot;
 import org.neo4j.kernel.KernelVersion;
-import org.neo4j.kernel.impl.transaction.log.AppendBatchInfo;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
-import org.neo4j.kernel.impl.transaction.log.LogTailLogVersionsMetadata;
-import org.neo4j.kernel.impl.transaction.log.LogTailMetadata;
-import org.neo4j.kernel.impl.transaction.log.RecoveryOutcome;
-import org.neo4j.kernel.impl.transaction.log.entry.LogFormat;
 import org.neo4j.storageengine.util.ChunkedTransactionRegistry;
 import org.neo4j.storageengine.util.HighestAppendBatch;
 import org.neo4j.storageengine.util.HighestTransactionId;
 import org.neo4j.util.concurrent.ArrayQueueOutOfOrderSequence;
 import org.neo4j.util.concurrent.OutOfOrderSequence;
 import org.neo4j.util.concurrent.OutOfOrderSequence.Meta;
+import org.neo4j.wal.AppendBatchInfo;
+import org.neo4j.wal.LogPosition;
+import org.neo4j.wal.LogTailLogVersionsMetadata;
+import org.neo4j.wal.LogTailMetadata;
+import org.neo4j.wal.RecoveryOutcome;
+import org.neo4j.wal.entry.LogFormat;
 
 public class LogMetadataProviderImpl implements LogMetadataProvider {
     private final AtomicLong logVersion;

@@ -23,9 +23,9 @@ import org.neo4j.internal.helpers.Numbers;
 import org.neo4j.internal.recordstorage.Command.MetaDataCommand;
 import org.neo4j.kernel.KernelVersion;
 import org.neo4j.kernel.database.MetadataCache;
-import org.neo4j.kernel.impl.transaction.log.entry.LogFormat;
 import org.neo4j.logging.InternalLog;
 import org.neo4j.logging.InternalLogProvider;
+import org.neo4j.wal.entry.LogFormat;
 
 public class KernelVersionTransactionApplier extends TransactionApplier.Adapter {
     private final MetadataCache metadataCache;

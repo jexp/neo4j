@@ -34,13 +34,13 @@ import org.neo4j.io.device.DeviceMapper;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.KernelVersionProvider;
 import org.neo4j.kernel.database.Database;
-import org.neo4j.kernel.impl.transaction.log.LogFile;
-import org.neo4j.kernel.impl.transaction.log.LogFiles;
-import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckpointFile;
-import org.neo4j.kernel.impl.transaction.log.entry.LogHeader;
-import org.neo4j.kernel.impl.transaction.log.files.LogRangeInfo;
 import org.neo4j.logging.NullLog;
 import org.neo4j.storageengine.api.TransactionIdStore;
+import org.neo4j.wal.LogFile;
+import org.neo4j.wal.LogFiles;
+import org.neo4j.wal.checkpoint.CheckpointFile;
+import org.neo4j.wal.entry.LogHeader;
+import org.neo4j.wal.files.LogRangeInfo;
 
 public class TransactionRangeDiagnostics extends NamedDiagnosticsProvider {
     private final Database database;

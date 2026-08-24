@@ -25,14 +25,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.neo4j.io.pagecache.context.FixedVersionContextSupplier.EMPTY_CONTEXT_SUPPLIER;
-import static org.neo4j.kernel.impl.transaction.log.entry.LogEntryFactory.newCommitEntry;
-import static org.neo4j.kernel.impl.transaction.log.entry.LogEntryFactory.newStartEntry;
 import static org.neo4j.kernel.recovery.IncompleteTransactionAction.STOP;
 import static org.neo4j.kernel.recovery.RecoveryStartupChecker.EMPTY_CHECKER;
 import static org.neo4j.storageengine.api.TransactionIdStore.BASE_TX_CHECKSUM;
 import static org.neo4j.storageengine.api.TransactionIdStore.UNKNOWN_TX_SEQUENCE_NUMBER;
 import static org.neo4j.test.LatestVersions.LATEST_KERNEL_VERSION;
 import static org.neo4j.test.LatestVersions.LATEST_LOG_FORMAT;
+import static org.neo4j.wal.entry.LogEntryFactory.newCommitEntry;
+import static org.neo4j.wal.entry.LogEntryFactory.newStartEntry;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.Answers;
@@ -45,12 +45,12 @@ import org.neo4j.io.pagecache.context.CursorContextFactory;
 import org.neo4j.io.pagecache.tracing.DefaultPageCacheTracer;
 import org.neo4j.kernel.impl.api.ChunkedTransactionTracker;
 import org.neo4j.kernel.impl.transaction.CompleteBatchRepresentation;
-import org.neo4j.kernel.impl.transaction.log.CommandBatchCursor;
-import org.neo4j.kernel.impl.transaction.log.LogFiles;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 import org.neo4j.test.LatestVersions;
 import org.neo4j.time.Clocks;
+import org.neo4j.wal.CommandBatchCursor;
+import org.neo4j.wal.LogFiles;
+import org.neo4j.wal.LogPosition;
 
 class RecoveryProgressIndicatorTest {
 

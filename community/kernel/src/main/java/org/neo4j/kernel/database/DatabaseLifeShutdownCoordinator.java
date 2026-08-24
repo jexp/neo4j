@@ -21,9 +21,9 @@ package org.neo4j.kernel.database;
 
 import org.neo4j.kernel.availability.DatabaseAvailabilityGuard;
 import org.neo4j.kernel.impl.api.KernelTransactions;
-import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckpointerLifecycle;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
+import org.neo4j.wal.checkpoint.CheckpointerLifecycle;
 
 public class DatabaseLifeShutdownCoordinator extends LifecycleAdapter {
     private final LifeSupport lifeSupport = new LifeSupport();

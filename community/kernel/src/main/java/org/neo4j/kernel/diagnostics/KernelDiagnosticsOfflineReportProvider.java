@@ -37,11 +37,11 @@ import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.layout.Neo4jLayout;
 import org.neo4j.kernel.diagnostics.providers.StoreFilesDiagnostics;
 import org.neo4j.kernel.impl.device.DeviceMapperService;
-import org.neo4j.kernel.impl.transaction.log.LogFiles;
-import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.kernel.internal.Version;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.storageengine.api.StorageEngineFactory;
+import org.neo4j.wal.LogFiles;
+import org.neo4j.wal.files.LogFilesBuilder;
 
 @ServiceProvider
 public class KernelDiagnosticsOfflineReportProvider extends DiagnosticsOfflineReportProvider {

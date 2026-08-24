@@ -27,7 +27,6 @@ import static org.neo4j.kernel.TxLogValidationUtils.assertLogHeaderExpectedVersi
 import static org.neo4j.kernel.TxLogValidationUtils.assertWholeTransactionsIn;
 import static org.neo4j.kernel.TxLogValidationUtils.assertWholeTransactionsWithCorrectVersionInSpecificLogVersion;
 import static org.neo4j.kernel.TxLogValidationUtils.readEntryTerms;
-import static org.neo4j.kernel.impl.transaction.log.entry.LogSegments.DEFAULT_LOG_SEGMENT_SIZE;
 import static org.neo4j.kernel.recovery.RecoveryHelpers.getLatestCheckpoint;
 import static org.neo4j.storageengine.api.LogVersionRepository.INITIAL_LOG_VERSION;
 import static org.neo4j.test.LatestVersions.LATEST_KERNEL_VERSION_WITHOUT_ENVELOPES;
@@ -35,6 +34,7 @@ import static org.neo4j.test.LatestVersions.LATEST_RUNTIME_VERSION_WITHOUT_ENVEL
 import static org.neo4j.test.UpgradeTestUtil.assertKernelVersion;
 import static org.neo4j.test.UpgradeTestUtil.createWriteTransaction;
 import static org.neo4j.test.UpgradeTestUtil.upgradeDatabase;
+import static org.neo4j.wal.entry.LogSegments.DEFAULT_LOG_SEGMENT_SIZE;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -47,17 +47,17 @@ import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.KernelVersion;
 import org.neo4j.kernel.TxLogValidationUtils;
 import org.neo4j.kernel.impl.api.tracer.DefaultDatabaseTracer;
-import org.neo4j.kernel.impl.transaction.log.LogFile;
-import org.neo4j.kernel.impl.transaction.log.LogFiles;
-import org.neo4j.kernel.impl.transaction.log.ReaderLogVersionBridge;
-import org.neo4j.kernel.impl.transaction.log.entry.LogFormat;
-import org.neo4j.kernel.impl.transaction.log.entry.LogHeader;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.kernel.recovery.RecoveryHelpers;
 import org.neo4j.storageengine.api.LogMetadataProvider;
 import org.neo4j.storageengine.api.TransactionIdStore;
 import org.neo4j.test.TestDatabaseManagementServiceBuilder;
 import org.neo4j.test.extension.SkipOnSpd;
+import org.neo4j.wal.LogFile;
+import org.neo4j.wal.LogFiles;
+import org.neo4j.wal.ReaderLogVersionBridge;
+import org.neo4j.wal.entry.LogFormat;
+import org.neo4j.wal.entry.LogHeader;
 
 @SkipOnSpd(reason = "The transaction stream looks different in SPD")
 class TransactionLogsUpgradeFromNonEnvelopesIT extends TransactionLogsUpgradeIT {

@@ -130,10 +130,6 @@ import org.neo4j.kernel.impl.storemigration.RecordStorageMigrator;
 import org.neo4j.kernel.impl.storemigration.RecordStoreVersion;
 import org.neo4j.kernel.impl.storemigration.RecordStoreVersionCheck;
 import org.neo4j.kernel.impl.storemigration.legacy.SchemaStore44Reader;
-import org.neo4j.kernel.impl.transaction.log.EmptyLogTailMetadata;
-import org.neo4j.kernel.impl.transaction.log.LogTailLogVersionsMetadata;
-import org.neo4j.kernel.impl.transaction.log.LogTailMetadata;
-import org.neo4j.kernel.impl.transaction.log.LogTailMetadataFactory;
 import org.neo4j.lock.LockService;
 import org.neo4j.lock.ResourceType;
 import org.neo4j.logging.InternalLog;
@@ -177,6 +173,10 @@ import org.neo4j.token.TokenHolders;
 import org.neo4j.token.api.NamedToken;
 import org.neo4j.token.api.TokenHolder;
 import org.neo4j.token.api.TokensLoader;
+import org.neo4j.wal.EmptyLogTailMetadata;
+import org.neo4j.wal.LogTailLogVersionsMetadata;
+import org.neo4j.wal.LogTailMetadata;
+import org.neo4j.wal.LogTailMetadataFactory;
 
 @ServiceProvider
 public class RecordStorageEngineFactory implements StorageEngineFactory {

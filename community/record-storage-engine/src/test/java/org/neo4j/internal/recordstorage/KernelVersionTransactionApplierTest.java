@@ -29,10 +29,10 @@ import org.junit.jupiter.api.Test;
 import org.neo4j.kernel.KernelVersion;
 import org.neo4j.kernel.database.MetadataCache;
 import org.neo4j.kernel.impl.store.record.MetaDataRecord;
-import org.neo4j.kernel.impl.transaction.log.entry.LogFormat;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.storageengine.api.StorageEngineTransaction;
 import org.neo4j.test.LatestVersions;
+import org.neo4j.wal.entry.LogFormat;
 
 public class KernelVersionTransactionApplierTest {
 

@@ -25,8 +25,6 @@ import java.util.function.BooleanSupplier;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.io.pagecache.OutOfDiskSpaceException;
 import org.neo4j.kernel.api.exceptions.Status;
-import org.neo4j.kernel.impl.transaction.log.LogAppendEvent;
-import org.neo4j.kernel.impl.transaction.log.TransactionAppender;
 import org.neo4j.kernel.impl.transaction.tracing.StoreApplyEvent;
 import org.neo4j.kernel.impl.transaction.tracing.TransactionWriteEvent;
 import org.neo4j.logging.Log;
@@ -35,6 +33,8 @@ import org.neo4j.memory.MemoryTracker;
 import org.neo4j.storageengine.api.StorageEngine;
 import org.neo4j.storageengine.api.StorageEngineTransaction;
 import org.neo4j.storageengine.api.TransactionApplicationMode;
+import org.neo4j.wal.LogAppendEvent;
+import org.neo4j.wal.TransactionAppender;
 
 public class InternalTransactionCommitProcess implements TransactionCommitProcess {
     private final TransactionAppender appender;

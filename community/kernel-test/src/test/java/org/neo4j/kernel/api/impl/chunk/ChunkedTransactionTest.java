@@ -43,9 +43,9 @@ import org.neo4j.kernel.impl.api.chunk.ChunkMetadata;
 import org.neo4j.kernel.impl.api.chunk.ChunkedCommandBatch;
 import org.neo4j.kernel.impl.api.chunk.ChunkedTransaction;
 import org.neo4j.kernel.impl.api.txid.TransactionIdGenerator;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.storageengine.api.Commitment;
 import org.neo4j.storageengine.api.cursor.StoreCursors;
+import org.neo4j.wal.LogPosition;
 
 public class ChunkedTransactionTest {
     private static final long TX_ID = 42;

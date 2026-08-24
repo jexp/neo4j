@@ -84,8 +84,6 @@ import org.neo4j.kernel.impl.store.record.PropertyRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipGroupRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipRecord;
 import org.neo4j.kernel.impl.store.record.SchemaRecord;
-import org.neo4j.kernel.impl.transaction.log.TransactionAppender;
-import org.neo4j.kernel.impl.transaction.log.TransactionCommitmentFactory;
 import org.neo4j.kernel.impl.transaction.tracing.TransactionWriteEvent;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.logging.NullLogProvider;
@@ -109,6 +107,8 @@ import org.neo4j.token.api.NamedToken;
 import org.neo4j.token.api.TokenConstants;
 import org.neo4j.token.api.TokenHolder;
 import org.neo4j.values.storable.Value;
+import org.neo4j.wal.TransactionAppender;
+import org.neo4j.wal.TransactionCommitmentFactory;
 
 public abstract class GraphStoreFixture implements AutoCloseable {
     private DirectStoreAccess directStoreAccess;

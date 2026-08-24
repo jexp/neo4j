@@ -25,8 +25,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
-import org.neo4j.kernel.impl.transaction.log.TransactionMetadataCache;
+import org.neo4j.wal.LogPosition;
+import org.neo4j.wal.TransactionMetadataCache;
 
 class TransactionMetadataCacheTest {
     @Test

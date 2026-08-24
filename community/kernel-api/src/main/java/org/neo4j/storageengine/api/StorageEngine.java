@@ -33,7 +33,6 @@ import org.neo4j.io.pagecache.context.CursorContext;
 import org.neo4j.io.pagecache.tracing.DatabaseFlushEvent;
 import org.neo4j.kernel.KernelVersion;
 import org.neo4j.kernel.impl.store.stats.StoreEntityCounters;
-import org.neo4j.kernel.impl.transaction.log.entry.LogFormat;
 import org.neo4j.kernel.lifecycle.Lifecycle;
 import org.neo4j.lock.LockService;
 import org.neo4j.lock.LockTracer;
@@ -47,6 +46,7 @@ import org.neo4j.storageengine.api.txstate.ReadableTransactionState;
 import org.neo4j.storageengine.api.txstate.TransactionStateBehaviour;
 import org.neo4j.storageengine.api.txstate.TxStateVisitor.Decorator;
 import org.neo4j.storageengine.api.txstate.validation.TransactionValidatorFactory;
+import org.neo4j.wal.entry.LogFormat;
 
 /**
  * A StorageEngine provides the functionality to durably store data, and read it back.

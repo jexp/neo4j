@@ -54,9 +54,6 @@ import org.neo4j.kernel.DatabaseCreationOptions;
 import org.neo4j.kernel.api.index.IndexDirectoryStructure;
 import org.neo4j.kernel.api.index.IndexProvidersAccess;
 import org.neo4j.kernel.impl.index.schema.DefaultIndexProvidersAccess;
-import org.neo4j.kernel.impl.transaction.log.LogTailMetadata;
-import org.neo4j.kernel.impl.transaction.log.files.LogTailMetadataFactoryImpl;
-import org.neo4j.kernel.impl.transaction.log.files.TransactionLogInitializer;
 import org.neo4j.logging.internal.LogService;
 import org.neo4j.memory.MemoryTracker;
 import org.neo4j.scheduler.JobScheduler;
@@ -65,6 +62,9 @@ import org.neo4j.storageengine.api.StoreVersion;
 import org.neo4j.storageengine.api.format.Index44Compatibility;
 import org.neo4j.storageengine.migration.AbstractStoreMigrationParticipant;
 import org.neo4j.storageengine.migration.TokenIndexMigrator;
+import org.neo4j.wal.LogTailMetadata;
+import org.neo4j.wal.files.LogTailMetadataFactoryImpl;
+import org.neo4j.wal.files.TransactionLogInitializer;
 
 /**
  * Migrates a store from one storage engine to another by doing something close to what store copy does

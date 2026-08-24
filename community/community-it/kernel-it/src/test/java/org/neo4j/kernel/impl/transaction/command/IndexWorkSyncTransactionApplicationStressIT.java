@@ -62,9 +62,6 @@ import org.neo4j.kernel.impl.api.txid.TransactionIdGenerator;
 import org.neo4j.kernel.impl.store.NeoStores;
 import org.neo4j.kernel.impl.store.NodeStore;
 import org.neo4j.kernel.impl.transaction.SimpleTransactionIdStore;
-import org.neo4j.kernel.impl.transaction.log.CompleteCommandBatch;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
-import org.neo4j.kernel.impl.transaction.log.TransactionCommitmentFactory;
 import org.neo4j.lock.LockTracer;
 import org.neo4j.lock.ResourceLocker;
 import org.neo4j.storageengine.api.CommandCreationContext;
@@ -84,6 +81,9 @@ import org.neo4j.test.storage.RecordStorageEngineSupport;
 import org.neo4j.test.utils.TestDirectory;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
+import org.neo4j.wal.CompleteCommandBatch;
+import org.neo4j.wal.LogPosition;
+import org.neo4j.wal.TransactionCommitmentFactory;
 
 @PageCacheExtension
 class IndexWorkSyncTransactionApplicationStressIT {

@@ -81,8 +81,6 @@ import org.neo4j.kernel.impl.store.format.FormatFamily;
 import org.neo4j.kernel.impl.store.format.RecordFormats;
 import org.neo4j.kernel.impl.store.format.standard.Standard;
 import org.neo4j.kernel.impl.store.format.standard.StandardV4_3;
-import org.neo4j.kernel.impl.transaction.log.EmptyLogTailMetadata;
-import org.neo4j.kernel.impl.transaction.log.LogTailMetadata;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.kernel.recovery.LogTailExtractor;
 import org.neo4j.kernel.recovery.RecoveryStartupChecker;
@@ -108,6 +106,8 @@ import org.neo4j.test.extension.pagecache.PageCacheExtension;
 import org.neo4j.test.scheduler.ThreadPoolJobScheduler;
 import org.neo4j.test.tags.RecordFormatOverrideTag;
 import org.neo4j.test.utils.TestDirectory;
+import org.neo4j.wal.EmptyLogTailMetadata;
+import org.neo4j.wal.LogTailMetadata;
 
 @PageCacheExtension
 @Neo4jLayoutExtension

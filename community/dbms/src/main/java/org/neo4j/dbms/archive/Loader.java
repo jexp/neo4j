@@ -47,10 +47,10 @@ import org.neo4j.graphdb.Resource;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.context.CursorContextFactory;
-import org.neo4j.kernel.impl.transaction.log.files.TransactionLogFiles;
 import org.neo4j.logging.InternalLogProvider;
 import org.neo4j.storageengine.api.StorageEngineFactory;
 import org.neo4j.util.VisibleForTesting;
+import org.neo4j.wal.files.TransactionLogFiles;
 
 public class Loader {
     private final FileSystemAbstraction filesystem;

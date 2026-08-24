@@ -20,7 +20,7 @@
 package org.neo4j.kernel.impl.transaction;
 
 import static org.neo4j.io.fs.ReadableChannel.BASE_TERM;
-import static org.neo4j.kernel.impl.transaction.log.EmptyLogTailMetadata.EMPTY_APPEND_BATCH_INFO;
+import static org.neo4j.wal.EmptyLogTailMetadata.EMPTY_APPEND_BATCH_INFO;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -28,9 +28,6 @@ import java.util.UUID;
 import org.neo4j.io.pagecache.context.CursorContext;
 import org.neo4j.io.pagecache.context.TransactionIdSnapshot;
 import org.neo4j.kernel.KernelVersion;
-import org.neo4j.kernel.impl.transaction.log.AppendBatchInfo;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
-import org.neo4j.kernel.impl.transaction.log.entry.LogFormat;
 import org.neo4j.storageengine.api.ClosedBatchMetadata;
 import org.neo4j.storageengine.api.ClosedTransactionMetadata;
 import org.neo4j.storageengine.api.ExternalStoreId;
@@ -43,6 +40,9 @@ import org.neo4j.storageengine.api.TransactionIdStore;
 import org.neo4j.storageengine.util.HighestAppendBatch;
 import org.neo4j.test.LatestVersions;
 import org.neo4j.util.concurrent.OutOfOrderSequence;
+import org.neo4j.wal.AppendBatchInfo;
+import org.neo4j.wal.LogPosition;
+import org.neo4j.wal.entry.LogFormat;
 
 public class SimpleMetaDataProvider implements MetadataProvider, LogMetadataProvider {
     private final SimpleTransactionIdStore transactionIdStore;

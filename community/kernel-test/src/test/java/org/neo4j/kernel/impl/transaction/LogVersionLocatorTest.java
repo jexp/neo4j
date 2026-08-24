@@ -25,9 +25,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
-import org.neo4j.kernel.impl.transaction.log.AppendedChunkLogVersionLocator;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
-import org.neo4j.kernel.impl.transaction.log.NoSuchLogEntryException;
+import org.neo4j.wal.AppendedChunkLogVersionLocator;
+import org.neo4j.wal.LogPosition;
+import org.neo4j.wal.NoSuchLogEntryException;
 
 class LogVersionLocatorTest {
     private static final long firstAppendIndexInLog = 3;

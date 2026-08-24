@@ -25,11 +25,11 @@ import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.database.DatabaseTracers;
-import org.neo4j.kernel.impl.transaction.log.LogTailMetadata;
 import org.neo4j.memory.MemoryTracker;
 import org.neo4j.storageengine.api.RecoveryState;
 import org.neo4j.storageengine.api.StorageEngineFactory;
 import org.neo4j.storageengine.api.StorageFilesState;
+import org.neo4j.wal.LogTailMetadata;
 
 /**
  * Utility that can determine if a given store will need recovery.

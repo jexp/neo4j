@@ -50,12 +50,6 @@ import org.neo4j.io.pagecache.OutOfDiskSpaceException;
 import org.neo4j.kernel.KernelVersion;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.impl.api.txid.IdStoreTransactionIdGenerator;
-import org.neo4j.kernel.impl.transaction.log.CompleteCommandBatch;
-import org.neo4j.kernel.impl.transaction.log.FakeCommitment;
-import org.neo4j.kernel.impl.transaction.log.LogAppendEvent;
-import org.neo4j.kernel.impl.transaction.log.TestableTransactionAppender;
-import org.neo4j.kernel.impl.transaction.log.TransactionAppender;
-import org.neo4j.kernel.impl.transaction.log.TransactionCommitmentFactory;
 import org.neo4j.kernel.impl.transaction.tracing.TransactionWriteEvent;
 import org.neo4j.logging.AssertableLogProvider;
 import org.neo4j.logging.LogAssertions;
@@ -70,6 +64,12 @@ import org.neo4j.storageengine.api.TransactionApplicationMode;
 import org.neo4j.storageengine.api.TransactionIdStore;
 import org.neo4j.storageengine.api.cursor.StoreCursors;
 import org.neo4j.test.LatestVersions;
+import org.neo4j.wal.CompleteCommandBatch;
+import org.neo4j.wal.FakeCommitment;
+import org.neo4j.wal.LogAppendEvent;
+import org.neo4j.wal.TestableTransactionAppender;
+import org.neo4j.wal.TransactionAppender;
+import org.neo4j.wal.TransactionCommitmentFactory;
 
 class InternalTransactionCommitProcessTest {
     private final TransactionWriteEvent transactionWriteEvent = TransactionWriteEvent.NULL;

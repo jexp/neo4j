@@ -25,9 +25,9 @@ import org.neo4j.exceptions.KernelException;
 import org.neo4j.exceptions.UnsatisfiedDependencyException;
 import org.neo4j.internal.helpers.progress.ProgressListener;
 import org.neo4j.io.layout.DatabaseLayout;
-import org.neo4j.kernel.impl.transaction.log.LogTailMetadata;
 import org.neo4j.memory.MemoryTracker;
 import org.neo4j.storageengine.api.StoreVersion;
+import org.neo4j.wal.LogTailMetadata;
 
 public interface StoreMigrationParticipant {
     long UNSPECIFIED_MAX_OFF_HEAP_MEMORY = -1;

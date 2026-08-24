@@ -24,15 +24,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 import org.neo4j.io.pagecache.context.CursorContext;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
-import org.neo4j.kernel.impl.transaction.log.AppendTransactionEvent;
-import org.neo4j.kernel.impl.transaction.log.LogAppendEvent;
-import org.neo4j.kernel.impl.transaction.log.LogFileCreateEvent;
-import org.neo4j.kernel.impl.transaction.log.LogFileFlushEvent;
-import org.neo4j.kernel.impl.transaction.log.LogForceEvent;
-import org.neo4j.kernel.impl.transaction.log.LogForceWaitEvent;
-import org.neo4j.kernel.impl.transaction.log.checkpoint.LogCheckPointEvent;
-import org.neo4j.kernel.impl.transaction.log.rotation.CountingLogRotateEvent;
-import org.neo4j.kernel.impl.transaction.log.rotation.LogRotateEvent;
 import org.neo4j.kernel.impl.transaction.tracing.DatabaseAsyncRollbackEvent;
 import org.neo4j.kernel.impl.transaction.tracing.DatabaseTracer;
 import org.neo4j.kernel.impl.transaction.tracing.RollbackBatchEvent;
@@ -40,6 +31,15 @@ import org.neo4j.kernel.impl.transaction.tracing.StoreApplyEvent;
 import org.neo4j.kernel.impl.transaction.tracing.TransactionEvent;
 import org.neo4j.kernel.impl.transaction.tracing.TransactionRollbackEvent;
 import org.neo4j.kernel.impl.transaction.tracing.TransactionWriteEvent;
+import org.neo4j.wal.AppendTransactionEvent;
+import org.neo4j.wal.LogAppendEvent;
+import org.neo4j.wal.LogFileCreateEvent;
+import org.neo4j.wal.LogFileFlushEvent;
+import org.neo4j.wal.LogForceEvent;
+import org.neo4j.wal.LogForceWaitEvent;
+import org.neo4j.wal.checkpoint.LogCheckPointEvent;
+import org.neo4j.wal.rotation.CountingLogRotateEvent;
+import org.neo4j.wal.rotation.LogRotateEvent;
 
 /**
  * Tracer used to trace database scoped events, like transaction logs rotations, checkpoints, transactions etc

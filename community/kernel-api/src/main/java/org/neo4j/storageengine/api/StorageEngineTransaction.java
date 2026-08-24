@@ -22,9 +22,9 @@ package org.neo4j.storageengine.api;
 import java.util.function.LongConsumer;
 import org.neo4j.common.Subject;
 import org.neo4j.io.pagecache.context.CursorContext;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.storageengine.AppendIndexProvider;
 import org.neo4j.storageengine.api.cursor.StoreCursors;
+import org.neo4j.wal.LogPosition;
 
 /**
  * Group of commands to apply onto {@link StorageEngine}, as well as reference to {@link #next()} group of commands.

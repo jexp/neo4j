@@ -36,12 +36,12 @@ import org.neo4j.dbms.database.TopologyInfoService.RequestedExtras;
 import org.neo4j.kernel.database.Database;
 import org.neo4j.kernel.database.DatabaseId;
 import org.neo4j.kernel.database.DatabaseIdFactory;
-import org.neo4j.kernel.impl.transaction.log.AppendBatchInfo;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.storageengine.api.ExternalStoreId;
 import org.neo4j.storageengine.api.LogMetadataProvider;
 import org.neo4j.storageengine.api.MetadataProvider;
 import org.neo4j.storageengine.api.StoreId;
+import org.neo4j.wal.AppendBatchInfo;
+import org.neo4j.wal.LogPosition;
 
 class DefaultDatabaseDetailsExtrasProviderTest {
     private final DatabaseId databaseId = DatabaseIdFactory.from(UUID.randomUUID());

@@ -1,0 +1,42 @@
+/*
+ * Copyright (c) "Neo4j"
+ * Neo4j Sweden AB [https://neo4j.com]
+ *
+ * This file is part of Neo4j.
+ *
+ * Neo4j is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package org.neo4j.wal.enveloped;
+
+import org.neo4j.kernel.KernelVersion;
+import org.neo4j.storageengine.api.StoreIdentifier;
+import org.neo4j.wal.entry.LogHeader;
+
+public interface LogHeaderFactory {
+
+    // intended for cases when only reading the log
+    LogHeaderFactory THROWING_FACTORY = (fileVersion, preFileIndex, preFileChecksum, segmentSize, lastTerm) -> {
+        throw new IllegalStateException("Cannot create log header");
+    };
+
+    LogHeader createLogHeader(
+            long fileVersion, long preFileIndex, int preFileChecksum, int segmentSize, long preFileTerm);
+
+    // When starting, if we have logs we will replace the store identifier if one exists.
+    default void setStoreIdentifier(StoreIdentifier storeIdentifier) {}
+
+    default void setVersion(KernelVersion kernelVersion) {}
+
+    default void allowStoreIdentifierChange() {}
+}

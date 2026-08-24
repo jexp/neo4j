@@ -27,9 +27,9 @@ import static org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker.writable;
 import org.junit.jupiter.api.Test;
 import org.neo4j.kernel.impl.api.CommandCommitListeners;
 import org.neo4j.kernel.impl.api.DatabaseTransactionCommitProcess;
-import org.neo4j.kernel.impl.transaction.log.TransactionAppender;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.storageengine.api.StorageEngine;
+import org.neo4j.wal.TransactionAppender;
 
 class DefaultTransactionalProcessFactoryTest {
     @Test

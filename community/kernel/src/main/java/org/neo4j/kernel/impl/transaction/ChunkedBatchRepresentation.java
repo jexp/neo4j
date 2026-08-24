@@ -20,10 +20,10 @@
 package org.neo4j.kernel.impl.transaction;
 
 import static org.neo4j.kernel.impl.api.LeaseService.NO_LEASE;
-import static org.neo4j.kernel.impl.transaction.log.LogIndexEncoding.decodeLogIndex;
 import static org.neo4j.storageengine.AppendIndexProvider.UNKNOWN_APPEND_INDEX;
 import static org.neo4j.storageengine.api.TransactionIdStore.BASE_CHUNK_ID;
 import static org.neo4j.storageengine.api.TransactionIdStore.UNKNOWN_TX_ID;
+import static org.neo4j.wal.LogIndexEncoding.decodeLogIndex;
 
 import java.io.IOException;
 import java.util.List;
@@ -33,14 +33,14 @@ import org.neo4j.io.fs.WritableChannel;
 import org.neo4j.kernel.KernelVersion;
 import org.neo4j.kernel.impl.api.chunk.ChunkMetadata;
 import org.neo4j.kernel.impl.api.chunk.ChunkedCommandBatch;
-import org.neo4j.kernel.impl.transaction.log.entry.LogEntry;
-import org.neo4j.kernel.impl.transaction.log.entry.LogEntryCommit;
-import org.neo4j.kernel.impl.transaction.log.entry.LogEntryStart;
-import org.neo4j.kernel.impl.transaction.log.entry.LogEntryWriter;
-import org.neo4j.kernel.impl.transaction.log.entry.v520.LogEntryChunkEnd;
-import org.neo4j.kernel.impl.transaction.log.entry.v520.LogEntryChunkStart;
 import org.neo4j.storageengine.api.CommandBatch;
 import org.neo4j.storageengine.api.StorageCommand;
+import org.neo4j.wal.entry.LogEntry;
+import org.neo4j.wal.entry.LogEntryCommit;
+import org.neo4j.wal.entry.LogEntryStart;
+import org.neo4j.wal.entry.LogEntryWriter;
+import org.neo4j.wal.entry.v520.LogEntryChunkEnd;
+import org.neo4j.wal.entry.v520.LogEntryChunkStart;
 
 public record ChunkedBatchRepresentation(
         LogEntryChunkStart chunkStart, CommandBatch commandBatch, LogEntryChunkEnd chunkEnd, int previousChecksum)

@@ -49,7 +49,6 @@ import org.neo4j.kernel.impl.api.chunk.TransactionRollbackProcess;
 import org.neo4j.kernel.impl.api.transaction.serial.SerialExecutionGuard;
 import org.neo4j.kernel.impl.api.txid.TransactionIdGenerator;
 import org.neo4j.kernel.impl.locking.LockManager;
-import org.neo4j.kernel.impl.transaction.log.TransactionCommitmentFactory;
 import org.neo4j.kernel.impl.transaction.tracing.TransactionRollbackEvent;
 import org.neo4j.kernel.impl.transaction.tracing.TransactionWriteEvent;
 import org.neo4j.lock.Lock;
@@ -64,6 +63,7 @@ import org.neo4j.storageengine.api.cursor.StoreCursors;
 import org.neo4j.storageengine.api.txstate.validation.TransactionConflictException;
 import org.neo4j.storageengine.api.txstate.validation.TransactionValidator;
 import org.neo4j.storageengine.api.txstate.validation.ValidationLockDumper;
+import org.neo4j.wal.TransactionCommitmentFactory;
 
 public final class ChunkCommitter implements TransactionCommitter {
     private final KernelTransactionImplementation ktx;

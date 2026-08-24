@@ -1,0 +1,73 @@
+/*
+ * Copyright (c) "Neo4j"
+ * Neo4j Sweden AB [https://neo4j.com]
+ *
+ * This file is part of Neo4j.
+ *
+ * Neo4j is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package org.neo4j.wal;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.Optional;
+import java.util.OptionalLong;
+import org.neo4j.storageengine.api.CommandBatch;
+
+public interface LogWriter {
+    LogPosition beforeAppendPosition();
+
+    LogPositionMarker getCurrentPosition(LogPositionMarker logPositionMarker) throws IOException;
+
+    int append(
+            ByteBuffer byteBuffer,
+            LogAppendEvent logAppendEvent,
+            OptionalLong appendIndex,
+            Optional<Byte> kernelVersionByte,
+            int checksum,
+            long offset,
+            Optional<Byte> logFormatVersion)
+            throws IOException;
+
+    boolean handlesRotationInternally();
+
+    /*
+    * It's possible to append two types of transactions: complete or chunked.
+    * Complete transactions are transactions that come with all desired changes in one command batch.
+    * This kind of transaction is stored in logs as a sequence of commands like:
+    *   start entry -> transactional content -> commit entry
+    * Chunked transactions are stored in logs in different chunks where each chunk contains only part of the transaction.
+    * This kind of transaction is stored in logs as a sequence of commands like:
+        start entry -> chunk start > chunk content -> chunk end -> chunk start > chunk content -> chunk end -> commit entry
+    * </p>
+    * An important difference is chunk start/chunk end command pairs. They present only in chunked transactions.
+    * The first chunk of chunked transactions comes also with a start entry.
+    * The last chunk in the chunked transaction comes with a commit entry at the end.
+    */
+    int append(
+            CommandBatch batch,
+            long transactionId,
+            long chunkId,
+            long appendIndex,
+            int previousChecksum,
+            long previousBatchAppendIndex,
+            LogAppendEvent logAppendEvent)
+            throws IOException;
+
+    LogPosition getCurrentPosition() throws IOException;
+
+    void resetAppendedBytesCounter();
+
+    long getAppendedBytes();
+}

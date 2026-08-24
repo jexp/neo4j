@@ -53,7 +53,6 @@ import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.context.CursorContextFactory;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.kernel.DatabaseCreationOptions;
-import org.neo4j.kernel.impl.transaction.log.LogTailLogVersionsMetadata;
 import org.neo4j.memory.EmptyMemoryTracker;
 import org.neo4j.storageengine.api.LogMetadataProviderImpl;
 import org.neo4j.test.LatestVersions;
@@ -63,6 +62,7 @@ import org.neo4j.test.extension.Neo4jLayoutExtension;
 import org.neo4j.test.extension.RandomSupportExtension;
 import org.neo4j.test.extension.pagecache.PageCacheExtension;
 import org.neo4j.test.scheduler.JobSchedulerAdapter;
+import org.neo4j.wal.LogTailLogVersionsMetadata;
 
 @PageCacheExtension
 @Neo4jLayoutExtension

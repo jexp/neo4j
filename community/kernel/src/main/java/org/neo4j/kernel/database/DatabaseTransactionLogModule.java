@@ -19,9 +19,9 @@
  */
 package org.neo4j.kernel.database;
 
-import org.neo4j.kernel.impl.transaction.log.LogicalTransactionStore;
-import org.neo4j.kernel.impl.transaction.log.TransactionAppender;
-import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
+import org.neo4j.wal.LogicalTransactionStore;
+import org.neo4j.wal.TransactionAppender;
+import org.neo4j.wal.checkpoint.CheckPointer;
 
 class DatabaseTransactionLogModule {
     private final CheckPointer checkPointer;

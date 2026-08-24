@@ -30,10 +30,10 @@ import org.neo4j.kernel.impl.api.TransactionCommitProcess;
 import org.neo4j.kernel.impl.api.TransactionalProcessFactory;
 import org.neo4j.kernel.impl.api.chunk.MultiVersionTransactionRollbackProcess;
 import org.neo4j.kernel.impl.api.chunk.TransactionRollbackProcess;
-import org.neo4j.kernel.impl.transaction.log.LogicalTransactionStore;
-import org.neo4j.kernel.impl.transaction.log.TransactionAppender;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.storageengine.api.StorageEngine;
+import org.neo4j.wal.LogicalTransactionStore;
+import org.neo4j.wal.TransactionAppender;
 
 public class DefaultTransactionalProcessFactory implements TransactionalProcessFactory {
     @Override

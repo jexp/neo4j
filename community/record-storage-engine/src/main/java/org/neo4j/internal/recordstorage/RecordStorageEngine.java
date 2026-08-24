@@ -102,7 +102,6 @@ import org.neo4j.kernel.impl.store.cursor.CachedStoreCursors;
 import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
 import org.neo4j.kernel.impl.store.stats.RecordDatabaseEntityCounters;
 import org.neo4j.kernel.impl.store.stats.StoreEntityCounters;
-import org.neo4j.kernel.impl.transaction.log.entry.LogFormat;
 import org.neo4j.kernel.lifecycle.Lifecycle;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 import org.neo4j.kernel.recovery.RecoveryStartupChecker;
@@ -142,6 +141,7 @@ import org.neo4j.storageengine.util.IndexUpdatesWorkSync;
 import org.neo4j.token.TokenHolders;
 import org.neo4j.token.api.TokensLoader;
 import org.neo4j.util.VisibleForTesting;
+import org.neo4j.wal.entry.LogFormat;
 
 public class RecordStorageEngine implements StorageEngine, Lifecycle {
     private static final String STORAGE_ENGINE_START_TAG = "storageEngineStart";

@@ -40,10 +40,10 @@ import org.neo4j.kernel.impl.store.record.NodeRecord;
 import org.neo4j.kernel.impl.store.record.PropertyBlock;
 import org.neo4j.kernel.impl.store.record.PropertyRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipRecord;
-import org.neo4j.kernel.impl.transaction.log.InMemoryClosableChannel;
 import org.neo4j.memory.EmptyMemoryTracker;
 import org.neo4j.test.extension.RandomSupportExtension;
 import org.neo4j.values.storable.Values;
+import org.neo4j.wal.InMemoryClosableChannel;
 
 @RandomSupportExtension
 public class LogCommandSerializationV5_11Test extends LogCommandSerializationV5_8Test {

@@ -162,7 +162,6 @@ import org.neo4j.kernel.impl.newapi.KernelTokenRead;
 import org.neo4j.kernel.impl.newapi.Operations;
 import org.neo4j.kernel.impl.newapi.TransactionQueryContext;
 import org.neo4j.kernel.impl.query.TransactionExecutionMonitor;
-import org.neo4j.kernel.impl.transaction.log.TransactionCommitmentFactory;
 import org.neo4j.kernel.impl.transaction.tracing.TransactionEvent;
 import org.neo4j.kernel.impl.transaction.tracing.TransactionTracer;
 import org.neo4j.kernel.impl.transaction.tracing.TransactionWriteEvent;
@@ -204,6 +203,7 @@ import org.neo4j.time.SystemNanoClock;
 import org.neo4j.token.TokenHolders;
 import org.neo4j.util.FeatureToggles;
 import org.neo4j.values.ElementIdMapper;
+import org.neo4j.wal.TransactionCommitmentFactory;
 
 public class KernelTransactionImplementation
         implements KernelTransaction, TxStateHolder, ExecutionStatistics, KernelTransactionResourceFactory {

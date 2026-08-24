@@ -27,13 +27,13 @@ import org.neo4j.graphdb.Resource;
 import org.neo4j.io.IOUtils;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.database.Database;
-import org.neo4j.kernel.impl.transaction.log.LogFiles;
-import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
-import org.neo4j.kernel.impl.transaction.log.checkpoint.SimpleTriggerInfo;
-import org.neo4j.kernel.impl.transaction.log.entry.LogFormat;
 import org.neo4j.logging.InternalLog;
 import org.neo4j.storageengine.api.StoreResource;
 import org.neo4j.storageengine.api.StoreSnapshot;
+import org.neo4j.wal.LogFiles;
+import org.neo4j.wal.checkpoint.CheckPointer;
+import org.neo4j.wal.checkpoint.SimpleTriggerInfo;
+import org.neo4j.wal.entry.LogFormat;
 
 public class DefaultStoreSnapshotFactory implements StoreSnapshot.Factory {
     private final Database database;

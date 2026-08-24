@@ -47,7 +47,6 @@ import org.neo4j.kernel.KernelVersionProviders;
 import org.neo4j.kernel.database.DatabaseTracers;
 import org.neo4j.kernel.impl.api.index.IndexProviderMap;
 import org.neo4j.kernel.impl.index.schema.IndexImporterFactoryImpl;
-import org.neo4j.kernel.impl.transaction.log.LogTailMetadata;
 import org.neo4j.kernel.recovery.LogTailExtractor;
 import org.neo4j.logging.InternalLog;
 import org.neo4j.logging.internal.LogService;
@@ -59,6 +58,7 @@ import org.neo4j.storageengine.api.StoreVersion;
 import org.neo4j.storageengine.api.StoreVersionIdentifier;
 import org.neo4j.storageengine.migration.MigrationProgressMonitor;
 import org.neo4j.storageengine.migration.StoreMigrationParticipant;
+import org.neo4j.wal.LogTailMetadata;
 
 /**
  * A process for doing store upgrade and migration.
