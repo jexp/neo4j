@@ -62,7 +62,12 @@ import org.neo4j.graphdb.ConstraintViolationException
 import org.neo4j.graphdb.Label
 import org.neo4j.graphdb.schema.IndexType
 import org.neo4j.internal.helpers.collection.Iterables
+import org.neo4j.internal.kernel.api.procs.Neo4jTypes
+import org.neo4j.internal.kernel.api.procs.QualifiedName
+import org.neo4j.internal.kernel.api.procs.UserFunctionSignature
 import org.neo4j.kernel.api.KernelTransaction.Type
+import org.neo4j.kernel.api.procedure.CallableUserFunction.BasicUserFunction
+import org.neo4j.kernel.api.procedure.Context
 import org.neo4j.kernel.impl.coreapi.InternalTransaction
 import org.neo4j.kernel.impl.factory.GraphDatabaseFacade
 import org.neo4j.kernel.impl.transaction.stats.DatabaseTransactionStats
@@ -1532,10 +1537,145 @@ abstract class TransactionApplyTestBase[CONTEXT <: RuntimeContext](
     }
   }
 
+  // Regression tests for error handling with hash join bugs
+  // The 3 tests below are the behavioral tests of bugs fixed by the BufferTraversalMode.AllWork
+  // registrations in PipelineTreeBuilder, and, for the cursor leak, by closing reaped tasks with
+  // the resources of their pipeline's transactional scope (WorkerQueryState.queryStateForClosing).
+  test("should not leak cursors when task is cancelled after recovered error ON ERROR CONTINUE") {
+    setInitialSeed(-5122609937924451453L)
+    givenGraph(complexGraph())
+
+    // A function that fails the query on exactly its 2nd evaluation. The first batch then fails
+    // after the trail pipelines have started executing: the failing task is closed and
+    // outstanding work is eagerly cleaned up, but input morsels already buffered for the
+    // cursor-holding pipeline feeding the hash join still spawn new tasks. Those execute with
+    // the inner transaction's scoped resources, suspend with open cursors, and are reaped later
+    // through lazy argument cancellation, which closes them with the outer scheduling worker's
+    // resources, freeing the cursors into the wrong pool.
+    registerTickFunction()
+
+    val query = new LogicalQueryBuilder(this)
+      .withMorselSize(4)
+      .produceResults("middle", "end", "iteration", "s")
+      .transactionApply(7, onErrorBehaviour = OnErrorContinue, maybeReportAs = Some("s"))
+      .|.repeatTrail(RepeatTrailTestBase.`(middle) [(c)-[r2]->(d:LOOP)]{0, *} (end:LOOP)`.copy(
+        previouslyBoundRelationshipGroups = Set.empty,
+        groupNodes = Set.empty,
+        groupRelationships = Set.empty
+      )).withLeveragedOrder()
+      .|.|.nodeHashJoin("d_inner")
+      .|.|.|.allNodeScan("d_inner")
+      .|.|.filter("CASE WHEN `test.tick`() = 2 THEN 1/0 > 0 ELSE true END")
+      .|.|.filter(isRepeatTrailUnique("r2_inner"))
+      .|.|.expandAll("(c_inner)-[r2_inner]->(d_inner)")
+      .|.|.argument("middle", "c_inner")
+      .|.nodeByLabelScan("middle", "LOOP", IndexOrderNone)
+      .unwind("range(1, 3) AS iteration")
+      .argument()
+      .build()
+
+    // Main assertion is that consuming succeeds without leaking cursors: the division error
+    // is recovered by ON ERROR CONTINUE and reported via the status column.
+    executeAndConsume(resolveTickFunction(query), runtime).awaitAll()
+  }
+
+  test("should not execute work of a cancelled batch after recovered error ON ERROR CONTINUE") {
+    setInitialSeed(-5122609937924451453L)
+    givenGraph(complexGraph())
+
+    // A function that fails the query on exactly its 2nd evaluation, as in the test above. When the
+    // error is recovered, rows of the failed batch are still buffered in the execution graph,
+    // including in the buffers feeding the hash join's LHS. Work cancellers must reach those buffers
+    // so the rows are discarded when they are reaped. If cancellation does not reach them, the rows
+    // execute against the rolled back inner transaction and evaluate the function additional times.
+    val tickCounter = registerTickFunction()
+
+    val query = new LogicalQueryBuilder(this)
+      .withMorselSize(4)
+      .produceResults("middle", "end", "iteration", "s")
+      .transactionApply(7, onErrorBehaviour = OnErrorContinue, maybeReportAs = Some("s"))
+      .|.repeatTrail(RepeatTrailTestBase.`(middle) [(c)-[r2]->(d:LOOP)]{0, *} (end:LOOP)`.copy(
+        previouslyBoundRelationshipGroups = Set.empty,
+        groupNodes = Set.empty,
+        groupRelationships = Set.empty
+      )).withLeveragedOrder()
+      .|.|.nodeHashJoin("d_inner")
+      .|.|.|.allNodeScan("d_inner")
+      .|.|.filter("CASE WHEN `test.tick`() = 2 THEN 1/0 > 0 ELSE true END")
+      .|.|.filter(isRepeatTrailUnique("r2_inner"))
+      .|.|.expandAll("(c_inner)-[r2_inner]->(d_inner)")
+      .|.|.argument("middle", "c_inner")
+      .|.nodeByLabelScan("middle", "LOOP", IndexOrderNone)
+      .unwind("range(1, 3) AS iteration")
+      .argument()
+      .build()
+
+    executeAndConsume(resolveTickFunction(query), runtime).awaitAll()
+
+    // The 1st evaluation passes and the 2nd fails the batch. No evaluation may happen after that:
+    // all remaining rows of the failed batch must be cancelled before they reach the operators.
+    tickCounter.get() shouldBe 2L
+  }
+
+  test("should not complete a transaction batch while rows are buffered behind a hash join LHS") {
+    givenGraph(nodeGraph(8))
+
+    // The trail free analog of the two tests above. A hash join sits directly on the RHS of the
+    // transaction apply, so the join's accumulating LHS is fed by its own single row delegate of the
+    // transaction apply buffer, separate from the one feeding the streaming RHS. The argument tracker
+    // that decides when a batch has fully drained must hold a share for that delegate too. Without it
+    // the batch completes and its argument state is removed while the delegate still buffers rows of
+    // the batch, which the reinstated isStaleArgument assertion catches when such a row is taken.
+    val tickCounter = registerTickFunction()
+
+    val query = new LogicalQueryBuilder(this)
+      .withMorselSize(4)
+      .produceResults("i", "s")
+      .transactionApply(2, onErrorBehaviour = OnErrorContinue, maybeReportAs = Some("s"))
+      .|.nodeHashJoin("n")
+      .|.|.allNodeScan("n")
+      .|.filter("CASE WHEN `test.tick`() = 2 THEN 1/0 > 0 ELSE true END")
+      .|.allNodeScan("n")
+      .unwind("range(1, 6) AS i")
+      .argument()
+      .build()
+
+    executeAndConsume(resolveTickFunction(query), runtime).awaitAll()
+
+    // The 1st evaluation passes and the 2nd fails the first batch. The two later batches are not
+    // affected by the recovered error, so they evaluate the function for their own rows.
+    tickCounter.get() should be > 2L
+  }
+
   private def executeAndConsume(logicalQuery: LogicalQuery, runtime: CypherRuntime[CONTEXT]) = {
     val result = execute(logicalQuery, runtime)
     consume(result)
     result
+  }
+
+  // Registers `test.tick()`, a user function counting its own evaluations, and restarts the
+  // transaction so the new registration is visible to the query about to be built.
+  private def registerTickFunction(): AtomicLong = {
+    val tickCounter = new AtomicLong(0)
+    registerFunction(new BasicUserFunction(
+      UserFunctionSignature.functionSignature(new QualifiedName("test.tick"))
+        .out(Neo4jTypes.NTInteger).threadSafe().build()
+    ) {
+      override def apply(ctx: Context, input: Array[AnyValue]): AnyValue =
+        Values.longValue(tickCounter.incrementAndGet())
+    })
+    restartTx()
+    tickCounter
+  }
+
+  // Resolves the `test.tick()` invocation registered by registerTickFunction so the fused
+  // runtime can generate code for it.
+  private def resolveTickFunction(logicalQuery: LogicalQuery): LogicalQuery = {
+    val resolved = logicalQuery.logicalPlan.endoRewrite(bottomUp(Rewriter.lift {
+      case fi: FunctionInvocation if fi.needsToBeResolved =>
+        ResolvedFunctionInvocation.fromUnresolved(functionSignature)(fi).coerceArguments
+    }))
+    logicalQuery.copy(logicalPlan = resolved)
   }
 
   protected def txAssertionProbe(assertion: InternalTransaction => Unit): Prober.Probe = {
