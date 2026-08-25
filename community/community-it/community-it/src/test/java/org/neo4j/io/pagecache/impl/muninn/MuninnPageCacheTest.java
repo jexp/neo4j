@@ -3529,15 +3529,29 @@ public class MuninnPageCacheTest extends PageCacheTest<MuninnPageCache> {
                             + localPageCache.describePages());
 
             var pageMetadata = localPageCache.pageMetadata();
-            for (int id = 0; id < pageMetadata.getPageCount(); id++) {
-                long pageRef = pageMetadata.deref(id);
-                assertFalse(PageMetadata.isLoaded(pageRef), () -> {
-                    int swapperId = PageMetadata.getSwapperId(pageRef);
-                    long filePageId = PageMetadata.getFilePageId(pageRef);
-                    return swapperId + " " + filePageId + " " + PageMetadata.pageMetadata(pageRef);
-                });
+            assertEventually(
+                    () -> describeLoadedPages(pageMetadata),
+                    String::isEmpty,
+                    SHORT_TIMEOUT_MILLIS,
+                    TimeUnit.MILLISECONDS);
+        }
+    }
+
+    private static String describeLoadedPages(PageMetadata pageMetadata) {
+        var description = new StringBuilder();
+        for (int id = 0; id < pageMetadata.getPageCount(); id++) {
+            long pageRef = pageMetadata.deref(id);
+            if (PageMetadata.isLoaded(pageRef)) {
+                description
+                        .append(PageMetadata.getSwapperId(pageRef))
+                        .append(' ')
+                        .append(PageMetadata.getFilePageId(pageRef))
+                        .append(' ')
+                        .append(PageMetadata.pageMetadata(pageRef))
+                        .append('\n');
             }
         }
+        return description.toString();
     }
 
     @RepeatedTest(50)
