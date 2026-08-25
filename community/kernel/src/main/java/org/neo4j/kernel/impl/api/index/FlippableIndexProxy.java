@@ -199,24 +199,50 @@ public class FlippableIndexProxy extends AbstractDelegatingIndexProxy {
         }
     }
 
-    @Override
-    public IndexDescriptor getDescriptor() {
-        lock.readLock().lock();
-        try {
-            return delegate.getDescriptor();
-        } finally {
-            lock.readLock().unlock();
-        }
+    /**
+     * Read the current {@link #delegate} without taking any lock, for the purpose of <i>observing</i> the index rather
+     * than operating on it.
+     * <p/>
+     * {@link #flip(Callable)} holds the exclusive lock for as long as its action takes, and that action can be
+     * arbitrarily long-lived: it closes the populator, which for vector indexes performs post-population segment
+     * compaction that can run for many minutes on a large index. Acquiring the shared lock in order to merely report
+     * index state would therefore block for that entire duration. That is not a theoretical concern - it made
+     * {@code SHOW INDEXES} hang until compaction finished, and because the shared lock is acquired uninterruptibly the
+     * blocked queries could not even be terminated, so they accumulated until the Bolt worker pool was exhausted and
+     * unrelated queries started failing too.
+     * <p/>
+     * Doing this without the lock is safe because {@link #delegate} is {@code volatile}, so we always observe a fully
+     * published proxy - either the one from before the flip or the one from after it, both of which are valid answers
+     * for an observer - and because the methods routed through here only report status:
+     * {@link IndexProxy#getDescriptor()} returns an immutable descriptor held in a {@code final} field;
+     * {@link IndexProxy#getState()} is a constant everywhere except {@link TentativeConstraintIndexProxy}, which
+     * derives it from a {@link java.util.concurrent.CopyOnWriteArrayList}; {@link IndexProxy#getPopulationFailure()}
+     * throws, returns a {@code final} field, or - again in {@link TentativeConstraintIndexProxy} - reduces over that
+     * same concurrent collection; and {@link IndexProxy#getIndexPopulationProgress()} does reach into the populator
+     * that the flip is closing, but every {@link org.neo4j.kernel.api.index.IndexPopulator#progress} implementation
+     * reads only volatile or atomic counters, so a stale read is the worst that can happen and that is fine for a
+     * progress report.
+     * <p/>
+     * Note that {@link #barge(ReentrantReadWriteLock.ReadLock)} would <i>not</i> solve this: barging only skips ahead
+     * of queued writers, and here the writer already holds the lock.
+     *
+     * @return the current delegate, never waiting for a concurrent flip.
+     */
+    private IndexProxy observeDelegate() {
+        return delegate;
     }
 
     @Override
+    public IndexDescriptor getDescriptor() {
+        return observeDelegate().getDescriptor();
+    }
+
+    /**
+     * Deliberately does <b>not</b> acquire the read lock, see {@link #observeDelegate()}.
+     */
+    @Override
     public InternalIndexState getState() {
-        lock.readLock().lock();
-        try {
-            return delegate.getState();
-        } finally {
-            lock.readLock().unlock();
-        }
+        return observeDelegate().getState();
     }
 
     @Override
@@ -325,24 +351,20 @@ public class FlippableIndexProxy extends AbstractDelegatingIndexProxy {
         }
     }
 
+    /**
+     * Deliberately does <b>not</b> acquire the read lock, see {@link #observeDelegate()}.
+     */
     @Override
     public IndexPopulationFailure getPopulationFailure() throws IllegalStateException {
-        lock.readLock().lock();
-        try {
-            return delegate.getPopulationFailure();
-        } finally {
-            lock.readLock().unlock();
-        }
+        return observeDelegate().getPopulationFailure();
     }
 
+    /**
+     * Deliberately does <b>not</b> acquire the read lock, see {@link #observeDelegate()}.
+     */
     @Override
     public PopulationProgress getIndexPopulationProgress() {
-        lock.readLock().lock();
-        try {
-            return delegate.getIndexPopulationProgress();
-        } finally {
-            lock.readLock().unlock();
-        }
+        return observeDelegate().getIndexPopulationProgress();
     }
 
     @Override

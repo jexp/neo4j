@@ -21,11 +21,13 @@ package org.neo4j.kernel.impl.api.index;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 import static org.neo4j.io.pagecache.context.CursorContext.NULL_CONTEXT;
 import static org.neo4j.kernel.impl.api.index.SchemaIndexTestHelper.awaitLatch;
 import static org.neo4j.kernel.impl.api.index.SchemaIndexTestHelper.mockIndexProxy;
@@ -35,6 +37,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
+import org.neo4j.internal.kernel.api.InternalIndexState;
+import org.neo4j.internal.kernel.api.PopulationProgress;
 import org.neo4j.kernel.api.exceptions.index.IndexProxyAlreadyClosedKernelException;
 import org.neo4j.test.OtherThreadExecutor;
 
@@ -126,6 +130,46 @@ class FlippableIndexProxyTest {
 
             // But it should have gotten to drop the new index context, after the flip happened.
             verify(contextAfterFlip).drop();
+        }
+    }
+
+    /**
+     * A flip holds the exclusive lock for as long as its action takes, and for vector indexes that action performs
+     * post-population segment compaction which can run for many minutes. Reporting index state - which is what
+     * {@code SHOW INDEXES} does - must not wait for it.
+     */
+    @Test
+    void shouldReportStateWithoutWaitingForOngoingFlip() throws Exception {
+        // GIVEN a proxy whose delegate reports POPULATING
+        IndexProxy contextBeforeFlip = mockIndexProxy();
+        IndexProxy contextAfterFlip = mockIndexProxy();
+        when(contextBeforeFlip.getState()).thenReturn(InternalIndexState.POPULATING);
+        when(contextBeforeFlip.getIndexPopulationProgress()).thenReturn(PopulationProgress.NONE);
+        FlippableIndexProxy flippable = new FlippableIndexProxy(contextBeforeFlip);
+        flippable.setFlipTarget(singleProxy(contextAfterFlip));
+
+        CountDownLatch triggerFinishFlip = new CountDownLatch(1);
+        CountDownLatch flipInProgress = new CountDownLatch(1);
+
+        try (OtherThreadExecutor flippingThread = new OtherThreadExecutor("Flipping thread");
+                OtherThreadExecutor observingThread = new OtherThreadExecutor("Observing thread")) {
+            // WHEN a flip is in progress and its action has not returned yet
+            Future<Void> flipContextFuture = flippingThread.executeDontWait(
+                    startFlipAndWaitForLatchBeforeFinishing(flippable, triggerFinishFlip, flipInProgress));
+            assertTrue(flipInProgress.await(10, SECONDS));
+
+            // THEN observing the index still answers, rather than blocking until the flip completes.
+            // Observed on a separate thread so that a regression fails the test rather than deadlocking it -
+            // this thread is the one that has to release the flip afterwards.
+            Future<InternalIndexState> state = observingThread.executeDontWait(flippable::getState);
+            Future<PopulationProgress> progress =
+                    observingThread.executeDontWait(flippable::getIndexPopulationProgress);
+            assertThat(state.get(10, SECONDS)).isEqualTo(InternalIndexState.POPULATING);
+            assertThat(progress.get(10, SECONDS)).isEqualTo(PopulationProgress.NONE);
+
+            // and the flip completes as usual
+            triggerFinishFlip.countDown();
+            flipContextFuture.get(10, SECONDS);
         }
     }
 

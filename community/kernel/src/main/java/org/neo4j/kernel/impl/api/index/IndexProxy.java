@@ -67,15 +67,38 @@ public interface IndexProxy extends MinimalIndexAccessor {
      */
     void close(CursorContext cursorContext) throws IOException;
 
+    /**
+     * @implSpec Must be safe to call while another thread is concurrently flipping or closing this proxy, because
+     * {@link FlippableIndexProxy} deliberately reads it without holding its lock. Concretely: return a constant, a
+     * {@code final} field, or something read from a concurrent collection or atomic counter - never state that
+     * {@link #close(CursorContext)} or {@link #drop()} tears down.
+     */
     IndexDescriptor getDescriptor();
 
+    /**
+     * @implSpec Must be safe to call while another thread is concurrently flipping or closing this proxy, because
+     * {@link FlippableIndexProxy} deliberately reads it without holding its lock. Concretely: return a constant, a
+     * {@code final} field, or something read from a concurrent collection or atomic counter - never state that
+     * {@link #close(CursorContext)} or {@link #drop()} tears down.
+     */
     InternalIndexState getState();
 
     /**
+     * @implSpec Must be safe to call while another thread is concurrently flipping or closing this proxy, because
+     * {@link FlippableIndexProxy} deliberately reads it without holding its lock. Concretely: return a constant, a
+     * {@code final} field, or something read from a concurrent collection or atomic counter - never state that
+     * {@link #close(CursorContext)} or {@link #drop()} tears down.
+     *
      * @return failure message. Expect a call to it if {@link #getState()} returns {@link InternalIndexState#FAILED}.
      */
     IndexPopulationFailure getPopulationFailure() throws IllegalStateException;
 
+    /**
+     * @implSpec Must be safe to call while another thread is concurrently flipping or closing this proxy, because
+     * {@link FlippableIndexProxy} deliberately reads it without holding its lock. Concretely: return a constant, a
+     * {@code final} field, or something read from a concurrent collection or atomic counter - never state that
+     * {@link #close(CursorContext)} or {@link #drop()} tears down.
+     */
     PopulationProgress getIndexPopulationProgress();
 
     void force(FileFlushEvent flushEvent, AsyncBlockAccessor asyncBlockAccessor, CursorContext cursorContext)
