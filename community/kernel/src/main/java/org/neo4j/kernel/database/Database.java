@@ -372,7 +372,7 @@ public class Database extends AbstractDatabase {
         var storageLockManager = storageEngineFactory.createLockManager(databaseConfig, this.clock, transactionStats);
         this.databaseLockManager =
                 multiVersioned ? new MultiVersionLockManager(storageLockManager) : storageLockManager;
-        this.lockService = createLockService(storageEngineFactory, getNamedDatabaseId());
+        this.lockService = createLockService(storageEngineFactory);
         this.databaseLayout = storageEngineFactory.formatSpecificDatabaseLayout(databaseLayout);
         new DatabaseDirectoriesCreator(fs, databaseLayout).createDirectories();
         ioController = ioControllerService.createIOController(databaseConfig, clock);
@@ -595,8 +595,8 @@ public class Database extends AbstractDatabase {
         databaseDependencies.satisfyDependency(storageEngine.metadataProvider());
 
         initialiseContextFactory(
-                getTransactionIdSnapshotFactory(storageEngineFactory, logMetadataProvider, getNamedDatabaseId()),
-                getOldestVisibilityHorizonFactory(storageEngineFactory, () -> kernelModule, getNamedDatabaseId()));
+                getTransactionIdSnapshotFactory(storageEngineFactory, logMetadataProvider),
+                getOldestVisibilityHorizonFactory(storageEngineFactory, () -> kernelModule));
         elementIdMapper = new DefaultElementIdMapperV1(namedDatabaseId);
 
         life.add(storageEngine);
@@ -863,7 +863,7 @@ public class Database extends AbstractDatabase {
                 databaseConfig,
                 kernelModule.kernelAPI(),
                 kernelModule.kernelTransactions(),
-                isMultiVersioned(storageEngineFactory, namedDatabaseId));
+                storageEngineFactory.multiVersioned());
 
         handler.registerUpgradeListener((fromKernelVersion, toKernelVersion, tx, currentLogFormat) -> {
             tx.upgrade()
@@ -1292,7 +1292,7 @@ public class Database extends AbstractDatabase {
                 databaseLogService,
                 indexingService,
                 databaseHealth,
-                isMultiVersioned(storageEngineFactory, namedDatabaseId));
+                storageEngineFactory.multiVersioned());
         databaseDependencies.satisfyDependency(kernelTransactionMonitor);
         TransactionMonitorScheduler transactionMonitorScheduler = new TransactionMonitorScheduler(
                 kernelTransactionMonitor,
@@ -1572,27 +1572,20 @@ public class Database extends AbstractDatabase {
         }
     }
 
-    private static LockService createLockService(
-            StorageEngineFactory storageEngineFactory, NamedDatabaseId namedDatabaseId) {
-        return isMultiVersioned(storageEngineFactory, namedDatabaseId)
-                ? LockService.NO_LOCK_SERVICE
-                : new ReentrantLockService();
+    private static LockService createLockService(StorageEngineFactory storageEngineFactory) {
+        return storageEngineFactory.multiVersioned() ? LockService.NO_LOCK_SERVICE : new ReentrantLockService();
     }
 
     private static TransactionIdSnapshotFactory getTransactionIdSnapshotFactory(
-            StorageEngineFactory storageEngineFactory,
-            LogMetadataProvider metadataProvider,
-            NamedDatabaseId namedDatabaseId) {
-        return isMultiVersioned(storageEngineFactory, namedDatabaseId)
+            StorageEngineFactory storageEngineFactory, LogMetadataProvider metadataProvider) {
+        return storageEngineFactory.multiVersioned()
                 ? metadataProvider::getClosedTransactionSnapshot
                 : (() -> new TransactionIdSnapshot(metadataProvider.getHighestGapFreeClosedTransactionId()));
     }
 
     private static OldestVisibilityHorizonFactory getOldestVisibilityHorizonFactory(
-            StorageEngineFactory storageEngineFactory,
-            Supplier<DatabaseKernelModule> kernelModule,
-            NamedDatabaseId namedDatabaseId) {
-        return isMultiVersioned(storageEngineFactory, namedDatabaseId)
+            StorageEngineFactory storageEngineFactory, Supplier<DatabaseKernelModule> kernelModule) {
+        return storageEngineFactory.multiVersioned()
                 ? (() -> kernelModule.get().transactionMonitor().oldestVisibilityHorizon())
                 : OldestVisibilityHorizonFactory.EMPTY_OLDEST_HORIZON_FACTORY;
     }

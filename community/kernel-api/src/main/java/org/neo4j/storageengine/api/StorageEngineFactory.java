@@ -19,6 +19,8 @@
  */
 package org.neo4j.storageengine.api;
 
+import static org.neo4j.configuration.GraphDatabaseSettings.SYSTEM_DATABASE_NAME;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -46,6 +48,7 @@ import org.neo4j.batchimport.api.input.Collector;
 import org.neo4j.batchimport.api.input.Input;
 import org.neo4j.common.DependencyResolver;
 import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseInternalSettings;
 import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.consistency.checking.ConsistencyCheckIncompleteException;
 import org.neo4j.consistency.checking.ConsistencyCheckMonitor;
@@ -606,14 +609,18 @@ public interface StorageEngineFactory {
             FileSystemAbstraction fs, DatabaseLayout databaseLayout, Configuration configuration) {
         // - Does a store exist at this location? -> get the one able to open it
         // - Is there a specific name of a store format to look for? -> get the storage engine that recognizes it
-        // (except for system that should use default)
+        // (except for system whose format is edition specific and not user configurable)
         // - Use the default one
         return selectStorageEngine(fs, databaseLayout).orElseGet(() -> {
             validateNotKnownFormat(fs, databaseLayout);
-            return configuration == null
-                            || GraphDatabaseSettings.SYSTEM_DATABASE_NAME.equals(databaseLayout.getDatabaseName())
-                    ? defaultStorageEngine()
-                    : findEngineForFormatOrThrow(configuration);
+            if (configuration == null) {
+                return defaultStorageEngine();
+            }
+            if (SYSTEM_DATABASE_NAME.equals(databaseLayout.getDatabaseName())) {
+                return findEngineForFormatOrThrow(
+                        configuration.get(GraphDatabaseInternalSettings.system_database_format));
+            }
+            return findEngineForFormatOrThrow(configuration);
         });
     }
 

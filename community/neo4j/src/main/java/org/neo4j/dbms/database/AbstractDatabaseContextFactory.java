@@ -20,14 +20,19 @@
 package org.neo4j.dbms.database;
 
 import static org.neo4j.configuration.GraphDatabaseInternalSettings.snapshot_query;
+import static org.neo4j.configuration.GraphDatabaseInternalSettings.system_database_format;
+import static org.neo4j.configuration.GraphDatabaseSettings.db_format;
 import static org.neo4j.io.pagecache.context.FixedVersionContextSupplier.EMPTY_CONTEXT_SUPPLIER;
 import static org.neo4j.token.api.TokenHolder.TYPE_LABEL;
 import static org.neo4j.token.api.TokenHolder.TYPE_PROPERTY_KEY;
 import static org.neo4j.token.api.TokenHolder.TYPE_RELATIONSHIP_TYPE;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 import org.neo4j.configuration.DatabaseConfig;
+import org.neo4j.graphdb.config.Setting;
 import org.neo4j.graphdb.factory.module.GlobalModule;
 import org.neo4j.io.pagecache.context.CursorContextFactory;
 import org.neo4j.io.pagecache.context.VersionContextSupplier;
@@ -70,6 +75,16 @@ public abstract class AbstractDatabaseContextFactory<CONTEXT, OPTIONS>
 
     protected static TokenCreator createLabelIdCreator(Supplier<Kernel> kernelSupplier) {
         return new DefaultLabelIdCreator(kernelSupplier);
+    }
+
+    protected DatabaseConfig createDatabaseConfig(
+            NamedDatabaseId namedDatabaseId, Map<Setting<?>, Object> databaseSpecificSettings) {
+        var globalConfig = globalModule.getGlobalConfig();
+        var settings = new HashMap<>(databaseSpecificSettings);
+        if (namedDatabaseId.isSystemDatabase()) {
+            settings.put(db_format, globalConfig.get(system_database_format));
+        }
+        return new DatabaseConfig(settings, globalConfig);
     }
 
     protected final CursorContextFactorySupplier createContextFactorySupplier(

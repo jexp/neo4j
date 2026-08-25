@@ -279,7 +279,8 @@ public class MigrateStoreCommand extends AbstractAdminCommand {
                                 getCurrentStorageEngineFactory(fs, databaseLayout);
 
                         if (SYSTEM_DATABASE_NAME.equals(dbName)) {
-                            formatForDb = "aligned";
+                            formatForDb =
+                                    currentStorageEngineFactory.multiVersioned() ? "multiversion_block" : "aligned";
 
                             checkAllowedToMigrateSystemDb(
                                     currentStorageEngineFactory, fs, databaseLayout, pageCache, contextFactory);

@@ -21,7 +21,7 @@ package org.neo4j.dbms.database;
 
 import static org.neo4j.kernel.DatabaseCreationOptions.EMPTY_CREATION_OPTIONS;
 
-import org.neo4j.configuration.DatabaseConfig;
+import java.util.Map;
 import org.neo4j.cypher.internal.javacompat.CommunityCypherEngineProvider;
 import org.neo4j.dbms.identity.ServerIdentity;
 import org.neo4j.dbms.systemgraph.TopologyGraphDbmsModel.HostedOnMode;
@@ -94,7 +94,7 @@ public class DefaultDatabaseContextFactory
         private final StandaloneDatabaseContext context;
 
         private Creator(NamedDatabaseId namedDatabaseId) {
-            var databaseConfig = new DatabaseConfig(globalModule.getGlobalConfig());
+            var databaseConfig = createDatabaseConfig(namedDatabaseId, Map.of());
             var contextFactory = createContextFactorySupplier(databaseConfig, namedDatabaseId);
             var databaseLogIdentifier = DatabaseLogIdentifier.create(namedDatabaseId);
             var creationContext = new ModularDatabaseCreationContext(

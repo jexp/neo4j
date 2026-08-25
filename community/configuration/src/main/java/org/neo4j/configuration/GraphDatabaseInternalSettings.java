@@ -1646,6 +1646,12 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
             .build();
 
     @Internal
+    @Description("System database store format.")
+    public static final Setting<String> system_database_format = newBuilder(
+                    "internal.dbms.system_database_format", STRING, "aligned")
+            .build();
+
+    @Internal
     @Description("Whether the transaction log is merged with replication log.")
     public static final Setting<Boolean> merged_log =
             newBuilder("internal.dbms.merged_log", BOOL, false).build();
