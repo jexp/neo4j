@@ -19,16 +19,19 @@
  */
 package org.neo4j.internal.kernel.api;
 
-import org.neo4j.internal.schema.IndexDescriptor;
-import org.neo4j.kernel.api.index.ValueIndexReader;
-
 /**
- * Token which represents a read session towards a specific value index. The life-span of this session is tied to
- * the transaction. It might be created at any time in an open transaction, and will be closed automatically
- * on transaction close.
+ * Incrementally resolves entity ids into a {@link PreparedEntityFilter} against a specific index
+ * snapshot, without retaining the ids themselves. Obtained from {@link IndexReadSession} so it is
+ * bound to the exact reader the subsequent seek will use.
  */
-public interface IndexReadSession {
-    IndexDescriptor reference();
+public interface EntityFilterBuilder extends AutoCloseable {
+    /** Resolve {@code entityId} against the index and record it in the filter under construction. */
+    void add(long entityId);
 
-    ValueIndexReader reader();
+    /** Finish building. The builder must not be used after this. Ownership of tracked heap transfers to the result. */
+    PreparedEntityFilter build();
+
+    /** Release resources if {@link #build()} is never called. */
+    @Override
+    void close();
 }

@@ -1454,11 +1454,14 @@ abstract class NodeVectorIndexSearchTestBase[CONTEXT <: RuntimeContext](
   private val seed: Long = System.currentTimeMillis()
   println("seed=$seed")
   private val random = RandomValues.create(new java.util.Random(seed))
+
   private def randomVector = random.nextFloat32Vector(1536, 1536)
 
   (1 to 100).foreach(i => {
     val dimension = random.intBetween(128, 1028)
+
     def randomVector = random.nextFloat32Vector(dimension, dimension)
+
     def randomValue: Value = random.nextValueOfTypes(
       ValueType.BOOLEAN,
       ValueType.STRING,
@@ -1477,6 +1480,7 @@ abstract class NodeVectorIndexSearchTestBase[CONTEXT <: RuntimeContext](
     )
 
     val Seq(min, max) = Seq(randomValue, randomValue).sorted(comparatorToOrdering(Values.COMPARATOR))
+
     def randomSearchPredicate: (QueryExpression[Expression], String) = {
       random.nextInt(6) match {
         case 0 => (rangeExpression(gt(param("min"))), s"n.prop > $min")
@@ -1488,6 +1492,7 @@ abstract class NodeVectorIndexSearchTestBase[CONTEXT <: RuntimeContext](
         case _ => throw new IllegalStateException
       }
     }
+
     val (predicate, predicateString) = randomSearchPredicate
     val searchVector = randomVector
 
@@ -2483,6 +2488,7 @@ abstract class NodeVectorIndexSearchTestBase[CONTEXT <: RuntimeContext](
     // when
     val d1 = Duration.ofSeconds(10)
     val d2 = Duration.ofSeconds(20)
+
     def executeDurationQuery(predicate: QueryExpression[Expression]) = {
       val logicalQuery = new LogicalQueryBuilder(this)
         .produceResults("dur")
@@ -2715,6 +2721,207 @@ abstract class NodeVectorIndexSearchTestBase[CONTEXT <: RuntimeContext](
       "error: data exception - invalid type.",
       fuzzyStatusDescr = true
     )
+  }
+
+  // entity filtering v2
+  test("should filter entities using prepared entity filter") {
+    givenGraph {
+      nodeIndex("VectorIndex", IndexType.VECTOR, Seq("Foo"), "v")
+      val write = tx.kernelTransaction().dataWrite
+      val vectorToken = tx.kernelTransaction().token().propertyKeyGetOrCreateForName("v")
+      val idToken = tx.kernelTransaction().token().propertyKeyGetOrCreateForName("id")
+      nodeGraph(sizeHint, "Foo").zipWithIndex.foreach({
+        case (n, i) =>
+          write.nodeSetProperty(n.getId, idToken, Values.longValue(i))
+          write.nodeSetProperty(
+            n.getId,
+            vectorToken,
+            randomVector
+          )
+      })
+    }
+
+    // when
+    val logicalQuery = new LogicalQueryBuilder(this)
+      .produceResults("id")
+      .projection("n.id AS id")
+      .apply()
+      .|.nodeVectorIndexSearch(
+        node = "n",
+        labelNames = Seq("Foo"),
+        properties = Seq("v"),
+        indexName = "VectorIndex",
+        vector = s"${vectorAsCypherList(randomVector)}",
+        limit = "13",
+        entityFilter = preparedEntityFilter(varFor("c")),
+        argumentIds = Set("c")
+      )
+      .aggregation(Map.empty[String, Expression], Map("c" -> compileEntityFilter(id(varFor("x")), "VectorIndex")))
+      .filter("x.id < 100")
+      .allNodeScan("x")
+      .build()
+
+    // then
+    execute(logicalQuery, runtime) should beColumns("id").withRows(matching {
+      case rows: Seq[_] if rows.size == 13 && rows.forall {
+          case Array(i: NumberValue) => i.longValue() >= 0 && i.longValue() < 100
+          case _                     => false
+        } =>
+    })
+  }
+
+  test("should filter entities and do property filtering using prepared entity filter") {
+    givenGraph {
+      nodeIndex("VectorIndex", IndexType.VECTOR, Seq("Foo"), "v", "id")
+      val write = tx.kernelTransaction().dataWrite
+      val vectorToken = tx.kernelTransaction().token().propertyKeyGetOrCreateForName("v")
+      val idToken = tx.kernelTransaction().token().propertyKeyGetOrCreateForName("id")
+      nodeGraph(sizeHint, "Foo").zipWithIndex.foreach({
+        case (n, i) =>
+          write.nodeSetProperty(n.getId, idToken, Values.longValue(i))
+          write.nodeSetProperty(
+            n.getId,
+            vectorToken,
+            randomVector
+          )
+      })
+    }
+
+    // when
+    val logicalQuery = new LogicalQueryBuilder(this)
+      .produceResults("id")
+      .projection("n.id AS id")
+      .apply()
+      .|.nodeVectorIndexSearch(
+        node = "n",
+        labelNames = Seq("Foo"),
+        properties = Seq("v", "id"),
+        indexName = "VectorIndex",
+        vector = s"${vectorAsCypherList(randomVector)}",
+        limit = "13",
+        entityFilter = preparedEntityFilter(varFor("c")),
+        propertyFilter = Some(rangeExpression(lt(literalInt(17)))),
+        argumentIds = Set("c")
+      )
+      .aggregation(Map.empty[String, Expression], Map("c" -> compileEntityFilter(id(varFor("x")), "VectorIndex")))
+      .filter("x.id < 100")
+      .allNodeScan("x")
+      .build()
+
+    // then
+    execute(logicalQuery, runtime) should beColumns("id").withRows(matching {
+      case rows: Seq[_] if rows.size == 13 && rows.forall {
+          case Array(i: NumberValue) => i.longValue() >= 0 && i.longValue() < 17
+          case _                     => false
+        } =>
+    })
+  }
+
+  test("should fail if entities isn't a list of ids using prepared entity filter") {
+    givenGraph {
+      nodeIndex("VectorIndex", IndexType.VECTOR, Seq("Foo"), "v")
+      val write = tx.kernelTransaction().dataWrite
+      val vectorToken = tx.kernelTransaction().token().propertyKeyGetOrCreateForName("v")
+      val idToken = tx.kernelTransaction().token().propertyKeyGetOrCreateForName("id")
+      nodeGraph(sizeHint, "Foo").zipWithIndex.foreach({
+        case (n, i) =>
+          write.nodeSetProperty(n.getId, idToken, Values.longValue(i))
+          write.nodeSetProperty(
+            n.getId,
+            vectorToken,
+            randomVector
+          )
+      })
+    }
+
+    // when
+    val logicalQuery = new LogicalQueryBuilder(this)
+      .produceResults("id")
+      .projection("n.id AS id")
+      .apply()
+      .|.nodeVectorIndexSearch(
+        node = "n",
+        labelNames = Seq("Foo"),
+        properties = Seq("v"),
+        indexName = "VectorIndex",
+        vector = s"${vectorAsCypherList(randomVector)}",
+        limit = "13",
+        entityFilter = preparedEntityFilter(varFor("c")),
+        argumentIds = Set("c")
+      )
+      .aggregation(Seq.empty, Seq("collect('hello') AS c"))
+      .filter("x.id < 100")
+      .allNodeScan("x")
+      .build()
+
+    // then
+    the[Neo4jException] thrownBy consume(execute(logicalQuery, runtime)) shouldBe gqlStatus(
+      GqlStatusInfoCodes.STATUS_22G03,
+      "error: data exception - invalid value type"
+    ).withCause(
+      GqlStatusInfoCodes.STATUS_22N01,
+      "error: data exception - invalid type.",
+      fuzzyStatusDescr = true
+    )
+  }
+
+  test("should filter entities using prepared entity filter after the indexed vectors were updated") {
+    // Rewriting an indexed property is a delete-by-term + add in Lucene, so every candidate below has a
+    // stale index document that is deleted but not yet merged away. Resolving an id has to land on the live
+    // document: a bit set on a dead one is discarded when Lucene ands acceptDocs with liveDocs, which would
+    // silently drop the entity from the filter and leave the seek with nothing to return.
+    val nodes = givenGraph {
+      nodeIndex("VectorIndex", IndexType.VECTOR, Seq("Foo"), "v")
+      val write = tx.kernelTransaction().dataWrite
+      val vectorToken = tx.kernelTransaction().token().propertyKeyGetOrCreateForName("v")
+      val idToken = tx.kernelTransaction().token().propertyKeyGetOrCreateForName("id")
+      val nodes = nodeGraph(sizeHint, "Foo")
+      nodes.zipWithIndex.foreach({
+        case (n, i) =>
+          write.nodeSetProperty(n.getId, idToken, Values.longValue(i))
+          write.nodeSetProperty(
+            n.getId,
+            vectorToken,
+            randomVector
+          )
+      })
+      nodes
+    }
+
+    // ids 0..99 are exactly the candidates the filter below selects -- rewrite their vectors in their own
+    // committed transaction, so the index holds a dead document for each of them
+    val write = tx.kernelTransaction().dataWrite
+    val vectorToken = tx.kernelTransaction().token().propertyKeyGetOrCreateForName("v")
+    nodes.take(100).foreach(n => write.nodeSetProperty(n.getId, vectorToken, randomVector))
+    restartTx()
+
+    // when
+    val logicalQuery = new LogicalQueryBuilder(this)
+      .produceResults("id")
+      .projection("n.id AS id")
+      .apply()
+      .|.nodeVectorIndexSearch(
+        node = "n",
+        labelNames = Seq("Foo"),
+        properties = Seq("v"),
+        indexName = "VectorIndex",
+        vector = s"${vectorAsCypherList(randomVector)}",
+        limit = "13",
+        entityFilter = preparedEntityFilter(varFor("c")),
+        argumentIds = Set("c")
+      )
+      .aggregation(Map.empty[String, Expression], Map("c" -> compileEntityFilter(id(varFor("x")), "VectorIndex")))
+      .filter("x.id < 100")
+      .allNodeScan("x")
+      .build()
+
+    // then
+    execute(logicalQuery, runtime) should beColumns("id").withRows(matching {
+      case rows: Seq[_] if rows.size == 13 && rows.forall {
+          case Array(i: NumberValue) => i.longValue() >= 0 && i.longValue() < 100
+          case _                     => false
+        } =>
+    })
   }
 
   // IN/OR queries

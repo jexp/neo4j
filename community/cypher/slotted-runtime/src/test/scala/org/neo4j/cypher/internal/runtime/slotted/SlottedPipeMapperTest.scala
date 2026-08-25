@@ -159,7 +159,8 @@ class SlottedPipeMapperTest extends CypherFunSuite with AstConstructionTestSuppo
         anonymousVariableNameGenerator,
         new SelectivityTrackerRegistrator(),
         CypherRuntimeConfiguration.defaultConfiguration,
-        CypherVersion.Legacy.legacyVersion()
+        CypherVersion.Legacy.legacyVersion(),
+        mock[QueryIndexRegistrator]
       )
     )
 

@@ -45,6 +45,7 @@ public final class PropertyIndexQueries {
 
     public static EntityFilterPredicate matchEntitySet(AnyValue value) {
         return switch (value) {
+            case PreparedEntityFilterValue prepared -> PropertyIndexQuery.entityFilter(prepared.filter());
             case UnorderedLongSetListValue set -> PropertyIndexQuery.entityFilter(set.primitiveLongSet());
             case LongArray a -> PropertyIndexQuery.entityFilter(LongSets.mutable.of(a.asObject()));
             case NumberArray na -> {

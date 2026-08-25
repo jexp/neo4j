@@ -30,6 +30,7 @@ import org.neo4j.cypher.internal.logical.plans.InequalitySeekRangeWrapper
 import org.neo4j.cypher.internal.logical.plans.ManyQueryExpression
 import org.neo4j.cypher.internal.logical.plans.MatchAllQueryExpression
 import org.neo4j.cypher.internal.logical.plans.MatchEntitySetQueryExpression
+import org.neo4j.cypher.internal.logical.plans.PreparedEntityFilterExpression
 import org.neo4j.cypher.internal.logical.plans.QueryExpression
 import org.neo4j.cypher.internal.logical.plans.RangeBetween
 import org.neo4j.cypher.internal.logical.plans.RangeGreaterThan
@@ -72,6 +73,9 @@ trait QueryExpressionConstructionTestSupport {
 
   def matchEntities(e: ToExpression): MatchEntitySetQueryExpression[Expression] =
     MatchEntitySetQueryExpression(toExpression(e))
+
+  def preparedEntityFilter(e: ToExpression): PreparedEntityFilterExpression[Expression] =
+    PreparedEntityFilterExpression(toExpression(e))
 
   def matchAll(): EntityFilterQueryExpression[Expression] = MatchAllQueryExpression
 

@@ -54,6 +54,7 @@ import org.neo4j.internal.kernel.api.PropertyIndexQuery.NotExistsPredicate;
 import org.neo4j.internal.kernel.api.PropertyIndexQuery.RangePredicate;
 import org.neo4j.internal.schema.IndexQuery.IndexQueryType;
 import org.neo4j.kernel.api.impl.index.lucene.LuceneIndexSearcher;
+import org.neo4j.kernel.api.impl.index.lucene.LucenePreparedEntityFilter;
 import org.neo4j.kernel.api.impl.index.lucene.v10.Lucene10ValueFields.SingleInstantField;
 import org.neo4j.kernel.api.impl.index.lucene.v10.Lucene10ValueFields.SingleIntegerField;
 import org.neo4j.kernel.api.impl.index.lucene.v10.Lucene10ValueFields.TemporalOffsetWithId;
@@ -820,6 +821,9 @@ final class Lucene10FilterQueryBuilder {
             }
             case EntityFilterPredicate.MatchEntitySet set ->
                 queryBuilder.add(Lucene10FilterQueryBuilder.entityFilterPredicate(set.entities()), Occur.FILTER);
+            case EntityFilterPredicate.MatchPreparedEntityFilter prepared ->
+                queryBuilder.add(
+                        PreparedEntityFilterQuery.create((LucenePreparedEntityFilter) prepared.filter()), Occur.FILTER);
         }
 
         for (int i = 0; i < filterQueries.length; i++) {

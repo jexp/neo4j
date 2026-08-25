@@ -74,7 +74,8 @@ trait SlottedRuntime[-CONTEXT <: RuntimeContext] extends CypherRuntime[CONTEXT] 
     physicalPlan: PhysicalPlan,
     query: LogicalQuery,
     selectivityTrackerRegistrator: SelectivityTrackerRegistrator,
-    codeGenStats: CodeGenerator.Stats
+    codeGenStats: CodeGenerator.Stats,
+    queryIndexRegistrator: QueryIndexRegistrator
   ): (Option[ExpressionConverter], List[ExpressionConverter], () => Seq[Argument], () => Set[InternalNotification]) = {
     (None, baseConverters, NO_METADATA, NO_WARNINGS)
   }
@@ -85,13 +86,22 @@ trait SlottedRuntime[-CONTEXT <: RuntimeContext] extends CypherRuntime[CONTEXT] 
     physicalPlan: PhysicalPlan,
     query: LogicalQuery,
     selectivityTrackerRegistrator: SelectivityTrackerRegistrator,
-    codeGenStats: CodeGenerator.Stats
+    codeGenStats: CodeGenerator.Stats,
+    queryIndexRegistrator: QueryIndexRegistrator
   ): (Option[ExpressionConverter], List[ExpressionConverter], () => Seq[Argument], () => Set[InternalNotification]) = {
     if (context.materializedEntitiesMode) {
       val converters = MaterializedEntitiesExpressionConverter(context.tokenContext) +: baseConverters
       (None, converters, NO_METADATA, NO_WARNINGS)
     } else if (context.compileExpressions) {
-      compileExpressions(baseConverters, context, physicalPlan, query, selectivityTrackerRegistrator, codeGenStats)
+      compileExpressions(
+        baseConverters,
+        context,
+        physicalPlan,
+        query,
+        selectivityTrackerRegistrator,
+        codeGenStats,
+        queryIndexRegistrator
+      )
     } else {
       (None, baseConverters, NO_METADATA, NO_WARNINGS)
     }
@@ -124,6 +134,7 @@ trait SlottedRuntime[-CONTEXT <: RuntimeContext] extends CypherRuntime[CONTEXT] 
       }
 
       val selectivityTrackerRegistrator = new SelectivityTrackerRegistrator()
+      val queryIndexRegistrator = QueryIndexRegistrator(context.schemaRead)
       val baseConverters = List(
         SlottedExpressionConverters(physicalPlan),
         CommunityExpressionConverter(
@@ -131,7 +142,8 @@ trait SlottedRuntime[-CONTEXT <: RuntimeContext] extends CypherRuntime[CONTEXT] 
           context.anonymousVariableNameGenerator,
           selectivityTrackerRegistrator,
           context.config,
-          context.cypherVersion
+          context.cypherVersion,
+          queryIndexRegistrator
         )
       )
 
@@ -142,11 +154,11 @@ trait SlottedRuntime[-CONTEXT <: RuntimeContext] extends CypherRuntime[CONTEXT] 
         physicalPlan = physicalPlan,
         query = query,
         selectivityTrackerRegistrator = selectivityTrackerRegistrator,
-        codeGenStats = codeGenStats
+        codeGenStats = codeGenStats,
+        queryIndexRegistrator = queryIndexRegistrator
       )
       val converters = new ExpressionConverters(mainConverter, fallbackConverters: _*)
 
-      val queryIndexRegistrator = new QueryIndexRegistrator(context.schemaRead)
       val fallback = getFallbackPipeMapper(
         InterpretedPipeMapper(
           context.cypherVersion,

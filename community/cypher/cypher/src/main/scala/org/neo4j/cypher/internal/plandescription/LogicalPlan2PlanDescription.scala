@@ -251,6 +251,7 @@ import org.neo4j.cypher.internal.logical.plans.PointBoundingBoxSeekRangeWrapper
 import org.neo4j.cypher.internal.logical.plans.PointDistanceRange
 import org.neo4j.cypher.internal.logical.plans.PointDistanceSeekRangeWrapper
 import org.neo4j.cypher.internal.logical.plans.PrefixSeekRangeWrapper
+import org.neo4j.cypher.internal.logical.plans.PreparedEntityFilterExpression
 import org.neo4j.cypher.internal.logical.plans.PreserveOrder
 import org.neo4j.cypher.internal.logical.plans.ProcedureCall
 import org.neo4j.cypher.internal.logical.plans.ProduceResult
@@ -4148,6 +4149,9 @@ case class LogicalPlan2PlanDescription(
       pretty"${asPrettyString(propertyKeys.head.name)} IS NULL"
 
     case MatchEntitySetQueryExpression(expression) =>
+      pretty"${asPrettyString(idName)} IN ${asPrettyString(expression)}"
+
+    case PreparedEntityFilterExpression(expression) =>
       pretty"${asPrettyString(idName)} IN ${asPrettyString(expression)}"
 
     case MatchAllQueryExpression => pretty""

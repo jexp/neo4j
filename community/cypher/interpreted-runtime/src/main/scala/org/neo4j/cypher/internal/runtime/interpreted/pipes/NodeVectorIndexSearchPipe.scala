@@ -28,6 +28,7 @@ import org.neo4j.cypher.internal.logical.plans.ManyQueryExpression
 import org.neo4j.cypher.internal.logical.plans.MatchAllQueryExpression
 import org.neo4j.cypher.internal.logical.plans.MatchEntitySetQueryExpression
 import org.neo4j.cypher.internal.logical.plans.NonExistenceQueryExpression
+import org.neo4j.cypher.internal.logical.plans.PreparedEntityFilterExpression
 import org.neo4j.cypher.internal.logical.plans.QueryExpression
 import org.neo4j.cypher.internal.logical.plans.RangeQueryExpression
 import org.neo4j.cypher.internal.logical.plans.SingleQueryExpression
@@ -223,8 +224,9 @@ object NodeVectorIndexSearchPipe {
     val nearestPredicate: PropertyIndexQuery.NearestNeighborsPredicate =
       PropertyIndexQuery.nearestNeighbors(limit, vector)
     val entityPredicate = entityFilter match {
-      case MatchEntitySetQueryExpression(expression) => PropertyIndexQueries.matchEntitySet(expression(row, state))
-      case MatchAllQueryExpression                   => PropertyIndexQuery.matchAllEntityFilter()
+      case PreparedEntityFilterExpression(expression) => PropertyIndexQueries.matchEntitySet(expression(row, state))
+      case MatchEntitySetQueryExpression(expression)  => PropertyIndexQueries.matchEntitySet(expression(row, state))
+      case MatchAllQueryExpression                    => PropertyIndexQuery.matchAllEntityFilter()
     }
     maybePropertyFilter match {
       case Some(SingleQueryExpression(expression)) =>

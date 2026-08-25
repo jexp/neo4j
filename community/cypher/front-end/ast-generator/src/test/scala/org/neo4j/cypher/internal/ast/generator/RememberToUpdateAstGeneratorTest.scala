@@ -112,6 +112,7 @@ object RememberToUpdateAstGeneratorTest {
     "org.neo4j.cypher.internal.expressions.CollectAll",
     "org.neo4j.cypher.internal.expressions.CollectDistinct",
     "org.neo4j.cypher.internal.expressions.CollectDistinctIds",
+    "org.neo4j.cypher.internal.expressions.CompileEntityFilter",
     "org.neo4j.cypher.internal.expressions.Concatenate",
     "org.neo4j.cypher.internal.expressions.DesugaredMapProjection",
     "org.neo4j.cypher.internal.expressions.DifferentNodes",

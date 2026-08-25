@@ -19,16 +19,13 @@
  */
 package org.neo4j.internal.kernel.api;
 
-import org.neo4j.internal.schema.IndexDescriptor;
-import org.neo4j.kernel.api.index.ValueIndexReader;
+import org.neo4j.memory.MemoryTracker;
 
 /**
- * Token which represents a read session towards a specific value index. The life-span of this session is tied to
- * the transaction. It might be created at any time in an open transaction, and will be closed automatically
- * on transaction close.
+ * Capability implemented by index readers that can resolve entity ids into a {@link PreparedEntityFilter}.
  */
-public interface IndexReadSession {
-    IndexDescriptor reference();
+public interface EntityFilterIndexReader {
+    EntityFilterBuilder newEntityFilterBuilder(MemoryTracker memoryTracker);
 
-    ValueIndexReader reader();
+    SharedEntityFilterBuilder newSharedEntityFilterBuilder(MemoryTracker memoryTracker);
 }

@@ -4383,6 +4383,135 @@ abstract class RelationshipVectorIndexSearchTestBase[CONTEXT <: RuntimeContext](
     )
   }
 
+  test("should filter entities using prepared entity filter") {
+    givenGraph {
+      relationshipIndex("VectorIndex", IndexType.VECTOR, Seq("Foo"), "v")
+      val write = tx.kernelTransaction().dataWrite
+      val vectorToken = tx.kernelTransaction().token().propertyKeyGetOrCreateForName("v")
+      val idToken = tx.kernelTransaction().token().propertyKeyGetOrCreateForName("id")
+      relationshipGraph(sizeHint, "Foo").zipWithIndex.foreach({
+        case (r, i) =>
+          write.relationshipSetProperty(r.getId, vectorToken, randomVector)
+          write.relationshipSetProperty(r.getId, idToken, longValue(i))
+      })
+    }
+
+    // when
+    val logicalQuery = new LogicalQueryBuilder(this)
+      .produceResults("id")
+      .projection("r.id AS id")
+      .apply()
+      .|.relationshipVectorIndexSearch(
+        "()-[r]->()",
+        typeNames = Seq("Foo"),
+        properties = Seq("v"),
+        indexName = "VectorIndex",
+        vector = s"${vectorAsCypherList(randomVector)}",
+        limit = "13",
+        entityFilter = preparedEntityFilter(varFor("c")),
+        argumentIds = Set("c")
+      )
+      .aggregation(Map.empty[String, Expression], Map("c" -> compileEntityFilter(id(varFor("x")), "VectorIndex")))
+      .filter("x.id < 100")
+      .allRelationshipsScan("()-[x]->()")
+      .build()
+
+    // then
+    execute(logicalQuery, runtime) should beColumns("id").withRows(matching {
+      case rows: Seq[_] if rows.size == 13 && rows.forall {
+          case Array(i: NumberValue) => i.longValue() >= 0 && i.longValue() < 100
+          case _                     => false
+        } =>
+    })
+  }
+
+  test("should filter entities and do property filtering using prepared entity filter") {
+    givenGraph {
+      relationshipIndex("VectorIndex", IndexType.VECTOR, Seq("Foo"), "v", "id")
+      val write = tx.kernelTransaction().dataWrite
+      val vectorToken = tx.kernelTransaction().token().propertyKeyGetOrCreateForName("v")
+      val idToken = tx.kernelTransaction().token().propertyKeyGetOrCreateForName("id")
+      relationshipGraph(sizeHint, "Foo").zipWithIndex.foreach({
+        case (r, i) =>
+          write.relationshipSetProperty(r.getId, vectorToken, randomVector)
+          write.relationshipSetProperty(r.getId, idToken, longValue(i))
+      })
+    }
+
+    // when
+    val logicalQuery = new LogicalQueryBuilder(this)
+      .produceResults("id")
+      .projection("r.id AS id")
+      .apply()
+      .|.relationshipVectorIndexSearch(
+        "()-[r]->()",
+        typeNames = Seq("Foo"),
+        properties = Seq("v", "id"),
+        indexName = "VectorIndex",
+        vector = s"${vectorAsCypherList(randomVector)}",
+        limit = "13",
+        entityFilter = preparedEntityFilter(varFor("c")),
+        propertyFilter = Some(rangeExpression(lt(literalInt(17)))),
+        argumentIds = Set("c")
+      )
+      .aggregation(Map.empty[String, Expression], Map("c" -> compileEntityFilter(id(varFor("x")), "VectorIndex")))
+      .filter("x.id < 100")
+      .allRelationshipsScan("()-[x]->()")
+      .build()
+
+    // then
+    execute(logicalQuery, runtime) should beColumns("id").withRows(matching {
+      case rows: Seq[_] if rows.size == 13 && rows.forall {
+          case Array(i: NumberValue) => i.longValue() >= 0 && i.longValue() < 17
+          case _                     => false
+        } =>
+    })
+  }
+
+  test("should fail if entities isn't a list of ids using prepared entity filter") {
+    givenGraph {
+      relationshipIndex("VectorIndex", IndexType.VECTOR, Seq("Foo"), "v")
+      val write = tx.kernelTransaction().dataWrite
+      val vectorToken = tx.kernelTransaction().token().propertyKeyGetOrCreateForName("v")
+      val idToken = tx.kernelTransaction().token().propertyKeyGetOrCreateForName("id")
+      relationshipGraph(sizeHint, "Foo").zipWithIndex.foreach({
+        case (r, i) =>
+          write.relationshipSetProperty(r.getId, vectorToken, randomVector)
+          write.relationshipSetProperty(r.getId, idToken, longValue(i))
+      })
+    }
+
+    // when
+    val logicalQuery = new LogicalQueryBuilder(this)
+      .produceResults("id")
+      .projection("r.id AS id")
+      .apply()
+      .|.relationshipVectorIndexSearch(
+        "()-[r]->()",
+        typeNames = Seq("Foo"),
+        properties = Seq("v"),
+        indexName = "VectorIndex",
+        vector = s"${vectorAsCypherList(randomVector)}",
+        limit = "13",
+        entityFilter = preparedEntityFilter(varFor("c")),
+        argumentIds = Set("c")
+      )
+      .aggregation(Seq.empty, Seq("collect('hello') AS c"))
+      .filter("x.id < 100")
+      .allRelationshipsScan("()-[x]->()")
+      .build()
+
+    // then
+    the[Neo4jException] thrownBy consume(execute(logicalQuery, runtime)) shouldBe gqlStatus(
+      GqlStatusInfoCodes.STATUS_22G03,
+      "error: data exception - invalid value type"
+    ).withCause(
+      GqlStatusInfoCodes.STATUS_22N01,
+      "error: data exception - invalid type.",
+      fuzzyStatusDescr = true
+    )
+  }
+
   // IN/OR queries
   test("simple OR/IN query") {
     // given

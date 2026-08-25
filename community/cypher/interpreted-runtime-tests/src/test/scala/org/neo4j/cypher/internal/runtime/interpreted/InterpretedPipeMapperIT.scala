@@ -97,7 +97,8 @@ class InterpretedPipeMapperIT extends InterpretedRuntimeTestSuite with AstConstr
         new AnonymousVariableNameGenerator(),
         new SelectivityTrackerRegistrator(),
         CypherRuntimeConfiguration.defaultConfiguration,
-        CypherVersion.Legacy.legacyVersion()
+        CypherVersion.Legacy.legacyVersion(),
+        mock[QueryIndexRegistrator]
       )
     )
 

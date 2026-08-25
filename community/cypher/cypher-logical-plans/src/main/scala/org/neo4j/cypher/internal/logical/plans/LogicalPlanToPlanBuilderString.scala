@@ -2810,6 +2810,8 @@ object LogicalPlanToPlanBuilderString {
 
     implicit def fromEntityFilterQueryExpression: ToParam[EntityFilterQueryExpression[Expression]] = {
       case MatchAllQueryExpression => call("matchAll")
+      case PreparedEntityFilterExpression(expression) =>
+        call("preparedEntityFilter", expression)
       case MatchEntitySetQueryExpression(expression) =>
         call("matchEntities", expression)
     }

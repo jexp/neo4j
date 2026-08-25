@@ -161,6 +161,7 @@ import org.neo4j.cypher.internal.logical.plans.PointDistanceSeekRangeWrapper
 import org.neo4j.cypher.internal.logical.plans.PrefixSeekRangeWrapper
 import org.neo4j.cypher.internal.planner.spi.ReadTokenContext
 import org.neo4j.cypher.internal.runtime.CypherRuntimeConfiguration
+import org.neo4j.cypher.internal.runtime.QueryIndexRegistrator
 import org.neo4j.cypher.internal.runtime.SelectivityTrackerRegistrator
 import org.neo4j.cypher.internal.runtime.ast.DefaultValueLiteral
 import org.neo4j.cypher.internal.runtime.ast.ExpressionVariable
@@ -204,6 +205,7 @@ import org.neo4j.cypher.internal.util.symbols.Integer32Type
 import org.neo4j.cypher.internal.util.symbols.Integer8Type
 import org.neo4j.cypher.internal.util.symbols.IntegerType
 import org.neo4j.exceptions.InternalException
+import org.neo4j.graphdb.schema.IndexType
 import org.neo4j.kernel.api.impl.schema.vector.VectorSimilarity
 import org.neo4j.kernel.impl.util.ValueUtils
 import org.neo4j.values.storable.Values
@@ -216,7 +218,8 @@ case class CommunityExpressionConverter(
   anonymousVariableNameGenerator: AnonymousVariableNameGenerator,
   selectivityTrackerRegistrator: SelectivityTrackerRegistrator,
   runtimeConfig: CypherRuntimeConfiguration,
-  cypherVersion: CypherVersion
+  cypherVersion: CypherVersion,
+  indexRegistrator: QueryIndexRegistrator
 ) extends ExpressionConverter {
 
   override def toCommandProjection(
@@ -562,6 +565,11 @@ case class CommunityExpressionConverter(
         commands.expressions.CollectDistinct(self.toCommandExpression(id, e.arguments.head), e.isOrdered)
       case e: internal.expressions.CollectDistinctIds =>
         commands.expressions.CollectDistinctIds(self.toCommandExpression(id, e.arguments.head))
+      case e: internal.expressions.CompileEntityFilter =>
+        commands.expressions.CompileEntityFilter(
+          self.toCommandExpression(id, e.arguments.head),
+          indexRegistrator.registerNamedQueryIndex(e.indexName, IndexType.VECTOR, Seq.empty, Seq.empty)
+        )
       case e: DefaultValueLiteral => commands.expressions.Literal(e.value)
       case e: RuntimeConstant =>
         commands.expressions.RuntimeConstant(

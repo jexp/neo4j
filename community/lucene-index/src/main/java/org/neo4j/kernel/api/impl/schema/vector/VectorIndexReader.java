@@ -29,10 +29,13 @@ import java.util.Collection;
 import java.util.List;
 import java.util.OptionalInt;
 import org.neo4j.internal.helpers.collection.BoundedIterable;
+import org.neo4j.internal.kernel.api.EntityFilterBuilder;
+import org.neo4j.internal.kernel.api.EntityFilterIndexReader;
 import org.neo4j.internal.kernel.api.IndexQueryConstraints;
 import org.neo4j.internal.kernel.api.PropertyIndexQuery;
 import org.neo4j.internal.kernel.api.PropertyIndexQuery.NearestNeighborsPredicate;
 import org.neo4j.internal.kernel.api.QueryContext;
+import org.neo4j.internal.kernel.api.SharedEntityFilterBuilder;
 import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotApplicableKernelException;
 import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.internal.schema.IndexQuery.IndexQueryType;
@@ -42,7 +45,9 @@ import org.neo4j.kernel.api.impl.index.SearcherReference;
 import org.neo4j.kernel.api.impl.index.collector.ScoredEntityIterator;
 import org.neo4j.kernel.api.impl.index.collector.ValuesIterator;
 import org.neo4j.kernel.api.impl.index.lucene.LuceneDocumentsFactory;
+import org.neo4j.kernel.api.impl.index.lucene.LuceneEntityFilterBuilder;
 import org.neo4j.kernel.api.impl.index.lucene.LuceneQueryContext;
+import org.neo4j.kernel.api.impl.index.lucene.SharedLuceneEntityFilterBuilder;
 import org.neo4j.kernel.api.impl.schema.AbstractLuceneIndexReader;
 import org.neo4j.kernel.api.impl.schema.LuceneQueryFactory;
 import org.neo4j.kernel.api.impl.schema.LuceneScoredEntityIndexProgressor;
@@ -52,9 +57,10 @@ import org.neo4j.kernel.api.index.IndexProgressor.EntityValueClient;
 import org.neo4j.kernel.api.index.IndexSampler;
 import org.neo4j.kernel.impl.index.schema.IndexUsageTracking;
 import org.neo4j.logging.LogProvider;
+import org.neo4j.memory.MemoryTracker;
 import org.neo4j.values.storable.Value;
 
-class VectorIndexReader extends AbstractLuceneIndexReader {
+public class VectorIndexReader extends AbstractLuceneIndexReader implements EntityFilterIndexReader {
     private final OptionalInt dimensions;
     private final List<SearcherReference> searchers;
     private final int maxEfSearch;
@@ -154,6 +160,16 @@ class VectorIndexReader extends AbstractLuceneIndexReader {
             }
         }
         return predicate;
+    }
+
+    @Override
+    public EntityFilterBuilder newEntityFilterBuilder(MemoryTracker memoryTracker) {
+        return new LuceneEntityFilterBuilder(LuceneDocumentsFactory.ENTITY_ID_KEY, searchers, memoryTracker);
+    }
+
+    @Override
+    public SharedEntityFilterBuilder newSharedEntityFilterBuilder(MemoryTracker memoryTracker) {
+        return new SharedLuceneEntityFilterBuilder(LuceneDocumentsFactory.ENTITY_ID_KEY, searchers, memoryTracker);
     }
 
     private static final List<IndexQueryType> validIndexQueryTypes = List.of(

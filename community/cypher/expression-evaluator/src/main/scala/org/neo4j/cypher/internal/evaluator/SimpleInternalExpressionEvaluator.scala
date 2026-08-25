@@ -29,6 +29,7 @@ import org.neo4j.cypher.internal.planner.spi.ReadTokenContext
 import org.neo4j.cypher.internal.runtime.CypherRow
 import org.neo4j.cypher.internal.runtime.CypherRuntimeConfiguration
 import org.neo4j.cypher.internal.runtime.ParameterMapping
+import org.neo4j.cypher.internal.runtime.QueryIndexRegistrator
 import org.neo4j.cypher.internal.runtime.QuerySelectivityTrackers
 import org.neo4j.cypher.internal.runtime.SelectivityTracker
 import org.neo4j.cypher.internal.runtime.SelectivityTrackerRegistrator
@@ -148,7 +149,8 @@ object SimpleInternalExpressionEvaluator {
         new AnonymousVariableNameGenerator(),
         noopSelectivityTrackerRegistrator,
         CypherRuntimeConfiguration.defaultConfiguration,
-        CypherVersion.Legacy.legacyVersion()
+        CypherVersion.Legacy.legacyVersion(),
+        QueryIndexRegistrator.unsupported()
       )
     )
 

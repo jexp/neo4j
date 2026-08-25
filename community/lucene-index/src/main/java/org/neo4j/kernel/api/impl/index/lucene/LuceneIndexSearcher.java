@@ -22,6 +22,7 @@ package org.neo4j.kernel.api.impl.index.lucene;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
+import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.search.IndexSearcher;
 import org.neo4j.internal.kernel.api.IndexQueryConstraints;
 import org.neo4j.kernel.api.impl.index.collector.ValuesIterator;
@@ -53,6 +54,11 @@ public interface LuceneIndexSearcher extends Closeable {
     LuceneQueryContext rewrite(LuceneQueryContext queryContext) throws IOException;
 
     LuceneQueryContext newQueryContext();
+
+    /** The Lucene leaf contexts of this partition's current snapshot. */
+    default List<LeafReaderContext> leafContexts() {
+        return List.of();
+    }
 
     LucenePartitionedSearch newPartitionedSearcher(int size);
 

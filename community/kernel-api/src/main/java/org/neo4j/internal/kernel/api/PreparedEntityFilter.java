@@ -19,16 +19,17 @@
  */
 package org.neo4j.internal.kernel.api;
 
-import org.neo4j.internal.schema.IndexDescriptor;
-import org.neo4j.kernel.api.index.ValueIndexReader;
-
 /**
- * Token which represents a read session towards a specific value index. The life-span of this session is tied to
- * the transaction. It might be created at any time in an open transaction, and will be closed automatically
- * on transaction close.
+ * An entity filter where entity-ids has already been resolved.
+ * <p>
+ * It is up to the index implementation to know how to consume it. Its lifetime must span the index
+ * seek that uses it, and it must be closed afterwards.
  */
-public interface IndexReadSession {
-    IndexDescriptor reference();
+public interface PreparedEntityFilter extends AutoCloseable {
+    long heapEstimate();
 
-    ValueIndexReader reader();
+    void combine(PreparedEntityFilter other);
+
+    @Override
+    void close();
 }

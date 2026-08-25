@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.function.Function;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.search.CollectorManager;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
@@ -113,6 +114,11 @@ class Lucene10IndexSearcher implements LuceneIndexSearcher {
     @Override
     public LuceneQueryContext newQueryContext() {
         return new Lucene10QueryContext();
+    }
+
+    @Override
+    public List<LeafReaderContext> leafContexts() {
+        return indexSearcher.getIndexReader().leaves();
     }
 
     @Override

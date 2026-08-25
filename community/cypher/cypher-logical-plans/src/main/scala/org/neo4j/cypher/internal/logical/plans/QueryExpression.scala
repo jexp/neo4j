@@ -75,6 +75,10 @@ case class MatchEntitySetQueryExpression[T](expression: T) extends EntityFilterQ
   def map[R](f: T => R): MatchEntitySetQueryExpression[R] = MatchEntitySetQueryExpression(f(expression))
 }
 
+case class PreparedEntityFilterExpression[T](expression: T) extends EntityFilterQueryExpression[T] {
+  def map[R](f: T => R): PreparedEntityFilterExpression[R] = PreparedEntityFilterExpression(f(expression))
+}
+
 case object MatchAllQueryExpression extends EntityFilterQueryExpression[Nothing] {
   def expression: Nothing = throw new NotImplementedError("expression not supplied for NoArgumentQueryExpression")
 

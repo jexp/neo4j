@@ -80,6 +80,7 @@ trait InterpretedRuntime[-CONTEXT <: RuntimeContext] extends CypherRuntime[CONTE
 
     val selectivityTrackerRegistrator = new SelectivityTrackerRegistrator()
 
+    val queryIndexRegistrator = QueryIndexRegistrator(context.schemaRead)
     val converters = new ExpressionConverters(
       None,
       CommunityExpressionConverter(
@@ -87,10 +88,10 @@ trait InterpretedRuntime[-CONTEXT <: RuntimeContext] extends CypherRuntime[CONTE
         context.anonymousVariableNameGenerator,
         selectivityTrackerRegistrator,
         context.config,
-        context.cypherVersion
+        context.cypherVersion,
+        queryIndexRegistrator
       )
     )
-    val queryIndexRegistrator = new QueryIndexRegistrator(context.schemaRead)
     val cancellationChecker: CancellationChecker = () => context.assertOpen.assertOpen()
     val pipeMapper = getFallbackPipeMapper(InterpretedPipeMapper(
       context.cypherVersion,

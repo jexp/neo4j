@@ -19,16 +19,22 @@
  */
 package org.neo4j.internal.kernel.api;
 
-import org.neo4j.internal.schema.IndexDescriptor;
-import org.neo4j.kernel.api.index.ValueIndexReader;
-
 /**
- * Token which represents a read session towards a specific value index. The life-span of this session is tied to
- * the transaction. It might be created at any time in an open transaction, and will be closed automatically
- * on transaction close.
+ * Sharing an EntityFilterBuilder between threads. Used by the parallel runtime.
  */
-public interface IndexReadSession {
-    IndexDescriptor reference();
+public interface SharedEntityFilterBuilder extends AutoCloseable {
+    /**
+     * A thread-confined writer. Its own build method must NOT be called, use {@link #build()} on the shared
+     * instance instead.
+     */
+    EntityFilterBuilder newWriter();
 
-    ValueIndexReader reader();
+    /**
+     * Finish all outstanding writers and wrap the shared, already-populated bitsets into a single
+     * filter.
+     */
+    PreparedEntityFilter build();
+
+    @Override
+    void close();
 }

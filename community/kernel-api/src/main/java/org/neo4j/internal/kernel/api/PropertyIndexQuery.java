@@ -239,6 +239,10 @@ public abstract class PropertyIndexQuery implements IndexQuery {
         return new EntityFilterPredicate.MatchEntitySet(entities);
     }
 
+    public static EntityFilterPredicate entityFilter(PreparedEntityFilter filter) {
+        return new EntityFilterPredicate.MatchPreparedEntityFilter(filter);
+    }
+
     public static EntityFilterPredicate matchAllEntityFilter() {
         return EntityFilterPredicate.MatchAll.INSTANCE;
     }
@@ -1020,6 +1024,30 @@ public abstract class PropertyIndexQuery implements IndexQuery {
             @Override
             public int hashCode() {
                 return entities.hashCode();
+            }
+        }
+
+        public static final class MatchPreparedEntityFilter extends EntityFilterPredicate {
+
+            private final PreparedEntityFilter filter;
+
+            private MatchPreparedEntityFilter(PreparedEntityFilter filter) {
+                this.filter = filter;
+            }
+
+            public PreparedEntityFilter filter() {
+                return filter;
+            }
+
+            // NOTE: referential equality — the prepared filter is snapshot-bound and never cached.
+            @Override
+            public boolean equals(Object o) {
+                return this == o;
+            }
+
+            @Override
+            public int hashCode() {
+                return System.identityHashCode(this);
             }
         }
 

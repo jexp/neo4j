@@ -39,6 +39,7 @@ import org.neo4j.cypher.internal.logical.plans.NFABuilder
 import org.neo4j.cypher.internal.physicalplanning.SlotConfigurationBuilder
 import org.neo4j.cypher.internal.planner.spi.ReadTokenContext
 import org.neo4j.cypher.internal.runtime.CypherRuntimeConfiguration
+import org.neo4j.cypher.internal.runtime.QueryIndexRegistrator
 import org.neo4j.cypher.internal.runtime.SelectivityTrackerRegistrator
 import org.neo4j.cypher.internal.runtime.ast.ExpressionVariable
 import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
@@ -304,7 +305,8 @@ class NFAToProductGraphCursorIT extends ExecutionEngineFunSuite {
                   new AnonymousVariableNameGenerator(),
                   new SelectivityTrackerRegistrator,
                   CypherRuntimeConfiguration.defaultConfiguration,
-                  CypherVersion.Legacy.legacyVersion()
+                  CypherVersion.Legacy.legacyVersion(),
+                  QueryIndexRegistrator(tx.kernelTransaction().schemaRead())
                 )
               )
 

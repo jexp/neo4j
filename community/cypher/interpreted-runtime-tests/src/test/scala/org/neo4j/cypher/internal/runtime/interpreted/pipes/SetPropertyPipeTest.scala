@@ -37,6 +37,7 @@ import org.neo4j.cypher.internal.runtime.CypherRuntimeConfiguration
 import org.neo4j.cypher.internal.runtime.NodeOperations
 import org.neo4j.cypher.internal.runtime.NodeReadOperations
 import org.neo4j.cypher.internal.runtime.QueryContext
+import org.neo4j.cypher.internal.runtime.QueryIndexRegistrator
 import org.neo4j.cypher.internal.runtime.RelationshipOperations
 import org.neo4j.cypher.internal.runtime.RelationshipReadOperations
 import org.neo4j.cypher.internal.runtime.SelectivityTrackerRegistrator
@@ -90,7 +91,8 @@ class SetPropertyPipeTest extends InterpretedRuntimeTestSuite with PipeTestSuppo
         new AnonymousVariableNameGenerator(),
         new SelectivityTrackerRegistrator(),
         CypherRuntimeConfiguration.defaultConfiguration,
-        CypherVersion.Legacy.legacyVersion()
+        CypherVersion.Legacy.legacyVersion(),
+        mock[QueryIndexRegistrator]
       )
     )
 
