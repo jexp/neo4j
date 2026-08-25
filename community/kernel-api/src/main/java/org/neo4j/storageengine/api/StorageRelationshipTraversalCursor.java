@@ -30,5 +30,20 @@ public interface StorageRelationshipTraversalCursor extends StorageRelationshipC
      * @param reference reference to the relationships.
      * @param selection which relationships to select.
      */
-    void init(long nodeReference, long reference, RelationshipSelection selection);
+    default void init(long nodeReference, long reference, RelationshipSelection selection) {
+        init(nodeReference, reference, selection, true);
+    }
+
+    /**
+     * Called when traversing relationships for a node.
+     * @param nodeReference reference to the node that has these relationships.
+     * @param reference reference to the relationships.
+     * @param selection which relationships to select.
+     * @param includeChangesFromThisTransaction whether to include changes from this transaction
+     */
+    void init(
+            long nodeReference,
+            long reference,
+            RelationshipSelection selection,
+            boolean includeChangesFromThisTransaction);
 }

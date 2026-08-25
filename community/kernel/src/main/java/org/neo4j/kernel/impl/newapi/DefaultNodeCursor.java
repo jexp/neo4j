@@ -67,6 +67,7 @@ public class DefaultNodeCursor extends TraceableCursorImpl<DefaultNodeCursor> im
     private AccessMode accessMode;
     private AccessControlDataProvider accessControlDataProvider;
     private DefaultRelationshipTraversalCursor securityRelationshipTraversalCursor;
+    boolean includeChangesFromThisTransaction = true;
 
     protected DefaultNodeCursor(
             CursorPool<DefaultNodeCursor> pool,
@@ -86,6 +87,7 @@ public class DefaultNodeCursor extends TraceableCursorImpl<DefaultNodeCursor> im
             boolean includeChangesFromThisTransaction) {
         storeCursor.scan(includeChangesFromThisTransaction);
         this.read = read;
+        this.includeChangesFromThisTransaction = includeChangesFromThisTransaction;
         this.txStateHolder = includeChangesFromThisTransaction ? txStateHolder : TxStateHolder.EMPTY_TX_STATE;
         this.accessModeProvider = accessModeProvider;
         this.accessMode = accessModeProvider.getAccessMode();
@@ -113,13 +115,24 @@ public class DefaultNodeCursor extends TraceableCursorImpl<DefaultNodeCursor> im
         this.checkHasChanges = false;
         this.hasChanges = false;
         this.addedNodes = ImmutableEmptyLongIterator.INSTANCE;
+        this.includeChangesFromThisTransaction = true; // For now all usages see changes from this transaction.
         return storeCursor.scanBatch(scan, sizeHint);
     }
 
     void single(long reference, Read read, TxStateHolder txStateHolder, AccessModeProvider accessModeProvider) {
+        single(reference, read, txStateHolder, accessModeProvider, true);
+    }
+
+    void single(
+            long reference,
+            Read read,
+            TxStateHolder txStateHolder,
+            AccessModeProvider accessModeProvider,
+            boolean includeChangesFromThisTransaction) {
         storeCursor.single(reference);
         this.read = read;
-        this.txStateHolder = txStateHolder;
+        this.includeChangesFromThisTransaction = includeChangesFromThisTransaction;
+        this.txStateHolder = includeChangesFromThisTransaction ? txStateHolder : TxStateHolder.EMPTY_TX_STATE;
         this.accessModeProvider = accessModeProvider;
         this.accessMode = accessModeProvider.getAccessMode();
         this.single = reference;

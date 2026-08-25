@@ -95,7 +95,7 @@ public class DefaultRelationshipTraversalCursor extends DefaultRelationshipCurso
         this.selection = selection;
         this.neighbourNodeReference = LongReference.NULL;
         if (!nodeCursor.currentNodeIsAddedInChunk()) {
-            nodeCursor.storeCursor.relationships(storeCursor, selection);
+            nodeCursor.storeCursor.relationships(storeCursor, selection, nodeCursor.includeChangesFromThisTransaction);
         } else {
             storeCursor.reset();
         }

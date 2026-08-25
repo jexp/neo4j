@@ -75,7 +75,11 @@ class RecordRelationshipTraversalCursor extends RecordRelationshipCursor impleme
     }
 
     @Override
-    public void init(long nodeReference, long reference, RelationshipSelection selection) {
+    public void init(
+            long nodeReference,
+            long reference,
+            RelationshipSelection selection,
+            boolean includeChangesFromThisTransaction) {
         if (reference == LongReference.NULL) {
             resetState();
             return;

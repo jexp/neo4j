@@ -58,6 +58,7 @@ public class DefaultNodeBasedRelationshipTypeIndexCursor
     private RelationshipSelection selection;
     private long nodeFromIndex;
     private ReadState readState;
+    private boolean includeChangesFromThisTransaction = true;
 
     protected DefaultNodeBasedRelationshipTypeIndexCursor(
             CursorPool<DefaultNodeBasedRelationshipTypeIndexCursor> pool,
@@ -145,7 +146,8 @@ public class DefaultNodeBasedRelationshipTypeIndexCursor
                     // indexNext() calls acceptEntity() with data from index
                     readState = indexNext() ? ReadState.NODE_READ : ReadState.UNAVAILABLE;
                 case NODE_READ -> {
-                    nodeCursor.single(nodeFromIndex, read, txStateHolder, accessModeProvider);
+                    nodeCursor.single(
+                            nodeFromIndex, read, txStateHolder, accessModeProvider, includeChangesFromThisTransaction);
                     if (nodeCursor.next()) {
                         nodeCursor.relationships(relationshipTraversalCursor, selection);
                         readState = ReadState.RELATIONSHIP_READ;
@@ -231,6 +233,7 @@ public class DefaultNodeBasedRelationshipTypeIndexCursor
             AccessModeProvider accessModeProvider,
             boolean includeChangesFromThisTransaction) {
         this.read = read;
+        this.includeChangesFromThisTransaction = includeChangesFromThisTransaction;
         this.txStateHolder = includeChangesFromThisTransaction ? txStateHolder : TxStateHolder.EMPTY_TX_STATE;
         this.accessModeProvider = accessModeProvider;
     }
@@ -254,6 +257,7 @@ public class DefaultNodeBasedRelationshipTypeIndexCursor
         if (!isClosed()) {
             closeProgressor();
             read = null;
+            includeChangesFromThisTransaction = true;
             txStateHolder = null;
             accessModeProvider = null;
             nodeCursor.close();

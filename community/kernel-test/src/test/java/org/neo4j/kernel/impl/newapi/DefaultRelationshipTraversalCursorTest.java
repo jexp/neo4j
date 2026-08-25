@@ -304,7 +304,11 @@ class DefaultRelationshipTraversalCursorTest {
             }
 
             @Override
-            public void init(long nodeReference, long reference, RelationshipSelection selection) {
+            public void init(
+                    long nodeReference,
+                    long reference,
+                    RelationshipSelection selection,
+                    boolean includeChangesFromThisTransaction) {
                 this.nodeReference = nodeReference;
                 this.selection = selection;
             }

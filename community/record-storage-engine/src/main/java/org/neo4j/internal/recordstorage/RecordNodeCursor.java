@@ -186,7 +186,10 @@ public class RecordNodeCursor extends NodeRecord implements StorageNodeCursor {
     }
 
     @Override
-    public void relationships(StorageRelationshipTraversalCursor traversalCursor, RelationshipSelection selection) {
+    public void relationships(
+            StorageRelationshipTraversalCursor traversalCursor,
+            RelationshipSelection selection,
+            boolean includeChangesFromThisTransaction) {
         ((RecordRelationshipTraversalCursor) traversalCursor).init(this, selection);
     }
 

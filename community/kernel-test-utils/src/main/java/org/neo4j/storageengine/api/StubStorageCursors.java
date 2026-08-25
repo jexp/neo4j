@@ -507,7 +507,10 @@ public class StubStorageCursors implements StorageReader {
         }
 
         @Override
-        public void relationships(StorageRelationshipTraversalCursor traversalCursor, RelationshipSelection selection) {
+        public void relationships(
+                StorageRelationshipTraversalCursor traversalCursor,
+                RelationshipSelection selection,
+                boolean includeChangesFromThisTransaction) {
             traversalCursor.init(current.id, NO_ID, selection);
         }
 
@@ -806,7 +809,11 @@ public class StubStorageCursors implements StorageReader {
         }
 
         @Override
-        public void init(long nodeReference, long reference, RelationshipSelection selection) {
+        public void init(
+                long nodeReference,
+                long reference,
+                RelationshipSelection selection,
+                boolean includeChangesFromThisTransaction) {
             originNodeReference = nodeReference;
             iterator = relationshipData.values().stream()
                     .filter(relationship ->
