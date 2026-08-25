@@ -804,6 +804,10 @@ public class EnvelopedLogFiles implements EnvelopeReadChannelProvider, AutoClose
                 position + LogEnvelopeHeader.HEADER_SIZE + header.getInt(LogEnvelopeHeader.OFFSET_PAYLOAD_LENGTH));
     }
 
+    public LogHeaderFactory headerFactory() {
+        return this.logHeaderFactory;
+    }
+
     private static class EnvelopedLogRotation implements LogRotation {
         private final EnvelopedLogFiles envelopedLogFiles;
         private final long maxFileSize;
