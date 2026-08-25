@@ -161,7 +161,7 @@ public class MuninnPageCache implements PageCache {
     // page faulting thread that it is now no longer possible to queue up and
     // wait for more pages to be evicted, because the page cache has been shut
     // down.
-    private static final FreePage shutdownSignal = new FreePage(0);
+    private static final FreePage SHUTDOWN_SIGNAL = new FreePage(0);
 
     // A counter used to identify which background threads belong to which page cache.
     private static final AtomicInteger pageCacheIdCounter = new AtomicInteger();
@@ -766,10 +766,20 @@ public class MuninnPageCache implements PageCache {
 
         closed = true;
 
-        interrupt(evictionThread);
+        var evictor = evictionThread;
+        interrupt(evictor);
         evictionThread = null;
         if (closeAllocatorOnShutdown) {
+            if (evictor != null) {
+                awaitEvictionTermination();
+            }
             pageMetadata.close();
+        }
+    }
+
+    private void awaitEvictionTermination() {
+        while (getFreelistHead() != SHUTDOWN_SIGNAL) {
+            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(1));
         }
     }
 
@@ -879,7 +889,7 @@ public class MuninnPageCache implements PageCache {
                     compareAndSetFreelistHead(current, null);
                 }
             } else if (current instanceof FreePage freePage) {
-                if (freePage == shutdownSignal) {
+                if (freePage == SHUTDOWN_SIGNAL) {
                     throw new IllegalStateException("The PageCache has been shut down.");
                 }
 
@@ -978,21 +988,23 @@ public class MuninnPageCache implements PageCache {
      */
     void continuouslySweepPages() {
         evictionThread = Thread.currentThread();
-        var clockArm = new EvictionClockArm(pageMetadata.getPageCount());
+        try {
+            var clockArm = new EvictionClockArm(pageMetadata.getPageCount());
 
-        try (AsyncBlockAccessor blockAccessor =
-                createAsyncBlockAccessor(AsyncIOProvider.getInstance(), memoryTracker)) {
-            while (!closed) {
-                int pageCountToEvict = parkUntilEvictionRequired(keepFree, blockAccessor);
-                try (EvictionRunEvent evictionRunEvent = pageCacheTracer.beginPageEvictions(pageCountToEvict)) {
-                    evictPages(blockAccessor, pageCountToEvict, clockArm, evictionRunEvent);
+            try (AsyncBlockAccessor blockAccessor =
+                    createAsyncBlockAccessor(AsyncIOProvider.getInstance(), memoryTracker)) {
+                while (!closed) {
+                    int pageCountToEvict = parkUntilEvictionRequired(keepFree, blockAccessor);
+                    try (EvictionRunEvent evictionRunEvent = pageCacheTracer.beginPageEvictions(pageCountToEvict)) {
+                        evictPages(blockAccessor, pageCountToEvict, clockArm, evictionRunEvent);
+                    }
                 }
             }
+        } finally {
+            // The last thing we do, is signalling the shutdown of the cache via
+            // the freelist. This signal is looked out for in grabFreePage.
+            setFreelistHead(SHUTDOWN_SIGNAL);
         }
-
-        // The last thing we do, is signalling the shutdown of the cache via
-        // the freelist. This signal is looked out for in grabFreePage.
-        setFreelistHead(shutdownSignal);
     }
 
     @VisibleForTesting

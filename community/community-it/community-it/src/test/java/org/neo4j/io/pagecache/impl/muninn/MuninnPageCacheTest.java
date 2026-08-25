@@ -143,6 +143,7 @@ import org.neo4j.io.pagecache.tracing.recording.RecordingPageCacheTracer;
 import org.neo4j.io.pagecache.tracing.recording.RecordingPageCursorTracer;
 import org.neo4j.io.pagecache.tracing.recording.RecordingPageCursorTracer.Fault;
 import org.neo4j.io.pagecache.tracing.version.FileTruncateEvent;
+import org.neo4j.kernel.impl.scheduler.JobSchedulerFactory;
 import org.neo4j.memory.DefaultScopedMemoryTracker;
 import org.neo4j.memory.EmptyMemoryTracker;
 import org.neo4j.memory.LocalMemoryTracker;
@@ -2087,6 +2088,8 @@ public class MuninnPageCacheTest extends PageCacheTest<MuninnPageCache> {
                     fs.getClass() == EphemeralFileSystemAbstraction.class,
                     "This test is very slow on real file system");
 
+            // prevent pageCache.close giving bad access to concurrent thread
+            doNotCloseAllocatorOnShutdown();
             var pages = 10;
             try (MuninnPageCache pageCache = createPageCache(fs, 2, PageCacheTracer.NULL)) {
                 var race = new Race();
@@ -2115,6 +2118,21 @@ public class MuninnPageCacheTest extends PageCacheTest<MuninnPageCache> {
                     }
                 }));
                 race.go();
+            }
+        });
+    }
+
+    @Test
+    void closePageCacheWithQueuedEvictionTaskMustNotDeadlock() {
+        assertTimeoutPreemptively(ofMillis(SEMI_LONG_TIMEOUT_MILLIS), () -> {
+            try (var scheduler = JobSchedulerFactory.createInitialisedScheduler()) {
+                var configuration = MuninnPageCache.forPages(10).closeAllocatorOnShutdown(true);
+                try (var first = new MuninnPageCache(fs, scheduler, configuration)) {
+                    var second = new MuninnPageCache(fs, scheduler, configuration);
+                    map(first, existingFile("a"), first.pageSize()).close();
+                    map(second, existingFile("b"), second.pageSize()).close();
+                    second.close();
+                }
             }
         });
     }
