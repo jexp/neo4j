@@ -91,6 +91,17 @@ public class ExecutionContextIT {
         try (Transaction transaction = databaseAPI.beginTx()) {
             var ktx = (KernelTransactionImplementation) ((InternalTransaction) transaction).kernelTransaction();
             try (Statement statement = ktx.acquireStatement()) {
+                KernelTransactions kernelTransactions =
+                        databaseAPI.getDependencyResolver().resolveDependency(KernelTransactions.class);
+
+                var transactionHandle = kernelTransactions.activeTransactions().stream()
+                        .filter(tx -> tx.isUnderlyingTransaction(ktx))
+                        .findFirst()
+                        .orElseThrow();
+
+                var baselineHeap = transactionHandle.transactionStatistic().getEstimatedUsedHeapMemory();
+                var baselineNative = transactionHandle.transactionStatistic().getNativeAllocatedBytes();
+
                 var futures = new ArrayList<Future<?>>(NUMBER_OF_WORKERS);
                 var contexts = new ArrayList<ExecutionContext>(NUMBER_OF_WORKERS);
                 for (int i = 0; i < NUMBER_OF_WORKERS; i++) {
@@ -105,24 +116,19 @@ public class ExecutionContextIT {
                 }
                 Futures.getAll(futures);
 
-                KernelTransactions kernelTransactions =
-                        databaseAPI.getDependencyResolver().resolveDependency(KernelTransactions.class);
-
-                var transactionHandle = kernelTransactions.activeTransactions().stream()
-                        .filter(tx -> tx.isUnderlyingTransaction(ktx))
-                        .findFirst()
-                        .orElseThrow();
                 assertEquals(
-                        kibiBytes(128 * NUMBER_OF_WORKERS),
+                        baselineHeap + kibiBytes(128 * NUMBER_OF_WORKERS),
                         transactionHandle.transactionStatistic().getEstimatedUsedHeapMemory());
-                assertEquals(0, transactionHandle.transactionStatistic().getNativeAllocatedBytes());
+                assertEquals(
+                        baselineNative, transactionHandle.transactionStatistic().getNativeAllocatedBytes());
 
                 closeAllUnchecked(contexts);
 
                 assertEquals(
-                        bytes(5 * 10 * NUMBER_OF_WORKERS),
+                        baselineHeap + bytes(5 * 10 * NUMBER_OF_WORKERS),
                         transactionHandle.transactionStatistic().getEstimatedUsedHeapMemory());
-                assertEquals(0, transactionHandle.transactionStatistic().getNativeAllocatedBytes());
+                assertEquals(
+                        baselineNative, transactionHandle.transactionStatistic().getNativeAllocatedBytes());
 
                 transaction.close();
 
