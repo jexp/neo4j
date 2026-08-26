@@ -20,11 +20,13 @@
 package org.neo4j.cypher.internal.compiler.planner.logical
 
 import org.mockito.Mockito.when
-import org.neo4j.cypher.internal.CypherVersionHelpers.arbitrarySemanticContext
+import org.neo4j.cypher.internal.CypherVersion
 import org.neo4j.cypher.internal.ast.AstConstructionTestSupport
 import org.neo4j.cypher.internal.ast.AstConstructionTestSupport.VariableStringInterpolator
 import org.neo4j.cypher.internal.ast.Statement
+import org.neo4j.cypher.internal.ast.semantics.SemanticCheckContext
 import org.neo4j.cypher.internal.ast.semantics.SemanticChecker
+import org.neo4j.cypher.internal.ast.semantics.SemanticFeature
 import org.neo4j.cypher.internal.ast.semantics.SemanticState
 import org.neo4j.cypher.internal.compiler.CypherPlannerConfiguration
 import org.neo4j.cypher.internal.compiler.CypherPlannerTestSuite
@@ -55,6 +57,8 @@ class OptionalMatchRemoverTest extends CypherPlannerTestSuite with PlannerQueryR
     with AstConstructionTestSupport
     with TestName {
 
+  override protected def additionalSemanticFeatures: Seq[SemanticFeature] = Seq(SemanticFeature.FulltextSearch)
+
   override def rewriter(anonymousVariableNameGenerator: AnonymousVariableNameGenerator): Rewriter = {
     val state = mock[LogicalPlanState]
     when(state.anonymousVariableNameGenerator).thenReturn(anonymousVariableNameGenerator)
@@ -69,9 +73,11 @@ class OptionalMatchRemoverTest extends CypherPlannerTestSuite with PlannerQueryR
   override def rewriteAST(
     astOriginal: Statement,
     cypherExceptionFactory: CypherExceptionFactory,
-    anonymousVariableNameGenerator: AnonymousVariableNameGenerator
+    anonymousVariableNameGenerator: AnonymousVariableNameGenerator,
+    semanticState: SemanticState,
+    semanticCheckContext: SemanticCheckContext
   ): Statement = {
-    val orgAstState = SemanticChecker.check(astOriginal, SemanticState.clean, arbitrarySemanticContext()).state
+    val orgAstState = SemanticChecker.check(astOriginal, semanticState, semanticCheckContext).state
     val ast_0 = astOriginal.endoRewrite(inSequence(
       LabelExpressionPredicateNormalizer.instance,
       NormalizeExistsPatternExpressions(orgAstState),
@@ -81,7 +87,7 @@ class OptionalMatchRemoverTest extends CypherPlannerTestSuite with PlannerQueryR
     ))
     // computeDependenciesForExpressions needs a new run of SemanticChecker after normalizeExistsPatternExpressions
     ast_0.endoRewrite(computeDependenciesForExpressions(
-      SemanticChecker.check(ast_0, SemanticState.clean, arbitrarySemanticContext()).state
+      SemanticChecker.check(ast_0, semanticState, semanticCheckContext).state
     ))
   }
 
@@ -817,6 +823,34 @@ class OptionalMatchRemoverTest extends CypherPlannerTestSuite with PlannerQueryR
       |""".stripMargin
   ) {
     assertIsNotRewritten(testName)
+  }
+
+  test(
+    """OPTIONAL MATCH (n)
+      |SEARCH n IN (
+      |  VECTOR INDEX vector_index
+      |  FOR $param
+      |  LIMIT 1
+      |)
+      |SCORE AS s
+      |RETURN DISTINCT s AS s
+      |"""
+  ) {
+    assertIsNotRewritten(testName, supportedCypherVersions = Set(CypherVersion.Cypher25))
+  }
+
+  test(
+    """OPTIONAL MATCH (n)
+      |SEARCH n IN (
+      |  FULLTEXT INDEX fulltext_index
+      |  FOR $param
+      |  LIMIT 1
+      |)
+      |SCORE AS s
+      |RETURN DISTINCT s AS s
+      |"""
+  ) {
+    assertIsNotRewritten(testName, supportedCypherVersions = Set(CypherVersion.Cypher25))
   }
 
   val x = v"x"

@@ -20,10 +20,12 @@
 package org.neo4j.cypher.internal.compiler.planner.logical
 
 import org.neo4j.cypher.internal.CypherVersion
-import org.neo4j.cypher.internal.CypherVersionHelpers.arbitrarySemanticContext
+import org.neo4j.cypher.internal.CypherVersionHelpers.versionedSemanticContext
 import org.neo4j.cypher.internal.ast.Query
 import org.neo4j.cypher.internal.ast.Statement
+import org.neo4j.cypher.internal.ast.semantics.SemanticCheckContext
 import org.neo4j.cypher.internal.ast.semantics.SemanticChecker
+import org.neo4j.cypher.internal.ast.semantics.SemanticFeature
 import org.neo4j.cypher.internal.ast.semantics.SemanticState
 import org.neo4j.cypher.internal.ast.semantics.SemanticTable
 import org.neo4j.cypher.internal.compiler.CypherPlannerTestSuite
@@ -41,21 +43,31 @@ import org.neo4j.cypher.internal.util.Rewriter
 import org.neo4j.cypher.internal.util.helpers.NameDeduplicator.removeGeneratedNamesAndParamsOnTree
 import org.neo4j.cypher.internal.util.helpers.fixedPoint
 
+import scala.util.Random
 import scala.util.Success
 import scala.util.Try
 
 trait PlannerQueryRewriterTest {
   self: CypherPlannerTestSuite =>
 
-  private def parse(query: String, exceptionFactory: CypherExceptionFactory): Statement = {
-    val defaultStatement = parse(CypherVersion.Legacy.legacyVersion(), query, exceptionFactory)
+  protected def additionalSemanticFeatures: Seq[SemanticFeature] = Seq.empty
+
+  private val allCypherVersions: Set[CypherVersion] = CypherVersion.values().toSet
+
+  private def parse(
+    query: String,
+    exceptionFactory: CypherExceptionFactory,
+    supportedCypherVersions: Set[CypherVersion]
+  ): Statement = {
+    val defaultCypherVersion = supportedCypherVersions.head
+    val defaultStatement = parse(defaultCypherVersion, query, exceptionFactory)
 
     // Quick and dirty hack to try to make sure we have sufficient coverage of all cypher versions.
     // Feel free to improve ¯\_(ツ)_/¯.
-    CypherVersion.values().foreach { version =>
-      if (version != CypherVersion.Legacy.legacyVersion()) {
+    supportedCypherVersions.foreach { version =>
+      if (version != defaultCypherVersion) {
         Try(parse(version, query, exceptionFactory)) match {
-          case Success(otherStatement) if otherStatement == defaultStatement =>
+          case Success(otherStatement) if otherStatement == defaultStatement => ()
           case notEqual => throw new AssertionError(
               s"""Unexpected result in $version
                  |Default statement: $defaultStatement
@@ -65,6 +77,21 @@ trait PlannerQueryRewriterTest {
         }
       }
     }
+
+    val unsupportedCypherVersions = allCypherVersions -- supportedCypherVersions
+    unsupportedCypherVersions.foreach { version =>
+      Try(parse(version, query, exceptionFactory)) match {
+        case Success(otherStatement) =>
+          throw new AssertionError(
+            s"""Unexpected success in $version
+               |Default statement: $defaultStatement
+               |$version statement: $otherStatement
+               |""".stripMargin
+          )
+        case failure => ()
+      }
+    }
+
     defaultStatement
   }
 
@@ -77,16 +104,19 @@ trait PlannerQueryRewriterTest {
   def rewriteAST(
     astOriginal: Statement,
     cypherExceptionFactory: CypherExceptionFactory,
-    anonymousVariableNameGenerator: AnonymousVariableNameGenerator
+    anonymousVariableNameGenerator: AnonymousVariableNameGenerator,
+    semanticState: SemanticState,
+    semanticCheckContext: SemanticCheckContext
   ): Statement
 
   protected def assertRewrite(originalQuery: String, expectedQuery: String): Unit = {
 
     val expectedGen = new AnonymousVariableNameGenerator()
     val actualGen = new AnonymousVariableNameGenerator()
-    val expected =
-      removeGeneratedNamesAndParamsOnTree(getTheWholePlannerQueryFrom(expectedQuery.stripMargin, expectedGen))
-    val original = getTheWholePlannerQueryFrom(originalQuery.stripMargin, actualGen)
+    val expected = removeGeneratedNamesAndParamsOnTree(
+      getTheWholePlannerQueryFrom(expectedQuery.stripMargin, expectedGen, allCypherVersions)
+    )
+    val original = getTheWholePlannerQueryFrom(originalQuery.stripMargin, actualGen, allCypherVersions)
 
     val result = removeGeneratedNamesAndParamsOnTree(
       original.endoRewrite(fixedPoint(CancellationChecker.neverCancelled())(rewriter(actualGen)))
@@ -106,10 +136,12 @@ trait PlannerQueryRewriterTest {
     val expected =
       expectedQueries.map { query =>
         val expectedGen = new AnonymousVariableNameGenerator()
-        removeGeneratedNamesAndParamsOnTree(getTheWholePlannerQueryFrom(query.stripMargin, expectedGen))
+        removeGeneratedNamesAndParamsOnTree(
+          getTheWholePlannerQueryFrom(query.stripMargin, expectedGen, allCypherVersions)
+        )
       }
     val actualGen = new AnonymousVariableNameGenerator()
-    val original = getTheWholePlannerQueryFrom(originalQuery.stripMargin, actualGen)
+    val original = getTheWholePlannerQueryFrom(originalQuery.stripMargin, actualGen, allCypherVersions)
 
     val result = removeGeneratedNamesAndParamsOnTree(
       original.endoRewrite(fixedPoint(CancellationChecker.neverCancelled())(rewriter(actualGen)))
@@ -126,21 +158,35 @@ trait PlannerQueryRewriterTest {
   }
 
   protected def assertIsNotRewritten(query: String): Unit = {
+    assertIsNotRewritten(query, allCypherVersions)
+  }
+
+  protected def assertIsNotRewritten(query: String, supportedCypherVersions: Set[CypherVersion]): Unit = {
     val actualGen = new AnonymousVariableNameGenerator()
-    val plannerQuery = getTheWholePlannerQueryFrom(query.stripMargin, actualGen)
+    val plannerQuery = getTheWholePlannerQueryFrom(query.stripMargin, actualGen, supportedCypherVersions)
     val result = plannerQuery.endoRewrite(fixedPoint(CancellationChecker.neverCancelled())(rewriter(actualGen)))
     assert(result === plannerQuery, "\nShould not have been rewritten\n" + query)
   }
 
   private def getTheWholePlannerQueryFrom(
     query: String,
-    anonymousVariableNameGenerator: AnonymousVariableNameGenerator
+    anonymousVariableNameGenerator: AnonymousVariableNameGenerator,
+    supportedCypherVersions: Set[CypherVersion]
   ): PlannerQuery = {
+
+    val randomSupportedVersion = Random.shuffle(supportedCypherVersions).head
+    val semanticCheckContext = versionedSemanticContext(randomSupportedVersion)
+    val semanticState = SemanticState.clean.withFeatures(additionalSemanticFeatures)
     val exceptionFactory = Neo4jCypherExceptionFactory(query, Some(DummyPosition(0)))
-    val astOriginal = parse(query.replace("\r\n", "\n"), exceptionFactory)
-    val ast = rewriteAST(astOriginal, exceptionFactory, anonymousVariableNameGenerator)
+
+    val astOriginal =
+      parse(query.replace("\r\n", "\n"), exceptionFactory, supportedCypherVersions)
+
+    val ast =
+      rewriteAST(astOriginal, exceptionFactory, anonymousVariableNameGenerator, semanticState, semanticCheckContext)
     val onError = SyntaxExceptionCreator.throwOnError(exceptionFactory)
-    val result = SemanticChecker.check(ast, SemanticState.clean, arbitrarySemanticContext())
+    val result =
+      SemanticChecker.check(ast, semanticState, semanticCheckContext)
     onError(result.errors)
     val table = SemanticTable(
       types = result.state.typeTable,

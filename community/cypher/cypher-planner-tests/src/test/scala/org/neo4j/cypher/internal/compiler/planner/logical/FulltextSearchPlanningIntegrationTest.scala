@@ -1113,4 +1113,32 @@ abstract class FulltextSearchPlanningIntegrationTestBase extends CypherPlannerTe
       }
     }
   }
+
+  test("plan fulltext index search with OPTIONAL MATCH and DISTINCT score") {
+    val planner = plannerBuilder().build()
+
+    val query =
+      """OPTIONAL MATCH (movie:Movie)
+        |SEARCH movie IN (
+        |  FULLTEXT INDEX moviePlots
+        |  FOR $embedding
+        |  LIMIT 10
+        |) SCORE AS s
+        |RETURN DISTINCT s""".stripMargin
+
+    val plan = planner.plan(CypherVersion.Cypher25, query).stripProduceResults
+    plan shouldEqual planner.subPlanBuilder()
+      .distinct("s AS s")
+      .optional()
+      .nodeFulltextIndexSearch(
+        node = "movie",
+        labelNames = Seq("Movie"),
+        properties = Seq("title", "plot"),
+        indexName = "moviePlots",
+        queryString = "$embedding",
+        limit = "10",
+        score = "s"
+      )
+      .build()
+  }
 }

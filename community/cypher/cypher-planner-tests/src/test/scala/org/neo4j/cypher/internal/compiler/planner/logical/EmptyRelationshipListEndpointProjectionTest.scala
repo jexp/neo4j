@@ -21,8 +21,8 @@ package org.neo4j.cypher.internal.compiler.planner.logical
 
 import org.mockito.Mockito.when
 import org.neo4j.cypher.internal.CypherVersion
-import org.neo4j.cypher.internal.CypherVersionHelpers.arbitrarySemanticContext
 import org.neo4j.cypher.internal.ast.Statement
+import org.neo4j.cypher.internal.ast.semantics.SemanticCheckContext
 import org.neo4j.cypher.internal.ast.semantics.SemanticChecker
 import org.neo4j.cypher.internal.ast.semantics.SemanticState
 import org.neo4j.cypher.internal.compiler.CypherPlannerTestSuite
@@ -55,9 +55,11 @@ class EmptyRelationshipListEndpointProjectionTest extends CypherPlannerTestSuite
   override def rewriteAST(
     astOriginal: Statement,
     ceF: CypherExceptionFactory,
-    anonVarGen: AnonymousVariableNameGenerator
+    anonVarGen: AnonymousVariableNameGenerator,
+    semanticState: SemanticState,
+    semanticCheckContext: SemanticCheckContext
   ): Statement = {
-    val orgAstState = SemanticChecker.check(astOriginal, SemanticState.clean, arbitrarySemanticContext()).state
+    val orgAstState = SemanticChecker.check(astOriginal, semanticState, semanticCheckContext).state
     astOriginal.endoRewrite(inSequence(
       LabelExpressionPredicateNormalizer.instance,
       NormalizeHasLabelsAndHasType(orgAstState),

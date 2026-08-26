@@ -21,8 +21,8 @@ package org.neo4j.cypher.internal.compiler.planner.logical
 
 import org.mockito.Mockito.when
 import org.neo4j.cypher.internal.CypherVersion
-import org.neo4j.cypher.internal.CypherVersionHelpers.arbitrarySemanticContext
 import org.neo4j.cypher.internal.ast.Statement
+import org.neo4j.cypher.internal.ast.semantics.SemanticCheckContext
 import org.neo4j.cypher.internal.ast.semantics.SemanticChecker
 import org.neo4j.cypher.internal.ast.semantics.SemanticState
 import org.neo4j.cypher.internal.compiler.CypherPlannerTestSuite
@@ -76,12 +76,14 @@ class InlineRelationshipTypePredicatesTest extends CypherPlannerTestSuite with P
   override def rewriteAST(
     astOriginal: Statement,
     ceF: CypherExceptionFactory,
-    anonVarGen: AnonymousVariableNameGenerator
+    anonVarGen: AnonymousVariableNameGenerator,
+    semanticState: SemanticState,
+    semanticCheckContext: SemanticCheckContext
   ): Statement = {
     val rewritten = astOriginal.endoRewrite(Rewriter.lift {
       case s: Statement => expand(s)
     })
-    val orgAstState = SemanticChecker.check(rewritten, SemanticState.clean, arbitrarySemanticContext()).state
+    val orgAstState = SemanticChecker.check(rewritten, semanticState, semanticCheckContext).state
     rewritten.endoRewrite(inSequence(
       computeDependenciesForExpressions(orgAstState),
       LabelExpressionPredicateNormalizer.instance,

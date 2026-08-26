@@ -42,11 +42,15 @@ import org.neo4j.cypher.internal.ir.DistinctQueryProjection
 import org.neo4j.cypher.internal.ir.PatternRelationship
 import org.neo4j.cypher.internal.ir.PlannerQuery
 import org.neo4j.cypher.internal.ir.Predicate
+import org.neo4j.cypher.internal.ir.QuantifiedPathPattern
 import org.neo4j.cypher.internal.ir.QueryGraph
 import org.neo4j.cypher.internal.ir.QueryProjection
 import org.neo4j.cypher.internal.ir.RegularQueryProjection
 import org.neo4j.cypher.internal.ir.RegularSinglePlannerQuery
+import org.neo4j.cypher.internal.ir.SearchClause
 import org.neo4j.cypher.internal.ir.Selections
+import org.neo4j.cypher.internal.ir.SelectivePathPattern
+import org.neo4j.cypher.internal.ir.ShortestRelationshipPattern
 import org.neo4j.cypher.internal.ir.SinglePlannerQuery
 import org.neo4j.cypher.internal.ir.ast.ExistsIRExpression
 import org.neo4j.cypher.internal.ir.ordering.InterestingOrder
@@ -86,9 +90,7 @@ case object OptionalMatchRemover extends PlannerQueryRewriter with StepSequencer
               tail,
               queryInput
             )
-            if noOptionalShortestPathSelectivePathOrQpp(graph) && graph.mutatingPatterns.isEmpty && validAggregations(
-              aggregations
-            ) =>
+            if validQueryGraph(graph) && validAggregations(aggregations) =>
             val projectionDeps: Iterable[LogicalVariable] =
               (distinctExpressions.values ++ aggregations.values).flatMap(_.dependencies)
             rewrite(
@@ -107,7 +109,7 @@ case object OptionalMatchRemover extends PlannerQueryRewriter with StepSequencer
               proj @ DistinctQueryProjection(distinctExpressions, _, _, _, _),
               tail,
               queryInput
-            ) if noOptionalShortestPathSelectivePathOrQpp(graph) && graph.mutatingPatterns.isEmpty =>
+            ) if validQueryGraph(graph) =>
             val projectionDeps: Iterable[LogicalVariable] = distinctExpressions.values.flatMap(_.dependencies)
             rewrite(
               projectionDeps,
@@ -335,10 +337,28 @@ case object OptionalMatchRemover extends PlannerQueryRewriter with StepSequencer
     }
   }
 
-  private def noOptionalShortestPathSelectivePathOrQpp(qg: QueryGraph): Boolean = {
-    qg.optionalMatches.forall(qg =>
-      qg.shortestRelationshipPatterns.isEmpty && qg.quantifiedPathPatterns.isEmpty && qg.selectivePathPatterns.isEmpty
-    )
+  private def validQueryGraph(qg: QueryGraph): Boolean = {
+    qg.mutatingPatterns.isEmpty &&
+    qg.optionalMatches.forall {
+      // when adding new fields, check if new conditions are needed
+      case QueryGraph(
+          _,
+          quantifiedPathPatterns: Set[QuantifiedPathPattern],
+          _,
+          _,
+          _,
+          _,
+          _,
+          shortestRelationshipPatterns: Set[ShortestRelationshipPattern],
+          _,
+          selectivePathPatterns: Set[SelectivePathPattern],
+          searchClause: Option[SearchClause]
+        ) =>
+        shortestRelationshipPatterns.isEmpty &&
+        quantifiedPathPatterns.isEmpty &&
+        selectivePathPatterns.isEmpty &&
+        searchClause.isEmpty
+    }
   }
 
   /**

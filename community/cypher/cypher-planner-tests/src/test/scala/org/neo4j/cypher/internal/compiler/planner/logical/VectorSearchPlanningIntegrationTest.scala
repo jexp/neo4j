@@ -2392,4 +2392,33 @@ abstract class VectorSearchWithComplexPatternPlanningIntegrationTestBase
       }
     }
   }
+
+  test("plan vector index search with OPTIONAL MATCH and DISTINCT score") {
+    val planner = plannerBuilder().build()
+
+    val query =
+      """OPTIONAL MATCH (movie:Movie)
+        |SEARCH movie IN (
+        |  VECTOR INDEX moviePlots
+        |  FOR $embedding
+        |  LIMIT 10
+        |) SCORE AS s
+        |RETURN DISTINCT s""".stripMargin
+
+    val plan = planner.plan(CypherVersion.Cypher25, query).stripProduceResults
+    plan shouldEqual planner.subPlanBuilder()
+      .distinct("s AS s")
+      .optional()
+      .nodeVectorIndexSearch(
+        node = "movie",
+        labelNames = Seq("Movie"),
+        properties = Seq("plot", "imdbRating", "releaseYear"),
+        indexName = "moviePlots",
+        vector = "$embedding",
+        limit = "10",
+        score = "s"
+      )
+      .build()
+  }
+
 }
