@@ -129,7 +129,7 @@ class AdministrationCommandResolvedFunctionSemanticAnalysisTest extends CypherFu
     )(p)
 
   private def nodePropertyRuleWith(fn: Expression): GrantPrivilege =
-    new GrantPrivilege(
+    GrantPrivilege(
       GraphPrivilege(TraverseAction, HomeGraphScope()(p))(p),
       false,
       None,
@@ -143,7 +143,7 @@ class AdministrationCommandResolvedFunctionSemanticAnalysisTest extends CypherFu
     )(p)
 
   private def nodePropertyRuleWithPropertyOnRight(fn: Expression): GrantPrivilege =
-    new GrantPrivilege(
+    GrantPrivilege(
       GraphPrivilege(TraverseAction, HomeGraphScope()(p))(p),
       false,
       None,
@@ -179,13 +179,19 @@ class AdministrationCommandResolvedFunctionSemanticAnalysisTest extends CypherFu
 
   // -- allow-list (every entry, classified as compiler vs registered built-in) -------------------
 
+  private val zeroArgAllowListedFns = Set(
+    "abac.native.user_tags",
+    "abac.plugin.user_tags"
+  )
+
   // point() is the only allow-listed function that is a compiler built-in; the rest of the
   // compiler built-ins (range, abs, toLower, ...) are likewise raw FunctionInvocations, while the
   // temporal and abac functions are registered built-ins represented as ResolvedFunctionInvocation.
   private def asAllowListedBuiltin(fnName: String): Expression = {
-    val raw = function(fnName, literalString("x"))
+    val args = if (zeroArgAllowListedFns contains fnName.toLowerCase) Seq.empty else Seq(literalString("x"))
+    val raw = function(fnName, args*)
     if (raw.isBuiltIn) raw
-    else resolved(fnName, Some(signature(fnName, builtIn = true)), p, literalString("x"))
+    else resolved(fnName, Some(signature(fnName, builtIn = true)), p, args*)
   }
 
   test("CREATE AUTH RULE authRule SET CONDITION accepts every allow-listed function") {
@@ -205,6 +211,51 @@ class AdministrationCommandResolvedFunctionSemanticAnalysisTest extends CypherFu
   }
 
   // -- ABAC (CREATE AUTH RULE) -------------------------------------------------
+
+  // abac.plugin.user_tags is deliberately kept off the allowlist until ABAC-enabled auth plugins are released
+  test("CREATE AUTH RULE rejects abac.plugin.user_tags while it is not yet released") {
+    AdministrationCommand.authRuleAllowListedFunctions should not contain "abac.plugin.user_tags"
+
+    val userTags = resolved("abac.plugin.user_tags", Some(signature("abac.plugin.user_tags", builtIn = true)), pos1)
+    val result = createAuthRuleWith(userTags).semanticCheck.run(state, context)
+    result.errors.size shouldBe 1
+    result.errors.head.msg should include(
+      "Invalid input 'abac.plugin.user_tags' for function in auth rule condition"
+    )
+  }
+
+  Seq("native" /*, "plugin" */ ).foreach { tagsRealm =>
+    test(
+      s"CREATE AUTH RULE authRule SET CONDITION 'admin' IN abac.$tagsRealm.user_tags('admins') rejects due to unexpected argument"
+    ) {
+      val userTagsFn = resolved(
+        s"abac.$tagsRealm.user_tags",
+        Some(signature(s"abac.$tagsRealm.user_tags", builtIn = true)),
+        pos1,
+        listOf(literalString("admins"))
+      )
+
+      createAuthRuleWith(userTagsFn)
+        .semanticCheck.run(state, context).errors should equal(SemanticCheckResult
+        .error(
+          GqlHelper.getGql42001_42I13(
+            0,
+            1,
+            s"abac.$tagsRealm.user_tags",
+            s"abac.$tagsRealm.user_tags() :: LIST<STRING>",
+            pos1.offset,
+            pos1.line,
+            pos1.column
+          ),
+          state,
+          s"""Function call does not provide the required number of arguments: expected 0 got 1.
+             |
+             |Function abac.$tagsRealm.user_tags has signature: abac.$tagsRealm.user_tags() :: LIST<STRING>
+             |meaning that it expects 0 [admins]""".stripMargin,
+          pos1
+        ).errors)
+    }
+  }
 
   test("CREATE AUTH RULE authRule SET CONDITION abac.native.user_tags() IS NOT NULL accepts the resolved built-in") {
     val userTags = resolved("abac.native.user_tags", Some(signature("abac.native.user_tags", builtIn = true)), p)

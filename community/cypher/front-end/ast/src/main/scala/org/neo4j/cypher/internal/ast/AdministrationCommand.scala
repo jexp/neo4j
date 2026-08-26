@@ -1136,7 +1136,8 @@ sealed trait AuthRules extends SemanticAnalysisTooling {
       .foldSemanticCheck(f => {
         checkAllowlist(f) chain
           checkTemporalFunctionsArguments(f) chain
-          checkAbacOidcUserAttributeFunction(f)
+          checkAbacOidcUserAttributeFunction(f) chain
+          checkAbacUserTagsFunctions(f)
       })
   }
 
@@ -1227,6 +1228,27 @@ sealed trait AuthRules extends SemanticAnalysisTooling {
         val argLiteral = argHeadOption.get.asInstanceOf[Literal]
         SemanticExpressionCheck.simple(argLiteral) chain
           expectType(CTString.covariant, argLiteral)
+      } else {
+        SemanticCheck.success
+      }
+    } else {
+      SemanticCheck.success
+    }
+  }
+
+  protected def checkAbacUserTagsFunctions(functionInvocation: FunctionInvocationLike): SemanticCheck = {
+    val name = functionInvocation.functionName.fullName
+    val args = functionInvocation.callArguments
+    if (Set("abac.native.user_tags", "abac.plugin.user_tags") contains name.toLowerCase) {
+      if (args.nonEmpty) {
+        SemanticError.functionCallWrongNumberOfArguments(
+          0,
+          args.size,
+          name,
+          s"$name() :: LIST<STRING>",
+          args.map(_.asCanonicalStringVal).mkString(", "),
+          functionInvocation.position
+        )
       } else {
         SemanticCheck.success
       }
