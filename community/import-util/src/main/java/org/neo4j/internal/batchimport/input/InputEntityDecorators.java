@@ -128,9 +128,9 @@ public class InputEntityDecorators {
         public void endOfEntity() throws IOException {
             if (!hasType) {
                 super.type(defaultType);
-                hasType = false;
             }
 
+            hasType = false;
             super.endOfEntity();
         }
     }
