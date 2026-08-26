@@ -32,7 +32,7 @@ import org.neo4j.common.EntityType;
  * Collects items and is {@link #close() closed} after any and all items have been collected.
  * The {@link Collector} is responsible for closing whatever closeable resource received from the importer.
  */
-public interface Collector extends AutoCloseable {
+public interface Collector extends AutoCloseable, ResumableState {
     void collectBadRelationship(
             Object startId,
             Group startIdGroup,
@@ -94,27 +94,27 @@ public interface Collector extends AutoCloseable {
     boolean isCollectingBadRelationships();
 
     /**
-     * Checkpoints the collector, writing whatever state it has to the given output stream. On return, everything
-     * collected so far has been reported and made durable in the underlying resource, to the extent that the resource
-     * supports it.
+     * {@inheritDoc}
      * <p>
      * Must not be called concurrently with any of the collect* methods that collect bad data from the input.
      */
+    @Override
     void checkpoint(DataOutputStream outputStream) throws IOException;
 
     /**
-     * Restores the state previously written by {@link #checkpoint(DataOutputStream)}.
+     * {@inheritDoc}
      * <p>
      * Must not be called after any collect* method has been called.
      */
+    @Override
     void resumeFromCheckpoint(DataInputStream inputStream) throws IOException;
 
     /**
-     * Restores the state from before anything was collected, discarding whatever an earlier attempt that never
-     * reached a {@link #checkpoint(DataOutputStream) checkpoint} reported.
+     * {@inheritDoc}
      * <p>
      * Must be called before any collection happens.
      */
+    @Override
     void resumeFromStart() throws IOException;
 
     /**
