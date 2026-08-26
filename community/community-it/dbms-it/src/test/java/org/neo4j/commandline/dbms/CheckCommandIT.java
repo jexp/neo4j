@@ -425,7 +425,7 @@ class CheckCommandIT {
                 confPath.resolve(Config.DEFAULT_CONFIG_FILE_NAME),
                 List.of(GraphDatabaseInternalSettings.allow_small_split_archive_size.name() + "=true"));
         final var dump = testDirectory.directory("split-dump");
-        createDump(dump, dbName, "--experimental-split-size=5kb");
+        createDump(dump, dbName, "--split-archive-part-size=5kb");
 
         withSuppressedOutput(homeDir, confPath, filesytem, ctx -> {
             final var checkCommand = new CheckCommand(ctx);

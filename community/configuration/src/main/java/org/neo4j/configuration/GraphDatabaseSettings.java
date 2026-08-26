@@ -50,6 +50,7 @@ import static org.neo4j.configuration.SettingValueParsers.listOf;
 import static org.neo4j.configuration.SettingValueParsers.ofEnum;
 import static org.neo4j.configuration.SettingValueParsers.setOf;
 import static org.neo4j.configuration.connectors.ConnectorDefaults.SERVER_CONNECTOR_DEFAULTS;
+import static org.neo4j.io.ByteUnit.gibiBytes;
 import static org.neo4j.io.ByteUnit.kibiBytes;
 import static org.neo4j.io.ByteUnit.mebiBytes;
 
@@ -1136,6 +1137,14 @@ public class GraphDatabaseSettings implements SettingsDeclaration {
     @Description("Anonymous Usage Data reporting.")
     public static final Setting<Boolean> udc_enabled =
             newBuilder("dbms.usage_report.enabled", BOOL, true).build();
+
+    @Description(
+            "The size of individual files when creating a split archive with multiple files (dump or backup). "
+                    + "The size can be specified in bytes or with a unit suffix (e.g. 5G, 100g, 1TiB). The minimum split size is 1GiB. "
+                    + "The default value is 0 and then archives will not be split into multiple files regardless of the total size.")
+    public static final Setting<Long> split_archive_part_size = newBuilder("server.split_archive.part_size", BYTES, 0L)
+            .addConstraint(any(min(gibiBytes(1)), is(0L)))
+            .build();
 
     /**
      * Default settings for connectors. The default values are assumes to be default for embedded deployments through the code.

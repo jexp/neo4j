@@ -64,7 +64,6 @@ import org.neo4j.cli.ExecutionContext;
 import org.neo4j.cloud.storage.SchemeFileSystemAbstraction;
 import org.neo4j.configuration.Config;
 import org.neo4j.configuration.ConfigUtils;
-import org.neo4j.configuration.GraphDatabaseInternalSettings;
 import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.dbms.archive.Dumper;
@@ -480,7 +479,7 @@ class DumpCommandIT {
 
     @Test
     void shouldSelectSplitBackupsWhenRequestedFromCli() throws IOException {
-        execute("foo", dumpDir, "--experimental-split-size=5gb");
+        execute("foo", dumpDir, "--split-archive-part-size=5gb");
         var outputCaptor = ArgumentCaptor.forClass(Dumper.DumpOutput.class);
         verify(dumper).dump(outputCaptor.capture(), any(), any());
         assertThat(outputCaptor.getValue()).isInstanceOfSatisfying(Dumper.SplitFileOutput.class, output -> {
@@ -492,7 +491,7 @@ class DumpCommandIT {
 
     @Test
     void shouldNotAllowSplitBackupsTooSmall() {
-        assertThatCode(() -> execute("foo", dumpDir, "--experimental-split-size=5kb"))
+        assertThatCode(() -> execute("foo", dumpDir, "--split-archive-part-size=5kb"))
                 .isInstanceOf(CommandFailedException.class)
                 .hasRootCauseInstanceOf(IllegalArgumentException.class)
                 .hasRootCauseMessage("Can't split archive in sizes smaller than 1.000GiB");
@@ -502,7 +501,7 @@ class DumpCommandIT {
     void shouldOverrideSplitBackupSizeWhenRequestedFromConfig() throws IOException {
         Files.write(
                 configDir.resolve(Config.DEFAULT_CONFIG_FILE_NAME),
-                List.of(GraphDatabaseInternalSettings.split_archive_file_size.name() + "=5gb"));
+                List.of(GraphDatabaseSettings.split_archive_part_size.name() + "=5gb"));
         putStoreInDirectory(buildConfig(), databaseDirectory);
         execute("foo", dumpDir);
         var outputCaptor = ArgumentCaptor.forClass(Dumper.DumpOutput.class);

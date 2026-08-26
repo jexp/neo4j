@@ -154,7 +154,7 @@ class UploadCommandTest {
         ctx = new ExecutionContext(homeDir, confPath, nullOutputStream, nullOutputStream, directory.getFileSystem());
         dump = dumpDir.resolve(DBNAME + ".dump");
         ExportTestUtilities.createDump(homeDir, confPath, dumpDir, fs, DBNAME);
-        ExportTestUtilities.createDump(homeDir, confPath, dumpDir, fs, SPLIT_DBNAME, "--experimental-split-size=5kb");
+        ExportTestUtilities.createDump(homeDir, confPath, dumpDir, fs, SPLIT_DBNAME, "--split-archive-part-size=5kb");
         dbFullSize = IOCommon.readSizeFromArchiveMetaData(ctx, dump);
     }
 

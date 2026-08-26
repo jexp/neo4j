@@ -40,6 +40,7 @@ import java.util.Optional;
 import java.util.StringJoiner;
 import org.neo4j.cli.AbstractAdminCommand;
 import org.neo4j.cli.CommandFailedException;
+import org.neo4j.cli.CommandOptionDescriptions;
 import org.neo4j.cli.Converters;
 import org.neo4j.cli.ExecutionContext;
 import org.neo4j.cloud.storage.SchemeFileSystemAbstraction;
@@ -78,7 +79,6 @@ import org.neo4j.storageengine.api.DeprecatedFormatWarning;
 import org.neo4j.storageengine.api.StorageEngineFactory;
 import org.neo4j.time.Clocks;
 import picocli.CommandLine.ArgGroup;
-import picocli.CommandLine.Help.Visibility;
 import picocli.CommandLine.Parameters;
 
 @Command(
@@ -125,12 +125,10 @@ public class DumpCommand extends AbstractAdminCommand {
     private boolean overwriteDestination;
 
     @Option(
-            names = "--experimental-split-size",
+            names = CommandOptionDescriptions.SplitArchiveOption.OPTION_NAME,
             arity = "1",
             paramLabel = "<splitsize>",
-            hidden = true,
-            showDefaultValue = Visibility.NEVER,
-            description = "Split archive at certain size intervals",
+            description = CommandOptionDescriptions.SplitArchiveOption.DUMP_DESCRIPTION,
             converter = Converters.ByteUnitConverter.class)
     private long overrideArchiveSplitSize = 0;
 

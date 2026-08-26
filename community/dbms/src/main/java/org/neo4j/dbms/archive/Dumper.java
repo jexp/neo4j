@@ -22,6 +22,7 @@ package org.neo4j.dbms.archive;
 import static java.nio.file.StandardOpenOption.CREATE_NEW;
 import static java.nio.file.StandardOpenOption.WRITE;
 import static java.util.Objects.requireNonNull;
+import static org.neo4j.dbms.archive.ArchiveFormat.SPLIT_FILE_PREFIX;
 import static org.neo4j.dbms.archive.LoggingArchiveProgressPrinter.createProgressPrinter;
 import static org.neo4j.dbms.archive.Utils.checkWritableDirectory;
 
@@ -42,6 +43,7 @@ import org.neo4j.cli.ExecutionContext;
 import org.neo4j.commandline.Util;
 import org.neo4j.configuration.Config;
 import org.neo4j.configuration.GraphDatabaseInternalSettings;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.dbms.archive.Manifest.FileRecord;
 import org.neo4j.dbms.archive.printer.OutputProgressPrinter;
 import org.neo4j.dbms.archive.printer.ProgressPrinters;
@@ -212,15 +214,16 @@ public class Dumper {
     public record SplitFileOutput(
             FileSystemAbstraction fs, Path baseArtifact, long maxArtifactSize, SplitFileGeneratorMonitor monitor)
             implements DumpOutput {
-        public static final MagicSignature MAGIC_MANIFEST_HEADER =
-                MagicSignature.of(ArchiveFormat.SPLIT_FILE_PREFIX + "MV1");
-        public static final MagicSignature MAGIC_DATA_HEADER =
-                MagicSignature.of(ArchiveFormat.SPLIT_FILE_PREFIX + "DV1");
+        public static final MagicSignature MAGIC_MANIFEST_HEADER = MagicSignature.of(SPLIT_FILE_PREFIX + "MV1");
+        public static final MagicSignature MAGIC_DATA_HEADER = MagicSignature.of(SPLIT_FILE_PREFIX + "DV1");
         public static final int HEADER_SIZE = ArchiveFormat.MAGIC_PREFIX_LENGTH + 4 + 16; // header + index + uuid
+
+        /** If changed remember to update the documentation in {@link GraphDatabaseSettings#split_archive_part_size}
+         * and {@link org.neo4j.cli.CommandOptionDescriptions.SplitArchiveOption} */
         private static final long MIN_SPLIT_ARTIFACT_SIZE = ByteUnit.gibiBytes(1);
 
         public static long determineSplitArtifactSize(Config config, long overrideArchiveSplitSize) {
-            long splitSize = config.get(GraphDatabaseInternalSettings.split_archive_file_size);
+            long splitSize = config.get(GraphDatabaseSettings.split_archive_part_size);
             if (overrideArchiveSplitSize > 0) {
                 splitSize = overrideArchiveSplitSize;
             }

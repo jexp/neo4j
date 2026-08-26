@@ -50,8 +50,9 @@ class DumpCommandTest {
                 USAGE
 
                 dump [-h] [--expand-commands] [--verbose] [--overwrite-destination
-                     [=true|false]] [--additional-config=<file>] [--to-path=<path> |
-                     --to-stdout] <database>
+                     [=true|false]] [--additional-config=<file>]
+                     [--split-archive-part-size=<splitsize>] [--to-path=<path> | --to-stdout]
+                     <database>
 
                 DESCRIPTION
 
@@ -79,6 +80,14 @@ class DumpCommandTest {
                                           Overwrite any existing dump file in the destination
                                             folder.
                                             Default: false
+                      --split-archive-part-size=<splitsize>
+                                          Splits the resulting dump artifact into multiple
+                                            files of the specified size. The size can be
+                                            specified in bytes or with a unit suffix (e.g. 5G,
+                                            100g, 1TiB). The minimum split size is 1GiB. If not
+                                            specified the default value of 0 means the dump is
+                                            not split and is written as a single file.
+                                            Default: 0
                       --to-path=<path>    Destination folder of a database dump.
                                           It is possible to dump databases into AWS S3 buckets,
                                             Google Cloud storage buckets, and Azure buckets

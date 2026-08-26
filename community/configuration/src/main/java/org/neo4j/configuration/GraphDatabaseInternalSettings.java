@@ -2148,14 +2148,6 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
             .build();
 
     @Internal
-    @Description("The size of individual files when creating a split archive with multiple files (dump or backup). "
-            + "If it's 0 then the resulting archive won't be split into multiple files regardless of the total size.")
-    public static final Setting<Long> split_archive_file_size = newBuilder(
-                    "internal.db.backup.split_file_size", BYTES, 0L)
-            .addConstraint(any(min(gibiBytes(1)), is(0L)))
-            .build();
-
-    @Internal
     @Description("Allows the size of individual files when creating a split archive to be smaller than 1 GiB. "
             + "This is only for testing purposes and should not be used in production.")
     public static final Setting<Boolean> allow_small_split_archive_size = newBuilder(
