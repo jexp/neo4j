@@ -1591,6 +1591,13 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
             .build();
 
     @Internal
+    @Description("A feature toggle behind which property-based access control rules using the "
+            + "abac.native.user_tags() function (`n.property IN abac.native.user_tags()`) are developed")
+    public static final Setting<Boolean> user_tags_in_property_rules = newBuilder(
+                    "internal.dbms.feature_flag.user_tags_in_property_rules", BOOL, false)
+            .build();
+
+    @Internal
     @Description("A feature toggle behind which show setting feature is developed")
     public static final Setting<Boolean> show_setting =
             newBuilder("internal.dbms.show_setting", BOOL, true).build();

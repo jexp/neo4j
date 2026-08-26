@@ -32,6 +32,7 @@ import org.neo4j.cypher.internal.ast.semantics.SemanticFeature.ScopeQueries
 import org.neo4j.cypher.internal.ast.semantics.SemanticFeature.SecretManager
 import org.neo4j.cypher.internal.ast.semantics.SemanticFeature.ShowSetting
 import org.neo4j.cypher.internal.ast.semantics.SemanticFeature.UserTags
+import org.neo4j.cypher.internal.ast.semantics.SemanticFeature.UserTagsInPropertyRules
 import org.neo4j.cypher.internal.ast.semantics.SemanticFeature.ValueInListProperty
 import org.neo4j.cypher.internal.frontend.phases.factories.ParsingConfig
 import org.neo4j.cypher.internal.frontend.phases.parserTransformers.AstRewriting
@@ -162,6 +163,7 @@ object FrontEndCompilationPhases extends FrontEndCompilationPhases {
       GraphDatabaseInternalSettings.attribute_based_access_control -> AttributeBasedAccessControl.productPrefix,
       GraphDatabaseInternalSettings.user_tags -> UserTags.productPrefix,
       GraphDatabaseInternalSettings.value_in_list_property -> ValueInListProperty.productPrefix,
+      GraphDatabaseInternalSettings.user_tags_in_property_rules -> UserTagsInPropertyRules.productPrefix,
       GraphDatabaseInternalSettings.secrets_manager_enabled -> SecretManager.productPrefix
     )
   }

@@ -123,6 +123,10 @@ object SemanticFeature {
     override def name: String = "access rules checking for a value in a list property"
   }
 
+  case object UserTagsInPropertyRules extends SemanticFeature with FeatureToString {
+    override def name: String = "user tags in property-based access control rules"
+  }
+
   case object SecretManager extends SemanticFeature with FeatureToString {
     override def name: String = "secret manager"
   }
@@ -148,6 +152,7 @@ object SemanticFeature {
     UserTags,
     GroupByClause,
     ValueInListProperty,
+    UserTagsInPropertyRules,
     SecretManager
   )
 
