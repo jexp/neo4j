@@ -219,6 +219,7 @@
       -Dorg.neo4j.server.HeapDumpDiagnostics.ENABLED=false
       -Dorg.neo4j.service.Services.throwServiceLoaderExceptions=true
       -Dorg.neo4j.ByteBuffers.TRACK_BUFFERS=true
+      -Ddbms.pagecache.memory.default.override=8m
       -Djunit.jupiter.execution.timeout.threaddump.enabled=true
       -Djunit.jupiter.extensions.autodetection.enabled=true
       -Djunit.jupiter.execution.parallel.enabled=${parallel.tests}
