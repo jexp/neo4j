@@ -59,6 +59,13 @@ public interface LuceneIndexWriter extends Closeable {
     void maybeMerge() throws IOException;
 
     /**
+     * Ask any merge currently running on this writer to abandon its work, and prevent further merges from starting.
+     * See {@link Abortable#abort()} for the semantics; a no-op if this writer's merge scheduler
+     * does not support being aborted.
+     */
+    void abortMerges();
+
+    /**
      * Re-apply merge-policy parameters to the already-open writer, mutating the live {@link MergePolicy}
      * instance in place (it cannot be replaced on an open writer). Used to swap the population tuning
      * (e.g. {@code LOG_BYTE_SIZED} with a large {@code mergeFactor}) for the standard tuning before a

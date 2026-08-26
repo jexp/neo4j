@@ -51,6 +51,10 @@ public interface IndexMonitor {
 
     default void indexPopulationScanStartingAfterVisibilityUpdate(IndexDescriptor[] indexDescriptors) {}
 
+    default void postPopulationCompactionStarted(IndexDescriptor descriptor) {}
+
+    default void postPopulationCompactionAborted(IndexDescriptor descriptor) {}
+
     class MonitorAdapter implements IndexMonitor {
         @Override
         public void initialState(

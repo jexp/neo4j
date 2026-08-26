@@ -28,6 +28,7 @@ import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.kernel.api.impl.index.backup.ReadOnlyIndexSnapshotFileIterator;
 import org.neo4j.kernel.api.impl.index.backup.SnapshotReleaseException;
 import org.neo4j.kernel.api.impl.index.backup.UnsupportedIndexDeletionPolicy;
+import org.neo4j.kernel.api.impl.index.lucene.Abortable;
 import org.neo4j.kernel.api.impl.index.lucene.LuceneDirectory;
 import org.neo4j.kernel.api.impl.index.lucene.LuceneDirectoryReader;
 import org.neo4j.kernel.api.impl.index.lucene.LuceneDocument;
@@ -93,6 +94,13 @@ class Lucene9IndexWriter implements LuceneIndexWriter {
     @Override
     public void maybeMerge() throws IOException {
         indexWriter.maybeMerge();
+    }
+
+    @Override
+    public void abortMerges() {
+        if (indexWriter.getConfig().getMergeScheduler() instanceof Abortable abortable) {
+            abortable.abort();
+        }
     }
 
     @Override

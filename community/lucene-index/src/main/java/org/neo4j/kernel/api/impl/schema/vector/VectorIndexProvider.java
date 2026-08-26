@@ -28,6 +28,7 @@ import org.neo4j.common.TokenNameLookup;
 import org.neo4j.configuration.Config;
 import org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker;
 import org.neo4j.graphdb.WriteOperationsNotAllowedException;
+import org.neo4j.internal.kernel.api.IndexMonitor;
 import org.neo4j.internal.schema.IndexCapability;
 import org.neo4j.internal.schema.IndexConfig;
 import org.neo4j.internal.schema.IndexDescriptor;
@@ -72,6 +73,7 @@ public class VectorIndexProvider extends AbstractLuceneIndexProvider {
     private final VectorDocumentStructure documentStructure;
     private final FileSystemAbstraction fileSystem;
     private final JobScheduler scheduler;
+    private final IndexMonitor indexMonitor;
 
     public VectorIndexProvider(
             VectorIndexVersion version,
@@ -102,6 +104,7 @@ public class VectorIndexProvider extends AbstractLuceneIndexProvider {
         this.documentStructure = VectorDocumentStructures.documentStructureFor(version);
         this.fileSystem = fileSystem;
         this.scheduler = scheduler;
+        this.indexMonitor = monitors.newMonitor(IndexMonitor.class);
     }
 
     @Override
@@ -147,7 +150,8 @@ public class VectorIndexProvider extends AbstractLuceneIndexProvider {
 
         IgnoreStrategy ignoreStrategy = new IgnoreStrategy(version, dimensions);
         Neo4jVectorSimilarityFunction similarityFunction = vectorSimilarityFunctionFrom(vectorIndexConfig);
-        return new VectorIndexPopulator(luceneIndex, ignoreStrategy, documentStructure, similarityFunction, config);
+        return new VectorIndexPopulator(
+                luceneIndex, ignoreStrategy, documentStructure, similarityFunction, config, indexMonitor);
     }
 
     @Override

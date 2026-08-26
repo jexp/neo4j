@@ -166,6 +166,20 @@ public interface IndexPopulator extends MinimalIndexAccessor {
     }
 
     /**
+     * Signals that this population is being stopped, so that whatever
+     * {@link #scanCompleted(PhaseTracker, PopulationWorkScheduler, IndexEntryConflictHandler, CursorContext)} is
+     * currently doing should be abandoned as soon as it can.
+     * <p/>
+     * Post-scan work can be long-running and a database shutdown waits for the population job to finish,
+     * so without this it waits for that work.
+     * <p/>
+     * Called from a different thread than the one running {@code scanCompleted}, and must not block waiting for it to
+     * notice; whoever closes the populator afterwards is responsible for waiting.
+     */
+    default void cancelPostScanWork() { // no-op by default
+    }
+
+    /**
      * A scheduler for delegating index population related jobs to other threads.
      */
     @FunctionalInterface
@@ -296,6 +310,11 @@ public interface IndexPopulator extends MinimalIndexAccessor {
                 CursorContext cursorContext)
                 throws IndexEntryConflictException {
             delegate.scanCompleted(phaseTracker, jobScheduler, conflictHandler, cursorContext);
+        }
+
+        @Override
+        public void cancelPostScanWork() {
+            delegate.cancelPostScanWork();
         }
 
         @Override

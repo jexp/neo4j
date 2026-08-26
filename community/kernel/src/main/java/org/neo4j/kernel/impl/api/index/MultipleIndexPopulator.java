@@ -382,6 +382,14 @@ public class MultipleIndexPopulator implements StoreScan.ExternalUpdatesCheck, A
         for (IndexPopulation population : populations.values()) {
             try {
                 population.scanCompleted(cursorContext);
+                if (populationJobStopped.getAcquire()) {
+                    // Stopped while doing post-scan work, so that work was abandoned part-way through. Flipping now
+                    // would publish an index built from whatever it happened to finish - for a vector index, one left
+                    // permanently uncompacted, with nothing to ever trigger the merge again. Keep it populating so
+                    // that it gets rebuilt instead.
+                    stop(population, cursorContext);
+                    continue;
+                }
                 population.flip(cursorContext, awaitHorizon);
             } catch (Throwable t) {
                 cancel(population, t, cursorContext);
@@ -534,6 +542,11 @@ public class MultipleIndexPopulator implements StoreScan.ExternalUpdatesCheck, A
 
     public void notifyPopulationJobStopped() {
         populationJobStopped.setRelease(true);
+        // Populators doing long-running post-scan work need to hear about this directly: the job is stopped by a
+        // thread that then waits for the population to finish, so it would otherwise wait for that work to complete.
+        for (IndexPopulation population : populations.values()) {
+            population.populator.cancelPostScanWork();
+        }
     }
 
     public void refreshVisibility(CursorContext cursorContext) {

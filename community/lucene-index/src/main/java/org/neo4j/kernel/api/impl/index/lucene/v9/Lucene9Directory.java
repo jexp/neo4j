@@ -23,6 +23,9 @@ import static java.lang.Math.toIntExact;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import org.neo4j.kernel.api.impl.index.lucene.Abortable;
 import org.neo4j.kernel.api.impl.index.lucene.LuceneContext;
 import org.neo4j.kernel.api.impl.index.lucene.LuceneDirectory;
 import org.neo4j.kernel.api.impl.index.lucene.LuceneDirectoryReader;
@@ -218,16 +221,34 @@ public class Lucene9Directory implements LuceneDirectory {
      * to the {@link ConcurrentMergeScheduler} parallel-wise w/o spawning additional
      * background threads.
      */
-    static class OnThreadConcurrentMergeScheduler extends MergeScheduler {
+    static class OnThreadConcurrentMergeScheduler extends MergeScheduler implements Abortable {
+        private volatile boolean aborted;
+        private final Set<MergePolicy.OneMerge> merging = ConcurrentHashMap.newKeySet();
+
         @Override
         public void merge(MergeSource mergeSource, MergeTrigger trigger) throws IOException {
-            while (true) {
-                MergePolicy.OneMerge merge = nextMergeSynchronized(mergeSource);
-                if (merge == null) {
-                    break;
+            MergePolicy.OneMerge merge;
+            while ((merge = nextMergeSynchronized(mergeSource)) != null) {
+                if (aborted) {
+                    // Abandon it rather than run it. Reporting it as finished matters: forceMerge() waits for every
+                    // merge it queued, so simply declining to take them would leave it waiting forever.
+                    merge.setAborted();
+                    mergeSource.onMergeFinished(merge);
+                    continue;
                 }
-                mergeSource.merge(merge);
+                merging.add(merge);
+                try {
+                    mergeSource.merge(merge);
+                } finally {
+                    merging.remove(merge);
+                }
             }
+        }
+
+        @Override
+        public void abort() {
+            aborted = true;
+            merging.forEach(MergePolicy.OneMerge::setAborted);
         }
 
         private synchronized MergePolicy.OneMerge nextMergeSynchronized(MergeSource mergeSource) {
@@ -241,7 +262,7 @@ public class Lucene9Directory implements LuceneDirectory {
     /**
      * This is a delegate wrapper around a {@link MergeScheduler} to inject some custom logging
      */
-    private static final class LoggedMergeScheduler extends MergeScheduler {
+    private static final class LoggedMergeScheduler extends MergeScheduler implements Abortable {
         private final MergeScheduler delegate;
         private final Log log;
 
@@ -259,6 +280,13 @@ public class Lucene9Directory implements LuceneDirectory {
             } catch (Exception e) {
                 mergeListener.thrown(e);
                 throw e;
+            }
+        }
+
+        @Override
+        public void abort() {
+            if (delegate instanceof Abortable abortable) {
+                abortable.abort();
             }
         }
     }

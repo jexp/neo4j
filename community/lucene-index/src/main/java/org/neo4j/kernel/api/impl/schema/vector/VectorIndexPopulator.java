@@ -22,6 +22,7 @@ package org.neo4j.kernel.api.impl.schema.vector;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import org.neo4j.configuration.Config;
+import org.neo4j.internal.kernel.api.IndexMonitor;
 import org.neo4j.io.pagecache.context.CursorContext;
 import org.neo4j.kernel.api.impl.index.DatabaseIndex;
 import org.neo4j.kernel.api.impl.index.IndexWriterConfigMode;
@@ -31,25 +32,43 @@ import org.neo4j.kernel.api.impl.index.lucene.LuceneSettings;
 import org.neo4j.kernel.api.impl.index.lucene.LuceneSettings.PostPopulationCompaction;
 import org.neo4j.kernel.api.impl.index.partition.AbstractIndexPartition;
 import org.neo4j.kernel.api.impl.schema.populator.LuceneIndexPopulator;
+import org.neo4j.kernel.api.index.IndexEntryConflictHandler;
 import org.neo4j.kernel.api.index.IndexUpdater;
+import org.neo4j.kernel.impl.api.index.PhaseTracker;
 import org.neo4j.kernel.impl.index.schema.IndexUpdateIgnoreStrategy;
 import org.neo4j.storageengine.api.ValueIndexEntryUpdate;
+import org.neo4j.util.concurrent.BinaryLatch;
 
 class VectorIndexPopulator extends LuceneIndexPopulator<DatabaseIndex<VectorIndexReader>> {
     private final VectorDocumentStructure documentStructure;
     private final Neo4jVectorSimilarityFunction similarityFunction;
     private final Config config;
+    private final IndexMonitor monitor;
+
+    private enum CompactionState {
+        NOT_STARTED,
+        RUNNING,
+        DONE
+    }
+
+    // Volatile, not guarded by this monitor: the compacting thread polls these while drop/close hold the monitor
+    // waiting for that same thread to finish, so reading them must never need the monitor.
+    private volatile boolean cancelled;
+    private volatile CompactionState compactionState = CompactionState.NOT_STARTED;
+    private final BinaryLatch compactionDone = new BinaryLatch();
 
     VectorIndexPopulator(
             DatabaseIndex<VectorIndexReader> luceneIndex,
             IndexUpdateIgnoreStrategy ignoreStrategy,
             VectorDocumentStructure documentStructure,
             Neo4jVectorSimilarityFunction similarityFunction,
-            Config config) {
+            Config config,
+            IndexMonitor monitor) {
         super(luceneIndex, ignoreStrategy);
         this.documentStructure = documentStructure;
         this.similarityFunction = similarityFunction;
         this.config = config;
+        this.monitor = monitor;
     }
 
     @Override
@@ -61,19 +80,113 @@ class VectorIndexPopulator extends LuceneIndexPopulator<DatabaseIndex<VectorInde
      * Compact the freshly populated segments before the index is marked online. Running the merge here, rather
      * than from {@link VectorIndexProvider#getOnlineAccessor}, means it executes on the still-open populating
      * writer which is configured with the parallel intra-merge codec — the online accessor's codec forces the
-     * merge to be single-threaded. {@code super.close} subsequently marks the index online and commits the
-     * merged segments.
+     * merge to be single-threaded.
+     * <p/>
+     * This deliberately happens in {@code scanCompleted} rather than in {@link #close(boolean, CursorContext)}:
+     * {@code close} is invoked from inside {@code FlippableIndexProxy.flip}, which holds that proxy's exclusive
+     * lock, so compacting there stalled every reader and writer of the index - including {@code SHOW INDEXES} -
+     * for the entire duration of the merge, which can be hours on a large index. {@code scanCompleted} is called
+     * before the flip and holds no such lock.
      */
     @Override
-    public void close(boolean populationCompletedSuccessfully, CursorContext cursorContext) {
+    public void scanCompleted(
+            PhaseTracker phaseTracker,
+            PopulationWorkScheduler populationWorkScheduler,
+            IndexEntryConflictHandler conflictHandler,
+            CursorContext cursorContext) {
+        if (!markCompactionStarted()) {
+            // Already dropped or stopped, so this index is going away - don't start compacting it.
+            return;
+        }
+        try {
+            phaseTracker.enterPhase(PhaseTracker.Phase.MERGE);
+            monitor.postPopulationCompactionStarted(luceneIndex.getDescriptor());
+            compactSegments();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        } finally {
+            compactionState = CompactionState.DONE;
+            compactionDone.release();
+        }
+    }
+
+    @Override
+    public synchronized void drop() {
+        abandonCompaction();
+        super.drop();
+    }
+
+    @Override
+    public synchronized void close(boolean populationCompletedSuccessfully, CursorContext cursorContext) {
         if (populationCompletedSuccessfully) {
-            try {
-                compactSegments();
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
+            // Compaction ran in scanCompleted on this same thread, so it has already finished. Wait rather than
+            // abort, so that the final commit is free to merge as usual.
+            awaitCompaction();
+        } else {
+            abandonCompaction();
         }
         super.close(populationCompletedSuccessfully, cursorContext);
+    }
+
+    private synchronized boolean markCompactionStarted() {
+        if (cancelled) {
+            return false;
+        }
+        compactionState = CompactionState.RUNNING;
+        return true;
+    }
+
+    /**
+     * Deliberately not synchronized, and deliberately does not wait: this is called by the thread stopping the
+     * population, which then waits for the population job to finish. Blocking here - either on this populator's
+     * monitor or on the compaction itself - would reintroduce exactly the wait it exists to avoid. The subsequent
+     * {@link #close(boolean, CursorContext)} is what waits for the merge to actually stop.
+     */
+    @Override
+    public void cancelPostScanWork() {
+        requestCompactionAbort();
+    }
+
+    /**
+     * Tell an in-flight compaction to give up, then wait for it to do so. Called while holding this populator's
+     * monitor, which is safe because {@code scanCompleted} only holds that monitor to start the compaction, not
+     * while running it.
+     */
+    private void abandonCompaction() {
+        if (requestCompactionAbort()) {
+            awaitCompaction();
+        }
+    }
+
+    /**
+     * @return whether a compaction was in flight and has now been asked to abandon its merge.
+     */
+    private boolean requestCompactionAbort() {
+        // Setting this before looking at the latch is what stops a compaction from starting after this point:
+        // markCompactionStarted() checks it, so at worst we miss an in-flight compaction that is only just beginning
+        // and it stops itself at the first check instead.
+        cancelled = true;
+        if (compactionState != CompactionState.RUNNING) {
+            // Compaction either never started or has already finished, so there is nothing to abort or wait for.
+            // Notably this is the path taken when the index was never even created.
+            return false;
+        }
+        // Reported only from here, so observing it proves a compaction really was in flight at the time
+        monitor.postPopulationCompactionAborted(luceneIndex.getDescriptor());
+        for (AbstractIndexPartition partition : luceneIndex.getPartitions()) {
+            partition.getIndexWriter().abortMerges();
+        }
+        return true;
+    }
+
+    private void awaitCompaction() {
+        if (compactionState == CompactionState.NOT_STARTED) {
+            // Nothing will ever release the latch, so there is nothing to wait for
+            return;
+        }
+        // Closing the Lucene index underneath a running merge is not safe, so this wait is what keeps drop and
+        // shutdown correct. Aborting the merges above is only there to keep it short.
+        compactionDone.await();
     }
 
     @Override
@@ -112,6 +225,9 @@ class VectorIndexPopulator extends LuceneIndexPopulator<DatabaseIndex<VectorInde
 
         IOException exception = null;
         for (AbstractIndexPartition partition : luceneIndex.getPartitions()) {
+            if (cancelled) {
+                break;
+            }
             try {
                 LuceneIndexWriter writer = partition.getIndexWriter();
                 writer.updateMergePolicy(
@@ -126,6 +242,12 @@ class VectorIndexPopulator extends LuceneIndexPopulator<DatabaseIndex<VectorInde
                     case PARTIAL, FULL -> writer.forceMerge(forceMergeTarget);
                 }
             } catch (IOException e) {
+                if (cancelled) {
+                    // We asked this merge to abandon its work, so this is the expected way out rather than a
+                    // population failure. Lucene swallows the abort itself for maybeMerge(), but forceMerge()
+                    // reports it back through the writer's recorded merge exceptions.
+                    break;
+                }
                 if (exception != null) {
                     exception.addSuppressed(e);
                 } else {
