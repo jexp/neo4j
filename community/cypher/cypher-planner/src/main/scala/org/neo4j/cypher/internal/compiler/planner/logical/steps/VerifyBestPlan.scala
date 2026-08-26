@@ -21,6 +21,7 @@ package org.neo4j.cypher.internal.compiler.planner.logical.steps
 
 import org.neo4j.common.EntityType
 import org.neo4j.cypher.internal.ast.IrHint
+import org.neo4j.cypher.internal.ast.LeafPlanHint
 import org.neo4j.cypher.internal.ast.UsingIndexHint
 import org.neo4j.cypher.internal.ast.UsingIndexHint.UsingAnyIndexType
 import org.neo4j.cypher.internal.ast.UsingIndexHint.UsingIndexHintType
@@ -47,6 +48,8 @@ import org.neo4j.cypher.internal.logical.plans.LogicalPlan
 import org.neo4j.cypher.internal.notification.IndexHintUnfulfillableNotification
 import org.neo4j.cypher.internal.notification.JoinHintUnfulfillableNotification
 import org.neo4j.cypher.internal.util.collection.immutable.ListSet
+import org.neo4j.cypher.internal.util.helpers.NameDeduplicator.removeGeneratedNamesAndParams
+import org.neo4j.cypher.internal.util.helpers.NameDeduplicator.removeGeneratedNamesAndParamsOnTree
 import org.neo4j.cypher.internal.util.symbols.CTNode
 import org.neo4j.cypher.internal.util.symbols.CTRelationship
 import org.neo4j.cypher.internal.util.symbols.CTString
@@ -57,6 +60,7 @@ import org.neo4j.exceptions.InternalException
 import org.neo4j.exceptions.InvalidHintException
 import org.neo4j.exceptions.JoinHintException
 import org.neo4j.exceptions.Neo4jException
+import org.neo4j.exceptions.UnfulfillableHintException
 import org.neo4j.messages.MessageUtil
 import org.neo4j.messages.MessageUtil.Numerus
 
@@ -118,7 +122,7 @@ object VerifyBestPlan {
         analyseHints(expected, constructed, context) match {
           case HintAnalysis(missingUnfulfillable, SetExtractor(), SetExtractor()) =>
             // case: the missing hints were unfulfillable
-            processUnfulfilledIndexHints(context, missingUnfulfillable.unfulfillableIndexHints)
+            processUnfulfilledIndexOrScanHints(context, missingUnfulfillable.unfulfillableIndexOrScanHints)
             processUnfulfilledJoinHints(plan, context, missingUnfulfillable.unfulfillableJoinHints)
 
           case HintAnalysis(missingUnfulfillableHints, SetExtractor(), _)
@@ -144,10 +148,10 @@ object VerifyBestPlan {
    * These hints could not have been detected as unfulfillable during semantic analysis.
    */
   private case class UnfulfillableHints(
-    unfulfillableIndexHints: UnfulfillableIndexHints,
+    unfulfillableIndexOrScanHints: UnfulfillableIndexOrScanHints,
     unfulfillableJoinHints: ListSet[UsingJoinHint]
   ) {
-    def hints: ListSet[IrHint] = unfulfillableJoinHints ++ unfulfillableIndexHints.hints
+    def hints: ListSet[IrHint] = unfulfillableJoinHints ++ unfulfillableIndexOrScanHints.hints
 
     def isEmpty: Boolean = hints.isEmpty
   }
@@ -182,7 +186,7 @@ object VerifyBestPlan {
     val missingHints = expectedHints.diff(actualHints)
     val inventedHints = actualHints.diff(expectedHints)
 
-    val missingUnfulfillableIndexHints = findUnfulfillableIndexHints(expected, context).filter(missingHints)
+    val missingUnfulfillableIndexOrScanHints = findUnfulfillableIndexOrScanHints(expected, context).filter(missingHints)
     val missingUnfulfillableJoinHints =
       missingHints
         .collect {
@@ -190,16 +194,17 @@ object VerifyBestPlan {
           // That is, that we cannot judge from the syntax alone whether these hints can be fulfilled, as this highly depends on the planner's inner workings
           case hint: UsingJoinHint => hint
         }
-    val missingUnfulfillableHints = UnfulfillableHints(missingUnfulfillableIndexHints, missingUnfulfillableJoinHints)
+    val missingUnfulfillableHints =
+      UnfulfillableHints(missingUnfulfillableIndexOrScanHints, missingUnfulfillableJoinHints)
 
     val missingFulfillableHints = missingHints.filterNot(missingUnfulfillableHints.hints)
 
     HintAnalysis(missingUnfulfillableHints, missingFulfillableHints, inventedHints)
   }
 
-  private def processUnfulfilledIndexHints(
+  private def processUnfulfilledIndexOrScanHints(
     context: LogicalPlanningContext,
-    unfulfillableIndexHints: UnfulfillableIndexHints
+    unfulfillableIndexHints: UnfulfillableIndexOrScanHints
   ): Unit = {
     unfulfillableIndexHints.wrongPropertyTypeHints.headOption.foreach {
       (wrongHint: WrongPropertyTypeHint) =>
@@ -218,6 +223,14 @@ object VerifyBestPlan {
           context.staticComponents.notificationLogger.log(hint.toNotification)
         }
       }
+    }
+    val duplicateHints = unfulfillableIndexHints.duplicateLeafPlanHints
+    if (duplicateHints.nonEmpty) {
+      throw DuplicateLeafPlanHints.toException(duplicateHints)
+    }
+
+    unfulfillableIndexHints.alreadyBoundVariableHints.headOption.foreach {
+      (alreadyBoundVariableHint: AlreadyBoundVariableHint) => throw alreadyBoundVariableHint.toException
     }
   }
 
@@ -302,33 +315,95 @@ object VerifyBestPlan {
     }
   }
 
-  private case class UnfulfillableIndexHints(
+  /**
+   * Several leaf plan hints on the same variable within the same query graph. Only one of them can ever be planned.
+   *
+   * For example: `MATCH (n:Person) USING INDEX n:Person(name) USING INDEX n:Person(surname) WHERE ...`
+   *
+   * @param variable the variable all these hints refer to
+   * @param competingHints all the competing hints
+   * @param hints the subset of `competingHints` that the planner did not manage to fulfil
+   */
+  private case class DuplicateLeafPlanHints(
+    variable: Variable,
+    competingHints: Seq[LeafPlanHint],
+    hints: Seq[LeafPlanHint]
+  ) {
+
+    def filter(predicate: IrHint => Boolean): DuplicateLeafPlanHints = copy(hints = hints.filter(predicate))
+  }
+
+  private object DuplicateLeafPlanHints {
+
+    def apply(variable: Variable, competingHints: Seq[LeafPlanHint]): DuplicateLeafPlanHints =
+      DuplicateLeafPlanHints(variable, competingHints, competingHints)
+
+    /**
+     * Report all conflicting variables in a single exception, listing all the hints that compete with each other.
+     */
+    def toException(duplicates: Seq[DuplicateLeafPlanHints]): Neo4jException =
+      UnfulfillableHintException.duplicateHints(
+        duplicates.flatMap(_.competingHints).sortBy(_.position.offset).map(prettifyHint).asJava,
+        duplicates.map(duplicate => prettifyVariable(duplicate.variable)).distinct.asJava
+      )
+  }
+
+  /**
+   * A leaf plan hint on a variable that is already bound when its query graph is planned, so no leaf plan can be
+   * chosen for it.
+   *
+   * For example: `MATCH (n) SKIP 0 MATCH (n:Person) USING SCAN n:Person`
+   *
+   * @param hint the offending hint
+   */
+  private case class AlreadyBoundVariableHint(hint: LeafPlanHint) {
+
+    def toException: Neo4jException = {
+      UnfulfillableHintException.alreadyBoundVariableHint(
+        prettifyHint(hint),
+        removeGeneratedNamesAndParams(hint.variable.name)
+      )
+    }
+  }
+
+  private case class UnfulfillableIndexOrScanHints(
     missingIndexHints: Set[MissingIndexHint],
-    wrongPropertyTypeHints: collection.Seq[WrongPropertyTypeHint]
+    wrongPropertyTypeHints: collection.Seq[WrongPropertyTypeHint],
+    duplicateLeafPlanHints: Seq[DuplicateLeafPlanHints],
+    alreadyBoundVariableHints: Seq[AlreadyBoundVariableHint]
   ) {
 
     val hints: ListSet[IrHint] =
-      ListSet.empty[IrHint] ++ missingIndexHints.map(_.hint) ++ wrongPropertyTypeHints.map(_.hint)
+      ListSet.empty[IrHint] ++ missingIndexHints.map(_.hint) ++ wrongPropertyTypeHints.map(
+        _.hint
+      ) ++ duplicateLeafPlanHints.flatMap(_.hints) ++ alreadyBoundVariableHints.map(_.hint)
 
-    def filter(predicate: IrHint => Boolean): UnfulfillableIndexHints =
-      UnfulfillableIndexHints(
+    def filter(predicate: IrHint => Boolean): UnfulfillableIndexOrScanHints =
+      UnfulfillableIndexOrScanHints(
         missingIndexHints =
           missingIndexHints
             .filter(hint => predicate(hint.hint)),
         wrongPropertyTypeHints =
           wrongPropertyTypeHints
+            .filter(hint => predicate(hint.hint)),
+        duplicateLeafPlanHints =
+          duplicateLeafPlanHints
+            .map(_.filter(predicate))
+            .filter(_.hints.nonEmpty),
+        alreadyBoundVariableHints =
+          alreadyBoundVariableHints
             .filter(hint => predicate(hint.hint))
       )
   }
 
-  private def findUnfulfillableIndexHints(
+  private def findUnfulfillableIndexOrScanHints(
     query: PlannerQuery,
     context: LogicalPlanningContext
-  ): UnfulfillableIndexHints = {
+  ): UnfulfillableIndexOrScanHints = {
     val planContext = context.staticComponents.planContext
     val semanticTable = context.semanticTable
 
-    def nodeIndexHintFulfillable(
+    def nodeIndexForHintExists(
       labelOrRelType: LabelOrRelTypeName,
       properties: Seq[PropertyKeyName],
       indexHintType: UsingIndexHintType
@@ -348,7 +423,7 @@ object VerifyBestPlan {
       }
     }
 
-    def relIndexHintFulfillable(
+    def relIndexForHintExists(
       labelOrRelType: LabelOrRelTypeName,
       properties: Seq[PropertyKeyName],
       indexHintType: UsingIndexHintType
@@ -373,7 +448,7 @@ object VerifyBestPlan {
     val hintsWithoutIndex = query.allHints.flatMap {
       // using index name:label(property1,property2)
       case UsingIndexHint(v, labelOrRelType, properties, _, indexHintType)
-        if semanticTable.typeFor(v.name).is(CTNode) && nodeIndexHintFulfillable(
+        if semanticTable.typeFor(v.name).is(CTNode) && nodeIndexForHintExists(
           labelOrRelType,
           properties,
           indexHintType
@@ -382,7 +457,7 @@ object VerifyBestPlan {
 
       // using index name:relType(property1,property2)
       case UsingIndexHint(v, labelOrRelType, properties, _, indexHintType)
-        if semanticTable.typeFor(v.name).is(CTRelationship) && relIndexHintFulfillable(
+        if semanticTable.typeFor(v.name).is(CTRelationship) && relIndexForHintExists(
           labelOrRelType,
           properties,
           indexHintType
@@ -398,7 +473,46 @@ object VerifyBestPlan {
       // don't care about other hints
       case _ => None
     }
-    UnfulfillableIndexHints(hintsWithoutIndex, hintsForWrongType.toVector)
+
+    UnfulfillableIndexOrScanHints(
+      hintsWithoutIndex,
+      hintsForWrongType.toVector,
+      collectDuplicateLeafPlanHints(query),
+      collectAlreadyBoundVariableHints(query)
+    )
+  }
+
+  /**
+   * Find, per query graph, the variables that carry more than one leaf plan hint.
+   *
+   * Grouping has to happen per query graph rather than per query: hints on the same variable in different query
+   * parts do not compete with each other.
+   */
+  private def collectDuplicateLeafPlanHints(query: PlannerQuery): Seq[DuplicateLeafPlanHints] = {
+    def duplicatesIn(queryGraph: QueryGraph): Seq[DuplicateLeafPlanHints] = {
+      val leafPlanHints = queryGraph.hints.toSeq.collect { case hint: LeafPlanHint => hint }
+      val hintsByVariable = leafPlanHints.groupBy(_.variable)
+      leafPlanHints
+        .map(_.variable)
+        .distinct
+        .map(variable => DuplicateLeafPlanHints(variable, hintsByVariable(variable)))
+        .filter(element =>
+          element.hints.size > 1 && element.competingHints.exists(_.isInstanceOf[UsingIndexHint])
+        )
+    }
+
+    query
+      .visitHints(ListSet.empty[QueryGraph]) { case (queryGraphs, _, queryGraph) => queryGraphs + queryGraph }
+      .toSeq
+      .flatMap(duplicatesIn)
+  }
+
+  private def collectAlreadyBoundVariableHints(query: PlannerQuery): Seq[AlreadyBoundVariableHint] = {
+    query.visitHints(Vector.empty[AlreadyBoundVariableHint]) {
+      case (acc, hint: LeafPlanHint, queryGraph) if queryGraph.argumentIds.contains(hint.variable) =>
+        acc :+ AlreadyBoundVariableHint(hint)
+      case (acc, _, _) => acc
+    }
   }
 
   private def collectWrongPropertyTypeHints(
@@ -436,4 +550,13 @@ object VerifyBestPlan {
       Left(matchingPredicates)
     }
   }
+
+  /**
+   * Variables may have been renamed by the planner, for example to `  n@0` when namespacing a UNION query.
+   * Such generated names should not leak into user facing messages.
+   */
+  private def prettifyHint(hint: IrHint): String = prettifier.asString(removeGeneratedNamesAndParamsOnTree(hint))
+
+  private def prettifyVariable(variable: Variable): String =
+    prettifier.expr(removeGeneratedNamesAndParamsOnTree(variable))
 }
