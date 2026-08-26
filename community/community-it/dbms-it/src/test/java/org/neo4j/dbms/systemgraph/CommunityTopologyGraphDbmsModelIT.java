@@ -40,7 +40,9 @@ import org.neo4j.kernel.database.DatabaseReference;
 import org.neo4j.kernel.database.DatabaseReferenceImpl;
 import org.neo4j.kernel.database.NormalizedCatalogEntry;
 import org.neo4j.kernel.database.NormalizedDatabaseName;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
 
+@ImpermanentDbmsExtension
 public class CommunityTopologyGraphDbmsModelIT extends BaseTopologyGraphDbmsModelIT {
     private CommunityTopologyGraphDbmsModel dbmsModel;
 

@@ -138,10 +138,8 @@ import org.neo4j.kernel.database.DatabaseIdFactory;
 import org.neo4j.kernel.database.NamedDatabaseId;
 import org.neo4j.kernel.database.NormalizedDatabaseName;
 import org.neo4j.logging.Level;
-import org.neo4j.test.extension.ImpermanentDbmsExtension;
 import org.neo4j.test.extension.Inject;
 
-@ImpermanentDbmsExtension
 public abstract class BaseTopologyGraphDbmsModelIT {
     @Inject
     protected DatabaseManagementService managementService;
