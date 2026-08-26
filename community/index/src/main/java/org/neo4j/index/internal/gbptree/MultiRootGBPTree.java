@@ -1222,7 +1222,7 @@ public class MultiRootGBPTree<ROOT_KEY, KEY, VALUE> implements Closeable {
             return CompactionReport.EMPTY;
         }
 
-        if (!changesSinceLastCheckpoint.get() && !headerDataChanged(headerWriter, cursorContext)) {
+        if (!changesSinceLastCheckpoint.get() && !headerDataChanged(headerWriter, cursorContext) && !doCompaction) {
             return CompactionReport.EMPTY;
         }
 

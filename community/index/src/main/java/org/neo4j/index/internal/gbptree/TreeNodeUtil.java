@@ -29,7 +29,6 @@ import static org.neo4j.index.internal.gbptree.GenerationSafePointerPair.read;
 
 import java.io.IOException;
 import org.neo4j.io.pagecache.PageCursor;
-import org.neo4j.io.pagecache.PageCursorUtil;
 import org.neo4j.io.pagecache.context.CursorContext;
 
 public final class TreeNodeUtil {
@@ -289,7 +288,10 @@ public final class TreeNodeUtil {
     }
 
     public static void goTo(PageCursor cursor, String messageOnError, long nodeId) throws IOException {
-        PageCursorUtil.goTo(cursor, messageOnError, GenerationSafePointerPair.pointer(nodeId));
+        long pageId = GenerationSafePointerPair.pointer(nodeId);
+        if (!cursor.next(pageId)) {
+            throw new TreeNodeOutOfBoundsException(pageId, messageOnError);
+        }
     }
 
     static void readUnreliableKeyValueSize(

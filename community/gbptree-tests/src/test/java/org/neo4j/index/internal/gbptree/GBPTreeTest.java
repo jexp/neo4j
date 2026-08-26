@@ -76,12 +76,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.tuple.Pair;
+import org.eclipse.collections.api.block.function.primitive.LongToLongFunction;
 import org.eclipse.collections.api.factory.Sets;
 import org.eclipse.collections.api.set.ImmutableSet;
 import org.junit.jupiter.api.AfterEach;
@@ -2606,6 +2608,109 @@ class GBPTreeTest {
         }
     }
 
+    @Test
+    void shouldLetSeekCursorContinueReadingAfterOutOfBounds() throws Exception {
+        // given
+        try (var pageCache = createPageCache(config().withPageSize(defaultPageSize));
+                var index = index(pageCache).build()) {
+            // [xxxTTTTTTTTTTTTTTTTTT] or similar
+            int numInitialKeys = 200_000;
+            insertRange(index, 0, numInitialKeys, i -> i);
+            index.checkpoint(FileFlushEvent.NULL, asyncBlockAccessor, NULL_CONTEXT);
+
+            // [xxx__________________TTTTTTTTTTTTTTTTTT] or similar
+            removeRange(index, 0, numInitialKeys);
+            insertRange(index, 0, numInitialKeys, i -> i);
+            index.checkpoint(FileFlushEvent.NULL, asyncBlockAccessor, NULL_CONTEXT);
+            int numRemovedKeys = numInitialKeys / 3;
+            // [xxx________________________TTTTTTTTTTTT] or similar
+            removeRange(index, 0, numRemovedKeys);
+            index.checkpoint(FileFlushEvent.NULL, asyncBlockAccessor, NULL_CONTEXT);
+
+            // when/then
+            AtomicBoolean compactionCompleted = new AtomicBoolean();
+            LongAdder numCompletedSeeks = new LongAdder();
+            int numSeekerThreads = 9;
+            Race race = new Race()
+                    .withEndCondition(() -> compactionCompleted.get() && numCompletedSeeks.sum() >= numSeekerThreads)
+                    .withRandomStartDelays();
+            race.addContestants(
+                    numSeekerThreads,
+                    c -> throwing(() -> {
+                        // Starting state of the Seeker
+                        // [xxx________________________TTTTTTTTTTTT] or similar
+                        //                               ^ Seeker is here somewhere
+                        // <Seeker sleeping a bit while potentially compaction runs>
+                        // [xxxTTTTTTTTTTTT] or similar
+                        //                                  ^ Seeker is still out here somewhere
+
+                        // We'd like to specifically tease out a few variants of this behavior primarily:
+                        // - traverseToTargetLevel: sleep in Monitor#internalNode()/leafNode()
+                        // - next (going to next sibling): sleep in Monitor#sibling()
+                        // - prepareToStartFromRoot (a bit meta, but still): sleep in Monitor#restartFromRoot()
+                        int variant = c % 3;
+                        var monitor = outOfBoundsTeasingMonitor(variant, compactionCompleted);
+                        try (var seeker = ((SeekCursor<MutableLong, MutableLong>) index.seek(
+                                        new MutableLong(numRemovedKeys), new MutableLong(numInitialKeys), NULL_CONTEXT))
+                                .withMonitor(monitor)) {
+                            int count = numInitialKeys - numRemovedKeys;
+                            for (int i = 0; i < count; i++) {
+                                assertThat(seeker.next()).isTrue();
+                                assertThat(seeker.key().longValue()).isEqualTo(numRemovedKeys + i);
+                                assertThat(seeker.value().longValue()).isEqualTo(numRemovedKeys + i);
+                            }
+                            assertThat(seeker.next()).isFalse();
+                            numCompletedSeeks.increment();
+                        }
+                    }));
+            race.addContestant(
+                    throwing(() -> {
+                        insertRange(index, numRemovedKeys, numInitialKeys, i -> i);
+                        index.compact(FileFlushEvent.NULL, asyncBlockAccessor, NULL_CONTEXT);
+                        compactionCompleted.set(true);
+                    }),
+                    1);
+            race.goUnchecked();
+        }
+    }
+
+    private static SeekCursor.Monitor outOfBoundsTeasingMonitor(int variant, AtomicBoolean compactionCompleted) {
+        return new SeekCursor.Monitor() {
+            @Override
+            public void internalNode(int depth, int keyCount) {
+                sleepIfVariant(0);
+            }
+
+            @Override
+            public void leafNode(int depth, int keyCount) {
+                sleepIfVariant(0);
+            }
+
+            @Override
+            public void sibling() {
+                sleepIfVariant(1);
+            }
+
+            @Override
+            public void restartFromRoot() {
+                sleepIfVariant(2);
+            }
+
+            private void sleepIfVariant(int triggerOnVariant) {
+                if (triggerOnVariant == variant && !compactionCompleted.get()) {
+                    try {
+                        // Large enough so that most of the seeker's time is spent here in this delay
+                        // right before the interesting "goTo" operation happens after it.
+                        Thread.sleep(500);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+        };
+    }
+
     private Pair<TreeState, TreeState> captureTreeState(PageCache pageCache) throws IOException {
         MutableObject<Pair<TreeState, TreeState>> state = new MutableObject<>();
         visitState(
@@ -2760,13 +2865,36 @@ class GBPTreeTest {
     }
 
     private static void insert(GBPTree<MutableLong, MutableLong> index, long key, long value) throws IOException {
-        try (Writer<MutableLong, MutableLong> writer = index.writer(W_BATCHED_SINGLE_THREADED, NULL_CONTEXT)) {
-            insert(writer, key, value);
-        }
+        insertRange(index, key, 1, k -> value);
     }
 
     private static void insert(Writer<MutableLong, MutableLong> writer, long key, long value) {
         writer.put(new MutableLong(key), new MutableLong(value));
+    }
+
+    private static void insertRange(
+            GBPTree<MutableLong, MutableLong> index, long startKey, int count, LongToLongFunction valueFunction)
+            throws IOException {
+        try (Writer<MutableLong, MutableLong> writer = index.writer(W_BATCHED_SINGLE_THREADED, NULL_CONTEXT)) {
+            MutableLong key = new MutableLong();
+            MutableLong value = new MutableLong();
+            for (int i = 0; i < count; i++) {
+                key.setValue(startKey + i);
+                value.setValue(valueFunction.applyAsLong(key.longValue()));
+                writer.put(key, value);
+            }
+        }
+    }
+
+    private static void removeRange(GBPTree<MutableLong, MutableLong> index, long startKey, int count)
+            throws IOException {
+        try (Writer<MutableLong, MutableLong> writer = index.writer(W_BATCHED_SINGLE_THREADED, NULL_CONTEXT)) {
+            MutableLong key = new MutableLong();
+            for (int i = 0; i < count; i++) {
+                key.setValue(startKey + i);
+                writer.remove(key);
+            }
+        }
     }
 
     private static void shouldWait(Future<?> future) {

@@ -19,13 +19,11 @@
  */
 package org.neo4j.index.internal.gbptree;
 
-class SeekDepthMonitor implements SeekCursor.Monitor {
-    boolean reachedLeafLevel;
-    int treeDepth;
-
-    @Override
-    public void leafNode(int depth, int keyCount) {
-        reachedLeafLevel = true;
-        treeDepth = depth;
+/**
+ * Thrown when trying to go to navigate to a tree node that is outside the mapped boundaries of the file.
+ */
+class TreeNodeOutOfBoundsException extends IllegalStateException {
+    public TreeNodeOutOfBoundsException(long treeNodeId, String additionalMessage) {
+        super("Could not go to page:" + treeNodeId + " [" + additionalMessage + "]");
     }
 }

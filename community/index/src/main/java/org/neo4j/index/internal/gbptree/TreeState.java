@@ -24,7 +24,6 @@ import static org.neo4j.util.Preconditions.checkState;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Objects;
-import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.PageCursor;
 
 /**
@@ -88,8 +87,8 @@ class TreeState {
     private final long rootGeneration;
 
     /**
-     * Highest allocated page id in the store. This id may not be in use currently and cannot decrease
-     * since {@link PageCache} doesn't allow shrinking files.
+     * Highest allocated page id in the store. This id may not be in use currently.
+     * Since the introduction of compaction in GBPTree this ID isn't strictly growing, but can decrease.
      */
     private final long lastId;
 
