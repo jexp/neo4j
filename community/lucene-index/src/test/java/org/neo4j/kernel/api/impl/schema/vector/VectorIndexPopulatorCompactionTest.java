@@ -64,6 +64,8 @@ class VectorIndexPopulatorCompactionTest {
         AbstractIndexPartition partition = mock(AbstractIndexPartition.class);
         when(partition.getIndexWriter()).thenReturn(writer);
         when(luceneIndex.getPartitions()).thenReturn(List.of(partition));
+        // The populator only reaches for partitions on an index that has been created and opened
+        when(luceneIndex.isOpen()).thenReturn(true);
 
         Config config =
                 Config.defaults(LuceneSettings.vector_post_population_compaction, PostPopulationCompaction.AUTO);
@@ -95,6 +97,36 @@ class VectorIndexPopulatorCompactionTest {
 
         // THEN there is no point compacting an index that is going away
         verify(writer, never()).maybeMerge();
+    }
+
+    /**
+     * The populating writer merges as it ingests, long before the compaction phase. Closing the writer - which is what
+     * dropping does - ends in {@code IndexWriter.waitForMerges()}, so leaving one of those merges running holds the
+     * drop up for as long as the merge takes. Observed at 100s on a real index.
+     */
+    @Test
+    void shouldAbortMergesOnDropEvenWithNoCompactionInFlight() {
+        // GIVEN a population still ingesting, so scanCompleted has never run
+        // WHEN
+        populator.drop();
+
+        // THEN merging is still stopped, so closing the writer does not wait for it
+        verify(writer).abortMerges();
+    }
+
+    @Test
+    void shouldAbortMergesWhenPopulationIsStoppedWithNoCompactionInFlight() {
+        populator.close(false, NULL_CONTEXT);
+
+        verify(writer).abortMerges();
+    }
+
+    @Test
+    void shouldNotAbortMergesOnSuccessfulClose() {
+        // A successful population wants its final commit to merge as usual
+        populator.close(true, NULL_CONTEXT);
+
+        verify(writer, never()).abortMerges();
     }
 
     @Test

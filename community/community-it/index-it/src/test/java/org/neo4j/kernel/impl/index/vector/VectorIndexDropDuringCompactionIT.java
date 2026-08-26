@@ -27,6 +27,7 @@ import static org.neo4j.logging.AssertableLogProvider.Level.ERROR;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
@@ -137,6 +138,41 @@ class VectorIndexDropDuringCompactionIT {
         assertNoIndexFilesExisting(compactingIndexId.get());
 
         // and aborting the merge did not break anything
+        LogAssertions.assertThat(logProvider).forLevel(ERROR).doesNotHaveAnyLogs();
+        assertDatabaseStillUsable();
+    }
+
+    @Test
+    void shouldDropVectorIndexWhileItIsStillScanning() throws Exception {
+        startDb();
+        createVectorNodes();
+
+        CountDownLatch compactionStarted = new CountDownLatch(1);
+        db.getDependencyResolver()
+                .resolveDependency(Monitors.class)
+                .addMonitorListener(new IndexMonitor.MonitorAdapter() {
+                    @Override
+                    public void postPopulationCompactionStarted(IndexDescriptor descriptor) {
+                        compactionStarted.countDown();
+                    }
+                });
+
+        createVectorIndex(INDEX_NAME);
+
+        // WHEN dropping while the scan is still running, well before the compaction phase
+        long start = System.nanoTime();
+        dropIndex(INDEX_NAME);
+        Duration dropTook = Duration.ofNanos(System.nanoTime() - start);
+
+        // THEN
+        assertThat(compactionStarted.getCount())
+                .as("this exercises the scan phase, so compaction should never have started")
+                .isEqualTo(1);
+        assertThat(dropTook)
+                .as("drop should not wait for an in-flight population merge")
+                .isLessThan(Duration.ofSeconds(30));
+
+        assertIndexGone(INDEX_NAME);
         LogAssertions.assertThat(logProvider).forLevel(ERROR).doesNotHaveAnyLogs();
         assertDatabaseStillUsable();
     }

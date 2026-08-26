@@ -112,7 +112,7 @@ class VectorIndexPopulator extends LuceneIndexPopulator<DatabaseIndex<VectorInde
 
     @Override
     public synchronized void drop() {
-        abandonCompaction();
+        abandonMerging();
         super.drop();
     }
 
@@ -123,7 +123,7 @@ class VectorIndexPopulator extends LuceneIndexPopulator<DatabaseIndex<VectorInde
             // abort, so that the final commit is free to merge as usual.
             awaitCompaction();
         } else {
-            abandonCompaction();
+            abandonMerging();
         }
         super.close(populationCompletedSuccessfully, cursorContext);
     }
@@ -139,44 +139,55 @@ class VectorIndexPopulator extends LuceneIndexPopulator<DatabaseIndex<VectorInde
     /**
      * Deliberately not synchronized, and deliberately does not wait: this is called by the thread stopping the
      * population, which then waits for the population job to finish. Blocking here - either on this populator's
-     * monitor or on the compaction itself - would reintroduce exactly the wait it exists to avoid. The subsequent
-     * {@link #close(boolean, CursorContext)} is what waits for the merge to actually stop.
+     * monitor or on the merging itself - would reintroduce exactly the wait it exists to avoid. The subsequent
+     * {@link #close(boolean, CursorContext)} is what waits for the merges to actually stop.
      */
     @Override
     public void cancelPostScanWork() {
-        requestCompactionAbort();
+        requestMergeAbort();
     }
 
     /**
-     * Tell an in-flight compaction to give up, then wait for it to do so. Called while holding this populator's
-     * monitor, which is safe because {@code scanCompleted} only holds that monitor to start the compaction, not
-     * while running it.
+     * Abandon all merging on this index, then wait for an in-flight compaction to notice. Called while holding this
+     * populator's monitor, which is safe because {@code scanCompleted} only holds that monitor to start the
+     * compaction, not while running it.
      */
-    private void abandonCompaction() {
-        if (requestCompactionAbort()) {
+    private void abandonMerging() {
+        if (requestMergeAbort()) {
             awaitCompaction();
         }
     }
 
     /**
-     * @return whether a compaction was in flight and has now been asked to abandon its merge.
+     * Ask every merge on this index to give up, whether it belongs to post-population compaction or to the ordinary
+     * merging the populating writer does as it ingests.
+     * <p/>
+     * Aborting the latter matters just as much: closing the writer - which is what dropping or stopping the index
+     * does - ends in {@code IndexWriter.waitForMerges()}, so an ordinary merge left running holds the drop up for
+     * exactly as long as it takes to finish. That was measured at 100s of a 122s wall-clock profile, and it happens
+     * throughout population rather than only in the compaction phase at the end.
+     *
+     * @return whether a <em>compaction</em> specifically was in flight, and so is worth waiting for afterwards.
      */
-    private boolean requestCompactionAbort() {
-        // Setting this before looking at the latch is what stops a compaction from starting after this point:
+    private boolean requestMergeAbort() {
+        // Setting this before reading the state is what stops a compaction from starting after this point:
         // markCompactionStarted() checks it, so at worst we miss an in-flight compaction that is only just beginning
         // and it stops itself at the first check instead.
         cancelled = true;
-        if (compactionState != CompactionState.RUNNING) {
-            // Compaction either never started or has already finished, so there is nothing to abort or wait for.
-            // Notably this is the path taken when the index was never even created.
-            return false;
+
+        boolean compacting = compactionState == CompactionState.RUNNING;
+        if (compacting) {
+            // Reported only from here, so observing it proves a compaction really was in flight at the time
+            monitor.postPopulationCompactionAborted(luceneIndex.getDescriptor());
         }
-        // Reported only from here, so observing it proves a compaction really was in flight at the time
-        monitor.postPopulationCompactionAborted(luceneIndex.getDescriptor());
-        for (AbstractIndexPartition partition : luceneIndex.getPartitions()) {
-            partition.getIndexWriter().abortMerges();
+
+        if (luceneIndex.isOpen()) {
+            // Not open means the index was never created, so there is nothing merging
+            for (AbstractIndexPartition partition : luceneIndex.getPartitions()) {
+                partition.getIndexWriter().abortMerges();
+            }
         }
-        return true;
+        return compacting;
     }
 
     private void awaitCompaction() {
