@@ -19,25 +19,48 @@
  */
 package org.neo4j.test.format;
 
+import static org.neo4j.configuration.GraphDatabaseInternalSettings.system_database_format;
 import static org.neo4j.configuration.GraphDatabaseSettings.db_format;
 
 import java.util.Map;
 import org.neo4j.annotations.service.ServiceProvider;
 import org.neo4j.configuration.SettingMigrator;
+import org.neo4j.graphdb.config.Setting;
 import org.neo4j.logging.InternalLog;
 
 @ServiceProvider
 public class FormatOverrideMigrator implements SettingMigrator {
     public static final String OVERRIDE_STORE_FORMAT_KEY = "NEO4J_OVERRIDE_STORE_FORMAT";
+    public static final String OVERRIDE_SYSTEM_STORE_FORMAT_KEY = "NEO4J_OVERRIDE_SYSTEM_STORE_FORMAT";
 
     @Override
     public void migrate(Map<String, String> values, Map<String, String> defaultValues, InternalLog log) {
-        String overrideStoreFormat = System.getProperty(OVERRIDE_STORE_FORMAT_KEY);
-        if (overrideStoreFormat != null && !values.containsKey(db_format.name())) {
+        overrideDbFormat(values, defaultValues, log);
+        overrideSystemDbFormat(values, defaultValues, log);
+    }
+
+    private static void overrideDbFormat(
+            Map<String, String> values, Map<String, String> defaultValues, InternalLog log) {
+        overrideFormatSetting(OVERRIDE_STORE_FORMAT_KEY, values, db_format, defaultValues, log);
+    }
+
+    private static void overrideSystemDbFormat(
+            Map<String, String> values, Map<String, String> defaultValues, InternalLog log) {
+        overrideFormatSetting(OVERRIDE_SYSTEM_STORE_FORMAT_KEY, values, system_database_format, defaultValues, log);
+    }
+
+    private static void overrideFormatSetting(
+            String overrideStoreFormatKey,
+            Map<String, String> values,
+            Setting<String> setting,
+            Map<String, String> defaultValues,
+            InternalLog log) {
+        String overrideValue = System.getProperty(overrideStoreFormatKey);
+        if (overrideValue != null && !values.containsKey(setting.name())) {
             try {
-                defaultValues.put(db_format.name(), overrideStoreFormat);
+                defaultValues.put(setting.name(), overrideValue);
             } catch (RuntimeException ex) {
-                log.warn("Unable to override the database format to " + overrideStoreFormat, ex);
+                log.warn("Unable to override the setting " + setting + " to " + overrideValue, ex);
             }
         }
     }
