@@ -33,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.neo4j.configuration.Config;
 import org.neo4j.fleetmanagement.communication.ConnectService;
+import org.neo4j.fleetmanagement.communication.DiagnosticsService;
 import org.neo4j.fleetmanagement.communication.MetricsService;
 import org.neo4j.fleetmanagement.communication.MigrationToAuraService;
 import org.neo4j.fleetmanagement.communication.PingService;
@@ -67,6 +68,8 @@ public class MainService implements PropertyChangeListener {
     private ScheduledFuture<?> connectServiceTaskHandle;
     private ConnectService.ConnectServiceTask connectServiceTask;
 
+    private final DiagnosticsService diagnosticsService;
+
     private Boolean lastActiveState = null;
     private Boolean lastConnectedState = null;
     private Boolean lastTokenRotatingState = null;
@@ -82,6 +85,7 @@ public class MainService implements PropertyChangeListener {
             MetricsService metricsService,
             QueryService queryService,
             MigrationToAuraService migrationService,
+            DiagnosticsService diagnosticsService,
             ClusterSync clusterSync,
             ScheduledExecutorService scheduler,
             ConnectService connectService,
@@ -109,6 +113,7 @@ public class MainService implements PropertyChangeListener {
         this.jobHandles = new CopyOnWriteArrayList<>();
         this.queryInterceptor = new QueryInterceptor(queryService, config);
         this.securityLogInterceptor = new SecurityLogInterceptor(securityLogsService);
+        this.diagnosticsService = diagnosticsService;
     }
 
     public void start() {
@@ -129,6 +134,7 @@ public class MainService implements PropertyChangeListener {
             this.connectServiceTaskHandle.cancel(false);
             this.connectServiceTaskHandle = null;
         }
+
         try {
             if (queryMonitorAdded) {
                 this.queryService.report(); // Flush any remaining logs
@@ -267,6 +273,13 @@ public class MainService implements PropertyChangeListener {
                     jobHandles.add(scheduler.scheduleAtFixedRate(
                             new MigrationToAuraService.MigrationsToAuraReportingTask(
                                     state, clusterSync, migrationService),
+                            interval,
+                            interval,
+                            TimeUnit.SECONDS));
+                    break;
+                case DIAGNOSTIC_REPORT:
+                    jobHandles.add(this.scheduler.scheduleAtFixedRate(
+                            new DiagnosticsService.DiagnosticsServiceTask(state, clusterSync, diagnosticsService),
                             interval,
                             interval,
                             TimeUnit.SECONDS));

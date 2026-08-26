@@ -19,6 +19,7 @@
  */
 package org.neo4j.fleetmanagement.communication;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -42,7 +43,8 @@ public class BaseService {
     public BaseService(ITransactor transactor, State state, Configuration configuration) {
         this.objectMapper = new ObjectMapper()
                 .registerModule(new JavaTimeModule())
-                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+                .enable(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_USING_DEFAULT_VALUE);
         this.transactor = transactor;
         this.userLog = Logger.getNeo4jLogger();
         this.fleetManagerLog = Logger.getFleetManagerLogger();

@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.neo4j.fleetmanagement.actions.FleetAction;
 import org.neo4j.fleetmanagement.communication.model.ConfigurationResponse;
 import org.neo4j.fleetmanagement.communication.model.MigrationToAura;
 import org.neo4j.fleetmanagement.metrics.model.MetricsDefinition;
@@ -37,10 +38,13 @@ public class Configuration {
     private List<String> neo4jConfigKeyGlobs;
     private Map<TaskType, Long> taskReportingInterval;
     private List<MigrationToAura> migrationsToAura;
+    private List<FleetAction> pendingActions;
+
     public static final String METRICS_CHANGE = "metrics";
     public static final String NEO4J_CONFIGS_CHANGE = "neo4jConfigs";
     public static final String TASK_REPORTING_INTERVAL_CHANGE = "taskReportingInterval";
     public static final String MIGRATIONS_TO_AURA_CHANGE = "migrationsToAura";
+    public static final String PENDING_ACTIONS_CHANGE = "pendingActions";
 
     public Configuration() {
         this.changeSupport = new PropertyChangeSupport(this);
@@ -100,6 +104,7 @@ public class Configuration {
         QUERIES,
         SECURITY_LOGS,
         MIGRATIONS_TO_AURA,
+        DIAGNOSTIC_REPORT,
         UNKNOWN;
 
         public static TaskType fromString(String type) {
@@ -109,6 +114,12 @@ public class Configuration {
                 return UNKNOWN;
             }
         }
+    }
+
+    public void setPendingActions(List<FleetAction> newPendingActions) {
+        final var oldPendingActions = this.pendingActions;
+        this.pendingActions = newPendingActions;
+        changeSupport.firePropertyChange(PENDING_ACTIONS_CHANGE, oldPendingActions, newPendingActions);
     }
 
     public static void updateConfigurationIfPresent(
@@ -141,6 +152,10 @@ public class Configuration {
         }
         if (configurationResponse.getPendingMigrationsToAura() != null) {
             configuration.setMigrationsToAura(configurationResponse.getPendingMigrationsToAura());
+        }
+
+        if (configurationResponse.getPendingActions() != null) {
+            configuration.setPendingActions(configurationResponse.getPendingActions());
         }
     }
 }

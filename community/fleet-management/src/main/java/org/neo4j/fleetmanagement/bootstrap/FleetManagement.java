@@ -31,6 +31,7 @@ import org.neo4j.dbms.identity.ServerIdentity;
 import org.neo4j.fleetmanagement.FleetManagementSettings;
 import org.neo4j.fleetmanagement.communication.ConfigService;
 import org.neo4j.fleetmanagement.communication.ConnectService;
+import org.neo4j.fleetmanagement.communication.DiagnosticsService;
 import org.neo4j.fleetmanagement.communication.MetricsService;
 import org.neo4j.fleetmanagement.communication.MigrationToAuraService;
 import org.neo4j.fleetmanagement.communication.PingService;
@@ -41,7 +42,7 @@ import org.neo4j.fleetmanagement.communication.upstream.Upstream;
 import org.neo4j.fleetmanagement.configuration.ClusterSync;
 import org.neo4j.fleetmanagement.configuration.Configuration;
 import org.neo4j.fleetmanagement.configuration.State;
-import org.neo4j.fleetmanagement.diagnostics.DiagnosticsService;
+import org.neo4j.fleetmanagement.diagnostics.DiagnosticsActionsProcessor;
 import org.neo4j.fleetmanagement.procedures.MetricNamesSupplier;
 import org.neo4j.fleetmanagement.procedures.Neo4jConfigNamesSupplier;
 import org.neo4j.fleetmanagement.transactions.ITransactor;
@@ -58,7 +59,7 @@ public class FleetManagement extends LifecycleAdapter {
     private ScheduledExecutorService scheduler;
     private State state;
     private ConfigService configService;
-    private DiagnosticsService diagnosticsService;
+    private DiagnosticsActionsProcessor diagnosticsActionsProcessor;
 
     public FleetManagement(
             LogService logService,
@@ -121,14 +122,19 @@ public class FleetManagement extends LifecycleAdapter {
 
         var clusterSync = new ClusterSync(transactor, upstream, this.state);
 
-        this.diagnosticsService =
-                new DiagnosticsService(logService, config, fs, databaseManagementService, databaseContextProvider);
+        var diagnosticsService =
+                new DiagnosticsService(transactor, upstream, this.state, configuration, serverIdentity);
+        var diagnosticsActionsProcessor = new DiagnosticsActionsProcessor(
+                logService, config, fs, databaseManagementService, databaseContextProvider, diagnosticsService);
+        this.diagnosticsActionsProcessor = diagnosticsActionsProcessor;
+        configuration.addPropertyChangeListener(diagnosticsActionsProcessor);
 
         this.mainService = new MainService(
                 reportingService,
                 metricsService,
                 queryService,
                 migrationService,
+                diagnosticsService,
                 clusterSync,
                 scheduler,
                 connectService,
@@ -145,6 +151,7 @@ public class FleetManagement extends LifecycleAdapter {
         if (mainService == null) {
             return;
         }
+        diagnosticsActionsProcessor.start();
         configService.start();
         mainService.start();
     }
@@ -156,6 +163,7 @@ public class FleetManagement extends LifecycleAdapter {
         }
         state.removePropertyChangeListeners();
         mainService.stop();
+        diagnosticsActionsProcessor.stop();
     }
 
     @Override
@@ -163,6 +171,7 @@ public class FleetManagement extends LifecycleAdapter {
         if (mainService == null) {
             return;
         }
+        diagnosticsActionsProcessor.shutdown();
         scheduler.shutdown();
         try {
             if (!scheduler.awaitTermination(10, TimeUnit.SECONDS)) {

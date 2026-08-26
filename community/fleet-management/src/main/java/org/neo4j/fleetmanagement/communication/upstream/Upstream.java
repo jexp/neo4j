@@ -49,6 +49,7 @@ public class Upstream {
         SECURITY_LOGS,
         MIGRATION_IMPORT_TOKEN,
         MIGRATION_UPDATE_STATUS,
+        DIAGNOSTICS_REPORT,
     }
 
     private static final String DEFAULT_BASE_URL = "https://fleet-management-api.neo4j.io/api/v1";
@@ -132,6 +133,7 @@ public class Upstream {
             case SECURITY_LOGS -> postTo("plugin/security-logs");
             case MIGRATION_IMPORT_TOKEN -> postTo("plugin/migration-to-aura/import-token");
             case MIGRATION_UPDATE_STATUS -> postTo("plugin/migration-to-aura/status");
+            case DIAGNOSTICS_REPORT -> postTo("plugin/diagnostics/report");
         };
     }
 

@@ -22,9 +22,12 @@ package org.neo4j.fleetmanagement.communication;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.neo4j.fleetmanagement.actions.FleetAction;
+import org.neo4j.fleetmanagement.communication.model.ConfigurationResponse;
 import org.neo4j.fleetmanagement.configuration.Configuration;
 import org.neo4j.fleetmanagement.configuration.State;
 import org.neo4j.fleetmanagement.transactions.ITransactor;
@@ -105,5 +108,18 @@ class BaseServiceTest {
         Mockito.verify(mockTransactor, Mockito.times(3)).deleteToken();
         assertThat(state.isConnected()).isFalse();
         assertThat(state.getConnectionMessage()).isEqualTo("Fleet management access denied - check your permissions");
+    }
+
+    @Test
+    void objectMapperReadsUnknownActionEnumValuesAsDefaults() throws JsonProcessingException {
+        var json =
+                "{\"pending_actions\":[{\"id\":\"a1\",\"type\":\"SOME_FUTURE_TYPE\",\"category\":\"SOME_FUTURE_CATEGORY\"}]}";
+
+        var response = baseService.objectMapper.readValue(json, ConfigurationResponse.class);
+
+        assertThat(response.getPendingActions()).singleElement().satisfies(action -> {
+            assertThat(action.type).isEqualTo(FleetAction.Type.NONE);
+            assertThat(action.category).isEqualTo(FleetAction.Category.SERVER);
+        });
     }
 }

@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import java.util.List;
 import java.util.Map;
+import org.neo4j.fleetmanagement.actions.FleetAction;
 
 public class ConfigurationResponse {
     private List<MetricsDefinitionResponse> metrics;
@@ -39,6 +40,10 @@ public class ConfigurationResponse {
     @JsonProperty("pending_migrations_to_aura")
     @JsonPropertyDescription("List of pending migrations to Aura")
     private List<MigrationToAura> pendingMigrationsToAura;
+
+    @JsonProperty("pending_actions")
+    @JsonPropertyDescription("List of pending actions")
+    private List<FleetAction> pendingActions;
 
     public List<MetricsDefinitionResponse> getMetrics() {
         return metrics;
@@ -78,5 +83,13 @@ public class ConfigurationResponse {
 
     public void setPendingMigrationsToAura(List<MigrationToAura> pendingMigrationsToAura) {
         this.pendingMigrationsToAura = pendingMigrationsToAura;
+    }
+
+    public List<FleetAction> getPendingActions() {
+        return pendingActions;
+    }
+
+    public void setPendingActions(List<FleetAction> pendingActions) {
+        this.pendingActions = pendingActions;
     }
 }
