@@ -5334,7 +5334,7 @@ class ScopeSurveyorTest extends VariableCheckingTestSuite {
         ExpectedWorkingScope(
           Ast("a.p"),
           ProjectionIncoming(groupingKeys = Set(gk("p"), gk("a.x"))),
-          Referenced(Set("p")),
+          Referenced(Set("a")),
           ExpectedWorkingScope.varProjExp("a", incomingKeys = Set(gk("p"), gk("a.x")))
         ),
         ExpectedWorkingScope(
@@ -5464,7 +5464,7 @@ class ScopeSurveyorTest extends VariableCheckingTestSuite {
         ExpectedWorkingScope(
           Ast("a.p"),
           ProjectionIncoming(constants = Set("a"), groupingKeys = Set(gk("p"))),
-          Referenced(Set("p")),
+          Referenced(Set("a")),
           ExpectedWorkingScope.varProjExp("a", incomingConstants = Set("a"), incomingKeys = Set(gk("p")))
         ),
         ExpectedWorkingScope(
@@ -5646,7 +5646,7 @@ class ScopeSurveyorTest extends VariableCheckingTestSuite {
         ExpectedWorkingScope(
           Ast("a.p"),
           ProjectionIncoming(groupingKeys = Set(gk("p"), gk("a.x + 1"))),
-          Referenced(Set("p")),
+          Referenced(Set("a")),
           ExpectedWorkingScope.varProjExp("a", incomingKeys = Set(gk("p"), gk("a.x + 1")))
         ),
         ExpectedWorkingScope(

@@ -494,17 +494,12 @@ object pegClause {
     aggregationItems: Seq[ReturnItem],
     groupingItems: Seq[ReturnItem]
   )(implicit c: PegContext): Seq[WorkingScope] = {
-    groupingItems.map(item => {
+    groupingItems.map(item =>
       incoming.recognizeExpression(item.expression, isSubExpression = false) match {
-        case Some(recognised) =>
-          incoming.recognizedLeafScope(
-            item.expression,
-            recognised,
-            pegExpression.scopeRecognizedSubtree(item.expression, incoming)
-          )
-        case None => pegExpression(item.expression, incoming)
+        case Some(_) => pegExpression.scopeWithoutRootRecognition(item.expression, incoming)
+        case None    => pegExpression(item.expression, incoming)
       }
-    }) ++
+    ) ++
       aggregationItems.map(item => pegExpression(item.expression, aggregatingExpressionContext))
   }
 

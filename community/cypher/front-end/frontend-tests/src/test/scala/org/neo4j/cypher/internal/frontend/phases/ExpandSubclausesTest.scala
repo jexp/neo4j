@@ -204,6 +204,36 @@ class ExpandSubclausesTest extends CypherFunSuite with RewritePhaseTest with Ast
     )
   }
 
+  test("RETURN: ORDER BY over an exact-match aliased grouping key is substituted without hoisting") {
+    assertRewritten(
+      """WITH {p: 1} AS a
+        |RETURN a.p AS p, count(*) AS cnt
+        |  GROUP BY p
+        |  ORDER BY a.p + 1""".stripMargin,
+      """WITH {p: 1} AS a
+        |RETURN a.p AS p, count(*) AS cnt
+        |  ORDER BY p + 1 ASCENDING""".stripMargin,
+      additionalExpectedAstUpdates = withUpdate(),
+      additionalActualAstCleanup = withUpdate()
+    )
+  }
+
+  test("WITH: WHERE over an exact-match aliased grouping key is substituted without hoisting") {
+    assertRewritten(
+      """WITH {p: 1} AS a
+        |WITH a.p AS p, count(*) AS cnt
+        |  GROUP BY p
+        |  WHERE a.p > 0
+        |RETURN p, cnt""".stripMargin,
+      """WITH {p: 1} AS a
+        |WITH a.p AS p, count(*) AS cnt
+        |  WHERE p > 0
+        |RETURN p, cnt""".stripMargin,
+      additionalExpectedAstUpdates = withUpdate(),
+      additionalActualAstCleanup = withUpdate()
+    )
+  }
+
   test("RETURN: projection and ORDER BY over an inset complex grouping key both use the hoisted alias") {
     assertRewritten(
       """WITH {p: 1} AS a
@@ -1877,4 +1907,22 @@ class ExpandSubclausesTest extends CypherFunSuite with RewritePhaseTest with Ast
       additionalActualAstCleanup = withUpdate()
     )
   }
+
+  test("RETURN: ORDER BY a property grouping key is substituted even when a comprehension shadows its base variable") {
+    assertRewritten(
+      """UNWIND [{a: {p: 1}, b: 20, c: 100}] AS _row
+        |WITH _row.a AS a, _row.b AS b, _row.c AS c
+        |RETURN a.p AS b, count(c) AS c
+        |  GROUP BY b
+        |  ORDER BY [a IN a.p | a.p] DESCENDING""".stripMargin,
+      """UNWIND [{a: {p: 1}, b: 20, c: 100}] AS _row
+        |WITH _row.a AS a, _row.b AS b, _row.c AS c
+        |WITH a.p AS `  UNNAMED0`, count(c) AS `  UNNAMED1`
+        |RETURN `  UNNAMED0` AS b, `  UNNAMED1` AS c
+        |  ORDER BY [a IN b | a.p] DESCENDING""".stripMargin,
+      additionalExpectedAstUpdates = withUpdate(),
+      additionalActualAstCleanup = withUpdate()
+    )
+  }
+
 }

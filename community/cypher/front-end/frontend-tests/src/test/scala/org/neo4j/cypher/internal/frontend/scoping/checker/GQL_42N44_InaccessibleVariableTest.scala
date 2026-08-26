@@ -204,6 +204,22 @@ class GQL_42N44_InaccessibleVariableTest extends VariableCheckingWithLocalCallab
       Seq("p")
     ),
     TestQuery(
+      """WITH 1 AS a
+        |RETURN COUNT { RETURN a } AS c, count(*) AS cnt
+        |  GROUP BY COUNT { RETURN a }
+        |  ORDER BY COUNT { RETURN a } + 1""".stripMargin,
+      ignoreBeforeCypher25(E42N44("a", "RETURN")),
+      Seq("c", "cnt")
+    ),
+    TestQuery(
+      """WITH {p: 1} AS a
+        |RETURN a.p AS p, count(*) AS cnt
+        |  GROUP BY a.p
+        |  ORDER BY COUNT { RETURN a.p + 1 }""".stripMargin,
+      ignoreBeforeCypher25(E42N44("a", "RETURN")),
+      Seq("p", "cnt")
+    ),
+    TestQuery(
       """UNWIND [1, 2, 3] AS x
         |WITH 1 AS x
         |RETURN a AS z, SUM(a / x) * 5 AS s

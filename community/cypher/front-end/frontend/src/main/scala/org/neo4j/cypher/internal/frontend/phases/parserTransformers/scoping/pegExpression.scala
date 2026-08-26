@@ -264,7 +264,11 @@ object pegExpression {
    */
   def scopeRecognizedSubtree(expression: Expression, incoming: RegularContext)(implicit
     c: PegContext): Seq[WorkingScope] =
-    applyUncached(expression, incoming, recognizeRoot = false).children
+    scopeWithoutRootRecognition(expression, incoming).children
+
+  def scopeWithoutRootRecognition(expression: Expression, incoming: RegularContext)(implicit
+    c: PegContext): WorkingScope =
+    applyUncached(expression, incoming, recognizeRoot = false)
 
   @inline private def onlyChildIsSelf(children: Seq[WorkingScope], self: ASTNode): Boolean =
     children.size == 1 && children.head.astNode == self
