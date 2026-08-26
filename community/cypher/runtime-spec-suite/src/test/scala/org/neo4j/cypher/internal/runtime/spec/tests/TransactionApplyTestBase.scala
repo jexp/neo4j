@@ -785,7 +785,7 @@ abstract class TransactionApplyTestBase[CONTEXT <: RuntimeContext](
     ComplexRhsTestSetup(batchSize, concurrency, iterations, OnErrorFail, None, None)
   }
 
-  private def setupComplexRhsTest(
+  protected def setupComplexRhsTest(
     graph: ComplexGraph,
     setup: ComplexRhsTestSetup = defaultComplexRhsSetup()
   ): (LogicalQueryBuilder, Seq[Seq[Array[Object]]]) = {
@@ -940,8 +940,14 @@ abstract class TransactionApplyTestBase[CONTEXT <: RuntimeContext](
 
     val query = planBuilder.build()
 
-    val rewriter = RussianRoulette(0.005, 0.25, planBuilder.idGen, random)
+    val randFunction = restartTxWithSeededRandFunction()
+
+    val rewriter = RussianRoulette(0.005, 0.25, planBuilder.idGen, random, bangFunction = randFunction)
     val rewritten = query.logicalPlan.endoRewrite(rewriter)
+      .endoRewrite(bottomUp(Rewriter.lift {
+        case fi: FunctionInvocation if fi.needsToBeResolved =>
+          ResolvedFunctionInvocation.fromUnresolved(functionSignature)(fi).coerceArguments
+      }))
 
     Try(executeAndConsume(query.copy(logicalPlan = rewritten), runtime)) match {
       case Failure(error) =>
@@ -1647,7 +1653,7 @@ abstract class TransactionApplyTestBase[CONTEXT <: RuntimeContext](
     tickCounter.get() should be > 2L
   }
 
-  private def executeAndConsume(logicalQuery: LogicalQuery, runtime: CypherRuntime[CONTEXT]) = {
+  protected def executeAndConsume(logicalQuery: LogicalQuery, runtime: CypherRuntime[CONTEXT]) = {
     val result = execute(logicalQuery, runtime)
     consume(result)
     result
