@@ -192,6 +192,7 @@ import org.neo4j.wal.checkpoint.LogCheckPointEvent;
 import org.neo4j.wal.checkpoint.SimpleTriggerInfo;
 import org.neo4j.wal.entry.LogEntryFactory;
 import org.neo4j.wal.entry.LogEnvelopeHeader;
+import org.neo4j.wal.entry.LogFormat;
 import org.neo4j.wal.enveloped.InconsistentLogFilesException;
 import org.neo4j.wal.files.LogFilesBuilder;
 import org.neo4j.wal.files.LogRangeInfo;
@@ -721,7 +722,8 @@ class RecoveryIT {
         removeLastCheckpointRecordFromLogFile(databaseLayout, fileSystem);
         // append data that will cause broken next entry
         int minimumBytesToConsiderBrokenRecord =
-                Config.defaults().get(GraphDatabaseInternalSettings.allow_new_log_format_on_upgrade_or_create)
+                LogFormat.fromConfigAndKernelVersion(Config.defaults(), LATEST_KERNEL_VERSION)
+                                .usesSegments()
                         ? LogEnvelopeHeader.HEADER_SIZE + 1
                         : 4;
         byte[] brokenRecord = new byte[minimumBytesToConsiderBrokenRecord];

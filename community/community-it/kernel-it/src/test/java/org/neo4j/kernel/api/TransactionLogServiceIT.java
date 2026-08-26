@@ -113,6 +113,7 @@ import org.neo4j.wal.ReadableLogChannel;
 import org.neo4j.wal.TransactionMetadataCache;
 import org.neo4j.wal.checkpoint.CheckPointer;
 import org.neo4j.wal.checkpoint.SimpleTriggerInfo;
+import org.neo4j.wal.entry.LogFormat;
 import org.neo4j.wal.entry.LogHeader;
 import org.neo4j.wal.files.LogRangeInfo;
 import org.neo4j.wal.files.LogTailInformation;
@@ -183,10 +184,10 @@ class TransactionLogServiceIT {
         try (TransactionLogChannels logReaders = logService.logFilesChannels(lastAppendIndexBeforeWorkload + 30)) {
             List<LogChannel> logFileChannels = logReaders.getChannels();
             // Tx split over several files with envelopes
-            int expectedLogChannelsSize =
-                    Config.defaults().get(GraphDatabaseInternalSettings.allow_new_log_format_on_upgrade_or_create)
-                            ? 3
-                            : 1;
+            int expectedLogChannelsSize = LogFormat.fromConfigAndKernelVersion(Config.defaults(), LATEST_KERNEL_VERSION)
+                            .usesSegments()
+                    ? 3
+                    : 1;
             assertThat(logFileChannels).hasSize(expectedLogChannelsSize);
             assertThat(logFiles.logFiles()).hasSizeGreaterThanOrEqualTo(numberOfTransactions);
 
@@ -225,7 +226,8 @@ class TransactionLogServiceIT {
             int txLogsAfterCheckpoint = 3;
             // the transaction log service did not return the last (empty) transaction log file
             var visibleTxLogsAfterCheckpoints =
-                    Config.defaults().get(GraphDatabaseInternalSettings.allow_new_log_format_on_upgrade_or_create)
+                    LogFormat.fromConfigAndKernelVersion(Config.defaults(), LATEST_KERNEL_VERSION)
+                                    .usesSegments()
                             ? txLogsAfterCheckpoint
                             : txLogsAfterCheckpoint - 1;
             int checkpointLogs = 1;
@@ -888,6 +890,8 @@ class TransactionLogServiceIT {
                         GraphDatabaseInternalSettings.latest_runtime_version,
                         LATEST_RUNTIME_VERSION_WITHOUT_ENVELOPES.getVersion(),
                         GraphDatabaseInternalSettings.allow_new_log_format_on_upgrade_or_create,
+                        false,
+                        GraphDatabaseInternalSettings.merged_log,
                         false))
                 .build()) {
 
