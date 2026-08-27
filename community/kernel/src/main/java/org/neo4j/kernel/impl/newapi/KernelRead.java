@@ -105,7 +105,7 @@ public class KernelRead implements Read {
     protected final TokenRead tokenRead;
     private final StoreCursors storageCursors;
     protected final QueryContext queryContext;
-    private final Locks entityLocks;
+    protected final Locks entityLocks;
     private final TxStateHolder txStateHolder;
     private final SchemaRead schemaRead;
     private final AssertOpen assertOpen;
@@ -247,7 +247,7 @@ public class KernelRead implements Read {
         return includeChangesFromThisTransaction ? cursorContext : cursorContext.noCurrentTransactionContext();
     }
 
-    private void verifyNotParallel() {
+    protected void verifyNotParallel() {
         if (parallel) {
             // This is currently a problematic operation for parallel execution, because it takes exclusive locks.
             // In transactions deadlocks is a problem for another day :) .
@@ -934,7 +934,7 @@ public class KernelRead implements Read {
         return indexingService.getIndexProxy(index).newValueReader();
     }
 
-    private void assertIndexOnline(IndexDescriptor index)
+    protected void assertIndexOnline(IndexDescriptor index)
             throws IndexNotFoundKernelException, IndexBrokenKernelException {
         if (schemaRead.indexGetState(index) == InternalIndexState.ONLINE) {
             return;
@@ -942,7 +942,7 @@ public class KernelRead implements Read {
         throw IndexBrokenKernelException.indexBroken(index.getName(), schemaRead.indexGetFailure(index));
     }
 
-    private static void assertPredicatesMatchSchema(
+    protected static void assertPredicatesMatchSchema(
             IndexDescriptor index, PropertyIndexQuery.ExactPredicate[] predicates)
             throws IndexNotApplicableKernelException {
         int[] propertyIds = index.schema().getPropertyIds();
