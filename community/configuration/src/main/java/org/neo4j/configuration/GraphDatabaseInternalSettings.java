@@ -139,6 +139,14 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
                     "internal.dbms.use_clustering_upgrade_mechanism", BOOL, false)
             .build();
 
+    @Internal
+    @Description("A way for tests to turn off the cluster upgrade mechanism triggered on start to be able "
+            + "to verify version before upgrade. RaftUpgraderTaskScheduler.setDebugTimerMode() can be used to "
+            + "enable it again when suitable.")
+    public static final Setting<Boolean> clustering_upgrade_mechanism_dont_schedule = newBuilder(
+                    "internal.dbms.clustering_upgrade_mechanism_dont_schedule", BOOL, false)
+            .build();
+
     public enum CypherRuntime {
         DEFAULT,
         LEGACY,
