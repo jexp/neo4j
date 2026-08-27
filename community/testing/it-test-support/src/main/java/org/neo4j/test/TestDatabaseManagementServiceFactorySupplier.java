@@ -19,6 +19,9 @@
  */
 package org.neo4j.test;
 
+import static org.neo4j.test.LogFormatOverrideMigrator.MERGED;
+import static org.neo4j.test.LogFormatOverrideMigrator.OVERRIDE_RAFT_LOG_IMPLEMENTATION_KEY;
+
 import java.util.function.Function;
 import org.neo4j.annotations.service.Service;
 import org.neo4j.graphdb.facade.DatabaseManagementServiceFactory;
@@ -32,9 +35,14 @@ import org.neo4j.time.SystemNanoClock;
 @Service
 public interface TestDatabaseManagementServiceFactorySupplier {
     String FACTORY_SUPPLIER = System.getProperty("NEO4J_OVERRIDE_DBMS_TEST_FACTORY_SUPPLIER");
+    String MERGED_LOG_FLAG = System.getProperty(OVERRIDE_RAFT_LOG_IMPLEMENTATION_KEY);
 
     static boolean isSpd() {
         return "spd".equalsIgnoreCase(FACTORY_SUPPLIER);
+    }
+
+    static boolean isMergedLog() {
+        return MERGED.equalsIgnoreCase(MERGED_LOG_FLAG);
     }
 
     DatabaseManagementServiceFactory create(
