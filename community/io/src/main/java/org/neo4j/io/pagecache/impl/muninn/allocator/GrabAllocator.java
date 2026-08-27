@@ -22,12 +22,15 @@ package org.neo4j.io.pagecache.impl.muninn.allocator;
 import static java.lang.String.format;
 import static org.neo4j.util.Preconditions.requirePositive;
 
+import com.sun.jna.Platform;
 import java.lang.ref.Cleaner;
 import java.util.function.Consumer;
+import org.neo4j.internal.unsafe.NativeMemoryAllocationRefusedError;
 import org.neo4j.internal.unsafe.UnsafeUtil;
 import org.neo4j.io.ByteUnit;
 import org.neo4j.io.pagecache.impl.muninn.MuninnPageCache;
 import org.neo4j.memory.MemoryTracker;
+import org.neo4j.util.VisibleForTesting;
 
 /**
  * Native memory allocator built for the {@link MuninnPageCache}.
@@ -49,6 +52,9 @@ import org.neo4j.memory.MemoryTracker;
  *
  * Allocation is sized upfront based on the requested page count or memory budget.
  * If created based on a memory budget, the budget is never exceeded.
+ *
+ * If the operating system refuses the pages grab, the allocator falls back to handing out page buffers from small
+ * grabs allocated on demand, with a slightly reduced page count to cover the alignment waste of the many grabs.
  */
 public final class GrabAllocator implements AutoCloseable {
 
@@ -81,13 +87,81 @@ public final class GrabAllocator implements AutoCloseable {
             MemoryTracker memoryTracker,
             boolean preTouch,
             Consumer<String> log) {
+        return createAllocator(
+                requestedMaxPages,
+                requestedMaxMemory,
+                metaDataBytesPerPage,
+                pageSize,
+                memoryTracker,
+                preTouch,
+                log,
+                false);
+    }
+
+    @VisibleForTesting
+    public static GrabAllocator createAllocator(
+            Integer requestedMaxPages,
+            Long requestedMaxMemory,
+            int metaDataBytesPerPage,
+            int pageSize,
+            MemoryTracker memoryTracker,
+            boolean preTouch,
+            Consumer<String> log,
+            boolean forceEagerMode) {
         requirePositive(pageSize);
         requireOneOf(requestedMaxPages, requestedMaxMemory);
         int bufferAlignment = bufferAlignment(pageSize);
         int maxPages =
                 selectMaxPages(requestedMaxPages, requestedMaxMemory, metaDataBytesPerPage, pageSize, bufferAlignment);
+        requireEnoughPages(maxPages);
+        try {
+            if (Platform.isLinux() || forceEagerMode) {
+                return new GrabAllocator(
+                        maxPages,
+                        new Grabs.PreAllocated(
+                                maxPages,
+                                pageSize,
+                                metaDataBytesPerPage,
+                                bufferAlignment,
+                                preTouch,
+                                memoryTracker,
+                                log));
+            }
+            return createLazyAllocator(
+                    requestedMaxPages, metaDataBytesPerPage, pageSize, memoryTracker, maxPages, bufferAlignment);
+        } catch (NativeMemoryAllocationRefusedError e) {
+            log.accept(format(
+                    "Failed to allocate the page cache memory upfront. Falling back to allocating page buffers lazily: "
+                            + e.getMessage()));
+            return createLazyAllocator(
+                    requestedMaxPages, metaDataBytesPerPage, pageSize, memoryTracker, maxPages, bufferAlignment);
+        }
+    }
+
+    private static GrabAllocator createLazyAllocator(
+            Integer requestedMaxPages,
+            int metaDataBytesPerPage,
+            int pageSize,
+            MemoryTracker memoryTracker,
+            int maxPages,
+            int bufferAlignment) {
+        // respect requested pages even when lazy
+        int lazyMaxPages = requestedMaxPages == null ? lazyMaxPages(maxPages, pageSize) : requestedMaxPages;
+        requireEnoughPages(lazyMaxPages);
         return new GrabAllocator(
-                maxPages, metaDataBytesPerPage, pageSize, memoryTracker, preTouch, log, bufferAlignment);
+                lazyMaxPages,
+                new Grabs.Lazy(lazyMaxPages, pageSize, metaDataBytesPerPage, bufferAlignment, memoryTracker));
+    }
+
+    private static int lazyMaxPages(int maxPages, int pageSize) {
+        return maxPages - Math.ceilDiv(maxPages, Grabs.Lazy.pagesPerGrab(pageSize));
+    }
+
+    private static void requireEnoughPages(int maxPages) {
+        if (maxPages < MINIMUM_PAGE_COUNT) {
+            throw new IllegalArgumentException(format(
+                    "Page cache must have at least %s pages, but was given %s pages.", MINIMUM_PAGE_COUNT, maxPages));
+        }
     }
 
     private static void requireOneOf(Integer requestedMaxPages, Long requestedMaxMemory) {
@@ -126,20 +200,9 @@ public final class GrabAllocator implements AutoCloseable {
         return Math.toIntExact(requiredPages);
     }
 
-    private GrabAllocator(
-            int maxPages,
-            int metaDataBytesPerPage,
-            int pageSize,
-            MemoryTracker memoryTracker,
-            boolean preTouch,
-            Consumer<String> log,
-            int bufferAlignment) {
-        if (maxPages < MINIMUM_PAGE_COUNT) {
-            throw new IllegalArgumentException(format(
-                    "Page cache must have at least %s pages, but was given %s pages.", MINIMUM_PAGE_COUNT, maxPages));
-        }
+    private GrabAllocator(int maxPages, Grabs grabs) {
         this.maxPages = maxPages;
-        this.grabs = new Grabs(maxPages, pageSize, metaDataBytesPerPage, bufferAlignment, preTouch, memoryTracker, log);
+        this.grabs = grabs;
         this.cleanable = GLOBAL_CLEANER.register(this, grabs::close);
     }
 

@@ -137,7 +137,7 @@ class GrabsTest {
         var memoryTracker = new LocalMemoryTracker(
                 MemoryPools.NO_TRACKING, ByteUnit.mebiBytes(2) + ByteUnit.kibiBytes(512), 0, "test-limit");
         assertThatExceptionOfType(MemoryLimitExceededException.class)
-                .isThrownBy(() -> new Grabs(
+                .isThrownBy(() -> new Grabs.PreAllocated(
                         (int) (ByteUnit.mebiBytes(4) / PAGE_SIZE),
                         PAGE_SIZE,
                         ByteUnit.kibiBytes(64),
@@ -146,6 +146,51 @@ class GrabsTest {
                         memoryTracker,
                         ignoreValue()));
         assertThat(memoryTracker.usedNativeMemory()).isZero();
+    }
+
+    @Test
+    void lazyGrabsMustAllocatePageBuffersOnDemand() {
+        int maxPages = Grabs.Lazy.pagesPerGrab(PAGE_SIZE) * 3;
+        LocalMemoryTracker memoryTracker = new LocalMemoryTracker();
+        grabs = new Grabs.Lazy(maxPages, PAGE_SIZE, METADATA_SIZE, ALIGNMENT, memoryTracker);
+
+        long metadataOnly = (long) maxPages * METADATA_SIZE;
+        assertThat(memoryTracker.usedNativeMemory()).isEqualTo(metadataOnly);
+
+        long[] pages = new long[maxPages];
+        for (int i = 0; i < pages.length; i++) {
+            long address = grabs.allocatePage();
+            assertThat(address % ALIGNMENT).isZero();
+            UnsafeUtil.putLong(address, 2L * i);
+            UnsafeUtil.putLong(address + PAGE_SIZE - Long.BYTES, 2L * i + 1);
+            pages[i] = address;
+            assertThat(memoryTracker.usedNativeMemory()).isGreaterThan(metadataOnly);
+        }
+        assertThatExceptionOfType(IllegalStateException.class).isThrownBy(grabs::allocatePage);
+
+        for (int i = 0; i < pages.length; i++) {
+            assertThat(UnsafeUtil.getLong(pages[i])).isEqualTo(2L * i);
+            assertThat(UnsafeUtil.getLong(pages[i] + PAGE_SIZE - Long.BYTES)).isEqualTo(2L * i + 1);
+        }
+        assertThat(memoryTracker.usedNativeMemory()).isEqualTo(memoryRequired(maxPages) + 2L * (ALIGNMENT - 1));
+
+        closeGrabs();
+        assertThat(memoryTracker.usedNativeMemory()).isZero();
+    }
+
+    @Test
+    void lazyGrabsMustNotAllocateMoreThanMaxPages() {
+        int pagesPerGrab = Grabs.Lazy.pagesPerGrab(PAGE_SIZE);
+        int maxPages = pagesPerGrab + 1;
+        LocalMemoryTracker memoryTracker = new LocalMemoryTracker();
+        grabs = new Grabs.Lazy(maxPages, PAGE_SIZE, METADATA_SIZE, ALIGNMENT, memoryTracker);
+
+        for (int i = 0; i < maxPages; i++) {
+            grabs.allocatePage();
+        }
+
+        long expected = (long) maxPages * (METADATA_SIZE + PAGE_SIZE) + 2L * (ALIGNMENT - 1);
+        assertThat(memoryTracker.usedNativeMemory()).isEqualTo(expected);
     }
 
     private void closeGrabs() {
@@ -157,7 +202,8 @@ class GrabsTest {
 
     private Grabs newGrabs(int maxPages, boolean preTouch, LocalMemoryTracker memoryTracker) {
         closeGrabs();
-        grabs = new Grabs(maxPages, PAGE_SIZE, METADATA_SIZE, ALIGNMENT, preTouch, memoryTracker, ignoreValue());
+        grabs = new Grabs.PreAllocated(
+                maxPages, PAGE_SIZE, METADATA_SIZE, ALIGNMENT, preTouch, memoryTracker, ignoreValue());
         return grabs;
     }
 

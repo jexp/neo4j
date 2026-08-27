@@ -1682,7 +1682,7 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
             .build();
 
     @Internal
-    @Description("Pre-touch every memory page of page cache on startup.")
+    @Description("Pre-touch every memory page of page cache on startup. Linux only.")
     public static final Setting<Boolean> page_cache_allocator_pre_touch = newBuilder(
                     "internal.dbms.page_cache_allocator_pre_touch", BOOL, false)
             .build();

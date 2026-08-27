@@ -34,6 +34,8 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.neo4j.configuration.Config;
 import org.neo4j.configuration.GraphDatabaseInternalSettings;
 import org.neo4j.io.fs.FileSystemAbstraction;
@@ -139,6 +141,7 @@ class ConfiguringPageCacheFactoryTest {
     }
 
     @Test
+    @EnabledOnOs(OS.LINUX)
     void preTouchPageCacheMemory() {
         long memory = MuninnPageCache.memoryRequiredForPages(60);
         Config config = Config.newBuilder()

@@ -208,7 +208,7 @@ public class GBPTreeFormatTest<KEY, VALUE> extends FormatCompatibilityVerifier {
         allKeys.sort(Long::compare);
         PageCacheConfig overriddenConfig = PageCacheConfig.config().withPageSize(pageSize);
         if (pageSize == PAGE_SIZE_4M) {
-            overriddenConfig.withMemory("16MiB");
+            overriddenConfig.withMemory("32MiB");
         }
         pageCache = PageCacheSupportExtension.getPageCache(globalFs, overriddenConfig);
     }

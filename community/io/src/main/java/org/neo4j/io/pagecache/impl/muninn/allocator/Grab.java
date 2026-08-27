@@ -70,6 +70,7 @@ abstract sealed class Grab permits Grab.MetadataGrab, Grab.PageGrab {
         private final long address;
         private final long size;
         private final long base;
+        PageGrab next;
 
         PageGrab(long size, long alignment, MemoryTracker memoryTracker) {
             long toAllocate = size + alignment - 1;
