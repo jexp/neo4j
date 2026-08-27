@@ -663,4 +663,34 @@ class PreParserTest extends CommunityCypherTestSuite {
       preParse(query)
     } should have message "Unsupported options: x"
   }
+
+  // The characters of the SPACE lexer rule that are above 0x7F, they must not be part of an identifier.
+  private val unicodeSpaces: Seq[Char] = Seq(
+    0x0085, 0x00a0, 0x1680, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006, 0x2007, 0x2008, 0x2009, 0x200a,
+    0x2028,
+    0x2029, 0x202f, 0x205f, 0x3000
+  ).map(_.toChar)
+
+  test("unicode space should not be swallowed by an identifier") {
+    unicodeSpaces.foreach { space =>
+      withClue(f"U+${space.toInt}%04X: ") {
+        val query = s"MATCH${space}path=(n) RETURN path"
+        val preParsed = preParse(s"CYPHER 5 $query")
+        preParsed.statement shouldBe query
+        preParsed.options.queryOptions shouldBe
+          CypherQueryOptions.defaultOptions.copy(cypherVersion = cypher5)
+      }
+    }
+  }
+
+  test("unicode space should separate preparser options") {
+    unicodeSpaces.foreach { space =>
+      withClue(f"U+${space.toInt}%04X: ") {
+        preParse(
+          s"CYPHER${space}5${space}runtime${space}=${space}slotted${space}RETURN 1"
+        ).options.queryOptions shouldBe
+          CypherQueryOptions.defaultOptions.copy(cypherVersion = cypher5, runtime = slotted)
+      }
+    }
+  }
 }

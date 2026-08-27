@@ -27,6 +27,7 @@ SPACE
       | '\u001E'
       | '\u001F'
       | '\u0020'
+      | '\u0085'
       | '\u00A0'
       | '\u1680'
       | '\u2000'
@@ -91,7 +92,8 @@ fragment LetterOrDigit
 
 fragment Letter
    : [a-zA-Z$_]                      // these are the "java letters" below 0x7F
-   | ~[\u0000-\u007F\uD800-\uDBFF]   // covers all characters above 0x7F which are not a surrogate
+   // covers all characters above 0x7F which are neither space (see SPACE) nor a surrogate
+   | ~[\u0000-\u007F\u0085\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000\uD800-\uDBFF]
    | [\uD800-\uDBFF] [\uDC00-\uDFFF] // covers UTF-16 surrogate pairs encodings for U+10000 to U+10FFFF
    ;
 
