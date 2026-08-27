@@ -55,6 +55,7 @@ import org.apache.lucene.search.ConstantScoreQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.util.BytesRef;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -64,6 +65,9 @@ import org.neo4j.exceptions.InvalidArgumentException;
 import org.neo4j.internal.kernel.api.PropertyIndexQuery;
 import org.neo4j.kernel.api.StatementConstants;
 import org.neo4j.kernel.api.impl.schema.vector.VectorDocumentStructure;
+import org.neo4j.test.RandomSupport;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.RandomSupportExtension;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
 import org.neo4j.values.storable.DateTimeValue;
 import org.neo4j.values.storable.DateValue;
@@ -75,10 +79,14 @@ import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.ValueGroup;
 import org.neo4j.values.storable.Values;
 
+@RandomSupportExtension
 public class Lucene10FilterQueryBuilderTest {
     private static final int KEY_INDEX = 4;
     private static final Analyzer ANALYZER = new KeywordAnalyzer();
     private static final VectorDocumentStructure DOCUMENT_STRUCTURE = new TestVectorDocumentStructure();
+
+    @Inject
+    RandomSupport random;
 
     private MemoryIndex index;
 
@@ -521,8 +529,23 @@ public class Lucene10FilterQueryBuilderTest {
                 APOLLO_16_UTC.plusSeconds(1).plusNanos(5_000_000));
     }
 
-    @Test
-    public void testTemporalCypherTimezoneCompatibility() {}
+    @RepeatedTest(1000)
+    public void testTemporalCypherTimezoneCompatibility() {
+        DateTimeValue date = random.randomValues()
+                .nextDateTimeValue(ZoneOffset.ofTotalSeconds(
+                        random.intBetween(ZoneOffset.MIN.getTotalSeconds(), ZoneOffset.MAX.getTotalSeconds())));
+        long nanos = random.random().nextLong(Long.MAX_VALUE - 1);
+        addField(KEY_INDEX, date.add(duration(0, 0, 0, nanos)));
+
+        assertOutRangeTT(date.sub(duration(0, 0, 0, nanos)), date);
+        assertOutRangeTT(date.add(duration(0, 0, 0, 2 * nanos)), date);
+        assertInRangeTT(
+                date.sub(duration(0, 0, nanos / 1_000_000_000, 0)).add(duration(0, 0, 0, nanos / 10)),
+                date.add(duration(0, 0, 0, nanos + 1)));
+        assertInRangeTT(
+                date.sub(duration(0, 0, nanos / 1_000_000_000, 0)).add(duration(0, 0, 0, nanos / 10)),
+                date.add(duration(0, 0, Math.ceilDiv(nanos, 1_000_000_000), 1)));
+    }
 
     @Test
     public void testBadRangeQueryType() {
