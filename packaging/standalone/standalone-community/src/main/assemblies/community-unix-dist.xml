@@ -84,7 +84,19 @@
       <useStrictFiltering>true</useStrictFiltering>
       <excludes>
         <exclude>org.neo4j:neo4j-genai-plugin</exclude>
+        <exclude>io.netty:netty-tcnative</exclude>
       </excludes>
+    </dependencySet>
+    <dependencySet>
+      <outputDirectory>lib/netty-tcnative</outputDirectory>
+      <directoryMode>0755</directoryMode>
+      <fileMode>0644</fileMode>
+      <unpack>false</unpack>
+      <useProjectArtifact>false</useProjectArtifact>
+      <useStrictFiltering>true</useStrictFiltering>
+      <includes>
+        <include>io.netty:netty-tcnative</include>
+      </includes>
     </dependencySet>
     <dependencySet>
       <outputDirectory>products</outputDirectory>
