@@ -1957,6 +1957,12 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
 
     @Internal
     @Description("")
+    public static final Setting<Double> spd_import_buffer_max_direct_memory_fraction = newBuilder(
+                    "internal.db.spd_import.buffer_max_direct_memory_fraction", DOUBLE, 0.001)
+            .build();
+
+    @Internal
+    @Description("")
     public static final Setting<Integer> spd_import_segment_records_increment = newBuilder(
                     "internal.db.spd_import.segment_records_icrement", INT, 10_000)
             .build();
