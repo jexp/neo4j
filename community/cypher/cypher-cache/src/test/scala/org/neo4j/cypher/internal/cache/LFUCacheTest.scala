@@ -23,8 +23,10 @@ import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
 class LFUCacheTest extends CypherFunSuite {
 
+  private val cacheFactory = ExecutorBasedCaffeineCacheFactory((_: Runnable).run())
+
   test("testClear") {
-    val cache = new LFUCache[String, String](TestExecutorCaffeineCacheFactory, 5)
+    val cache = new LFUCache[String, String](cacheFactory, 5)
 
     cache.put("A", "A")
     cache.put("B", "B")
