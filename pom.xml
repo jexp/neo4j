@@ -240,6 +240,7 @@
       -Dorg.neo4j.shaded.lucene9.vectorization.upperJavaFeatureVersion=25
       ${jdk.custom.options}
       ${test.runner.jvm.settings.db.format}
+      ${test.runner.jvm.settings.system.db.format}
       ${test.runner.jvm.settings.additional}
       ${test.runner.jvm.settings.log.format}
       ${test.runner.jvm.settings.dbms.factory}
@@ -251,6 +252,7 @@
     <test.runner.jvm.settings.log.format />
     <test.runner.jvm.settings.query.language />
     <test.runner.jvm.settings.raft.log />
+    <test.runner.jvm.settings.system.db.format />
     <test.runner.mockito.agent>-javaagent:${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar</test.runner.mockito.agent>
     <test.vm.heap.size>2G</test.vm.heap.size>
     <test.vm.maxmetaspace>550m</test.vm.maxmetaspace>
