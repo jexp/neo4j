@@ -295,8 +295,10 @@ class CardinalityCostModelTest extends CypherPlannerTestSuite with AstConstructi
     ) should be < costFor(plan, withoutLimit, builder.getSemanticTable, builder.cardinalities, builder.providedOrders)
   }
 
-  test("hash join should be much costlier after 10 million rows on the LHS if the database mode is SHARDED") {
-    val lhsCardinality = PROBE_BUILD_LHS_LIMIT
+  test("hash join should be much costlier when the LHS is far beyond 10 million rows if the database mode is SHARDED") {
+    // Far enough beyond PROBE_BUILD_LHS_LIMIT that probeBuildMemoryMultiplier is capped at PROBE_BUILD_MEMORY_MULTIPLIER,
+    // i.e. this is the same penalty magnitude the old, uncapped step-function applied to any LHS crossing the limit.
+    val lhsCardinality = PROBE_BUILD_LHS_LIMIT * 1000L
     val rhsCardinality = 100.0
 
     val builder = new LogicalPlanBuilder(wholePlan = false)
@@ -357,6 +359,48 @@ class CardinalityCostModelTest extends CypherPlannerTestSuite with AstConstructi
     )
 
     shardedCost shouldEqual normalCost
+  }
+
+  test("hash join with LHS moderately over the probe build limit should still beat expanding the RHS instead") {
+    val smallCardinality = 500000.0
+    val bigCardinality = 5000000.0
+    val expandedSmallCardinality = 15000000.0 // small side expanded via R: 1.5x over PROBE_BUILD_LHS_LIMIT
+    val expandedBigCardinality = 150000000.0 // big side expanded via R at the same fanout
+
+    val expandOnLhsBuilder = new LogicalPlanBuilder(wholePlan = false)
+    val expandOnLhsPlan = expandOnLhsBuilder
+      .nodeHashJoin("b").withCardinality(expandedSmallCardinality)
+      .|.argument("b").withCardinality(bigCardinality)
+      .expandAll("(a)-[r:R]->(b)").withCardinality(expandedSmallCardinality)
+      .argument("a").withCardinality(smallCardinality)
+      .build()
+
+    val expandOnRhsBuilder = new LogicalPlanBuilder(wholePlan = false)
+    val expandOnRhsPlan = expandOnRhsBuilder
+      .nodeHashJoin("a").withCardinality(expandedBigCardinality)
+      .|.expandAll("(b)-[r:R]->(a)").withCardinality(expandedBigCardinality)
+      .|.argument("b").withCardinality(bigCardinality)
+      .argument("a").withCardinality(smallCardinality)
+      .build()
+
+    val expandOnLhsCost = costFor(
+      expandOnLhsPlan,
+      QueryGraphSolverInput.empty,
+      expandOnLhsBuilder.getSemanticTable,
+      expandOnLhsBuilder.cardinalities,
+      expandOnLhsBuilder.providedOrders,
+      databaseMode = DatabaseMode.SHARDED
+    )
+    val expandOnRhsCost = costFor(
+      expandOnRhsPlan,
+      QueryGraphSolverInput.empty,
+      expandOnRhsBuilder.getSemanticTable,
+      expandOnRhsBuilder.cardinalities,
+      expandOnRhsBuilder.providedOrders,
+      databaseMode = DatabaseMode.SHARDED
+    )
+
+    expandOnLhsCost should be < expandOnRhsCost
   }
 
   test("eager plans should cost the same regardless of limit selectivity") {

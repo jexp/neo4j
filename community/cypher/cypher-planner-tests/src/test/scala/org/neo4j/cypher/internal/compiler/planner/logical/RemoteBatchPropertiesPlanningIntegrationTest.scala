@@ -321,13 +321,16 @@ class RemoteBatchPropertiesPlanningIntegrationTest
       .build()
   }
 
+  // B's uniqueSelectivity is chosen so that, at these cardinalities, SINGLE mode prefers the hash join
+  // (both A and B exceed PROBE_BUILD_LHS_LIMIT, but the SHARDED-only memory penalty on the hash join's
+  // build side is what tips the balance to the nested index join, not raw selectivity/cost alone).
   test("should prefer nested index join over value hash join if the cardinality of LHS is large") {
     val planner = spdPlanner
       .setAllNodesCardinality(100_000_000)
       .setLabelCardinality("A", 50_000_000)
       .setLabelCardinality("B", 90_000_000)
-      .addNodeIndex("A", Seq("prop"), 1.0, 1.0 / 5000, isUnique = true)
-      .addNodeIndex("B", Seq("prop"), 1.0, 1.0)
+      .addNodeIndex("A", Seq("prop"), 1.0, 1.0 / 5_000_000, isUnique = true)
+      .addNodeIndex("B", Seq("prop"), 1.0, 1.0 / 5_000_000)
       .build()
 
     val query =

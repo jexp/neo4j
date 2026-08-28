@@ -343,10 +343,7 @@ case class CardinalityCostModel(
 
       case HashJoin() =>
         val memoryCostMultiplier =
-          if (databaseMode == DatabaseMode.SHARDED && effectiveCardinalities.lhs >= PROBE_BUILD_LHS_LIMIT)
-            PROBE_BUILD_MEMORY_MULTIPLIER
-          else
-            1.0
+          if (databaseMode == DatabaseMode.SHARDED) probeBuildMemoryMultiplier(effectiveCardinalities.lhs) else 1.0
 
         lhsCost + rhsCost +
           effectiveCardinalities.lhs * PROBE_BUILD_COST * memoryCostMultiplier +
@@ -434,6 +431,16 @@ case class CardinalityCostModel(
     }
   }
 
+  // Scales gradually above PROBE_BUILD_LHS_LIMIT, capped at PROBE_BUILD_MEMORY_MULTIPLIER, instead
+  // of jumping straight to the cap for a build side that only just crosses the limit.
+  private def probeBuildMemoryMultiplier(lhsCardinality: Cardinality): Double =
+    if (lhsCardinality.amount > PROBE_BUILD_LHS_LIMIT) {
+      val overLimitRatio = lhsCardinality.amount / PROBE_BUILD_LHS_LIMIT
+      Math.min(overLimitRatio * overLimitRatio, PROBE_BUILD_MEMORY_MULTIPLIER)
+    } else {
+      1.0
+    }
+
   // In Sharded mode, every index seek on RHS is costly since they are remote and not batched.
   private def nestedIndexJoinShardAccessPenalty(rhs: Option[LogicalPlan]): Cost = rhs match {
     case Some(plan) => plan.leftmostLeaf match {
@@ -450,10 +457,10 @@ object CardinalityCostModel {
   val PROBE_BUILD_LHS_LIMIT = 10_000_000 // 10 million rows is a heuristic limit for when to switch join strategies
 
   val PROBE_BUILD_MEMORY_MULTIPLIER =
-    // A very large multiplier to penalize large hash joins in sharded mode.
-    // This per-row multiplier is large enough that, when multiplied by any row count > PROBE_BUILD_LHS_LIMIT,
-    // the result reaches the scale of the largest exactly representable integer in a double (2^53).
-    // That makes these costs dominate other terms while still allowing values greater than 1.0 to influence totals.
+    // The maximum value `probeBuildMemoryMultiplier` can scale up to for a build side far beyond
+    // PROBE_BUILD_LHS_LIMIT. Large enough that, once capped, the resulting cost reaches the scale of the
+    // largest exactly representable integer in a double (2^53), so it dominates other terms for a genuinely
+    // huge build side while still allowing values greater than 1.0 to influence totals.
     1_000_000.0
   val PROBE_BUILD_COST: CostPerRow = 3.1
   val PROBE_SEARCH_COST: CostPerRow = 2.4
