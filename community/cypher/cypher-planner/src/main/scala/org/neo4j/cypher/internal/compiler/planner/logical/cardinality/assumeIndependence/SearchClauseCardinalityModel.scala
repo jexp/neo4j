@@ -28,7 +28,9 @@ import org.neo4j.cypher.internal.expressions.LabelName
 import org.neo4j.cypher.internal.expressions.LogicalVariable
 import org.neo4j.cypher.internal.expressions.Ors
 import org.neo4j.cypher.internal.expressions.RelTypeName
+import org.neo4j.cypher.internal.expressions.SemanticDirection
 import org.neo4j.cypher.internal.expressions.SignedDecimalIntegerLiteral
+import org.neo4j.cypher.internal.expressions.Variable
 import org.neo4j.cypher.internal.ir.FulltextSearchClause
 import org.neo4j.cypher.internal.ir.PatternRelationship
 import org.neo4j.cypher.internal.ir.Predicate
@@ -167,6 +169,13 @@ object SearchClauseCardinalityModel {
       .map(labelId => (labelId, planContext.getLabelName(labelId)))
       .toMap
 
+    val indexLabelNames = indexLabelIdToNameMap.values.toSeq
+    val queryGraphContainsLabelIndexRestriction = queryGraph.selections.predicates.exists {
+      case _ @Predicate(_, HasLabels(v2: LogicalVariable, labels))
+        if v2 == resultVariable && labels.map(_.name).intersect(indexLabelNames).nonEmpty => true
+      case _ => false
+    }
+
     // Predicate for a disjunction of labels on the bound node of the search clause
     val searchIndexLabelPredicate =
       Predicate(
@@ -184,11 +193,14 @@ object SearchClauseCardinalityModel {
       )
 
     val updatedQueryGraph =
-      queryGraph.withSelections(Selections(queryGraph.selections.predicates + searchIndexLabelPredicate))
+      if (!queryGraphContainsLabelIndexRestriction) {
+        queryGraph.withSelections(Selections(queryGraph.selections.predicates + searchIndexLabelPredicate))
+      } else
+        // The query graph already contains one of the index label as a label predicates
+        queryGraph
 
-    val updatedContext = context.copy(
-      semanticTable = context.semanticTable.addResolvedLabelNames(indexLabelIdToNameMap.map(_.swap))
-    )
+    val updatedContext =
+      context.copy(semanticTable = context.semanticTable.addResolvedLabelNames(indexLabelIdToNameMap.map(_.swap)))
 
     val searchIndexLabelsCardinality =
       indexDisjunctiveLabelsCardinality(resultVariable, searchIndexLabelPredicate, updatedContext)
@@ -384,17 +396,45 @@ object SearchClauseCardinalityModel {
     context: QueryGraphCardinalityContext,
     planContext: PlanContext
   ): (Selectivity, QueryGraph, QueryGraphCardinalityContext) = {
+    def createDummyRelationship(relVar: LogicalVariable) = {
+      PatternRelationship(
+        relVar,
+        (
+          new Variable("srcDummy")(InputPosition.NONE, Variable.isIsolatedDefault),
+          new Variable("trgDummy")(InputPosition.NONE, Variable.isIsolatedDefault)
+        ),
+        SemanticDirection.OUTGOING,
+        Seq.empty,
+        SimplePatternLength
+      )
+    }
     queryGraph.searchClause.fold((Selectivity.ONE, queryGraph, context)) {
       case vs: VectorSearchClause =>
         if (queryGraph.patternNodes.contains(vs.resultVariable))
           nodeVectorSearchClauseSelectivity(queryGraph, context, planContext, vs)
-        else
+        else if (queryGraph.patternRelationships.exists(_.variable == vs.resultVariable))
           relationshipVectorSearchClauseSelectivity(queryGraph, context, planContext, vs)
+        else {
+          // The result variable from the vector search clause does not appear in the query graph.
+          // This can happen when a relationship vector search index contains multiple types, and a subset of those
+          // types is specified as predicates on the relationship in the MATCH clause.
+          // Then, planRelationshipVectorIndexSearch did not add the relationship to the solved query graph.
+          // For cardinality estimation, let's add a dummy relationship without any types.
+          // This allows us to get the selectivity of the SEARCH clause here, and later multiply that selectivity
+          // with the cardinality of the updated query graph.
+          // That gives the cardinality of the query graph restricted by the constraints of the SEARCH clause.
+          val updatedQueryGraph = queryGraph.addPatternRelationship(createDummyRelationship(vs.resultVariable))
+          relationshipVectorSearchClauseSelectivity(updatedQueryGraph, context, planContext, vs)
+        }
       case fs: FulltextSearchClause =>
         if (queryGraph.patternNodes.contains(fs.resultVariable))
           nodeFulltextSearchClauseSelectivity(queryGraph, context, planContext, fs)
-        else
+        else if (queryGraph.patternRelationships.exists(_.variable == fs.resultVariable))
           relationshipFulltextSearchClauseSelectivity(queryGraph, context, planContext, fs)
+        else {
+          val updatedQueryGraph = queryGraph.addPatternRelationship(createDummyRelationship(fs.resultVariable))
+          relationshipFulltextSearchClauseSelectivity(updatedQueryGraph, context, planContext, fs)
+        }
     }
   }
 }

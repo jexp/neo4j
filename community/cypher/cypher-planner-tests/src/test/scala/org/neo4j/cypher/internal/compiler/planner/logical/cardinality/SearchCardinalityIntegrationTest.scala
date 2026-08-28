@@ -22,10 +22,12 @@ package org.neo4j.cypher.internal.compiler.planner.logical.cardinality
 import org.neo4j.cypher.internal.CypherVersion
 import org.neo4j.cypher.internal.ast.semantics.SemanticFeature.VectorSearchWithComplexPattern
 import org.neo4j.cypher.internal.compiler.CypherPlannerTestSuite
+import org.neo4j.cypher.internal.compiler.planner.LogicalPlanningAttributesTestSupport
 import org.neo4j.cypher.internal.compiler.planner.logical.PlannerDefaults
 import org.neo4j.cypher.internal.util.Selectivity
 
-class SearchCardinalityIntegrationTest extends CypherPlannerTestSuite with CardinalityIntegrationTestSupport {
+class SearchCardinalityIntegrationTest extends CypherPlannerTestSuite with CardinalityIntegrationTestSupport
+    with LogicalPlanningAttributesTestSupport {
   private val allNodes: Double = 1000.0
   private val allRels: Double = 50000.0
   private val `()-[:ACTED_IN]->()`: Double = 540.0
@@ -445,5 +447,100 @@ class SearchCardinalityIntegrationTest extends CypherPlannerTestSuite with Cardi
         Math.min(limit, `()-[:ACTED_IN]->()` + `()-[:DIRECTED]->()`)
       )
     )
+  }
+
+  test(
+    "Relationship vector search can act as a leaf operator to produce results"
+  ) {
+    Seq(1, 10, 20, 300, 5000).foreach(limit => {
+      val query =
+        s"""MATCH ()-[r:ACTED_IN]->() WHERE r.script IS NOT NULL
+           |SEARCH r IN (
+           |  VECTOR INDEX actsInOrDirectsScript
+           |  FOR [1, 2, 3]
+           |  LIMIT $limit
+           |)
+           |""".stripMargin
+      val planningConf = planner.build()
+
+      val planState = planningConf.planState(CypherVersion.Cypher25, query + "RETURN 1")
+
+      val `search(:ACTED_IN|DIRECTED) & r.script IS NOT NULL` =
+        Math.min(limit, `()-[:ACTED_IN]->()` + `()-[:DIRECTED]->()`)
+          * PlannerDefaults.DEFAULT_PROPERTY_SELECTIVITY.factor
+      val `search(:ACTED_IN|DIRECTED) & r.script IS NOT NULL & r:ACTED_IN` =
+        `search(:ACTED_IN|DIRECTED) & r.script IS NOT NULL`
+          * (`()-[:ACTED_IN]->()` / (`()-[:ACTED_IN]->()` + `()-[:DIRECTED]->()`))
+
+      val finalCardEst =
+        `()-[:ACTED_IN]->()`
+          * Math.min(1.0, limit / (`()-[:ACTED_IN]->()` + `()-[:DIRECTED]->()`)) // search selectivity
+          * PlannerDefaults.DEFAULT_PROPERTY_SELECTIVITY.factor // r.script IS NOT NULL selectivity
+
+      // `search(:ACTED_IN|DIRECTED) & r.script IS NOT NULL & r:ACTED_IN` and `finalCardEst` are exactly the same.
+      // Two different ways of reasoning, leading to the same result.
+      // `finalCardEst` resembles more closely the implementation.
+      `search(:ACTED_IN|DIRECTED) & r.script IS NOT NULL & r:ACTED_IN` should be(finalCardEst)
+
+      val expected = planningConf.planBuilder()
+        .produceResults("1").withCardinality(`search(:ACTED_IN|DIRECTED) & r.script IS NOT NULL & r:ACTED_IN`)
+        .projection("1 AS 1").withCardinality(`search(:ACTED_IN|DIRECTED) & r.script IS NOT NULL & r:ACTED_IN`)
+        .filter("r:ACTED_IN").withCardinality(`search(:ACTED_IN|DIRECTED) & r.script IS NOT NULL & r:ACTED_IN`)
+        .relationshipVectorIndexSearch(
+          "()-[r]->()",
+          Seq("ACTED_IN", "DIRECTED"),
+          Seq("script", "workingDays"),
+          "actsInOrDirectsScript",
+          "[1, 2, 3]",
+          s"$limit"
+        ).withCardinality(`search(:ACTED_IN|DIRECTED) & r.script IS NOT NULL`)
+
+      planState should haveSamePlanAndCardinalitiesAsBuilder(expected)
+    })
+  }
+
+  test(
+    "Node vector search can act as a leaf operator to produce results"
+  ) {
+    Seq(1, 10, 20, 300, 5000).foreach(limit => {
+      val query =
+        s"""MATCH (m:Movie) WHERE m.plot IS NOT NULL
+           |SEARCH m IN (
+           |  VECTOR INDEX movieOrBookPlots
+           |  FOR [1, 2, 3]
+           |  LIMIT $limit
+           |)
+           |""".stripMargin
+      val planningConf = planner.build()
+
+      val planState = planningConf.planState(CypherVersion.Cypher25, query + "RETURN 1")
+
+      val `(:Movie|Book)` = IndependenceCombiner.orTogetherSelectivities(Seq(
+        Selectivity(`(:Movie)` / allNodes),
+        Selectivity(`(:Book)` / allNodes)
+      )).get.factor * allNodes
+
+      val `search(:Movie|Book) & m.plot IS NOT NULL` =
+        Math.min(limit, `(:Movie|Book)`) * PlannerDefaults.DEFAULT_PROPERTY_SELECTIVITY.factor
+      val `search(:Movie|Book) & m.plot IS NOT NULL & m:Movie` =
+        `(:Movie)`
+          * Math.min(1.0, limit / `(:Movie|Book)`) // search clause selectivity
+          * PlannerDefaults.DEFAULT_PROPERTY_SELECTIVITY.factor // m.plot IS NOT NULL selectivity
+
+      val expected = planningConf.planBuilder()
+        .produceResults("1").withCardinality(`search(:Movie|Book) & m.plot IS NOT NULL & m:Movie`)
+        .projection("1 AS 1").withCardinality(`search(:Movie|Book) & m.plot IS NOT NULL & m:Movie`)
+        .filter("m:Movie").withCardinality(`search(:Movie|Book) & m.plot IS NOT NULL & m:Movie`)
+        .nodeVectorIndexSearch(
+          "m",
+          Seq("Movie", "Book"),
+          Seq("plot", "imdbRating", "releaseYear"),
+          "movieOrBookPlots",
+          "[1, 2, 3]",
+          s"$limit"
+        ).withCardinality(`search(:Movie|Book) & m.plot IS NOT NULL`)
+
+      planState should haveSamePlanAndCardinalitiesAsBuilder(expected)
+    })
   }
 }

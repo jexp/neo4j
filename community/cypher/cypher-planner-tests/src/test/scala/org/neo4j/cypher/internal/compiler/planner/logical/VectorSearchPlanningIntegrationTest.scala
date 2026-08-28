@@ -971,9 +971,8 @@ abstract class VectorSearchPlanningIntegrationTestBase extends CypherPlannerTest
     plan shouldEqual
       planner.planBuilder()
         .produceResults("`r.plot`")
-        .projection("cacheR[r.plot] AS `r.plot`")
+        .projection("r.plot AS `r.plot`")
         .filter(andsReorderable("r:ACTS_IN", "r:CONTRIBUTED"))
-        .cacheProperties("cacheRFromStore[r.plot]")
         .relationshipVectorIndexSearch(
           pattern = "()-[r]-()",
           typeNames = Seq("ACTS_IN", "CONTRIBUTED"),

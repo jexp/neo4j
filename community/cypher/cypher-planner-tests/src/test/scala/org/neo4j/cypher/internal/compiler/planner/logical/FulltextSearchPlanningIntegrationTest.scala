@@ -913,9 +913,8 @@ abstract class FulltextSearchPlanningIntegrationTestBase extends CypherPlannerTe
     plan shouldEqual
       planner.planBuilder()
         .produceResults("`r.script`")
-        .projection("cacheR[r.script] AS `r.script`")
+        .projection("r.script AS `r.script`")
         .filter("r:ACTS_IN") // by contrast, script IS NOT NULL is implicitly solved as it's the index's only property
-        .cacheProperties("cacheRFromStore[r.script]")
         .relationshipFulltextIndexSearch(
           pattern = "()-[r]->()",
           typeNames = Seq("ACTS_IN", "CONTRIBUTED"),
