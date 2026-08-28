@@ -19,9 +19,6 @@
  */
 package org.neo4j.batchimport.api;
 
-import java.io.DataInputStream;
-import java.io.IOException;
-
 public interface Monitor {
     Monitor NO_MONITOR = new Monitor() {};
 
@@ -68,26 +65,6 @@ public interface Monitor {
      * @see #detailedProgressReportIntervalMillis()
      */
     default void detailedProgressReport(DetailedProgressReport report) {}
-
-    /**
-     * Called once the number of nodes per range has been settled, before ranges are populated. Persists the
-     * calculated nodesPerRange to file for resumeable import.
-     */
-    default void persistNodesPerRange(long nodesPerRange) {}
-
-    /**
-     * Replaces the checkpoint {@link #lastCheckpoint()} returns with the given one, atomically.
-     */
-    default void writeCheckpoint(byte[] checkpoint) throws IOException {}
-
-    /**
-     * Returns a {@link DataInputStream} to read the most recently written checkpoint from. The caller must
-     * {@link DataInputStream#close() close} the stream when done.
-     * Returns {@code null} if the monitor does not support checkpoints, or if none has been written.
-     */
-    default DataInputStream lastCheckpoint() {
-        return null;
-    }
 
     class Delegate implements Monitor {
         private final Monitor delegate;
@@ -150,21 +127,6 @@ public interface Monitor {
         @Override
         public void detailedProgressReport(DetailedProgressReport report) {
             delegate.detailedProgressReport(report);
-        }
-
-        @Override
-        public void persistNodesPerRange(long nodesPerRange) {
-            delegate.persistNodesPerRange(nodesPerRange);
-        }
-
-        @Override
-        public void writeCheckpoint(byte[] checkpoint) throws IOException {
-            delegate.writeCheckpoint(checkpoint);
-        }
-
-        @Override
-        public DataInputStream lastCheckpoint() {
-            return delegate.lastCheckpoint();
         }
     }
 }

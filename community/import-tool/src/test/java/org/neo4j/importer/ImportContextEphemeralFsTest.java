@@ -78,6 +78,10 @@ class ImportContextEphemeralFsTest {
         assertThat(ImportContext.wasSuccessful(fs, baseDir)).isTrue();
         assertThat(contents(baseDir.resolve(ImportContext.NODES_PER_RANGE_FILE_NAME)))
                 .isEqualTo("42");
+
+        try (var importContext = ImportContext.create(fs, DB, baseDir, config, null, args, false, true, false)) {
+            assertThat(importContext.lastNodesPerRange()).isEqualTo(42L);
+        }
     }
 
     @Test

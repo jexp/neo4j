@@ -55,6 +55,7 @@ import java.util.function.Supplier;
 import org.neo4j.batchimport.api.Configuration;
 import org.neo4j.batchimport.api.ImportValidationException;
 import org.neo4j.batchimport.api.Monitor;
+import org.neo4j.batchimport.api.ResumableStateWriter;
 import org.neo4j.batchimport.api.UnsupportedFormatException;
 import org.neo4j.batchimport.api.input.Collector;
 import org.neo4j.batchimport.api.input.FileGroup;
@@ -144,6 +145,7 @@ public class FileImporter {
     private final FileInputType fileInputType;
     private final ShardingArguments shardingArguments;
     private final Monitor monitor;
+    private final ResumableStateWriter resumableStateWriter;
 
     private FileImporter(Builder b) {
         this.databaseLayout = requireNonNull(b.databaseLayout);
@@ -176,6 +178,7 @@ public class FileImporter {
         this.fileInputType = b.fileInputType;
         this.shardingArguments = b.shardingArguments;
         this.monitor = b.monitor;
+        this.resumableStateWriter = b.resumableStateWriter;
     }
 
     public FileInputType fileInputType() {
@@ -354,6 +357,7 @@ public class FileImporter {
                         indexProviders,
                         shardingArguments,
                         monitor,
+                        resumableStateWriter,
                         resume);
             } else {
                 type.doImport(
@@ -598,6 +602,7 @@ public class FileImporter {
         private FileInputType fileInputType = FileInputType.CSV;
         private ShardingArguments shardingArguments;
         private Monitor monitor = Monitor.NO_MONITOR;
+        private ResumableStateWriter resumableStateWriter = ResumableStateWriter.NOOP;
         private int globalFileIdCounter = 0;
 
         /**
@@ -787,6 +792,11 @@ public class FileImporter {
 
         public Builder withMonitor(Monitor monitor) {
             this.monitor = monitor;
+            return this;
+        }
+
+        public Builder withResumableStateWriter(ResumableStateWriter resumableStateWriter) {
+            this.resumableStateWriter = resumableStateWriter;
             return this;
         }
 

@@ -49,7 +49,10 @@ public interface BatchImporter extends Closeable {
     void doImport(Input input) throws IOException;
 
     default void doSkidbladnirImport(
-            Input input, Charset encoding, Map<Set<String>, List<FileGroup>> nodeFileGroupsByAdditionalLabels)
+            Input input,
+            Charset encoding,
+            Map<Set<String>, List<FileGroup>> nodeFileGroupsByAdditionalLabels,
+            ResumableStateWriter resumableStateWriter)
             throws IOException {
         throw new UnsupportedOperationException("Skidbladnir import is not supported like this.");
     }

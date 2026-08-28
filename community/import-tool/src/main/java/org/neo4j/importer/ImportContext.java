@@ -72,6 +72,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import org.neo4j.batchimport.api.DetailedProgressReport;
 import org.neo4j.batchimport.api.Monitor;
+import org.neo4j.batchimport.api.ResumableStateWriter;
 import org.neo4j.batchimport.api.UnsupportedFormatException;
 import org.neo4j.cli.CommandFailedException;
 import org.neo4j.cli.ExitCode;
@@ -94,7 +95,7 @@ import org.neo4j.logging.log4j.Log4jLogProvider;
 import org.neo4j.logging.log4j.LoggerTarget;
 import picocli.CommandLine.ParameterException;
 
-public class ImportContext extends Monitor.Delegate implements InternalLogProvider {
+public class ImportContext extends Monitor.Delegate implements InternalLogProvider, ResumableStateWriter {
 
     private static final DateTimeFormatter SPACELESS_DATE_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd.HH.mm.ss").withZone(ZoneId.systemDefault());
@@ -362,12 +363,6 @@ public class ImportContext extends Monitor.Delegate implements InternalLogProvid
         }
     }
 
-    private void write(Path path, String content) throws IOException {
-        try (var out = fs.openAsOutputStream(path, false)) {
-            out.write(content.getBytes(UTF_8));
-        }
-    }
-
     private void writeToTempFileAndReplaceAtomically(Path parentPath, String fileName, String content)
             throws IOException {
         writeToTempFileAndReplaceAtomically(parentPath, fileName, content.getBytes(UTF_8));
@@ -462,7 +457,24 @@ public class ImportContext extends Monitor.Delegate implements InternalLogProvid
     public void persistNodesPerRange(long nodesPerRange) {
         try {
             fs.mkdirs(baseDir());
-            write(baseDir().resolve(NODES_PER_RANGE_FILE_NAME), Long.toString(nodesPerRange));
+            writeToTempFileAndReplaceAtomically(baseDir(), NODES_PER_RANGE_FILE_NAME, Long.toString(nodesPerRange));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    @Override
+    public long lastNodesPerRange() {
+        try {
+            Path path = baseDir().resolve(NODES_PER_RANGE_FILE_NAME);
+            if (!fs.fileExists(path)) {
+                return NO_PREVIOUS_NODES_PER_RANGE;
+            }
+            try (var is = fs.openAsInputStream(path)) {
+                return Long.parseLong(new String(is.readAllBytes(), UTF_8));
+            } catch (NumberFormatException e) {
+                throw new IOException("Invalid nodes-per-range value in " + path, e);
+            }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

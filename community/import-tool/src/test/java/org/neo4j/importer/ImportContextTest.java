@@ -572,6 +572,71 @@ class ImportContextTest {
     }
 
     @Test
+    void noNodesPerRangeToReadBeforeOneWasPersisted() {
+        try (var importContext = getRetainingImportContext()) {
+            assertThat(importContext.lastNodesPerRange()).isEqualTo(-1);
+        }
+    }
+
+    @Test
+    void nodesPerRangeIsReadBackOnResume() {
+        Path baseDir;
+        try (var importContext = getRetainingImportContext()) {
+            importContext.persistNodesPerRange(42L);
+            baseDir = importContext.baseDir();
+        }
+
+        try (var importContext = getResumingRetainingImportContext(baseDir)) {
+            assertThat(importContext.lastNodesPerRange()).isEqualTo(42L);
+        }
+    }
+
+    @Test
+    void nodesPerRangeReadBackIsTheMostRecentlyPersistedOne() {
+        Path baseDir;
+        try (var importContext = getRetainingImportContext()) {
+            importContext.persistNodesPerRange(42L);
+            importContext.persistNodesPerRange(43L);
+            baseDir = importContext.baseDir();
+            assertThat(importContext.lastNodesPerRange()).isEqualTo(43L);
+        }
+
+        try (var importContext = getResumingRetainingImportContext(baseDir)) {
+            assertThat(importContext.lastNodesPerRange()).isEqualTo(43L);
+        }
+    }
+
+    @Test
+    void nodesPerRangeOfAnAttemptIsNotVisibleToAnUnrelatedOne() {
+        try (var importContext = getRetainingImportContext()) {
+            importContext.persistNodesPerRange(42L);
+        }
+
+        // a fresh attempt gets a context directory of its own, so it must not pick up the other attempt's value
+        try (var importContext = getRetainingImportContext()) {
+            assertThat(importContext.lastNodesPerRange()).isEqualTo(-1);
+        }
+    }
+
+    @Test
+    void unparseableNodesPerRangeIsReported() throws IOException {
+        Path baseDir;
+        try (var importContext = getRetainingImportContext()) {
+            importContext.persistNodesPerRange(42L);
+            baseDir = importContext.baseDir();
+        }
+        Path nodesPerRangePath = baseDir.resolve(ImportContext.NODES_PER_RANGE_FILE_NAME);
+        Files.writeString(nodesPerRangePath, "forty two");
+
+        try (var importContext = getResumingRetainingImportContext(baseDir)) {
+            assertThatExceptionOfType(UncheckedIOException.class)
+                    .isThrownBy(importContext::lastNodesPerRange)
+                    .withMessageContaining(nodesPerRangePath.toString())
+                    .withRootCauseInstanceOf(NumberFormatException.class);
+        }
+    }
+
+    @Test
     void eachRunCreatesNewContext() {
         var content1 = "content1";
         var content2 = "content2";
