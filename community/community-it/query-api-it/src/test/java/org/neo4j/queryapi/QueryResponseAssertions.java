@@ -48,6 +48,7 @@ import org.neo4j.queryapi.test.QueryAPITestRetryException;
 import org.neo4j.queryapi.test.testclient.QueryContentType;
 import org.neo4j.queryapi.test.testclient.QueryResponse;
 import org.neo4j.server.queryapi.exception.TransactionIdCollisionException;
+import org.neo4j.test.TestDatabaseManagementServiceFactorySupplier;
 
 public final class QueryResponseAssertions
         extends AbstractAssert<QueryResponseAssertions, HttpResponse<QueryResponse>> {
@@ -328,10 +329,18 @@ public final class QueryResponseAssertions
         Assertions.assertThat(profiledQueryPlan.get("records").asInt()).isEqualTo(1);
         Assertions.assertThat(profiledQueryPlan.get("hasPageCacheStats").asBoolean())
                 .isEqualTo(false);
-        Assertions.assertThat(profiledQueryPlan.get("pageCacheHits").asInt()).isEqualTo(0);
-        Assertions.assertThat(profiledQueryPlan.get("pageCacheMisses").asInt()).isEqualTo(0);
-        Assertions.assertThat(profiledQueryPlan.get("pageCacheHitRatio").asDouble())
-                .isEqualTo(0);
+        if (TestDatabaseManagementServiceFactorySupplier.isSpd()) {
+            Assertions.assertThat(profiledQueryPlan.get("pageCacheHits")).isNull();
+            Assertions.assertThat(profiledQueryPlan.get("pageCacheMisses")).isNull();
+            Assertions.assertThat(profiledQueryPlan.get("pageCacheHitRatio")).isNull();
+        } else {
+            Assertions.assertThat(profiledQueryPlan.get("pageCacheHits").asInt())
+                    .isEqualTo(0);
+            Assertions.assertThat(profiledQueryPlan.get("pageCacheMisses").asInt())
+                    .isEqualTo(0);
+            Assertions.assertThat(profiledQueryPlan.get("pageCacheHitRatio").asDouble())
+                    .isEqualTo(0);
+        }
         Assertions.assertThat(profiledQueryPlan.get("operatorType").asText()).startsWith("ProduceResults@neo4j");
         assertNotNull(profiledQueryPlan.get("arguments"));
         Assertions.assertThat(profiledQueryPlan.get("identifiers").size()).isEqualTo(1);
@@ -352,7 +361,11 @@ public final class QueryResponseAssertions
                 .isEqualTo(0);
         Assertions.assertThat(childProfile.get(0).get("pageCacheHitRatio").asDouble())
                 .isEqualTo(0);
-        Assertions.assertThat(childProfile.get(0).get("time")).isNull();
+        if (TestDatabaseManagementServiceFactorySupplier.isSpd()) {
+            Assertions.assertThat(childProfile.get(0).get("time").asInt()).isEqualTo(0);
+        } else {
+            Assertions.assertThat(childProfile.get(0).get("time")).isNull();
+        }
         Assertions.assertThat(childProfile.get(0).get("operatorType").asText()).startsWith("Projection@neo4j");
         assertNotNull(childProfile.get(0).get("arguments"));
         Assertions.assertThat(childProfile.get(0).get("identifiers").size()).isEqualTo(1);

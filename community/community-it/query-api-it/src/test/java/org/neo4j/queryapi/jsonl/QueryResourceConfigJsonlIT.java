@@ -40,6 +40,7 @@ import org.neo4j.queryapi.TransactionType;
 import org.neo4j.queryapi.test.annotation.QueryAPITestExtension;
 import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
 import org.neo4j.queryapi.test.testclient.QueryContentType;
+import org.neo4j.test.TestDatabaseManagementServiceFactorySupplier;
 
 @QueryAPITestExtension
 class QueryResourceConfigJsonlIT {
@@ -199,10 +200,19 @@ class QueryResourceConfigJsonlIT {
                     assertThat(profiledQueryPlan.get("records").asInt()).isEqualTo(1);
                     assertThat(profiledQueryPlan.get("hasPageCacheStats").asBoolean())
                             .isEqualTo(false);
-                    assertThat(profiledQueryPlan.get("pageCacheHits").asInt()).isEqualTo(0);
-                    assertThat(profiledQueryPlan.get("pageCacheMisses").asInt()).isEqualTo(0);
-                    assertThat(profiledQueryPlan.get("pageCacheHitRatio").asDouble())
-                            .isEqualTo(0);
+
+                    if (TestDatabaseManagementServiceFactorySupplier.isSpd()) {
+                        assertThat(profiledQueryPlan.get("pageCacheHits")).isNull();
+                        assertThat(profiledQueryPlan.get("pageCacheMisses")).isNull();
+                        assertThat(profiledQueryPlan.get("pageCacheHitRatio")).isNull();
+                    } else {
+                        assertThat(profiledQueryPlan.get("pageCacheHits").asInt())
+                                .isEqualTo(0);
+                        assertThat(profiledQueryPlan.get("pageCacheMisses").asInt())
+                                .isEqualTo(0);
+                        assertThat(profiledQueryPlan.get("pageCacheHitRatio").asDouble())
+                                .isEqualTo(0);
+                    }
 
                     assertThat(profiledQueryPlan.get("operatorType").asText()).isEqualTo("ProduceResults@" + dbName);
                     assertNotNull(profiledQueryPlan.get("arguments"));
@@ -225,7 +235,12 @@ class QueryResourceConfigJsonlIT {
                             .isEqualTo(0);
                     assertThat(childProfile.get(0).get("pageCacheHitRatio").asDouble())
                             .isEqualTo(0);
-                    assertThat(childProfile.get(0).get("time")).isNull();
+                    if (TestDatabaseManagementServiceFactorySupplier.isSpd()) {
+                        assertThat(childProfile.get(0).get("time").asInt()).isEqualTo(0);
+                    } else {
+                        assertThat(childProfile.get(0).get("time")).isNull();
+                    }
+
                     assertThat(childProfile.get(0).get("operatorType").asText()).isEqualTo("Projection@" + dbName);
                     assertNotNull(childProfile.get(0).get("arguments"));
                     assertThat(childProfile.get(0).get("identifiers").size()).isEqualTo(1);
