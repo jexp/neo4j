@@ -32,7 +32,8 @@ case class NodeIndexScanPipe(
   label: LabelToken,
   properties: Seq[IndexedProperty],
   queryIndexId: Int,
-  indexOrder: IndexOrder
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID) extends Pipe with IndexPipeWithValues {
 
   override val ident: Option[String] = Some(node)
@@ -46,7 +47,13 @@ case class NodeIndexScanPipe(
 
   protected def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = {
     val baseContext = state.newRowWithArgument(rowFactory)
-    val cursor = state.query.nodeIndexScan(state.queryIndexes(queryIndexId), needsValues, indexOrder)
+    val cursor =
+      state.query.nodeIndexScan(
+        state.queryIndexes(queryIndexId),
+        needsValues,
+        indexOrder,
+        includeChangesFromThisTransaction
+      )
     new NodeIndexIterator(state, state.query, baseContext, cursor)
   }
 }

@@ -30,7 +30,8 @@ case class UndirectedUnionRelationshipTypesScanPipe(
   fromNode: Option[String],
   types: Seq[LazyTypeStatic],
   toNode: Option[String],
-  indexOrder: IndexOrder
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
 )(
   val id: Id =
     Id.INVALID_ID
@@ -42,7 +43,8 @@ case class UndirectedUnionRelationshipTypesScanPipe(
       types,
       indexOrder,
       state.relTypeTokenReadSession.get,
-      callReadFromStore = true
+      callReadFromStore = true,
+      includeChangesFromThisTransaction
     )
     new UndirectedRelationshipTypeScanPipe.UndirectedIterator(relIterator, ident, fromNode, toNode, rowFactory, state)
   }

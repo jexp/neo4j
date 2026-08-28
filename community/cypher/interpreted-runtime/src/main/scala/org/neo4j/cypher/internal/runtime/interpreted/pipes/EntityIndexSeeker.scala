@@ -55,13 +55,20 @@ class EntityIndexSeeker(
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    baseContext: CypherRow
+    baseContext: CypherRow,
+    includeChangesFromThisTransaction: Boolean
   ): NodeValueIndexCursor =
     indexMode match {
       case NonLockingSeek =>
         val indexQueries: collection.Seq[Seq[PropertyIndexQuery]] = computeIndexQueries(state, baseContext)
         if (indexQueries.size == 1) {
-          state.query.nodeIndexSeek(index, needsValues, indexOrder, indexQueries.head)
+          state.query.nodeIndexSeek(
+            index,
+            needsValues,
+            indexOrder,
+            indexQueries.head,
+            includeChangesFromThisTransaction
+          )
         } else {
           orderedCursor(
             indexOrder,
@@ -70,7 +77,8 @@ class EntityIndexSeeker(
                 index,
                 needsValues = needsValues || indexOrder != IndexOrderNone,
                 indexOrder,
-                query
+                query,
+                includeChangesFromThisTransaction
               )
             ).toArray
           )
@@ -93,12 +101,19 @@ class EntityIndexSeeker(
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    baseContext: CypherRow
+    baseContext: CypherRow,
+    includeChangesFromThisTransaction: Boolean
   ): RelationshipValueIndexCursor = indexMode match {
     case NonLockingSeek =>
       val indexQueries: collection.Seq[Seq[PropertyIndexQuery]] = computeIndexQueries(state, baseContext)
       if (indexQueries.size == 1) {
-        state.query.relationshipIndexSeek(index, needsValues, indexOrder, indexQueries.head)
+        state.query.relationshipIndexSeek(
+          index,
+          needsValues,
+          indexOrder,
+          indexQueries.head,
+          includeChangesFromThisTransaction
+        )
       } else {
         orderedCursor(
           indexOrder,
@@ -107,7 +122,8 @@ class EntityIndexSeeker(
               index,
               needsValues = needsValues || indexOrder != IndexOrderNone,
               indexOrder,
-              query
+              query,
+              includeChangesFromThisTransaction
             )
           ).toArray
         )

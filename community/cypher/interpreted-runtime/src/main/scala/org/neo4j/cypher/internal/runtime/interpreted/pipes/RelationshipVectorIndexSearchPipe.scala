@@ -322,6 +322,7 @@ object RelationshipVectorIndexSearchPipe {
           state
         )
       if (queries.nonEmpty) {
+        // No includeChangesFromThisTransaction: a vector reader never reads transaction state.
         query.relationshipIndexSeek(
           index,
           needsValues = false,

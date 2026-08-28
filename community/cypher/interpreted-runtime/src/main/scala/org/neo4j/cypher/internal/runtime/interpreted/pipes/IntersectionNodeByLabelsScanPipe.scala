@@ -38,12 +38,22 @@ import org.neo4j.io.IOUtils
 import org.neo4j.token.api.TokenConstants.NO_TOKEN
 import org.neo4j.values.virtual.VirtualValues
 
-case class IntersectionNodeByLabelsScanPipe(ident: String, labels: Seq[LazyLabel], indexOrder: IndexOrder)(val id: Id =
-  Id.INVALID_ID)
+case class IntersectionNodeByLabelsScanPipe(
+  ident: String,
+  labels: Seq[LazyLabel],
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
+)(val id: Id = Id.INVALID_ID)
     extends Pipe {
 
   protected def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = {
-    val nodes = intersectionIterator(state.query, labels, indexOrder, state.nodeLabelTokenReadSession.get)
+    val nodes = intersectionIterator(
+      state.query,
+      labels,
+      indexOrder,
+      state.nodeLabelTokenReadSession.get,
+      includeChangesFromThisTransaction
+    )
     val baseContext = state.newRowWithArgument(rowFactory)
     PrimitiveLongHelper.map(nodes, n => rowFactory.copyWith(baseContext, ident, VirtualValues.node(n)))
   }
@@ -55,19 +65,27 @@ object IntersectionNodeByLabelsScanPipe {
     query: QueryContext,
     labels: Seq[LazyLabel],
     indexOrder: IndexOrder,
-    tokenReadSession: TokenReadSession
+    tokenReadSession: TokenReadSession,
+    includeChangesFromThisTransaction: Boolean
   ): ClosingLongIterator =
-    intersectionIterator(query, labels.map(_.getId(query)).toArray, indexOrder, tokenReadSession)
+    intersectionIterator(
+      query,
+      labels.map(_.getId(query)).toArray,
+      indexOrder,
+      tokenReadSession,
+      includeChangesFromThisTransaction
+    )
 
   def intersectionIterator(
     query: QueryContext,
     ids: Array[Int],
     indexOrder: IndexOrder,
-    tokenReadSession: TokenReadSession
+    tokenReadSession: TokenReadSession,
+    includeChangesFromThisTransaction: Boolean
   ): ClosingLongIterator = {
     if (ids.isEmpty || ids.contains(NO_TOKEN)) ClosingLongIterator.empty
     else if (ids.length == 1) {
-      query.getNodesByLabel(tokenReadSession, ids.head, indexOrder)
+      query.getNodesByLabel(tokenReadSession, ids.head, indexOrder, includeChangesFromThisTransaction)
     } else {
       val cursors = ids.map(_ => {
         val c = query.nodeLabelIndexCursor()
@@ -81,14 +99,16 @@ object IntersectionNodeByLabelsScanPipe {
             tokenReadSession,
             query.transactionalContext.cursorContext,
             ids,
-            cursors
+            cursors,
+            includeChangesFromThisTransaction
           )
         case IndexOrderDescending => descendingIntersectionNodeLabelIndexCursor(
             query.transactionalContext.dataRead,
             tokenReadSession,
             query.transactionalContext.cursorContext,
             ids,
-            cursors
+            cursors,
+            includeChangesFromThisTransaction
           )
       }
 

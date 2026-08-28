@@ -31,12 +31,13 @@ import org.neo4j.cypher.internal.util.attribution.Id
 case class UndirectedAllRelationshipsScanSlottedPipe(
   relOffset: Option[Int],
   fromOffset: Option[Int],
-  toOffset: Option[Int]
+  toOffset: Option[Int],
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID) extends Pipe {
 
   protected def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = {
     val query: QueryContext = state.query
-    val relIterator = allRelationshipsIterator(query)
+    val relIterator = allRelationshipsIterator(query, includeChangesFromThisTransaction)
     new UndirectedIterator(relIterator, relOffset, fromOffset, toOffset, rowFactory, state)
   }
 }

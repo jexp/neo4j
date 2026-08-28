@@ -41,16 +41,18 @@ public abstract class UnionRelationshipTypeIndexCursor extends UnionTokenIndexCu
             TokenReadSession tokenReadSession,
             CursorContext cursorContext,
             int[] types,
-            RelationshipTypeIndexCursor[] cursors)
+            RelationshipTypeIndexCursor[] cursors,
+            boolean includeChangesFromThisTransaction)
             throws KernelException {
         assert types.length == cursors.length;
         for (int i = 0; i < types.length; i++) {
-            read.relationshipTypeScan(
+            read.relationshipTypeIndexScan(
                     tokenReadSession,
                     cursors[i],
                     IndexQueryConstraints.ordered(IndexOrder.ASCENDING),
                     new TokenPredicate(types[i]),
-                    cursorContext);
+                    cursorContext,
+                    includeChangesFromThisTransaction);
         }
         return new AscendingUnionRelationshipTypeIndexCursor(cursors);
     }
@@ -60,16 +62,18 @@ public abstract class UnionRelationshipTypeIndexCursor extends UnionTokenIndexCu
             TokenReadSession tokenReadSession,
             CursorContext cursorContext,
             int[] types,
-            RelationshipTypeIndexCursor[] cursors)
+            RelationshipTypeIndexCursor[] cursors,
+            boolean includeChangesFromThisTransaction)
             throws KernelException {
         assert types.length == cursors.length;
         for (int i = 0; i < types.length; i++) {
-            read.relationshipTypeScan(
+            read.relationshipTypeIndexScan(
                     tokenReadSession,
                     cursors[i],
                     IndexQueryConstraints.ordered(IndexOrder.DESCENDING),
                     new TokenPredicate(types[i]),
-                    cursorContext);
+                    cursorContext,
+                    includeChangesFromThisTransaction);
         }
         return new DescendingUnionRelationshipTypeIndexCursor(cursors);
     }

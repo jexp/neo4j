@@ -168,7 +168,8 @@ trait SlottedRuntime[-CONTEXT <: RuntimeContext] extends CypherRuntime[CONTEXT] 
           queryIndexRegistrator,
           context.anonymousVariableNameGenerator,
           context.isCommunity,
-          physicalPlan.parameterMapping
+          physicalPlan.parameterMapping,
+          query.stableLeafPlans
         )(query.semanticTable),
         physicalPlan,
         converters
@@ -178,7 +179,8 @@ trait SlottedRuntime[-CONTEXT <: RuntimeContext] extends CypherRuntime[CONTEXT] 
         converters,
         physicalPlan,
         query.readOnly,
-        queryIndexRegistrator
+        queryIndexRegistrator,
+        query.stableLeafPlans
       )(query.semanticTable)
       val pipeTreeBuilder = PipeTreeBuilder(pipeBuilder)
       val logicalPlanWithConvertedNestedPlans = NestedPipeExpressions.build(

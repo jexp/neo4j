@@ -47,13 +47,24 @@ public abstract class SubtractionNodeLabelIndexCursor extends DefaultCloseListen
             int[] positiveLabels,
             int[] negativeLabels,
             NodeLabelIndexCursor[] positiveCursors,
-            NodeLabelIndexCursor[] negativeCursors)
+            NodeLabelIndexCursor[] negativeCursors,
+            boolean includeChangesFromThisTransaction)
             throws KernelException {
         return new AscendingSubtractionLabelIndexCursor(
                 ascendingIntersectionNodeLabelIndexCursor(
-                        read, tokenReadSession, cursorContext, positiveLabels, positiveCursors),
+                        read,
+                        tokenReadSession,
+                        cursorContext,
+                        positiveLabels,
+                        positiveCursors,
+                        includeChangesFromThisTransaction),
                 ascendingUnionNodeLabelIndexCursor(
-                        read, tokenReadSession, cursorContext, negativeLabels, negativeCursors));
+                        read,
+                        tokenReadSession,
+                        cursorContext,
+                        negativeLabels,
+                        negativeCursors,
+                        includeChangesFromThisTransaction));
     }
 
     public static SubtractionNodeLabelIndexCursor descendingSubtractionNodeLabelIndexCursor(
@@ -63,13 +74,24 @@ public abstract class SubtractionNodeLabelIndexCursor extends DefaultCloseListen
             int[] positiveLabels,
             int[] negativeLabels,
             NodeLabelIndexCursor[] positiveCursors,
-            NodeLabelIndexCursor[] negativeCursors)
+            NodeLabelIndexCursor[] negativeCursors,
+            boolean includeChangesFromThisTransaction)
             throws KernelException {
         return new DescendingSubtractionLabelIndexCursor(
                 descendingIntersectionNodeLabelIndexCursor(
-                        read, tokenReadSession, cursorContext, positiveLabels, positiveCursors),
+                        read,
+                        tokenReadSession,
+                        cursorContext,
+                        positiveLabels,
+                        positiveCursors,
+                        includeChangesFromThisTransaction),
                 descendingUnionNodeLabelIndexCursor(
-                        read, tokenReadSession, cursorContext, negativeLabels, negativeCursors));
+                        read,
+                        tokenReadSession,
+                        cursorContext,
+                        negativeLabels,
+                        negativeCursors,
+                        includeChangesFromThisTransaction));
     }
 
     public static SubtractionNodeLabelIndexCursor subtractionNodeLabelIndexCursor(

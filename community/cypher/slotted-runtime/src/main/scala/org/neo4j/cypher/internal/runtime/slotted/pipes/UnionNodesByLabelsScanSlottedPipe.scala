@@ -32,12 +32,19 @@ import org.neo4j.cypher.internal.util.attribution.Id
 case class UnionNodesByLabelsScanSlottedPipe(
   nodeOffset: Int,
   labels: Seq[LazyLabel],
-  indexOrder: IndexOrder
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID) extends Pipe {
 
   protected def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = {
     PrimitiveLongHelper.map(
-      unionIterator(state.query, labels, indexOrder, state.nodeLabelTokenReadSession.get),
+      unionIterator(
+        state.query,
+        labels,
+        indexOrder,
+        state.nodeLabelTokenReadSession.get,
+        includeChangesFromThisTransaction
+      ),
       n => {
         val context = state.newRowWithArgument(rowFactory)
         context.setLongAt(nodeOffset, n)

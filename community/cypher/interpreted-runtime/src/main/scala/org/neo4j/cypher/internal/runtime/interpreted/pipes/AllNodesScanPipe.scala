@@ -25,12 +25,14 @@ import org.neo4j.cypher.internal.runtime.PrimitiveLongHelper
 import org.neo4j.cypher.internal.util.attribution.Id
 import org.neo4j.values.virtual.VirtualValues
 
-case class AllNodesScanPipe(ident: String)(val id: Id = Id.INVALID_ID) extends Pipe {
+case class AllNodesScanPipe(ident: String, includeChangesFromThisTransaction: Boolean)(
+  val id: Id = Id.INVALID_ID
+) extends Pipe {
 
   protected def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = {
     val baseContext = state.newRowWithArgument(rowFactory)
     PrimitiveLongHelper.map(
-      state.query.nodeReadOps.all,
+      state.query.nodeReadOps.all(includeChangesFromThisTransaction),
       n => rowFactory.copyWith(baseContext, ident, VirtualValues.node(n))
     )
   }

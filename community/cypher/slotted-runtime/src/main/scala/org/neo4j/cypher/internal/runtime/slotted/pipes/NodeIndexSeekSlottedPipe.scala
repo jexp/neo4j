@@ -41,7 +41,8 @@ case class NodeIndexSeekSlottedPipe(
   valueExpr: QueryExpression[Expression],
   indexMode: IndexSeekMode,
   indexOrder: IndexOrder,
-  slots: SlotConfiguration
+  slots: SlotConfiguration,
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID) extends Pipe with IndexSlottedPipeWithValues {
 
   override val offset: Option[Int] = Some(slots.longOffset(ident))
@@ -60,7 +61,10 @@ case class NodeIndexSeekSlottedPipe(
   protected def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = {
     val index = state.queryIndexes(queryIndexId)
     val context = state.newRowWithArgument(rowFactory)
-    new SlottedNodeIndexIterator(state, entityIndexSeeker.indexSeek(state, index, needsValues, indexOrder, context))
+    new SlottedNodeIndexIterator(
+      state,
+      entityIndexSeeker.indexSeek(state, index, needsValues, indexOrder, context, includeChangesFromThisTransaction)
+    )
   }
 
   def canEqual(other: Any): Boolean = other.isInstanceOf[NodeIndexSeekSlottedPipe]

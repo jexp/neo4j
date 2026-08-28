@@ -42,4 +42,9 @@ enum LeafStability {
    * must treat it as unstable (e.g. plan an additional Eager).
    */
   case MvccNonEmptyTx
+
+  /**
+   * Only a stable iterator may ask the kernel to skip this transaction's changes.
+   */
+  def includeChangesFromThisTransaction: Boolean = this != LeafStability.MvccEmptyTx
 }

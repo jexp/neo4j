@@ -33,12 +33,20 @@ case class SubtractionNodesByLabelsScanSlottedPipe(
   nodeOffset: Int,
   positiveLabels: Seq[LazyLabel],
   negativeLabels: Seq[LazyLabel],
-  indexOrder: IndexOrder
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID) extends Pipe {
 
   protected def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = {
     PrimitiveLongHelper.map(
-      subtractionIterator(state.query, positiveLabels, negativeLabels, indexOrder, state.nodeLabelTokenReadSession.get),
+      subtractionIterator(
+        state.query,
+        positiveLabels,
+        negativeLabels,
+        indexOrder,
+        state.nodeLabelTokenReadSession.get,
+        includeChangesFromThisTransaction
+      ),
       n => {
         val context = state.newRowWithArgument(rowFactory)
         context.setLongAt(nodeOffset, n)

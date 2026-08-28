@@ -187,9 +187,13 @@ class ExceptionTranslatingReadQueryContext(val inner: ReadQueryContext) extends 
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    values: Seq[PropertyIndexQuery]
+    values: Seq[PropertyIndexQuery],
+    includeChangesFromThisTransaction: Boolean
   ): NodeValueIndexCursor =
-    translateException(tokenNameLookup, inner.nodeIndexSeek(index, needsValues, indexOrder, values))
+    translateException(
+      tokenNameLookup,
+      inner.nodeIndexSeek(index, needsValues, indexOrder, values, includeChangesFromThisTransaction)
+    )
 
   override def nodeFulltextIndexSeek(
     index: IndexReadSession,
@@ -209,9 +213,13 @@ class ExceptionTranslatingReadQueryContext(val inner: ReadQueryContext) extends 
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    values: Seq[PropertyIndexQuery]
+    values: Seq[PropertyIndexQuery],
+    includeChangesFromThisTransaction: Boolean
   ): RelationshipValueIndexCursor =
-    translateException(tokenNameLookup, inner.relationshipIndexSeek(index, needsValues, indexOrder, values))
+    translateException(
+      tokenNameLookup,
+      inner.relationshipIndexSeek(index, needsValues, indexOrder, values, includeChangesFromThisTransaction)
+    )
 
   override def relationshipLockingUniqueIndexSeek(
     index: IndexReadSession,
@@ -223,31 +231,47 @@ class ExceptionTranslatingReadQueryContext(val inner: ReadQueryContext) extends 
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    value: TextValue
+    value: TextValue,
+    includeChangesFromThisTransaction: Boolean
   ): RelationshipValueIndexCursor =
-    translateException(tokenNameLookup, inner.relationshipIndexSeekByContains(index, needsValues, indexOrder, value))
+    translateException(
+      tokenNameLookup,
+      inner.relationshipIndexSeekByContains(index, needsValues, indexOrder, value, includeChangesFromThisTransaction)
+    )
 
   override def relationshipIndexSeekByEndsWith(
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    value: TextValue
+    value: TextValue,
+    includeChangesFromThisTransaction: Boolean
   ): RelationshipValueIndexCursor =
-    translateException(tokenNameLookup, inner.relationshipIndexSeekByEndsWith(index, needsValues, indexOrder, value))
+    translateException(
+      tokenNameLookup,
+      inner.relationshipIndexSeekByEndsWith(index, needsValues, indexOrder, value, includeChangesFromThisTransaction)
+    )
 
   override def relationshipIndexScan(
     index: IndexReadSession,
     needsValues: Boolean,
-    indexOrder: IndexOrder
+    indexOrder: IndexOrder,
+    includeChangesFromThisTransaction: Boolean
   ): RelationshipValueIndexCursor =
-    translateException(tokenNameLookup, inner.relationshipIndexScan(index, needsValues, indexOrder))
+    translateException(
+      tokenNameLookup,
+      inner.relationshipIndexScan(index, needsValues, indexOrder, includeChangesFromThisTransaction)
+    )
 
   override def getNodesByLabel(
     tokenReadSession: TokenReadSession,
     id: Int,
-    indexOrder: IndexOrder
+    indexOrder: IndexOrder,
+    includeChangesFromThisTransaction: Boolean
   ): ClosingLongIterator =
-    translateException(tokenNameLookup, inner.getNodesByLabel(tokenReadSession, id, indexOrder))
+    translateException(
+      tokenNameLookup,
+      inner.getNodesByLabel(tokenReadSession, id, indexOrder, includeChangesFromThisTransaction)
+    )
 
   override def nodeAsMap(
     id: Long,
@@ -471,9 +495,13 @@ class ExceptionTranslatingReadQueryContext(val inner: ReadQueryContext) extends 
   override def getRelationshipsByType(
     tokenReadSession: TokenReadSession,
     relType: Int,
-    indexOrder: IndexOrder
+    indexOrder: IndexOrder,
+    includeChangesFromThisTransaction: Boolean
   ): ClosingRelationshipIterator =
-    translateException(tokenNameLookup, inner.getRelationshipsByType(tokenReadSession, relType, indexOrder))
+    translateException(
+      tokenNameLookup,
+      inner.getRelationshipsByType(tokenReadSession, relType, indexOrder, includeChangesFromThisTransaction)
+    )
 
   override def nodeCursor(): NodeCursor = translateException(tokenNameLookup, inner.nodeCursor())
 
@@ -505,24 +533,36 @@ class ExceptionTranslatingReadQueryContext(val inner: ReadQueryContext) extends 
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    value: TextValue
+    value: TextValue,
+    includeChangesFromThisTransaction: Boolean
   ): NodeValueIndexCursor =
-    translateException(tokenNameLookup, inner.nodeIndexSeekByContains(index, needsValues, indexOrder, value))
+    translateException(
+      tokenNameLookup,
+      inner.nodeIndexSeekByContains(index, needsValues, indexOrder, value, includeChangesFromThisTransaction)
+    )
 
   override def nodeIndexSeekByEndsWith(
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    value: TextValue
+    value: TextValue,
+    includeChangesFromThisTransaction: Boolean
   ): NodeValueIndexCursor =
-    translateException(tokenNameLookup, inner.nodeIndexSeekByEndsWith(index, needsValues, indexOrder, value))
+    translateException(
+      tokenNameLookup,
+      inner.nodeIndexSeekByEndsWith(index, needsValues, indexOrder, value, includeChangesFromThisTransaction)
+    )
 
   override def nodeIndexScan(
     index: IndexReadSession,
     needsValues: Boolean,
-    indexOrder: IndexOrder
+    indexOrder: IndexOrder,
+    includeChangesFromThisTransaction: Boolean
   ): NodeValueIndexCursor =
-    translateException(tokenNameLookup, inner.nodeIndexScan(index, needsValues, indexOrder))
+    translateException(
+      tokenNameLookup,
+      inner.nodeIndexScan(index, needsValues, indexOrder, includeChangesFromThisTransaction)
+    )
 
   override def nodeHasCheapDegrees(node: Long, nodeCursor: NodeCursor): Boolean =
     translateException(tokenNameLookup, inner.nodeHasCheapDegrees(node, nodeCursor))
@@ -640,8 +680,8 @@ class ExceptionTranslatingReadQueryContext(val inner: ReadQueryContext) extends 
     override def propertyKeyIds(obj: T, cursor: CURSOR, propertyCursor: PropertyCursor): Array[Int] =
       translateException(tokenNameLookup, inner.propertyKeyIds(obj, cursor, propertyCursor))
 
-    override def all: ClosingLongIterator =
-      translateException(tokenNameLookup, inner.all)
+    override def all(includeChangesFromThisTransaction: Boolean): ClosingLongIterator =
+      translateException(tokenNameLookup, inner.all(includeChangesFromThisTransaction))
 
     override def isDeletedInThisTx(id: Long): Boolean =
       translateException(tokenNameLookup, inner.isDeletedInThisTx(id))

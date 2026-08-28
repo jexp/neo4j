@@ -44,7 +44,8 @@ case class DirectedUnionRelationshipTypesScanPipe(
   fromNode: Option[String],
   types: Seq[LazyTypeStatic],
   toNode: Option[String],
-  indexOrder: IndexOrder
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
 )(
   val id: Id =
     Id.INVALID_ID
@@ -58,7 +59,8 @@ case class DirectedUnionRelationshipTypesScanPipe(
       types,
       indexOrder,
       state.relTypeTokenReadSession.get,
-      callReadFromStore = fromNode.nonEmpty || toNode.nonEmpty
+      callReadFromStore = fromNode.nonEmpty || toNode.nonEmpty,
+      includeChangesFromThisTransaction
     )
     val ctx = state.newRowWithArgument(rowFactory)
     PrimitiveLongHelper.map(
@@ -82,13 +84,14 @@ object DirectedUnionRelationshipTypesScanPipe {
     types: Seq[LazyTypeStatic],
     indexOrder: IndexOrder,
     tokenReadSession: TokenReadSession,
-    callReadFromStore: Boolean
+    callReadFromStore: Boolean,
+    includeChangesFromThisTransaction: Boolean
   ): ClosingRelationshipIterator = {
     val ids = types.map(_.getId(state.query)).filter(_ != LazyType.UNKNOWN).toArray
     if (ids.isEmpty) {
       ClosingLongIterator.emptyClosingRelationshipIterator
     } else {
-      unionTypeIterator(state, ids, indexOrder, tokenReadSession, callReadFromStore)
+      unionTypeIterator(state, ids, indexOrder, tokenReadSession, callReadFromStore, includeChangesFromThisTransaction)
     }
   }
 
@@ -97,7 +100,8 @@ object DirectedUnionRelationshipTypesScanPipe {
     types: Array[Int],
     indexOrder: IndexOrder,
     tokenReadSession: TokenReadSession,
-    callReadFromStore: Boolean
+    callReadFromStore: Boolean,
+    includeChangesFromThisTransaction: Boolean
   ): ClosingRelationshipIterator = {
     val query = state.query
     val cursors = types.map(_ => {
@@ -113,14 +117,16 @@ object DirectedUnionRelationshipTypesScanPipe {
           tokenReadSession,
           query.transactionalContext.cursorContext,
           types,
-          cursors
+          cursors,
+          includeChangesFromThisTransaction
         )
       case IndexOrderDescending => descendingUnionRelationshipTypeIndexCursor(
           read,
           tokenReadSession,
           query.transactionalContext.cursorContext,
           types,
-          cursors
+          cursors,
+          includeChangesFromThisTransaction
         )
     }
 

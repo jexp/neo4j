@@ -34,7 +34,8 @@ case class DirectedRelationshipTypeScanSlottedPipe(
   fromOffset: Option[Int],
   typ: LazyTypeStatic,
   toOffset: Option[Int],
-  indexOrder: IndexOrder
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID) extends Pipe {
 
   private val relationshipWriter = Relationships.compileRelationshipWriter(relOffset, fromOffset, toOffset)
@@ -44,7 +45,12 @@ case class DirectedRelationshipTypeScanSlottedPipe(
     val typeId = typ.getId(state.query)
     if (typeId == LazyType.UNKNOWN) ClosingIterator.empty
     else {
-      val relIterator = state.query.getRelationshipsByType(state.relTypeTokenReadSession.get, typeId, indexOrder)
+      val relIterator = state.query.getRelationshipsByType(
+        state.relTypeTokenReadSession.get,
+        typeId,
+        indexOrder,
+        includeChangesFromThisTransaction
+      )
       PrimitiveLongHelper.map(
         relIterator,
         { relId =>

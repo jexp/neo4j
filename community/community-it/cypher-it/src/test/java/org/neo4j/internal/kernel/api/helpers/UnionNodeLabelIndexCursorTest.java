@@ -507,13 +507,15 @@ class UnionNodeLabelIndexCursorTest {
                     tokenReadSession(tx),
                     tx.cursorContext(),
                     new int[] {labelA, labelB},
-                    new NodeLabelIndexCursor[] {cursor1, cursor2});
+                    new NodeLabelIndexCursor[] {cursor1, cursor2},
+                    true);
             var intersectionCD = IntersectionNodeLabelIndexCursor.ascendingIntersectionNodeLabelIndexCursor(
                     tx.dataRead(),
                     tokenReadSession(tx),
                     tx.cursorContext(),
                     new int[] {labelC, labelD},
-                    new NodeLabelIndexCursor[] {cursor3, cursor4});
+                    new NodeLabelIndexCursor[] {cursor3, cursor4},
+                    true);
             var unionCursor = UnionNodeLabelIndexCursor.ascendingUnionNodeLabelIndexCursor(
                     new SkippableCursor[] {intersectionAB, intersectionCD});
 
@@ -586,13 +588,15 @@ class UnionNodeLabelIndexCursorTest {
                     tokenReadSession(tx),
                     tx.cursorContext(),
                     new int[] {labelA, labelB},
-                    new NodeLabelIndexCursor[] {cursor1, cursor2});
+                    new NodeLabelIndexCursor[] {cursor1, cursor2},
+                    true);
             var intersectionCD = IntersectionNodeLabelIndexCursor.descendingIntersectionNodeLabelIndexCursor(
                     tx.dataRead(),
                     tokenReadSession(tx),
                     tx.cursorContext(),
                     new int[] {labelC, labelD},
-                    new NodeLabelIndexCursor[] {cursor3, cursor4});
+                    new NodeLabelIndexCursor[] {cursor3, cursor4},
+                    true);
             var unionCursor = UnionNodeLabelIndexCursor.descendingUnionNodeLabelIndexCursor(
                     new SkippableCursor[] {intersectionAB, intersectionCD});
 
@@ -617,14 +621,14 @@ class UnionNodeLabelIndexCursorTest {
             KernelTransaction tx, int[] labelsToLookFor, NodeLabelIndexCursor[] cursors) throws KernelException {
         Read read = tx.dataRead();
         return UnionNodeLabelIndexCursor.ascendingUnionNodeLabelIndexCursor(
-                read, tokenReadSession(tx), tx.cursorContext(), labelsToLookFor, cursors);
+                read, tokenReadSession(tx), tx.cursorContext(), labelsToLookFor, cursors, true);
     }
 
     private UnionNodeLabelIndexCursor descendingUnionNodeLabelIndexCursor(
             KernelTransaction tx, int[] labelsToLookFor, NodeLabelIndexCursor[] cursors) throws KernelException {
         Read read = tx.dataRead();
         return UnionNodeLabelIndexCursor.descendingUnionNodeLabelIndexCursor(
-                read, tokenReadSession(tx), tx.cursorContext(), labelsToLookFor, cursors);
+                read, tokenReadSession(tx), tx.cursorContext(), labelsToLookFor, cursors, true);
     }
 
     private List<Long> asList(UnionNodeLabelIndexCursor cursor) {

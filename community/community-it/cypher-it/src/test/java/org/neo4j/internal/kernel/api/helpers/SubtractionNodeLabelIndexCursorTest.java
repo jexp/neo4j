@@ -430,7 +430,8 @@ class SubtractionNodeLabelIndexCursorTest {
                         positiveLabels,
                         negativeLabels,
                         positiveCursors,
-                        negativeCursors);
+                        negativeCursors,
+                        true);
             case DESCENDING ->
                 SubtractionNodeLabelIndexCursor.descendingSubtractionNodeLabelIndexCursor(
                         read,
@@ -439,7 +440,8 @@ class SubtractionNodeLabelIndexCursorTest {
                         positiveLabels,
                         negativeLabels,
                         positiveCursors,
-                        negativeCursors);
+                        negativeCursors,
+                        true);
         };
     }
 

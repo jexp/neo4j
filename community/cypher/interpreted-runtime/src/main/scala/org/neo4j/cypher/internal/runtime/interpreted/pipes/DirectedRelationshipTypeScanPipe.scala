@@ -31,7 +31,8 @@ case class DirectedRelationshipTypeScanPipe(
   fromNode: Option[String],
   typ: LazyTypeStatic,
   toNode: Option[String],
-  indexOrder: IndexOrder
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID) extends Pipe {
 
   private val relationshipWriter =
@@ -43,7 +44,12 @@ case class DirectedRelationshipTypeScanPipe(
     val typeId = typ.getId(query)
     if (typeId == LazyType.UNKNOWN) ClosingIterator.empty
     else {
-      val relIterator = query.getRelationshipsByType(state.relTypeTokenReadSession.get, typeId, indexOrder)
+      val relIterator = query.getRelationshipsByType(
+        state.relTypeTokenReadSession.get,
+        typeId,
+        indexOrder,
+        includeChangesFromThisTransaction
+      )
       PrimitiveLongHelper.map(
         relIterator,
         relationshipId => {

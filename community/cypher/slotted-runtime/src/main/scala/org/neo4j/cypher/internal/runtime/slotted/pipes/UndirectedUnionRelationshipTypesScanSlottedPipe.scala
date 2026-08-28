@@ -33,7 +33,8 @@ case class UndirectedUnionRelationshipTypesScanSlottedPipe(
   fromOffset: Option[Int],
   types: Seq[LazyTypeStatic],
   toOffset: Option[Int],
-  indexOrder: IndexOrder
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID) extends Pipe {
 
   protected def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = {
@@ -43,7 +44,8 @@ case class UndirectedUnionRelationshipTypesScanSlottedPipe(
         types,
         indexOrder,
         state.relTypeTokenReadSession.get,
-        callReadFromStore = true
+        callReadFromStore = true,
+        includeChangesFromThisTransaction
       ),
       relOffset,
       fromOffset,

@@ -31,7 +31,8 @@ import org.neo4j.values.virtual.VirtualValues
 case class DirectedAllRelationshipsScanPipe(
   ident: Option[String],
   fromNode: Option[String],
-  toNode: Option[String]
+  toNode: Option[String],
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID) extends Pipe {
 
   private val relationshipWriter = Relationships.compileRelationshipWriter(ident, fromNode, toNode)
@@ -39,7 +40,7 @@ case class DirectedAllRelationshipsScanPipe(
   protected def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = {
     val ctx = state.newRowWithArgument(rowFactory)
     val query: QueryContext = state.query
-    val relIterator = allRelationshipsIterator(query)
+    val relIterator = allRelationshipsIterator(query, includeChangesFromThisTransaction)
     PrimitiveLongHelper.map(
       relIterator,
       r => {
@@ -57,11 +58,14 @@ case class DirectedAllRelationshipsScanPipe(
 
 object DirectedAllRelationshipsScanPipe {
 
-  def allRelationshipsIterator(query: QueryContext): BaseRelationshipCursorIterator = {
+  def allRelationshipsIterator(
+    query: QueryContext,
+    includeChangesFromThisTransaction: Boolean
+  ): BaseRelationshipCursorIterator = {
     val read = query.transactionalContext.dataRead
     val cursor = query.scanCursor()
     query.resources.trace(cursor)
-    read.allRelationshipsScan(cursor)
+    read.allRelationshipsScan(cursor, includeChangesFromThisTransaction)
     new BaseRelationshipCursorIterator {
       override protected def fetchNext(): Long = if (cursor.next()) cursor.reference() else -1L
       override def close(): Unit = cursor.close()

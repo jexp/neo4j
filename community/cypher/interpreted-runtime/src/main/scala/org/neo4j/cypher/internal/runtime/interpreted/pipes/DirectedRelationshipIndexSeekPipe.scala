@@ -38,7 +38,8 @@ case class DirectedRelationshipIndexSeekPipe(
   queryIndexId: Int,
   valueExpr: QueryExpression[Expression],
   indexMode: IndexSeekMode,
-  indexOrder: IndexOrder
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID) extends Pipe with IndexPipeWithValues {
 
   private val propertyIds: Array[Int] = properties.map(_.propertyKeyToken.nameId.id)
@@ -60,7 +61,14 @@ case class DirectedRelationshipIndexSeekPipe(
       startNode,
       endNode,
       baseContext,
-      entityIndexSeeker.relationshipIndexSeek(state, index, needsValues, indexOrder, baseContext)
+      entityIndexSeeker.relationshipIndexSeek(
+        state,
+        index,
+        needsValues,
+        indexOrder,
+        baseContext,
+        includeChangesFromThisTransaction
+      )
     )
   }
 }

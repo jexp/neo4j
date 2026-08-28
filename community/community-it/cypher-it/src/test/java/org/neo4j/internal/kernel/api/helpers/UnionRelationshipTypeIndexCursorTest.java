@@ -245,7 +245,7 @@ class UnionRelationshipTypeIndexCursorTest {
                 schemaRead.index(ANY_TOKEN_RELATIONSHIP_SCHEMA_DESCRIPTOR).next();
         TokenReadSession tokenReadSession = read.tokenReadSession(index);
         return UnionRelationshipTypeIndexCursor.ascendingUnionRelationshipTypeIndexCursor(
-                read, tokenReadSession, tx.cursorContext(), typesToLookFor, cursors);
+                read, tokenReadSession, tx.cursorContext(), typesToLookFor, cursors, true);
     }
 
     private UnionRelationshipTypeIndexCursor descendingUnionRelationshipTypeIndexCursor(
@@ -256,7 +256,7 @@ class UnionRelationshipTypeIndexCursorTest {
                 schemaRead.index(ANY_TOKEN_RELATIONSHIP_SCHEMA_DESCRIPTOR).next();
         TokenReadSession tokenReadSession = read.tokenReadSession(index);
         return UnionRelationshipTypeIndexCursor.descendingUnionRelationshipTypeIndexCursor(
-                read, tokenReadSession, tx.cursorContext(), typesToLookFor, cursors);
+                read, tokenReadSession, tx.cursorContext(), typesToLookFor, cursors, true);
     }
 
     private List<Long> asList(UnionRelationshipTypeIndexCursor cursor) {

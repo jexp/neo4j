@@ -34,7 +34,8 @@ case class DirectedUnionRelationshipTypesScanSlottedPipe(
   fromOffset: Option[Int],
   types: Seq[LazyTypeStatic],
   toOffset: Option[Int],
-  indexOrder: IndexOrder
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID) extends Pipe {
 
   private val relationshipWriter = Relationships.compileRelationshipWriter(relOffset, fromOffset, toOffset)
@@ -45,7 +46,8 @@ case class DirectedUnionRelationshipTypesScanSlottedPipe(
       types,
       indexOrder,
       state.relTypeTokenReadSession.get,
-      callReadFromStore = fromOffset.nonEmpty || toOffset.nonEmpty
+      callReadFromStore = fromOffset.nonEmpty || toOffset.nonEmpty,
+      includeChangesFromThisTransaction
     )
     PrimitiveLongHelper.map(
       relIterator,

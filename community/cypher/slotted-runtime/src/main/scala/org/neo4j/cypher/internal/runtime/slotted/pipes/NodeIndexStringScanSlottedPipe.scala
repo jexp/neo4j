@@ -71,16 +71,23 @@ case class NodeIndexContainsScanSlottedPipe(
   queryIndexId: Int,
   valueExpr: Expression,
   slots: SlotConfiguration,
-  indexOrder: IndexOrder
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID)
-    extends AbstractNodeIndexStringScanSlottedPipe(ident, property, queryIndexId, valueExpr, slots) {
+    extends AbstractNodeIndexStringScanSlottedPipe(
+      ident,
+      property,
+      queryIndexId,
+      valueExpr,
+      slots
+    ) {
 
   override protected def queryContextCall(
     state: QueryState,
     index: IndexReadSession,
     value: TextValue
   ): NodeValueIndexCursor =
-    state.query.nodeIndexSeekByContains(index, needsValues, indexOrder, value)
+    state.query.nodeIndexSeekByContains(index, needsValues, indexOrder, value, includeChangesFromThisTransaction)
 }
 
 case class NodeIndexEndsWithScanSlottedPipe(
@@ -90,14 +97,21 @@ case class NodeIndexEndsWithScanSlottedPipe(
   queryIndexId: Int,
   valueExpr: Expression,
   slots: SlotConfiguration,
-  indexOrder: IndexOrder
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID)
-    extends AbstractNodeIndexStringScanSlottedPipe(ident, property, queryIndexId, valueExpr, slots) {
+    extends AbstractNodeIndexStringScanSlottedPipe(
+      ident,
+      property,
+      queryIndexId,
+      valueExpr,
+      slots
+    ) {
 
   override protected def queryContextCall(
     state: QueryState,
     index: IndexReadSession,
     value: TextValue
   ): NodeValueIndexCursor =
-    state.query.nodeIndexSeekByEndsWith(index, needsValues, indexOrder, value)
+    state.query.nodeIndexSeekByEndsWith(index, needsValues, indexOrder, value, includeChangesFromThisTransaction)
 }

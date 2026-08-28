@@ -112,7 +112,8 @@ case class DirectedRelationshipIndexContainsScanPipe(
   property: IndexedProperty,
   queryIndexId: Int,
   valueExpr: Expression,
-  indexOrder: IndexOrder
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID)
     extends AbstractRelationshipIndexStringScanPipe(ident, startNode, endNode, property, queryIndexId, valueExpr)
     with Directed {
@@ -122,7 +123,13 @@ case class DirectedRelationshipIndexContainsScanPipe(
     index: IndexReadSession,
     value: TextValue
   ): RelationshipValueIndexCursor =
-    state.query.relationshipIndexSeekByContains(index, needsValues, indexOrder, value)
+    state.query.relationshipIndexSeekByContains(
+      index,
+      needsValues,
+      indexOrder,
+      value,
+      includeChangesFromThisTransaction
+    )
 }
 
 case class UndirectedRelationshipIndexContainsScanPipe(
@@ -133,7 +140,8 @@ case class UndirectedRelationshipIndexContainsScanPipe(
   property: IndexedProperty,
   queryIndexId: Int,
   valueExpr: Expression,
-  indexOrder: IndexOrder
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID)
     extends AbstractRelationshipIndexStringScanPipe(ident, startNode, endNode, property, queryIndexId, valueExpr)
     with Undirected {
@@ -143,7 +151,13 @@ case class UndirectedRelationshipIndexContainsScanPipe(
     index: IndexReadSession,
     value: TextValue
   ): RelationshipValueIndexCursor =
-    state.query.relationshipIndexSeekByContains(index, needsValues, indexOrder, value)
+    state.query.relationshipIndexSeekByContains(
+      index,
+      needsValues,
+      indexOrder,
+      value,
+      includeChangesFromThisTransaction
+    )
 }
 
 case class DirectedRelationshipIndexEndsWithScanPipe(
@@ -154,7 +168,8 @@ case class DirectedRelationshipIndexEndsWithScanPipe(
   property: IndexedProperty,
   queryIndexId: Int,
   valueExpr: Expression,
-  indexOrder: IndexOrder
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID)
     extends AbstractRelationshipIndexStringScanPipe(ident, startNode, endNode, property, queryIndexId, valueExpr)
     with Directed {
@@ -164,7 +179,13 @@ case class DirectedRelationshipIndexEndsWithScanPipe(
     index: IndexReadSession,
     value: TextValue
   ): RelationshipValueIndexCursor =
-    state.query.relationshipIndexSeekByEndsWith(index, needsValues, indexOrder, value)
+    state.query.relationshipIndexSeekByEndsWith(
+      index,
+      needsValues,
+      indexOrder,
+      value,
+      includeChangesFromThisTransaction
+    )
 }
 
 case class UndirectedRelationshipIndexEndsWithScanPipe(
@@ -175,7 +196,8 @@ case class UndirectedRelationshipIndexEndsWithScanPipe(
   property: IndexedProperty,
   queryIndexId: Int,
   valueExpr: Expression,
-  indexOrder: IndexOrder
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID)
     extends AbstractRelationshipIndexStringScanPipe(ident, startNode, endNode, property, queryIndexId, valueExpr)
     with Undirected {
@@ -185,5 +207,11 @@ case class UndirectedRelationshipIndexEndsWithScanPipe(
     index: IndexReadSession,
     value: TextValue
   ): RelationshipValueIndexCursor =
-    state.query.relationshipIndexSeekByEndsWith(index, needsValues, indexOrder, value)
+    state.query.relationshipIndexSeekByEndsWith(
+      index,
+      needsValues,
+      indexOrder,
+      value,
+      includeChangesFromThisTransaction
+    )
 }

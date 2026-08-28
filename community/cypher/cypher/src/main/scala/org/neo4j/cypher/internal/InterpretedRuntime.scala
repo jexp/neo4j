@@ -101,7 +101,8 @@ trait InterpretedRuntime[-CONTEXT <: RuntimeContext] extends CypherRuntime[CONTE
       queryIndexRegistrator,
       context.anonymousVariableNameGenerator,
       context.isCommunity,
-      parameterMapping
+      parameterMapping,
+      query.stableLeafPlans
     )(query.semanticTable))
     val pipeTreeBuilder = PipeTreeBuilder(pipeMapper)
     val logicalPlanWithConvertedNestedPlans =

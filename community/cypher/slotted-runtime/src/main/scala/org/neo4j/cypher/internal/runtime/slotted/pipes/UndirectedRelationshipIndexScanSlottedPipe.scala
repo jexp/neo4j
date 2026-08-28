@@ -35,7 +35,8 @@ case class UndirectedRelationshipIndexScanSlottedPipe(
   relType: RelationshipTypeToken,
   properties: IndexedSeq[SlottedIndexedProperty],
   queryIndexId: Int,
-  indexOrder: IndexOrder
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID) extends Pipe with IndexSlottedPipeWithValues {
 
   override val indexPropertyIndices: Array[Int] =
@@ -46,7 +47,12 @@ case class UndirectedRelationshipIndexScanSlottedPipe(
   private val needsValues: Boolean = indexPropertyIndices.nonEmpty
 
   protected def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = {
-    val cursor = state.query.relationshipIndexScan(state.queryIndexes(queryIndexId), needsValues, indexOrder)
+    val cursor = state.query.relationshipIndexScan(
+      state.queryIndexes(queryIndexId),
+      needsValues,
+      indexOrder,
+      includeChangesFromThisTransaction
+    )
 
     new SlottedUndirectedRelationshipIndexIterator(
       state,

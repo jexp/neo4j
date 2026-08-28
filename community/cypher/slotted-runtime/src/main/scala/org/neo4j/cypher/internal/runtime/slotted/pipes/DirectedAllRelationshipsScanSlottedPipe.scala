@@ -31,14 +31,15 @@ import org.neo4j.cypher.internal.util.attribution.Id
 case class DirectedAllRelationshipsScanSlottedPipe(
   relOffset: Option[Int],
   fromOffset: Option[Int],
-  toOffset: Option[Int]
+  toOffset: Option[Int],
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID) extends Pipe {
 
   private val relationshipWriter = Relationships.compileRelationshipWriter(relOffset, fromOffset, toOffset)
 
   protected def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = {
     val query: QueryContext = state.query
-    val relIterator = allRelationshipsIterator(query)
+    val relIterator = allRelationshipsIterator(query, includeChangesFromThisTransaction)
     PrimitiveLongHelper.map(
       relIterator,
       { relId =>

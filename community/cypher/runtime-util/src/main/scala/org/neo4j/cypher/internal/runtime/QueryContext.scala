@@ -164,7 +164,8 @@ trait ReadQueryContext extends ReadTokenContext with DbAccess with KernelVersion
   def getRelationshipsByType(
     tokenReadSession: TokenReadSession,
     relType: Int,
-    indexOrder: IndexOrder
+    indexOrder: IndexOrder,
+    includeChangesFromThisTransaction: Boolean = true
   ): ClosingRelationshipIterator
 
   def nodeCursor(): NodeCursor
@@ -212,7 +213,8 @@ trait ReadQueryContext extends ReadTokenContext with DbAccess with KernelVersion
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    queries: Seq[PropertyIndexQuery]
+    queries: Seq[PropertyIndexQuery],
+    includeChangesFromThisTransaction: Boolean = true
   ): NodeValueIndexCursor
 
   def nodeFulltextIndexSeek(
@@ -225,17 +227,24 @@ trait ReadQueryContext extends ReadTokenContext with DbAccess with KernelVersion
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    value: TextValue
+    value: TextValue,
+    includeChangesFromThisTransaction: Boolean = true
   ): NodeValueIndexCursor
 
   def nodeIndexSeekByEndsWith(
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    value: TextValue
+    value: TextValue,
+    includeChangesFromThisTransaction: Boolean = true
   ): NodeValueIndexCursor
 
-  def nodeIndexScan(index: IndexReadSession, needsValues: Boolean, indexOrder: IndexOrder): NodeValueIndexCursor
+  def nodeIndexScan(
+    index: IndexReadSession,
+    needsValues: Boolean,
+    indexOrder: IndexOrder,
+    includeChangesFromThisTransaction: Boolean = true
+  ): NodeValueIndexCursor
 
   def nodeLockingUniqueIndexSeek(
     index: IndexReadSession,
@@ -246,7 +255,8 @@ trait ReadQueryContext extends ReadTokenContext with DbAccess with KernelVersion
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    queries: Seq[PropertyIndexQuery]
+    queries: Seq[PropertyIndexQuery],
+    includeChangesFromThisTransaction: Boolean = true
   ): RelationshipValueIndexCursor
 
   def relationshipFulltextIndexSeek(
@@ -264,23 +274,31 @@ trait ReadQueryContext extends ReadTokenContext with DbAccess with KernelVersion
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    value: TextValue
+    value: TextValue,
+    includeChangesFromThisTransaction: Boolean = true
   ): RelationshipValueIndexCursor
 
   def relationshipIndexSeekByEndsWith(
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    value: TextValue
+    value: TextValue,
+    includeChangesFromThisTransaction: Boolean = true
   ): RelationshipValueIndexCursor
 
   def relationshipIndexScan(
     index: IndexReadSession,
     needsValues: Boolean,
-    indexOrder: IndexOrder
+    indexOrder: IndexOrder,
+    includeChangesFromThisTransaction: Boolean = true
   ): RelationshipValueIndexCursor
 
-  def getNodesByLabel(tokenReadSession: TokenReadSession, id: Int, indexOrder: IndexOrder): ClosingLongIterator
+  def getNodesByLabel(
+    tokenReadSession: TokenReadSession,
+    id: Int,
+    indexOrder: IndexOrder,
+    includeChangesFromThisTransaction: Boolean = true
+  ): ClosingLongIterator
 
   def getConstraintInformation(name: String): ConstraintInformation
 
@@ -758,7 +776,9 @@ trait ReadOperations[T, CURSOR] {
 
   def isDeletedInThisTx(id: Long): Boolean
 
-  def all: ClosingLongIterator
+  final def all: ClosingLongIterator = all(includeChangesFromThisTransaction = true)
+
+  def all(includeChangesFromThisTransaction: Boolean): ClosingLongIterator
 
   def acquireExclusiveLock(obj: Long): Unit
 

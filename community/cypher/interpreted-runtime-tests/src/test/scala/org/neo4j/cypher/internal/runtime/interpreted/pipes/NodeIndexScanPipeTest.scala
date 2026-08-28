@@ -45,7 +45,7 @@ class NodeIndexScanPipeTest extends InterpretedRuntimeTestSuite {
     val state = QueryStateHelper.emptyWithResourceManager(resourceManager)
 
     val cursor = new StubNodeValueIndexCursor().withEntity(0)
-    when(state.query.nodeIndexScan(any[IndexReadSession], any[Boolean], any[IndexOrder])).thenAnswer(
+    when(state.query.nodeIndexScan(any[IndexReadSession], any[Boolean], any[IndexOrder], any[Boolean])).thenAnswer(
       (_: InvocationOnMock) => {
         // NOTE: this is what is done in TransactionBoundQueryContext
         resourceManager.trace(cursor)
@@ -58,7 +58,8 @@ class NodeIndexScanPipeTest extends InterpretedRuntimeTestSuite {
       LabelToken("Awesome", LabelId(0)),
       Seq(IndexedProperty(PropertyKeyToken("prop", PropertyKeyId(0)), DoNotGetValue, NODE_TYPE)),
       0,
-      IndexOrderNone
+      IndexOrderNone,
+      includeChangesFromThisTransaction = true
     )()
     // exhaust
     pipe.createResults(state).toList
@@ -71,7 +72,7 @@ class NodeIndexScanPipeTest extends InterpretedRuntimeTestSuite {
     val state = QueryStateHelper.emptyWithResourceManager(resourceManager)
 
     val cursor = new StubNodeValueIndexCursor().withEntity(0)
-    when(state.query.nodeIndexScan(any[IndexReadSession], any[Boolean], any[IndexOrder])).thenAnswer(
+    when(state.query.nodeIndexScan(any[IndexReadSession], any[Boolean], any[IndexOrder], any[Boolean])).thenAnswer(
       (_: InvocationOnMock) => {
         // NOTE: this is what is done in TransactionBoundQueryContext
         resourceManager.trace(cursor)
@@ -84,7 +85,8 @@ class NodeIndexScanPipeTest extends InterpretedRuntimeTestSuite {
       LabelToken("Awesome", LabelId(0)),
       Seq(IndexedProperty(PropertyKeyToken("prop", PropertyKeyId(0)), DoNotGetValue, NODE_TYPE)),
       0,
-      IndexOrderNone
+      IndexOrderNone,
+      includeChangesFromThisTransaction = true
     )()
     val result = pipe.createResults(state)
     result.close()

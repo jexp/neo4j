@@ -60,13 +60,19 @@ trait IndexMockingHelp extends InterpretedRuntimeTestSuite with ImplicitDummyPos
 
   protected def indexFor[T](values: (Seq[AnyRef], Iterable[NodeValueHit])*): QueryContext = {
     val query: QueryContext = mockedQueryContext
-    when(query.nodeIndexSeek(any(), any(), any(), any())).thenReturn(PredefinedCursor())
+    when(query.nodeIndexSeek(any(), any(), any(), any(), any())).thenReturn(PredefinedCursor())
     when(query.nodeLockingUniqueIndexSeek(any(), any())).thenReturn(PredefinedCursor())
 
     values.foreach {
       case (searchTerm, resultIterable) =>
         val indexQueries = propertyKeys.zip(searchTerm).map(t => PropertyIndexQuery.exact(t._1.nameId.id, t._2))
-        when(query.nodeIndexSeek(any(), any(), any(), ArgumentMatchers.eq(indexQueries))).thenReturn(PredefinedCursor(
+        when(query.nodeIndexSeek(
+          any(),
+          any(),
+          any(),
+          ArgumentMatchers.eq(indexQueries),
+          any()
+        )).thenReturn(PredefinedCursor(
           resultIterable
         ))
         when(query.nodeLockingUniqueIndexSeek(any(), ArgumentMatchers.eq(indexQueries))).thenReturn(PredefinedCursor(
@@ -79,15 +85,15 @@ trait IndexMockingHelp extends InterpretedRuntimeTestSuite with ImplicitDummyPos
 
   protected def stringIndexFor(values: (String, Iterable[NodeValueHit])*): QueryContext = {
     val query = mockedQueryContext
-    when(query.nodeIndexSeek(any(), any(), any(), any())).thenReturn(PredefinedCursor())
+    when(query.nodeIndexSeek(any(), any(), any(), any(), any())).thenReturn(PredefinedCursor())
     when(query.nodeLockingUniqueIndexSeek(any(), any())).thenReturn(PredefinedCursor())
     values.foreach {
       case (searchTerm, resultIterable) =>
         when(
-          query.nodeIndexSeekByContains(any(), any(), any(), ArgumentMatchers.eq(stringValue(searchTerm)))
+          query.nodeIndexSeekByContains(any(), any(), any(), ArgumentMatchers.eq(stringValue(searchTerm)), any())
         ).thenReturn(PredefinedCursor(resultIterable))
         when(
-          query.nodeIndexSeekByEndsWith(any(), any(), any(), ArgumentMatchers.eq(stringValue(searchTerm)))
+          query.nodeIndexSeekByEndsWith(any(), any(), any(), ArgumentMatchers.eq(stringValue(searchTerm)), any())
         ).thenReturn(PredefinedCursor(resultIterable))
     }
 
@@ -96,7 +102,7 @@ trait IndexMockingHelp extends InterpretedRuntimeTestSuite with ImplicitDummyPos
 
   protected def scanFor(nodes: Iterable[NodeValueHit]): QueryContext = {
     val query = mockedQueryContext
-    when(query.nodeIndexScan(any(), any(), any())).thenReturn(PredefinedCursor(nodes))
+    when(query.nodeIndexScan(any(), any(), any(), any())).thenReturn(PredefinedCursor(nodes))
     query
   }
 

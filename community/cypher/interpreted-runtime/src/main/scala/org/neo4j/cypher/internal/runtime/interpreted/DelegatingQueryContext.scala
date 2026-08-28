@@ -206,9 +206,15 @@ abstract class DelegatingQueryContext(val inner: QueryContext) extends QueryCont
   override def getRelationshipsByType(
     tokenReadSession: TokenReadSession,
     relType: Int,
-    indexOrder: IndexOrder
+    indexOrder: IndexOrder,
+    includeChangesFromThisTransaction: Boolean
   ): ClosingRelationshipIterator =
-    manyDbHitsCliRi(inner.getRelationshipsByType(tokenReadSession, relType, indexOrder))
+    manyDbHitsCliRi(inner.getRelationshipsByType(
+      tokenReadSession,
+      relType,
+      indexOrder,
+      includeChangesFromThisTransaction
+    ))
 
   override def nodeCursor(): NodeCursor = manyDbHits(inner.nodeCursor())
 
@@ -384,9 +390,10 @@ abstract class DelegatingQueryContext(val inner: QueryContext) extends QueryCont
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    queries: Seq[PropertyIndexQuery]
+    queries: Seq[PropertyIndexQuery],
+    includeChangesFromThisTransaction: Boolean
   ): NodeValueIndexCursor =
-    inner.nodeIndexSeek(index, needsValues, indexOrder, queries)
+    inner.nodeIndexSeek(index, needsValues, indexOrder, queries, includeChangesFromThisTransaction)
 
   override def nodeFulltextIndexSeek(
     index: IndexReadSession,
@@ -405,33 +412,37 @@ abstract class DelegatingQueryContext(val inner: QueryContext) extends QueryCont
   override def nodeIndexScan(
     index: IndexReadSession,
     needsValues: Boolean,
-    indexOrder: IndexOrder
+    indexOrder: IndexOrder,
+    includeChangesFromThisTransaction: Boolean
   ): NodeValueIndexCursor =
-    inner.nodeIndexScan(index, needsValues, indexOrder)
+    inner.nodeIndexScan(index, needsValues, indexOrder, includeChangesFromThisTransaction)
 
   override def nodeIndexSeekByContains(
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    value: TextValue
+    value: TextValue,
+    includeChangesFromThisTransaction: Boolean
   ): NodeValueIndexCursor =
-    inner.nodeIndexSeekByContains(index, needsValues, indexOrder, value)
+    inner.nodeIndexSeekByContains(index, needsValues, indexOrder, value, includeChangesFromThisTransaction)
 
   override def nodeIndexSeekByEndsWith(
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    value: TextValue
+    value: TextValue,
+    includeChangesFromThisTransaction: Boolean
   ): NodeValueIndexCursor =
-    inner.nodeIndexSeekByEndsWith(index, needsValues, indexOrder, value)
+    inner.nodeIndexSeekByEndsWith(index, needsValues, indexOrder, value, includeChangesFromThisTransaction)
 
   override def relationshipIndexSeek(
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    queries: Seq[PropertyIndexQuery]
+    queries: Seq[PropertyIndexQuery],
+    includeChangesFromThisTransaction: Boolean
   ): RelationshipValueIndexCursor =
-    inner.relationshipIndexSeek(index, needsValues, indexOrder, queries)
+    inner.relationshipIndexSeek(index, needsValues, indexOrder, queries, includeChangesFromThisTransaction)
 
   override def relationshipLockingUniqueIndexSeek(
     index: IndexReadSession,
@@ -443,31 +454,35 @@ abstract class DelegatingQueryContext(val inner: QueryContext) extends QueryCont
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    value: TextValue
+    value: TextValue,
+    includeChangesFromThisTransaction: Boolean
   ): RelationshipValueIndexCursor =
-    inner.relationshipIndexSeekByContains(index, needsValues, indexOrder, value)
+    inner.relationshipIndexSeekByContains(index, needsValues, indexOrder, value, includeChangesFromThisTransaction)
 
   override def relationshipIndexSeekByEndsWith(
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    value: TextValue
+    value: TextValue,
+    includeChangesFromThisTransaction: Boolean
   ): RelationshipValueIndexCursor =
-    inner.relationshipIndexSeekByEndsWith(index, needsValues, indexOrder, value)
+    inner.relationshipIndexSeekByEndsWith(index, needsValues, indexOrder, value, includeChangesFromThisTransaction)
 
   override def relationshipIndexScan(
     index: IndexReadSession,
     needsValues: Boolean,
-    indexOrder: IndexOrder
+    indexOrder: IndexOrder,
+    includeChangesFromThisTransaction: Boolean
   ): RelationshipValueIndexCursor =
-    inner.relationshipIndexScan(index, needsValues, indexOrder)
+    inner.relationshipIndexScan(index, needsValues, indexOrder, includeChangesFromThisTransaction)
 
   override def getNodesByLabel(
     tokenReadSession: TokenReadSession,
     id: Int,
-    indexOrder: IndexOrder
+    indexOrder: IndexOrder,
+    includeChangesFromThisTransaction: Boolean
   ): ClosingLongIterator =
-    manyDbHits(inner.getNodesByLabel(tokenReadSession, id, indexOrder))
+    manyDbHits(inner.getNodesByLabel(tokenReadSession, id, indexOrder, includeChangesFromThisTransaction))
 
   override def nodeAsMap(
     id: Long,
@@ -793,7 +808,8 @@ class DelegatingReadOperations[T, CURSOR](protected val inner: ReadOperations[T,
   override def propertyKeyIds(obj: T, cursor: CURSOR, propertyCursor: PropertyCursor): Array[Int] =
     singleDbHit(inner.propertyKeyIds(obj, cursor, propertyCursor))
 
-  override def all: ClosingLongIterator = manyDbHits(inner.all)
+  override def all(includeChangesFromThisTransaction: Boolean): ClosingLongIterator =
+    manyDbHits(inner.all(includeChangesFromThisTransaction))
 
   override def isDeletedInThisTx(id: Long): Boolean = inner.isDeletedInThisTx(id)
 

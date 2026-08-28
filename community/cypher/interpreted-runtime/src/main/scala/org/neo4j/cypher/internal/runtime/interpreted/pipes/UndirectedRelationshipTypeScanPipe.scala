@@ -34,7 +34,8 @@ case class UndirectedRelationshipTypeScanPipe(
   fromNode: Option[String],
   typ: LazyTypeStatic,
   toNode: Option[String],
-  indexOrder: IndexOrder
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID) extends Pipe {
 
   protected def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = {
@@ -42,7 +43,12 @@ case class UndirectedRelationshipTypeScanPipe(
     if (typeId == LazyType.UNKNOWN) {
       ClosingIterator.empty
     } else {
-      val relIterator = state.query.getRelationshipsByType(state.relTypeTokenReadSession.get, typeId, indexOrder)
+      val relIterator = state.query.getRelationshipsByType(
+        state.relTypeTokenReadSession.get,
+        typeId,
+        indexOrder,
+        includeChangesFromThisTransaction
+      )
       new UndirectedIterator(relIterator, ident, fromNode, toNode, rowFactory, state)
     }
   }

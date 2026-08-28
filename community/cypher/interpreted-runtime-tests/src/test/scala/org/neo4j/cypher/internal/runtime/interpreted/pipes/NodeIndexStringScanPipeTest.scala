@@ -76,7 +76,8 @@ class NodeIndexStringScanPipeTest extends InterpretedRuntimeTestSuite with Impli
       IndexedProperty(propertyKey, GetValue, NODE_TYPE),
       0,
       literal("hello"),
-      IndexOrderNone
+      IndexOrderNone,
+      includeChangesFromThisTransaction = true
     )()
     val result = pipe.createResults(queryState).toList
 
@@ -103,7 +104,8 @@ class NodeIndexStringScanPipeTest extends InterpretedRuntimeTestSuite with Impli
       IndexedProperty(propertyKey, GetValue, NODE_TYPE),
       0,
       literal("bye"),
-      IndexOrderNone
+      IndexOrderNone,
+      includeChangesFromThisTransaction = true
     )()
     val result = pipe.createResults(queryState).toList
 
@@ -121,7 +123,13 @@ class NodeIndexStringScanPipeTest extends InterpretedRuntimeTestSuite with Impli
 
     val cursor = new StubNodeValueIndexCursor().withEntity(0)
     when(
-      state.query.nodeIndexSeekByContains(any[IndexReadSession], any[Boolean], any[IndexOrder], any[TextValue])
+      state.query.nodeIndexSeekByContains(
+        any[IndexReadSession],
+        any[Boolean],
+        any[IndexOrder],
+        any[TextValue],
+        any[Boolean]
+      )
     ).thenAnswer((_: InvocationOnMock) => {
       // NOTE: this is what is done in TransactionBoundQueryContext
       resourceManager.trace(cursor)
@@ -134,7 +142,8 @@ class NodeIndexStringScanPipeTest extends InterpretedRuntimeTestSuite with Impli
       IndexedProperty(PropertyKeyToken("prop", PropertyKeyId(0)), DoNotGetValue, NODE_TYPE),
       0,
       LiteralHelper.literal("text"),
-      IndexOrderNone
+      IndexOrderNone,
+      includeChangesFromThisTransaction = true
     )()
     // exhaust
     pipe.createResults(state).toList
@@ -148,7 +157,13 @@ class NodeIndexStringScanPipeTest extends InterpretedRuntimeTestSuite with Impli
 
     val cursor = new StubNodeValueIndexCursor().withEntity(0)
     when(
-      state.query.nodeIndexSeekByContains(any[IndexReadSession], any[Boolean], any[IndexOrder], any[TextValue])
+      state.query.nodeIndexSeekByContains(
+        any[IndexReadSession],
+        any[Boolean],
+        any[IndexOrder],
+        any[TextValue],
+        any[Boolean]
+      )
     ).thenAnswer((_: InvocationOnMock) => {
       // NOTE: this is what is done in TransactionBoundQueryContext
       resourceManager.trace(cursor)
@@ -160,7 +175,8 @@ class NodeIndexStringScanPipeTest extends InterpretedRuntimeTestSuite with Impli
       IndexedProperty(PropertyKeyToken("prop", PropertyKeyId(0)), DoNotGetValue, NODE_TYPE),
       0,
       LiteralHelper.literal("text"),
-      IndexOrderNone
+      IndexOrderNone,
+      includeChangesFromThisTransaction = true
     )()
     val result = pipe.createResults(state)
     result.close()
@@ -174,7 +190,13 @@ class NodeIndexStringScanPipeTest extends InterpretedRuntimeTestSuite with Impli
 
     val cursor = new StubNodeValueIndexCursor().withEntity(0)
     when(
-      state.query.nodeIndexSeekByEndsWith(any[IndexReadSession], any[Boolean], any[IndexOrder], any[TextValue])
+      state.query.nodeIndexSeekByEndsWith(
+        any[IndexReadSession],
+        any[Boolean],
+        any[IndexOrder],
+        any[TextValue],
+        any[Boolean]
+      )
     ).thenAnswer((_: InvocationOnMock) => {
       // NOTE: this is what is done in TransactionBoundQueryContext
       resourceManager.trace(cursor)
@@ -186,7 +208,8 @@ class NodeIndexStringScanPipeTest extends InterpretedRuntimeTestSuite with Impli
       IndexedProperty(PropertyKeyToken("prop", PropertyKeyId(0)), DoNotGetValue, NODE_TYPE),
       0,
       LiteralHelper.literal("text"),
-      IndexOrderNone
+      IndexOrderNone,
+      includeChangesFromThisTransaction = true
     )()
     // exhaust
     pipe.createResults(state).toList
@@ -200,7 +223,13 @@ class NodeIndexStringScanPipeTest extends InterpretedRuntimeTestSuite with Impli
 
     val cursor = new StubNodeValueIndexCursor().withEntity(0)
     when(
-      state.query.nodeIndexSeekByEndsWith(any[IndexReadSession], any[Boolean], any[IndexOrder], any[TextValue])
+      state.query.nodeIndexSeekByEndsWith(
+        any[IndexReadSession],
+        any[Boolean],
+        any[IndexOrder],
+        any[TextValue],
+        any[Boolean]
+      )
     ).thenAnswer((_: InvocationOnMock) => {
       // NOTE: this is what is done in TransactionBoundQueryContext
       resourceManager.trace(cursor)
@@ -212,7 +241,8 @@ class NodeIndexStringScanPipeTest extends InterpretedRuntimeTestSuite with Impli
       IndexedProperty(PropertyKeyToken("prop", PropertyKeyId(0)), DoNotGetValue, NODE_TYPE),
       0,
       LiteralHelper.literal("text"),
-      IndexOrderNone
+      IndexOrderNone,
+      includeChangesFromThisTransaction = true
     )()
     val result = pipe.createResults(state)
     result.close()

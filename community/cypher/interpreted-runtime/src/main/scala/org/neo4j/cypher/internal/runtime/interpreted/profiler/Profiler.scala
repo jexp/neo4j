@@ -345,10 +345,11 @@ final class ProfilingPipeQueryContext(
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    queries: Seq[PropertyIndexQuery]
+    queries: Seq[PropertyIndexQuery],
+    includeChangesFromThisTransaction: Boolean
   ): NodeValueIndexCursor = {
     PipeTracer.onIndexSeek(index.reference())
-    trace(super.nodeIndexSeek(index, needsValues, indexOrder, queries))
+    trace(super.nodeIndexSeek(index, needsValues, indexOrder, queries, includeChangesFromThisTransaction))
   }
 
   override def nodeFulltextIndexSeek(
@@ -372,69 +373,88 @@ final class ProfilingPipeQueryContext(
   override def nodeIndexScan(
     index: IndexReadSession,
     needsValues: Boolean,
-    indexOrder: IndexOrder
+    indexOrder: IndexOrder,
+    includeChangesFromThisTransaction: Boolean
   ): NodeValueIndexCursor = {
     PipeTracer.onIndexSeek(index.reference())
-    trace(super.nodeIndexScan(index, needsValues, indexOrder))
+    trace(super.nodeIndexScan(index, needsValues, indexOrder, includeChangesFromThisTransaction))
   }
 
   override def nodeIndexSeekByContains(
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    value: TextValue
+    value: TextValue,
+    includeChangesFromThisTransaction: Boolean
   ): NodeValueIndexCursor = {
     PipeTracer.onIndexSeek(index.reference())
-    trace(super.nodeIndexSeekByContains(index, needsValues, indexOrder, value))
+    trace(super.nodeIndexSeekByContains(index, needsValues, indexOrder, value, includeChangesFromThisTransaction))
   }
 
   override def nodeIndexSeekByEndsWith(
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    value: TextValue
+    value: TextValue,
+    includeChangesFromThisTransaction: Boolean
   ): NodeValueIndexCursor = {
     PipeTracer.onIndexSeek(index.reference())
-    trace(super.nodeIndexSeekByEndsWith(index, needsValues, indexOrder, value))
+    trace(super.nodeIndexSeekByEndsWith(index, needsValues, indexOrder, value, includeChangesFromThisTransaction))
   }
 
   override def relationshipIndexSeek(
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    queries: Seq[PropertyIndexQuery]
+    queries: Seq[PropertyIndexQuery],
+    includeChangesFromThisTransaction: Boolean
   ): RelationshipValueIndexCursor = {
     PipeTracer.onIndexSeek(index.reference())
-    trace(super.relationshipIndexSeek(index, needsValues, indexOrder, queries))
+    trace(super.relationshipIndexSeek(index, needsValues, indexOrder, queries, includeChangesFromThisTransaction))
   }
 
   override def relationshipIndexSeekByContains(
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    value: TextValue
+    value: TextValue,
+    includeChangesFromThisTransaction: Boolean
   ): RelationshipValueIndexCursor = {
     PipeTracer.onIndexSeek(index.reference())
-    trace(super.relationshipIndexSeekByContains(index, needsValues, indexOrder, value))
+    trace(super.relationshipIndexSeekByContains(
+      index,
+      needsValues,
+      indexOrder,
+      value,
+      includeChangesFromThisTransaction
+    ))
   }
 
   override def relationshipIndexSeekByEndsWith(
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    value: TextValue
+    value: TextValue,
+    includeChangesFromThisTransaction: Boolean
   ): RelationshipValueIndexCursor = {
     PipeTracer.onIndexSeek(index.reference())
-    trace(super.relationshipIndexSeekByEndsWith(index, needsValues, indexOrder, value))
+    trace(super.relationshipIndexSeekByEndsWith(
+      index,
+      needsValues,
+      indexOrder,
+      value,
+      includeChangesFromThisTransaction
+    ))
   }
 
   override def relationshipIndexScan(
     index: IndexReadSession,
     needsValues: Boolean,
-    indexOrder: IndexOrder
+    indexOrder: IndexOrder,
+    includeChangesFromThisTransaction: Boolean
   ): RelationshipValueIndexCursor = {
     PipeTracer.onIndexSeek(index.reference())
-    trace(super.relationshipIndexScan(index, needsValues, indexOrder))
+    trace(super.relationshipIndexScan(index, needsValues, indexOrder, includeChangesFromThisTransaction))
   }
 
   private object PipeTracer extends OperatorProfileEvent {

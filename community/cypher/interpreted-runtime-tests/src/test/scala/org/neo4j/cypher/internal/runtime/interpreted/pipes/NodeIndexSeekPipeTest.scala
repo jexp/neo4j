@@ -49,7 +49,13 @@ class NodeIndexSeekPipeTest extends InterpretedRuntimeTestSuite {
 
     val cursor = new StubNodeValueIndexCursor().withEntity(0)
     when(
-      state.query.nodeIndexSeek(any[IndexReadSession], any[Boolean], any[IndexOrder], any[Seq[PropertyIndexQuery]])
+      state.query.nodeIndexSeek(
+        any[IndexReadSession],
+        any[Boolean],
+        any[IndexOrder],
+        any[Seq[PropertyIndexQuery]],
+        any[Boolean]
+      )
     ).thenAnswer((_: InvocationOnMock) => {
       // NOTE: this is what is done in TransactionBoundQueryContext
       resourceManager.trace(cursor)
@@ -62,7 +68,8 @@ class NodeIndexSeekPipeTest extends InterpretedRuntimeTestSuite {
       0,
       SingleQueryExpression(LiteralHelper.literal(42)),
       NonLockingSeek,
-      IndexOrderNone
+      IndexOrderNone,
+      includeChangesFromThisTransaction = true
     )()
     // exhaust
     pipe.createResults(state).toList
@@ -76,7 +83,13 @@ class NodeIndexSeekPipeTest extends InterpretedRuntimeTestSuite {
 
     val cursor = new StubNodeValueIndexCursor().withEntity(0)
     when(
-      state.query.nodeIndexSeek(any[IndexReadSession], any[Boolean], any[IndexOrder], any[Seq[PropertyIndexQuery]])
+      state.query.nodeIndexSeek(
+        any[IndexReadSession],
+        any[Boolean],
+        any[IndexOrder],
+        any[Seq[PropertyIndexQuery]],
+        any[Boolean]
+      )
     ).thenAnswer((_: InvocationOnMock) => {
       // NOTE: this is what is done in TransactionBoundQueryContext
       resourceManager.trace(cursor)
@@ -90,7 +103,8 @@ class NodeIndexSeekPipeTest extends InterpretedRuntimeTestSuite {
       0,
       SingleQueryExpression(LiteralHelper.literal(42)),
       NonLockingSeek,
-      IndexOrderNone
+      IndexOrderNone,
+      includeChangesFromThisTransaction = true
     )()
     val result = pipe.createResults(state)
     result.close()

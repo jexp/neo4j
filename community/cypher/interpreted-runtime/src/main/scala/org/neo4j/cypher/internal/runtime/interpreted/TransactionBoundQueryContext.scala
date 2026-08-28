@@ -814,7 +814,8 @@ private[internal] class TransactionBoundReadQueryContext(
   override def getRelationshipsByType(
     session: TokenReadSession,
     relType: Int,
-    indexOrder: IndexOrder
+    indexOrder: IndexOrder,
+    includeChangesFromThisTransaction: Boolean
   ): ClosingRelationshipIterator = {
     val read = reads()
     val typeCursor =
@@ -822,12 +823,13 @@ private[internal] class TransactionBoundReadQueryContext(
         transactionalContext.cursorContext,
         transactionalContext.memoryTracker
       )
-    read.relationshipTypeScan(
+    read.relationshipTypeIndexScan(
       session,
       typeCursor,
       ordered(asKernelIndexOrder(indexOrder)),
       new TokenPredicate(relType),
-      transactionalContext.cursorContext
+      transactionalContext.cursorContext,
+      includeChangesFromThisTransaction
     )
     resources.trace(typeCursor.getResource)
     new RelationshipIndexCursorIterator(typeCursor)
@@ -886,12 +888,13 @@ private[internal] class TransactionBoundReadQueryContext(
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    predicates: Seq[PropertyIndexQuery]
+    predicates: Seq[PropertyIndexQuery],
+    includeChangesFromThisTransaction: Boolean
   ): NodeValueIndexCursor = {
     if (predicates.exists(isImpossibleIndexQuery)) {
       NodeValueIndexCursor.EMPTY
     } else {
-      innerNodeIndexSeek(index, needsValues, indexOrder, predicates: _*)
+      innerNodeIndexSeek(index, needsValues, indexOrder, includeChangesFromThisTransaction, predicates: _*)
     }
   }
 
@@ -909,12 +912,13 @@ private[internal] class TransactionBoundReadQueryContext(
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    predicates: Seq[PropertyIndexQuery]
+    predicates: Seq[PropertyIndexQuery],
+    includeChangesFromThisTransaction: Boolean
   ): RelationshipValueIndexCursor = {
     if (predicates.exists(isImpossibleIndexQuery)) {
       RelationshipValueIndexCursor.EMPTY
     } else {
-      innerRelationshipIndexSeek(index, needsValues, indexOrder, predicates: _*)
+      innerRelationshipIndexSeek(index, needsValues, indexOrder, includeChangesFromThisTransaction, predicates: _*)
     }
   }
 
@@ -964,12 +968,14 @@ private[internal] class TransactionBoundReadQueryContext(
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    value: TextValue
+    value: TextValue,
+    includeChangesFromThisTransaction: Boolean
   ): RelationshipValueIndexCursor =
     innerRelationshipIndexSeek(
       index,
       needsValues,
       indexOrder,
+      includeChangesFromThisTransaction,
       PropertyIndexQuery.stringContains(index.reference().schema().getPropertyIds()(0), value)
     )
 
@@ -977,25 +983,29 @@ private[internal] class TransactionBoundReadQueryContext(
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    value: TextValue
+    value: TextValue,
+    includeChangesFromThisTransaction: Boolean
   ): RelationshipValueIndexCursor =
     innerRelationshipIndexSeek(
       index,
       needsValues,
       indexOrder,
+      includeChangesFromThisTransaction,
       PropertyIndexQuery.stringSuffix(index.reference().schema().getPropertyIds()(0), value)
     )
 
   override def relationshipIndexScan(
     index: IndexReadSession,
     needsValues: Boolean,
-    indexOrder: IndexOrder
+    indexOrder: IndexOrder,
+    includeChangesFromThisTransaction: Boolean
   ): RelationshipValueIndexCursor = {
     val relCursor = allocateAndTraceRelationshipValueIndexCursor()
     reads().relationshipIndexScan(
       index,
       relCursor,
-      IndexQueryConstraints.constrained(asKernelIndexOrder(indexOrder), needsValues)
+      IndexQueryConstraints.constrained(asKernelIndexOrder(indexOrder), needsValues),
+      includeChangesFromThisTransaction
     )
     relCursor
   }
@@ -1059,6 +1069,7 @@ private[internal] class TransactionBoundReadQueryContext(
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
+    includeChangesFromThisTransaction: Boolean,
     queries: PropertyIndexQuery*
   ): NodeValueIndexCursor = {
 
@@ -1076,6 +1087,7 @@ private[internal] class TransactionBoundReadQueryContext(
       index,
       nodeCursor,
       IndexQueryConstraints.constrained(asKernelIndexOrder(indexOrder), needsValuesFromIndexSeek),
+      includeChangesFromThisTransaction,
       queries: _*
     )
     if (needsValues && actualValues != null) {
@@ -1089,6 +1101,7 @@ private[internal] class TransactionBoundReadQueryContext(
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
+    includeChangesFromThisTransaction: Boolean,
     queries: PropertyIndexQuery*
   ): RelationshipValueIndexCursor = {
 
@@ -1107,6 +1120,7 @@ private[internal] class TransactionBoundReadQueryContext(
       index,
       relCursor,
       IndexQueryConstraints.constrained(asKernelIndexOrder(indexOrder), needsValuesFromIndexSeek),
+      includeChangesFromThisTransaction,
       queries: _*
     )
     if (needsValues && actualValues != null) {
@@ -1119,13 +1133,15 @@ private[internal] class TransactionBoundReadQueryContext(
   override def nodeIndexScan(
     index: IndexReadSession,
     needsValues: Boolean,
-    indexOrder: IndexOrder
+    indexOrder: IndexOrder,
+    includeChangesFromThisTransaction: Boolean
   ): NodeValueIndexCursor = {
     val nodeCursor = allocateAndTraceNodeValueIndexCursor()
     reads().nodeIndexScan(
       index,
       nodeCursor,
-      IndexQueryConstraints.constrained(asKernelIndexOrder(indexOrder), needsValues)
+      IndexQueryConstraints.constrained(asKernelIndexOrder(indexOrder), needsValues),
+      includeChangesFromThisTransaction
     )
     nodeCursor
   }
@@ -1134,12 +1150,14 @@ private[internal] class TransactionBoundReadQueryContext(
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    value: TextValue
+    value: TextValue,
+    includeChangesFromThisTransaction: Boolean
   ): NodeValueIndexCursor =
     innerNodeIndexSeek(
       index,
       needsValues,
       indexOrder,
+      includeChangesFromThisTransaction,
       PropertyIndexQuery.stringContains(index.reference().schema().getPropertyIds()(0), value)
     )
 
@@ -1147,12 +1165,14 @@ private[internal] class TransactionBoundReadQueryContext(
     index: IndexReadSession,
     needsValues: Boolean,
     indexOrder: IndexOrder,
-    value: TextValue
+    value: TextValue,
+    includeChangesFromThisTransaction: Boolean
   ): NodeValueIndexCursor =
     innerNodeIndexSeek(
       index,
       needsValues,
       indexOrder,
+      includeChangesFromThisTransaction,
       PropertyIndexQuery.stringSuffix(index.reference().schema().getPropertyIds()(0), value)
     )
 
@@ -1243,15 +1263,17 @@ private[internal] class TransactionBoundReadQueryContext(
   override def getNodesByLabel(
     tokenReadSession: TokenReadSession,
     id: Int,
-    indexOrder: IndexOrder
+    indexOrder: IndexOrder,
+    includeChangesFromThisTransaction: Boolean
   ): ClosingLongIterator = {
     val cursor = allocateAndTraceNodeLabelIndexCursor()
-    reads().nodeLabelScan(
+    reads().nodeLabelIndexScan(
       tokenReadSession,
       cursor,
       ordered(asKernelIndexOrder(indexOrder)),
       new TokenPredicate(id),
-      transactionalContext.cursorContext
+      transactionalContext.cursorContext,
+      includeChangesFromThisTransaction
     )
     new ReferenceCursorIterator(cursor)
   }
@@ -1502,9 +1524,9 @@ private[internal] class TransactionBoundReadQueryContext(
 
     override def getById(id: Long): VirtualNodeValue = VirtualValues.node(id)
 
-    override def all: ClosingLongIterator = {
+    override def all(includeChangesFromThisTransaction: Boolean): ClosingLongIterator = {
       val nodeCursor = allocateAndTraceNodeCursor()
-      reads().allNodesScan(nodeCursor)
+      reads().allNodesScan(nodeCursor, includeChangesFromThisTransaction)
       new ReferenceCursorIterator(nodeCursor)
     }
 
@@ -1617,9 +1639,9 @@ private[internal] class TransactionBoundReadQueryContext(
 
     override def entityExists(id: Long): Boolean = id >= 0 && reads().relationshipExists(id)
 
-    override def all: ClosingLongIterator = {
+    override def all(includeChangesFromThisTransaction: Boolean): ClosingLongIterator = {
       val relCursor = allocateAndTraceRelationshipScanCursor()
-      reads().allRelationshipsScan(relCursor)
+      reads().allRelationshipsScan(relCursor, includeChangesFromThisTransaction)
       new ReferenceCursorIterator(relCursor)
     }
 

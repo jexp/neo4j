@@ -54,13 +54,21 @@ case class DynamicLabelNodeLookupPipe(
   labelExpr: Expression,
   operator: DynamicElement.SetOperator,
   propertyExpressions: Map[PropertyKeyToken, Expression],
-  readOnly: Boolean
+  readOnly: Boolean,
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID) extends Pipe {
 
   protected def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = {
     val context = state.newRowWithArgument(rowFactory)
     val propertyLookups = DynamicLabelNodeLookupBase.mapPropertyLookups(propertyExpressions, _.apply(context, state))
-    DynamicLabelNodeLookupIterator(state, labelExpr.apply(context, state), propertyLookups, operator, readOnly)
+    DynamicLabelNodeLookupIterator(
+      state,
+      labelExpr.apply(context, state),
+      propertyLookups,
+      operator,
+      readOnly,
+      includeChangesFromThisTransaction
+    )
       .toIterator(n => rowFactory.copyWith(context, ident, VirtualValues.node(n)))
   }
 }
@@ -213,7 +221,8 @@ case class DynamicLabelNodeLookupIterator(
   labelExpression: AnyValue,
   propertyConstraints: Array[PropertyIndexQuery.ExactPredicate],
   operator: DynamicElement.SetOperator,
-  readOnly: Boolean
+  readOnly: Boolean,
+  includeChangesFromThisTransaction: Boolean
 ) extends DynamicLabelNodeLookupBase[ClosingLongIterator](state, readOnly) {
 
   private val nodeIterator = getNodes(labelExpression, operator, propertyConstraints)
@@ -257,20 +266,39 @@ case class DynamicLabelNodeLookupIterator(
       state.query.dataRead.indexReadSession(index),
       needsValues = false, // we already know the values because we only support ExactPredicate
       IndexOrderNone,
-      properties
+      properties,
+      includeChangesFromThisTransaction
     ))
   }
 
-  override protected def allNodes: ClosingLongIterator = state.query.nodeReadOps.all
+  override protected def allNodes: ClosingLongIterator =
+    state.query.nodeReadOps.all(includeChangesFromThisTransaction)
 
   override protected def allLabels(labels: Array[Int]): ClosingLongIterator =
-    intersectionIterator(state.query, labels, IndexOrderNone, state.nodeLabelTokenReadSession.get)
+    intersectionIterator(
+      state.query,
+      labels,
+      IndexOrderNone,
+      state.nodeLabelTokenReadSession.get,
+      includeChangesFromThisTransaction
+    )
 
   override protected def anyLabel(labels: Array[Int]): ClosingLongIterator =
-    unionIterator(state.query, labels, IndexOrderNone, state.nodeLabelTokenReadSession.get)
+    unionIterator(
+      state.query,
+      labels,
+      IndexOrderNone,
+      state.nodeLabelTokenReadSession.get,
+      includeChangesFromThisTransaction
+    )
 
   override protected def label(label: Int): ClosingLongIterator =
-    state.query.getNodesByLabel(state.nodeLabelTokenReadSession.get, label, IndexOrderNone)
+    state.query.getNodesByLabel(
+      state.nodeLabelTokenReadSession.get,
+      label,
+      IndexOrderNone,
+      includeChangesFromThisTransaction
+    )
 
   override protected def empty: ClosingLongIterator = ClosingLongIterator.empty
 

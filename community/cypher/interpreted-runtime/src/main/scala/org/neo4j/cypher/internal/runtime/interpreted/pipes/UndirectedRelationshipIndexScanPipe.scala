@@ -34,7 +34,8 @@ case class UndirectedRelationshipIndexScanPipe(
   relType: RelationshipTypeToken,
   properties: Array[IndexedProperty],
   queryIndexId: Int,
-  indexOrder: IndexOrder
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID) extends Pipe with IndexPipeWithValues {
 
   override val indexPropertyIndices: Array[Int] = properties.indices.filter(properties(_).shouldGetValue).toArray
@@ -48,7 +49,12 @@ case class UndirectedRelationshipIndexScanPipe(
 
   protected def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = {
     val baseContext = state.newRowWithArgument(rowFactory)
-    val cursor = state.query.relationshipIndexScan(state.queryIndexes(queryIndexId), needsValues, indexOrder)
+    val cursor = state.query.relationshipIndexScan(
+      state.queryIndexes(queryIndexId),
+      needsValues,
+      indexOrder,
+      includeChangesFromThisTransaction
+    )
     new UndirectedRelIndexIterator(startNode, endNode, baseContext, cursor)
   }
 }

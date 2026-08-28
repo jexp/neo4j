@@ -38,12 +38,22 @@ import org.neo4j.io.IOUtils
 import org.neo4j.token.api.TokenConstants.NO_TOKEN
 import org.neo4j.values.virtual.VirtualValues
 
-case class UnionNodeByLabelsScanPipe(ident: String, labels: Seq[LazyLabel], indexOrder: IndexOrder)(val id: Id =
-  Id.INVALID_ID)
+case class UnionNodeByLabelsScanPipe(
+  ident: String,
+  labels: Seq[LazyLabel],
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
+)(val id: Id = Id.INVALID_ID)
     extends Pipe {
 
   protected def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = {
-    val nodes = unionIterator(state.query, labels, indexOrder, state.nodeLabelTokenReadSession.get)
+    val nodes = unionIterator(
+      state.query,
+      labels,
+      indexOrder,
+      state.nodeLabelTokenReadSession.get,
+      includeChangesFromThisTransaction
+    )
     val baseContext = state.newRowWithArgument(rowFactory)
     PrimitiveLongHelper.map(nodes, n => rowFactory.copyWith(baseContext, ident, VirtualValues.node(n)))
   }
@@ -55,20 +65,28 @@ object UnionNodeByLabelsScanPipe {
     query: QueryContext,
     labels: Seq[LazyLabel],
     indexOrder: IndexOrder,
-    tokenReadSession: TokenReadSession
+    tokenReadSession: TokenReadSession,
+    includeChangesFromThisTransaction: Boolean
   ): ClosingLongIterator =
-    unionIterator(query, labels.map(_.getId(query)).toArray, indexOrder, tokenReadSession)
+    unionIterator(
+      query,
+      labels.map(_.getId(query)).toArray,
+      indexOrder,
+      tokenReadSession,
+      includeChangesFromThisTransaction
+    )
 
   def unionIterator(
     query: QueryContext,
     maybeUnknownIds: Array[Int],
     indexOrder: IndexOrder,
-    tokenReadSession: TokenReadSession
+    tokenReadSession: TokenReadSession,
+    includeChangesFromThisTransaction: Boolean
   ): ClosingLongIterator = {
     val ids = maybeUnknownIds.filter(_ != NO_TOKEN)
     if (ids.isEmpty) ClosingLongIterator.empty
     else if (ids.length == 1) {
-      query.getNodesByLabel(tokenReadSession, ids.head, indexOrder)
+      query.getNodesByLabel(tokenReadSession, ids.head, indexOrder, includeChangesFromThisTransaction)
     } else {
       val cursors = ids.map(_ => {
         val c = query.nodeLabelIndexCursor()
@@ -82,14 +100,16 @@ object UnionNodeByLabelsScanPipe {
             tokenReadSession,
             query.transactionalContext.cursorContext,
             ids,
-            cursors
+            cursors,
+            includeChangesFromThisTransaction
           )
         case IndexOrderDescending => descendingUnionNodeLabelIndexCursor(
             query.transactionalContext.dataRead,
             tokenReadSession,
             query.transactionalContext.cursorContext,
             ids,
-            cursors
+            cursors,
+            includeChangesFromThisTransaction
           )
       }
 

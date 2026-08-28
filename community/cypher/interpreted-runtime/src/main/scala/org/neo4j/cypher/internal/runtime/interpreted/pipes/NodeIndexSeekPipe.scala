@@ -36,7 +36,8 @@ case class NodeIndexSeekPipe(
   queryIndexId: Int,
   valueExpr: QueryExpression[Expression],
   indexMode: IndexSeekMode,
-  indexOrder: IndexOrder
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID) extends Pipe with IndexPipeWithValues {
 
   override val ident: Option[String] = Some(node)
@@ -57,7 +58,7 @@ case class NodeIndexSeekPipe(
       state,
       state.query,
       baseContext,
-      entityIndexSeeker.indexSeek(state, index, needsValues, indexOrder, baseContext)
+      entityIndexSeeker.indexSeek(state, index, needsValues, indexOrder, baseContext, includeChangesFromThisTransaction)
     )
   }
 

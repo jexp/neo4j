@@ -41,7 +41,8 @@ case class DirectedRelationshipIndexSeekSlottedPipe(
   queryIndexId: Int,
   valueExpr: QueryExpression[Expression],
   indexMode: IndexSeekMode,
-  indexOrder: IndexOrder
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID) extends Pipe with IndexSlottedPipeWithValues {
 
   private val propertyIds: Array[Int] = properties.map(_.propertyKeyId).toArray
@@ -62,7 +63,14 @@ case class DirectedRelationshipIndexSeekSlottedPipe(
       state,
       startNode,
       endNode,
-      entityIndexSeeker.relationshipIndexSeek(state, index, needsValues, indexOrder, context)
+      entityIndexSeeker.relationshipIndexSeek(
+        state,
+        index,
+        needsValues,
+        indexOrder,
+        context,
+        includeChangesFromThisTransaction
+      )
     )
   }
 }

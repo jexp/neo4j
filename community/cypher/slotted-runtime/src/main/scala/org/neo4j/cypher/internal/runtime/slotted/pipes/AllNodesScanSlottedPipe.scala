@@ -27,13 +27,17 @@ import org.neo4j.cypher.internal.runtime.interpreted.pipes.Pipe
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.cypher.internal.util.attribution.Id
 
-case class AllNodesScanSlottedPipe(ident: String, slots: SlotConfiguration)(val id: Id = Id.INVALID_ID) extends Pipe {
+case class AllNodesScanSlottedPipe(
+  ident: String,
+  slots: SlotConfiguration,
+  includeChangesFromThisTransaction: Boolean
+)(val id: Id = Id.INVALID_ID) extends Pipe {
 
   private val offset = slots.longOffset(ident)
 
   protected def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = {
     PrimitiveLongHelper.map(
-      state.query.nodeReadOps.all,
+      state.query.nodeReadOps.all(includeChangesFromThisTransaction),
       { nodeId =>
         val context = state.newRowWithArgument(rowFactory)
         context.setLongAt(offset, nodeId)

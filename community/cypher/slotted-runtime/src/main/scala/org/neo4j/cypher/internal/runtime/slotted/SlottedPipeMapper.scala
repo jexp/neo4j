@@ -202,6 +202,7 @@ import org.neo4j.cypher.internal.physicalplanning.SlottedIndexedProperty
 import org.neo4j.cypher.internal.physicalplanning.ast.NodeFromSlot
 import org.neo4j.cypher.internal.physicalplanning.ast.NullCheckVariable
 import org.neo4j.cypher.internal.physicalplanning.ast.RelationshipFromSlot
+import org.neo4j.cypher.internal.planner.spi.PlanningAttributes.StableLeafPlans
 import org.neo4j.cypher.internal.runtime.CypherRow
 import org.neo4j.cypher.internal.runtime.QueryIndexRegistrator
 import org.neo4j.cypher.internal.runtime.ReadableRow
@@ -378,7 +379,8 @@ class SlottedPipeMapper(
   expressionConverters: ExpressionConverters,
   physicalPlan: PhysicalPlan,
   readOnly: Boolean,
-  indexRegistrator: QueryIndexRegistrator
+  indexRegistrator: QueryIndexRegistrator,
+  stableLeafPlans: StableLeafPlans
 )(implicit semanticTable: TokenTable)
     extends PipeMapper {
 
@@ -397,12 +399,16 @@ class SlottedPipeMapper(
 
     val pipe = plan match {
       case AllNodesScan(column, _) =>
-        AllNodesScanSlottedPipe(column.name, slots)(id)
+        AllNodesScanSlottedPipe(
+          column.name,
+          slots,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
+        )(id)
 
       // Note: this plan shouldn't really be used here, but having it mapped here helps
       //      fallback and makes testing easier
       case PartitionedAllNodesScan(column, _) =>
-        AllNodesScanSlottedPipe(column.name, slots)(id)
+        AllNodesScanSlottedPipe(column.name, slots, includeChangesFromThisTransaction = true)(id)
 
       case NodeIndexScan(column, label, properties, _, indexOrder, indexType, _) =>
         NodeIndexScanSlottedPipe(
@@ -411,7 +417,8 @@ class SlottedPipeMapper(
           properties.map(SlottedIndexedProperty(column, _, slots)),
           indexRegistrator.registerQueryIndex(indexType, label, properties),
           indexOrder,
-          slots
+          slots,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id)
 
       case PartitionedNodeIndexScan(column, label, properties, _, indexType) =>
@@ -421,7 +428,8 @@ class SlottedPipeMapper(
           properties.map(SlottedIndexedProperty(column, _, slots)),
           indexRegistrator.registerQueryIndex(indexType, label, properties),
           IndexOrderNone,
-          slots
+          slots,
+          includeChangesFromThisTransaction = true
         )(id)
 
       case NodeIndexContainsScan(column, label, property, valueExpr, _, indexOrder, indexType) =>
@@ -432,7 +440,8 @@ class SlottedPipeMapper(
           indexRegistrator.registerQueryIndex(indexType, label, property),
           convertExpressions(valueExpr),
           slots,
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id)
 
       case NodeIndexEndsWithScan(column, label, property, valueExpr, _, indexOrder, indexType) =>
@@ -443,7 +452,8 @@ class SlottedPipeMapper(
           indexRegistrator.registerQueryIndex(indexType, label, property),
           convertExpressions(valueExpr),
           slots,
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id)
 
       case NodeVectorIndexSearch(
@@ -501,7 +511,8 @@ class SlottedPipeMapper(
           valueExpr.map(convertExpressions),
           indexSeekMode,
           indexOrder,
-          slots
+          slots,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id)
 
       case PartitionedNodeIndexSeek(column, label, properties, valueExpr, _, indexType) =>
@@ -514,7 +525,8 @@ class SlottedPipeMapper(
           valueExpr.map(convertExpressions),
           indexSeekMode,
           IndexOrderNone,
-          slots
+          slots,
+          includeChangesFromThisTransaction = true
         )(id)
 
       case NodeUniqueIndexSeek(column, label, properties, valueExpr, _, indexOrder, indexType, _) =>
@@ -527,7 +539,8 @@ class SlottedPipeMapper(
           valueExpr.map(convertExpressions),
           indexSeekMode,
           indexOrder,
-          slots
+          slots,
+          includeChangesFromThisTransaction = true
         )(id = id)
 
       case MergeUniqueNode(
@@ -553,7 +566,13 @@ class SlottedPipeMapper(
 
       case NodeByLabelScan(column, label, _, indexOrder) =>
         indexRegistrator.registerLabelScan()
-        NodesByLabelScanSlottedPipe(column.name, LazyLabel(label)(semanticTable), slots, indexOrder)(id)
+        NodesByLabelScanSlottedPipe(
+          column.name,
+          LazyLabel(label)(semanticTable),
+          slots,
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
+        )(id)
 
       case DynamicLabelNodeLookup(column, DynamicElement.Simple(expr, operator), _, propertyConstraints) =>
         indexRegistrator.registerLabelScan()
@@ -565,21 +584,29 @@ class SlottedPipeMapper(
           propertyConstraints.map { case (property, expr) =>
             property -> expressionConverters.toCommandExpression(id, expr)
           },
-          readOnly = readOnly
+          readOnly = readOnly,
+          includeChangesFromThisTransaction = stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id = id)
 
       // Note: this plan shouldn't really be used here, but having it mapped here helps
       //      fallback and makes testing easier
       case PartitionedNodeByLabelScan(column, label, _) =>
         indexRegistrator.registerLabelScan()
-        NodesByLabelScanSlottedPipe(column.name, LazyLabel(label)(semanticTable), slots, IndexOrderNone)(id)
+        NodesByLabelScanSlottedPipe(
+          column.name,
+          LazyLabel(label)(semanticTable),
+          slots,
+          IndexOrderNone,
+          includeChangesFromThisTransaction = true
+        )(id)
 
       case UnionNodeByLabelsScan(column, labels, _, indexOrder) =>
         indexRegistrator.registerLabelScan()
         UnionNodesByLabelsScanSlottedPipe(
           slots.longOffset(column),
           labels.map(label => LazyLabel(label)(semanticTable)),
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id)
 
       case PartitionedUnionNodeByLabelsScan(column, labels, _) =>
@@ -587,7 +614,8 @@ class SlottedPipeMapper(
         UnionNodesByLabelsScanSlottedPipe(
           slots.longOffset(column),
           labels.map(label => LazyLabel(label)(semanticTable)),
-          IndexOrderNone
+          IndexOrderNone,
+          includeChangesFromThisTransaction = true
         )(id)
 
       case IntersectionNodeByLabelsScan(column, labels, _, indexOrder) =>
@@ -595,7 +623,8 @@ class SlottedPipeMapper(
         IntersectionNodesByLabelsScanSlottedPipe(
           slots.longOffset(column),
           labels.map(label => LazyLabel(label)(semanticTable)),
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id)
 
       case PartitionedIntersectionNodeByLabelsScan(column, labels, _) =>
@@ -603,7 +632,8 @@ class SlottedPipeMapper(
         IntersectionNodesByLabelsScanSlottedPipe(
           slots.longOffset(column),
           labels.map(label => LazyLabel(label)(semanticTable)),
-          IndexOrderNone
+          IndexOrderNone,
+          includeChangesFromThisTransaction = true
         )(id)
 
       case SubtractionNodeByLabelsScan(column, positiveLabels, negativeLabels, _, indexOrder) =>
@@ -612,7 +642,8 @@ class SlottedPipeMapper(
           slots.longOffset(column),
           positiveLabels.map(l => LazyLabel(l)(semanticTable)),
           negativeLabels.map(l => LazyLabel(l)(semanticTable)),
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id)
 
       case PartitionedSubtractionNodeByLabelsScan(column, positiveLabels, negativeLabels, _) =>
@@ -621,7 +652,8 @@ class SlottedPipeMapper(
           slots.longOffset(column),
           positiveLabels.map(l => LazyLabel(l)(semanticTable)),
           negativeLabels.map(l => LazyLabel(l)(semanticTable)),
-          IndexOrderNone
+          IndexOrderNone,
+          includeChangesFromThisTransaction = true
         )(id)
 
       case DirectedRelationshipUniqueIndexSeek(
@@ -645,7 +677,8 @@ class SlottedPipeMapper(
           indexRegistrator.registerQueryIndex(indexType, typeToken, properties),
           valueExpr.map(convertExpressions),
           indexSeekMode,
-          indexOrder
+          indexOrder,
+          includeChangesFromThisTransaction = true
         )(id)
 
       case DirectedRelationshipIndexSeek(
@@ -670,7 +703,8 @@ class SlottedPipeMapper(
           indexRegistrator.registerQueryIndex(indexType, typeToken, properties),
           valueExpr.map(convertExpressions),
           indexSeekMode,
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id)
 
       case PartitionedDirectedRelationshipIndexSeek(
@@ -693,7 +727,8 @@ class SlottedPipeMapper(
           indexRegistrator.registerQueryIndex(indexType, typeToken, properties),
           valueExpr.map(convertExpressions),
           indexSeekMode,
-          IndexOrderNone
+          IndexOrderNone,
+          includeChangesFromThisTransaction = true
         )(id)
 
       case UndirectedRelationshipUniqueIndexSeek(
@@ -717,7 +752,8 @@ class SlottedPipeMapper(
           indexRegistrator.registerQueryIndex(indexType, typeToken, properties),
           valueExpr.map(convertExpressions),
           indexSeekMode,
-          indexOrder
+          indexOrder,
+          includeChangesFromThisTransaction = true
         )(id)
 
       case UndirectedRelationshipIndexSeek(
@@ -742,7 +778,8 @@ class SlottedPipeMapper(
           indexRegistrator.registerQueryIndex(indexType, typeToken, properties),
           valueExpr.map(convertExpressions),
           indexSeekMode,
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id)
 
       case PartitionedUndirectedRelationshipIndexSeek(
@@ -765,7 +802,8 @@ class SlottedPipeMapper(
           indexRegistrator.registerQueryIndex(indexType, typeToken, properties),
           valueExpr.map(convertExpressions),
           indexSeekMode,
-          IndexOrderNone
+          IndexOrderNone,
+          includeChangesFromThisTransaction = true
         )(id)
 
       case DirectedRelationshipIndexScan(
@@ -786,7 +824,8 @@ class SlottedPipeMapper(
           typeToken,
           properties.map(SlottedIndexedProperty(column, _, slots)).toIndexedSeq,
           indexRegistrator.registerQueryIndex(indexType, typeToken, properties),
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id)
 
       case UndirectedRelationshipIndexScan(
@@ -807,7 +846,8 @@ class SlottedPipeMapper(
           typeToken,
           properties.map(SlottedIndexedProperty(column, _, slots)).toIndexedSeq,
           indexRegistrator.registerQueryIndex(indexType, typeToken, properties),
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id)
 
       case PartitionedDirectedRelationshipIndexScan(
@@ -826,7 +866,8 @@ class SlottedPipeMapper(
           typeToken,
           properties.map(SlottedIndexedProperty(column, _, slots)).toIndexedSeq,
           indexRegistrator.registerQueryIndex(indexType, typeToken, properties),
-          IndexOrderNone
+          IndexOrderNone,
+          includeChangesFromThisTransaction = true
         )(id)
 
       case PartitionedUndirectedRelationshipIndexScan(
@@ -845,35 +886,40 @@ class SlottedPipeMapper(
           typeToken,
           properties.map(SlottedIndexedProperty(column, _, slots)).toIndexedSeq,
           indexRegistrator.registerQueryIndex(indexType, typeToken, properties),
-          IndexOrderNone
+          IndexOrderNone,
+          includeChangesFromThisTransaction = true
         )(id)
 
       case DirectedAllRelationshipsScan(name, start, end, _) =>
         DirectedAllRelationshipsScanSlottedPipe(
           name.map(r => slots.longOffset(r)),
           start.map(n => slots.longOffset(n)),
-          end.map(n => slots.longOffset(n))
+          end.map(n => slots.longOffset(n)),
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id)
 
       case UndirectedAllRelationshipsScan(name, start, end, _) =>
         UndirectedAllRelationshipsScanSlottedPipe(
           name.map(r => slots.longOffset(r)),
           start.map(n => slots.longOffset(n)),
-          end.map(n => slots.longOffset(n))
+          end.map(n => slots.longOffset(n)),
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id)
 
       case PartitionedDirectedAllRelationshipsScan(name, start, end, _) =>
         DirectedAllRelationshipsScanSlottedPipe(
           name.map(r => slots.longOffset(r)),
           start.map(n => slots.longOffset(n)),
-          end.map(n => slots.longOffset(n))
+          end.map(n => slots.longOffset(n)),
+          includeChangesFromThisTransaction = true
         )(id)
 
       case PartitionedUndirectedAllRelationshipsScan(name, start, end, _) =>
         UndirectedAllRelationshipsScanSlottedPipe(
           name.map(r => slots.longOffset(r)),
           start.map(n => slots.longOffset(n)),
-          end.map(n => slots.longOffset(n))
+          end.map(n => slots.longOffset(n)),
+          includeChangesFromThisTransaction = true
         )(id)
 
       case DirectedRelationshipTypeScan(name, start, typ, end, _, indexOrder) =>
@@ -883,7 +929,8 @@ class SlottedPipeMapper(
           start.map(n => slots.longOffset(n)),
           LazyType(typ),
           end.map(n => slots.longOffset(n)),
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id)
 
       case DynamicDirectedRelationshipTypeLookup(name, start, relTypeLabel, end, _, _, propertyPredicates) =>
@@ -898,7 +945,8 @@ class SlottedPipeMapper(
               end.map(n => slots.longOffset(n)),
               operator,
               propertyPredicates.transform((_, v) => expressionConverters.toCommandExpression(id, v)),
-              readOnly = readOnly
+              readOnly,
+              stableLeafPlans.includeChangesFromThisTransaction(id)
             )(id)
         }
 
@@ -909,7 +957,8 @@ class SlottedPipeMapper(
           start.map(n => slots.longOffset(n)),
           LazyType(typ),
           end.map(n => slots.longOffset(n)),
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id)
 
       case DynamicUndirectedRelationshipTypeLookup(name, start, relTypeLabel, end, _, _, propertyPredicates) =>
@@ -924,7 +973,8 @@ class SlottedPipeMapper(
               end.map(n => slots.longOffset(n)),
               operator,
               propertyPredicates.transform((_, v) => expressionConverters.toCommandExpression(id, v)),
-              readOnly = readOnly
+              readOnly,
+              stableLeafPlans.includeChangesFromThisTransaction(id)
             )(id)
         }
 
@@ -935,7 +985,8 @@ class SlottedPipeMapper(
           start.map(n => slots.longOffset(n)),
           LazyType(typ),
           end.map(n => slots.longOffset(n)),
-          IndexOrderNone
+          IndexOrderNone,
+          includeChangesFromThisTransaction = true
         )(id)
 
       case PartitionedUndirectedRelationshipTypeScan(name, start, typ, end, _) =>
@@ -945,7 +996,8 @@ class SlottedPipeMapper(
           start.map(n => slots.longOffset(n)),
           LazyType(typ),
           end.map(n => slots.longOffset(n)),
-          IndexOrderNone
+          IndexOrderNone,
+          includeChangesFromThisTransaction = true
         )(id)
 
       case DirectedUnionRelationshipTypesScan(name, start, types, end, _, indexOrder) =>
@@ -955,7 +1007,8 @@ class SlottedPipeMapper(
           start.map(n => slots.longOffset(n)),
           types.map(t => LazyType(t)(semanticTable)),
           end.map(n => slots.longOffset(n)),
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id)
 
       case UndirectedUnionRelationshipTypesScan(name, start, types, end, _, indexOrder) =>
@@ -965,7 +1018,8 @@ class SlottedPipeMapper(
           start.map(n => slots.longOffset(n)),
           types.map(t => LazyType(t)(semanticTable)),
           end.map(n => slots.longOffset(n)),
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id)
 
       case PartitionedDirectedUnionRelationshipTypesScan(name, start, types, end, _) =>
@@ -975,7 +1029,8 @@ class SlottedPipeMapper(
           start.map(n => slots.longOffset(n)),
           types.map(t => LazyType(t)(semanticTable)),
           end.map(n => slots.longOffset(n)),
-          IndexOrderNone
+          IndexOrderNone,
+          includeChangesFromThisTransaction = true
         )(id)
 
       case PartitionedUndirectedUnionRelationshipTypesScan(name, start, types, end, _) =>
@@ -985,7 +1040,8 @@ class SlottedPipeMapper(
           start.map(n => slots.longOffset(n)),
           types.map(t => LazyType(t)(semanticTable)),
           end.map(n => slots.longOffset(n)),
-          IndexOrderNone
+          IndexOrderNone,
+          includeChangesFromThisTransaction = true
         )(id)
 
       case DirectedRelationshipIndexContainsScan(
@@ -1007,7 +1063,8 @@ class SlottedPipeMapper(
           indexRegistrator.registerQueryIndex(indexType, typeToken, property),
           convertExpressions(valueExpr),
           slots,
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id)
 
       case UndirectedRelationshipIndexContainsScan(
@@ -1029,7 +1086,8 @@ class SlottedPipeMapper(
           indexRegistrator.registerQueryIndex(indexType, typeToken, property),
           convertExpressions(valueExpr),
           slots,
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id)
 
       case DirectedRelationshipIndexEndsWithScan(
@@ -1051,7 +1109,8 @@ class SlottedPipeMapper(
           indexRegistrator.registerQueryIndex(indexType, typeToken, property),
           convertExpressions(valueExpr),
           slots,
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id)
 
       case UndirectedRelationshipIndexEndsWithScan(
@@ -1073,7 +1132,8 @@ class SlottedPipeMapper(
           indexRegistrator.registerQueryIndex(indexType, typeToken, property),
           convertExpressions(valueExpr),
           slots,
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id)
       case DirectedRelationshipVectorIndexSearch(
           relationship,

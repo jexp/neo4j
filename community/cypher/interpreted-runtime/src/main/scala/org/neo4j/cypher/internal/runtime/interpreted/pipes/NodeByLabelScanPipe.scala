@@ -27,14 +27,24 @@ import org.neo4j.cypher.internal.runtime.interpreted.pipes.LazyLabel.UNKNOWN
 import org.neo4j.cypher.internal.util.attribution.Id
 import org.neo4j.values.virtual.VirtualValues
 
-case class NodeByLabelScanPipe(ident: String, label: LazyLabel, indexOrder: IndexOrder)(val id: Id = Id.INVALID_ID)
+case class NodeByLabelScanPipe(
+  ident: String,
+  label: LazyLabel,
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
+)(val id: Id = Id.INVALID_ID)
     extends Pipe {
 
   protected def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = {
 
     val id = label.getId(state.query)
     if (id != UNKNOWN) {
-      val nodes = state.query.getNodesByLabel(state.nodeLabelTokenReadSession.get, id, indexOrder)
+      val nodes = state.query.getNodesByLabel(
+        state.nodeLabelTokenReadSession.get,
+        id,
+        indexOrder,
+        includeChangesFromThisTransaction
+      )
       val baseContext = state.newRowWithArgument(rowFactory)
       PrimitiveLongHelper.map(nodes, n => rowFactory.copyWith(baseContext, ident, VirtualValues.node(n)))
     } else {

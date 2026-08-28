@@ -37,16 +37,18 @@ public abstract class UnionNodeLabelIndexCursor extends UnionTokenIndexCursor<Sk
             TokenReadSession tokenReadSession,
             CursorContext cursorContext,
             int[] labels,
-            NodeLabelIndexCursor[] cursors)
+            NodeLabelIndexCursor[] cursors,
+            boolean includeChangesFromThisTransaction)
             throws KernelException {
         assert labels.length == cursors.length;
         for (int i = 0; i < labels.length; i++) {
-            read.nodeLabelScan(
+            read.nodeLabelIndexScan(
                     tokenReadSession,
                     cursors[i],
                     IndexQueryConstraints.ordered(IndexOrder.ASCENDING),
                     new TokenPredicate(labels[i]),
-                    cursorContext);
+                    cursorContext,
+                    includeChangesFromThisTransaction);
         }
         return new AscendingUnionLabelIndexCursor(cursors);
     }
@@ -60,16 +62,18 @@ public abstract class UnionNodeLabelIndexCursor extends UnionTokenIndexCursor<Sk
             TokenReadSession tokenReadSession,
             CursorContext cursorContext,
             int[] labels,
-            NodeLabelIndexCursor[] cursors)
+            NodeLabelIndexCursor[] cursors,
+            boolean includeChangesFromThisTransaction)
             throws KernelException {
         assert labels.length == cursors.length;
         for (int i = 0; i < labels.length; i++) {
-            read.nodeLabelScan(
+            read.nodeLabelIndexScan(
                     tokenReadSession,
                     cursors[i],
                     IndexQueryConstraints.ordered(IndexOrder.DESCENDING),
                     new TokenPredicate(labels[i]),
-                    cursorContext);
+                    cursorContext,
+                    includeChangesFromThisTransaction);
         }
         return new DescendingUnionLabelIndexCursor(cursors);
     }

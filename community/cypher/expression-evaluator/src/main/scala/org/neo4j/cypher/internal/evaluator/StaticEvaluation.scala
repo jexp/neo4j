@@ -250,7 +250,8 @@ object StaticEvaluation {
     override def getRelationshipsByType(
       tokenReadSession: TokenReadSession,
       relType: Int,
-      indexOrder: IndexOrder
+      indexOrder: IndexOrder,
+      includeChangesFromThisTransaction: Boolean
     ): ClosingRelationshipIterator = notAvailable()
 
     override def relationshipById(id: Long, startNode: Long, endNode: Long, `type`: Int): VirtualRelationshipValue =
@@ -377,7 +378,8 @@ object StaticEvaluation {
       index: IndexReadSession,
       needsValues: Boolean,
       indexOrder: IndexOrder,
-      queries: Seq[PropertyIndexQuery]
+      queries: Seq[PropertyIndexQuery],
+      includeChangesFromThisTransaction: Boolean
     ): NodeValueIndexCursor = notAvailable()
 
     override def nodeFulltextIndexSeek(
@@ -396,20 +398,23 @@ object StaticEvaluation {
       index: IndexReadSession,
       needsValues: Boolean,
       indexOrder: IndexOrder,
-      value: TextValue
+      value: TextValue,
+      includeChangesFromThisTransaction: Boolean
     ): NodeValueIndexCursor = notAvailable()
 
     override def nodeIndexSeekByEndsWith(
       index: IndexReadSession,
       needsValues: Boolean,
       indexOrder: IndexOrder,
-      value: TextValue
+      value: TextValue,
+      includeChangesFromThisTransaction: Boolean
     ): NodeValueIndexCursor = notAvailable()
 
     override def nodeIndexScan(
       index: IndexReadSession,
       needsValues: Boolean,
-      indexOrder: IndexOrder
+      indexOrder: IndexOrder,
+      includeChangesFromThisTransaction: Boolean
     ): NodeValueIndexCursor = notAvailable()
 
     override def nodeLockingUniqueIndexSeek(
@@ -421,7 +426,8 @@ object StaticEvaluation {
       index: IndexReadSession,
       needsValues: Boolean,
       indexOrder: IndexOrder,
-      queries: Seq[PropertyIndexQuery]
+      queries: Seq[PropertyIndexQuery],
+      includeChangesFromThisTransaction: Boolean
     ): RelationshipValueIndexCursor = notAvailable()
 
     override def relationshipLockingUniqueIndexSeek(
@@ -433,26 +439,30 @@ object StaticEvaluation {
       index: IndexReadSession,
       needsValues: Boolean,
       indexOrder: IndexOrder,
-      value: TextValue
+      value: TextValue,
+      includeChangesFromThisTransaction: Boolean
     ): RelationshipValueIndexCursor = notAvailable()
 
     override def relationshipIndexSeekByEndsWith(
       index: IndexReadSession,
       needsValues: Boolean,
       indexOrder: IndexOrder,
-      value: TextValue
+      value: TextValue,
+      includeChangesFromThisTransaction: Boolean
     ): RelationshipValueIndexCursor = notAvailable()
 
     override def relationshipIndexScan(
       index: IndexReadSession,
       needsValues: Boolean,
-      indexOrder: IndexOrder
+      indexOrder: IndexOrder,
+      includeChangesFromThisTransaction: Boolean
     ): RelationshipValueIndexCursor = notAvailable()
 
     override def getNodesByLabel(
       tokenReadSession: TokenReadSession,
       id: Int,
-      indexOrder: IndexOrder
+      indexOrder: IndexOrder,
+      includeChangesFromThisTransaction: Boolean
     ): ClosingLongIterator = notAvailable()
 
     override def createConstraint(constraint: ConstraintCommand.Create): Unit = notAvailable()

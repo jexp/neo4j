@@ -225,6 +225,7 @@ import org.neo4j.cypher.internal.logical.plans.UnionNodeByLabelsScan
 import org.neo4j.cypher.internal.logical.plans.UnwindCollection
 import org.neo4j.cypher.internal.logical.plans.ValueHashJoin
 import org.neo4j.cypher.internal.logical.plans.VarExpand
+import org.neo4j.cypher.internal.planner.spi.PlanningAttributes.StableLeafPlans
 import org.neo4j.cypher.internal.planner.spi.ReadTokenContext
 import org.neo4j.cypher.internal.runtime.CypherRow
 import org.neo4j.cypher.internal.runtime.ParameterMapping
@@ -425,7 +426,8 @@ case class InterpretedPipeMapper(
   indexRegistrator: QueryIndexRegistrator,
   anonymousVariableNameGenerator: AnonymousVariableNameGenerator,
   isCommunity: Boolean,
-  parameterMapping: ParameterMapping
+  parameterMapping: ParameterMapping,
+  stableLeafPlans: StableLeafPlans
 )(implicit semanticTable: TokenTable) extends PipeMapper {
 
   private def getBuildExpression(id: Id): internal.expressions.Expression => Expression =
@@ -455,12 +457,12 @@ case class InterpretedPipeMapper(
         ArgumentPipe()(id)
 
       case AllNodesScan(ident, _) =>
-        AllNodesScanPipe(ident.name)(id = id)
+        AllNodesScanPipe(ident.name, stableLeafPlans.includeChangesFromThisTransaction(id))(id = id)
 
       // Note: this plan shouldn't really be used here, but having it mapped here helps
       //      fallback and makes testing easier
       case PartitionedAllNodesScan(ident, _) =>
-        AllNodesScanPipe(ident.name)(id = id)
+        AllNodesScanPipe(ident.name, includeChangesFromThisTransaction = true)(id = id)
 
       case NodeCountFromCountStore(ident, labels, _) =>
         NodeCountFromCountStorePipe(ident.name, labels.map(l => l.map(LazyLabel.apply)))(id = id)
@@ -475,7 +477,12 @@ case class InterpretedPipeMapper(
 
       case NodeByLabelScan(ident, label, _, indexOrder) =>
         indexRegistrator.registerLabelScan()
-        NodeByLabelScanPipe(ident.name, LazyLabel(label), indexOrder)(id = id)
+        NodeByLabelScanPipe(
+          ident.name,
+          LazyLabel(label),
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
+        )(id = id)
 
       case DynamicLabelNodeLookup(ident, DynamicElement.Simple(expr, operator), _, propertyConstraints) =>
         indexRegistrator.registerLabelScan()
@@ -487,30 +494,53 @@ case class InterpretedPipeMapper(
           propertyConstraints.map { case (property, expr) =>
             property -> expressionConverters.toCommandExpression(id, expr)
           },
-          readOnly = readOnly
+          readOnly = readOnly,
+          includeChangesFromThisTransaction = stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id = id)
 
       // Note: this plan shouldn't really be used here, but having it mapped here helps
       //      fallback and makes testing easier
       case PartitionedNodeByLabelScan(ident, label, _) =>
         indexRegistrator.registerLabelScan()
-        NodeByLabelScanPipe(ident.name, LazyLabel(label), IndexOrderNone)(id = id)
+        NodeByLabelScanPipe(ident.name, LazyLabel(label), IndexOrderNone, includeChangesFromThisTransaction = true)(
+          id = id
+        )
 
       case UnionNodeByLabelsScan(ident, labels, _, indexOrder) =>
         indexRegistrator.registerLabelScan()
-        UnionNodeByLabelsScanPipe(ident.name, labels.map(l => LazyLabel(l)), indexOrder)(id = id)
+        UnionNodeByLabelsScanPipe(
+          ident.name,
+          labels.map(l => LazyLabel(l)),
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
+        )(id = id)
 
       case PartitionedUnionNodeByLabelsScan(ident, labels, _) =>
         indexRegistrator.registerLabelScan()
-        UnionNodeByLabelsScanPipe(ident.name, labels.map(l => LazyLabel(l)), IndexOrderNone)(id = id)
+        UnionNodeByLabelsScanPipe(
+          ident.name,
+          labels.map(l => LazyLabel(l)),
+          IndexOrderNone,
+          includeChangesFromThisTransaction = true
+        )(id = id)
 
       case IntersectionNodeByLabelsScan(ident, labels, _, indexOrder) =>
         indexRegistrator.registerLabelScan()
-        IntersectionNodeByLabelsScanPipe(ident.name, labels.map(l => LazyLabel(l)), indexOrder)(id = id)
+        IntersectionNodeByLabelsScanPipe(
+          ident.name,
+          labels.map(l => LazyLabel(l)),
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
+        )(id = id)
 
       case PartitionedIntersectionNodeByLabelsScan(ident, labels, _) =>
         indexRegistrator.registerLabelScan()
-        IntersectionNodeByLabelsScanPipe(ident.name, labels.map(l => LazyLabel(l)), IndexOrderNone)(id = id)
+        IntersectionNodeByLabelsScanPipe(
+          ident.name,
+          labels.map(l => LazyLabel(l)),
+          IndexOrderNone,
+          includeChangesFromThisTransaction = true
+        )(id = id)
 
       case SubtractionNodeByLabelsScan(ident, positiveLabels, negativeLabels, _, indexOrder) =>
         indexRegistrator.registerLabelScan()
@@ -518,10 +548,9 @@ case class InterpretedPipeMapper(
           ident.name,
           positiveLabels.map(l => LazyLabel(l)),
           negativeLabels.map(l => LazyLabel(l)),
-          indexOrder
-        )(id =
-          id
-        )
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
+        )(id = id)
 
       case PartitionedSubtractionNodeByLabelsScan(ident, positiveLabels, negativeLabels, _) =>
         indexRegistrator.registerLabelScan()
@@ -529,10 +558,9 @@ case class InterpretedPipeMapper(
           ident.name,
           positiveLabels.map(l => LazyLabel(l)),
           negativeLabels.map(l => LazyLabel(l)),
-          IndexOrderNone
-        )(id =
-          id
-        )
+          IndexOrderNone,
+          includeChangesFromThisTransaction = true
+        )(id = id)
 
       case NodeByIdSeek(ident, nodeIdExpr, _) =>
         NodeByIdSeekPipe(ident.name, expressionConverters.toCommandSeekArgs(id, nodeIdExpr))(id = id)
@@ -575,16 +603,36 @@ case class InterpretedPipeMapper(
         )(id = id)
 
       case DirectedAllRelationshipsScan(ident, fromNode, toNode, _) =>
-        DirectedAllRelationshipsScanPipe(ident.map(_.name), fromNode.map(_.name), toNode.map(_.name))(id = id)
+        DirectedAllRelationshipsScanPipe(
+          ident.map(_.name),
+          fromNode.map(_.name),
+          toNode.map(_.name),
+          stableLeafPlans.includeChangesFromThisTransaction(id)
+        )(id = id)
 
       case UndirectedAllRelationshipsScan(ident, fromNode, toNode, _) =>
-        UndirectedAllRelationshipsScanPipe(ident.map(_.name), fromNode.map(_.name), toNode.map(_.name))(id = id)
+        UndirectedAllRelationshipsScanPipe(
+          ident.map(_.name),
+          fromNode.map(_.name),
+          toNode.map(_.name),
+          stableLeafPlans.includeChangesFromThisTransaction(id)
+        )(id = id)
 
       case PartitionedDirectedAllRelationshipsScan(ident, fromNode, toNode, _) =>
-        DirectedAllRelationshipsScanPipe(ident.map(_.name), fromNode.map(_.name), toNode.map(_.name))(id = id)
+        DirectedAllRelationshipsScanPipe(
+          ident.map(_.name),
+          fromNode.map(_.name),
+          toNode.map(_.name),
+          includeChangesFromThisTransaction = true
+        )(id = id)
 
       case PartitionedUndirectedAllRelationshipsScan(ident, fromNode, toNode, _) =>
-        UndirectedAllRelationshipsScanPipe(ident.map(_.name), fromNode.map(_.name), toNode.map(_.name))(id = id)
+        UndirectedAllRelationshipsScanPipe(
+          ident.map(_.name),
+          fromNode.map(_.name),
+          toNode.map(_.name),
+          includeChangesFromThisTransaction = true
+        )(id = id)
 
       case DirectedRelationshipTypeScan(ident, fromNode, typ, toNode, _, indexOrder) =>
         indexRegistrator.registerTypeScan()
@@ -593,7 +641,8 @@ case class InterpretedPipeMapper(
           fromNode.map(_.name),
           LazyType(typ)(semanticTable),
           toNode.map(_.name),
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id = id)
 
       case DynamicDirectedRelationshipTypeLookup(ident, fromNode, typeExpr, toNode, _, _, propertyPredicates) =>
@@ -607,7 +656,8 @@ case class InterpretedPipeMapper(
               toNode.map(_.name),
               operator,
               propertyPredicates.transform((_, v) => expressionConverters.toCommandExpression(id, v)),
-              readOnly = true
+              readOnly = true,
+              stableLeafPlans.includeChangesFromThisTransaction(id)
             )(id = id)
         }
 
@@ -618,7 +668,8 @@ case class InterpretedPipeMapper(
           fromNode.map(_.name),
           LazyType(typ)(semanticTable),
           toNode.map(_.name),
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id = id)
 
       case DynamicUndirectedRelationshipTypeLookup(ident, fromNode, typeExpr, toNode, _, _, propertyPredicates) =>
@@ -632,7 +683,8 @@ case class InterpretedPipeMapper(
               toNode.map(_.name),
               operator,
               propertyPredicates.transform((_, v) => expressionConverters.toCommandExpression(id, v)),
-              readOnly = true
+              readOnly = true,
+              stableLeafPlans.includeChangesFromThisTransaction(id)
             )(id = id)
         }
 
@@ -643,7 +695,8 @@ case class InterpretedPipeMapper(
           fromNode.map(_.name),
           LazyType(typ)(semanticTable),
           toNode.map(_.name),
-          IndexOrderNone
+          IndexOrderNone,
+          includeChangesFromThisTransaction = true
         )(id = id)
 
       case PartitionedUndirectedRelationshipTypeScan(ident, fromNode, typ, toNode, _) =>
@@ -653,7 +706,8 @@ case class InterpretedPipeMapper(
           fromNode.map(_.name),
           LazyType(typ)(semanticTable),
           toNode.map(_.name),
-          IndexOrderNone
+          IndexOrderNone,
+          includeChangesFromThisTransaction = true
         )(id = id)
 
       case DirectedUnionRelationshipTypesScan(ident, fromNode, types, endNode, _, indexOrder) =>
@@ -663,7 +717,8 @@ case class InterpretedPipeMapper(
           fromNode.map(_.name),
           types.map(l => LazyType(l)(semanticTable)),
           endNode.map(_.name),
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id = id)
 
       case UndirectedUnionRelationshipTypesScan(ident, fromNode, types, endNode, _, indexOrder) =>
@@ -673,7 +728,8 @@ case class InterpretedPipeMapper(
           fromNode.map(_.name),
           types.map(l => LazyType(l)(semanticTable)),
           endNode.map(_.name),
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id = id)
 
       case PartitionedDirectedUnionRelationshipTypesScan(ident, fromNode, types, endNode, _) =>
@@ -683,7 +739,8 @@ case class InterpretedPipeMapper(
           fromNode.map(_.name),
           types.map(l => LazyType(l)(semanticTable)),
           endNode.map(_.name),
-          IndexOrderNone
+          IndexOrderNone,
+          includeChangesFromThisTransaction = true
         )(id = id)
 
       case PartitionedUndirectedUnionRelationshipTypesScan(ident, fromNode, types, endNode, _) =>
@@ -693,7 +750,8 @@ case class InterpretedPipeMapper(
           fromNode.map(_.name),
           types.map(l => LazyType(l)(semanticTable)),
           endNode.map(_.name),
-          IndexOrderNone
+          IndexOrderNone,
+          includeChangesFromThisTransaction = true
         )(id = id)
 
       case DirectedRelationshipUniqueIndexSeek(
@@ -717,7 +775,8 @@ case class InterpretedPipeMapper(
           indexRegistrator.registerQueryIndex(indexType, typeToken, properties),
           valueExpr.map(buildExpression),
           indexSeekMode,
-          indexOrder
+          indexOrder,
+          includeChangesFromThisTransaction = true
         )(id = id)
 
       case DirectedRelationshipIndexSeek(
@@ -742,7 +801,8 @@ case class InterpretedPipeMapper(
           indexRegistrator.registerQueryIndex(indexType, typeToken, properties),
           valueExpr.map(buildExpression),
           indexSeekMode,
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id = id)
 
       case PartitionedDirectedRelationshipIndexSeek(
@@ -765,7 +825,8 @@ case class InterpretedPipeMapper(
           indexRegistrator.registerQueryIndex(indexType, typeToken, properties),
           valueExpr.map(buildExpression),
           indexSeekMode,
-          IndexOrderNone
+          IndexOrderNone,
+          includeChangesFromThisTransaction = true
         )(id = id)
 
       case UndirectedRelationshipUniqueIndexSeek(
@@ -789,7 +850,8 @@ case class InterpretedPipeMapper(
           indexRegistrator.registerQueryIndex(indexType, typeToken, properties),
           valueExpr.map(buildExpression),
           indexSeekMode,
-          indexOrder
+          indexOrder,
+          includeChangesFromThisTransaction = true
         )(id = id)
 
       case UndirectedRelationshipIndexSeek(
@@ -814,7 +876,8 @@ case class InterpretedPipeMapper(
           indexRegistrator.registerQueryIndex(indexType, typeToken, properties),
           valueExpr.map(buildExpression),
           indexSeekMode,
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id = id)
 
       case PartitionedUndirectedRelationshipIndexSeek(
@@ -837,7 +900,8 @@ case class InterpretedPipeMapper(
           indexRegistrator.registerQueryIndex(indexType, typeToken, properties),
           valueExpr.map(buildExpression),
           indexSeekMode,
-          IndexOrderNone
+          IndexOrderNone,
+          includeChangesFromThisTransaction = true
         )(id = id)
 
       case DirectedRelationshipIndexScan(
@@ -858,7 +922,8 @@ case class InterpretedPipeMapper(
           typeToken,
           properties.toArray,
           indexRegistrator.registerQueryIndex(indexType, typeToken, properties),
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id = id)
 
       case UndirectedRelationshipIndexScan(
@@ -879,7 +944,8 @@ case class InterpretedPipeMapper(
           typeToken,
           properties.toArray,
           indexRegistrator.registerQueryIndex(indexType, typeToken, properties),
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id = id)
       case PartitionedDirectedRelationshipIndexScan(idName, startNode, endNode, typeToken, properties, _, indexType) =>
         DirectedRelationshipIndexScanPipe(
@@ -889,7 +955,8 @@ case class InterpretedPipeMapper(
           typeToken,
           properties.toArray,
           indexRegistrator.registerQueryIndex(indexType, typeToken, properties),
-          IndexOrderNone
+          IndexOrderNone,
+          includeChangesFromThisTransaction = true
         )(id = id)
 
       case PartitionedUndirectedRelationshipIndexScan(
@@ -908,7 +975,8 @@ case class InterpretedPipeMapper(
           typeToken,
           properties.toArray,
           indexRegistrator.registerQueryIndex(indexType, typeToken, properties),
-          IndexOrderNone
+          IndexOrderNone,
+          includeChangesFromThisTransaction = true
         )(id = id)
 
       case DirectedRelationshipIndexContainsScan(
@@ -930,7 +998,8 @@ case class InterpretedPipeMapper(
           property,
           indexRegistrator.registerQueryIndex(indexType, typeToken, property),
           buildExpression(valueExpr),
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id = id)
 
       case UndirectedRelationshipIndexContainsScan(
@@ -952,7 +1021,8 @@ case class InterpretedPipeMapper(
           property,
           indexRegistrator.registerQueryIndex(indexType, typeToken, property),
           buildExpression(valueExpr),
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id = id)
 
       case DirectedRelationshipIndexEndsWithScan(
@@ -974,7 +1044,8 @@ case class InterpretedPipeMapper(
           property,
           indexRegistrator.registerQueryIndex(indexType, typeToken, property),
           buildExpression(valueExpr),
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id = id)
 
       case UndirectedRelationshipIndexEndsWithScan(
@@ -996,7 +1067,8 @@ case class InterpretedPipeMapper(
           property,
           indexRegistrator.registerQueryIndex(indexType, typeToken, property),
           buildExpression(valueExpr),
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id = id)
 
       case NodeIndexSeek(ident, label, properties, valueExpr, _, indexOrder, indexType, _) =>
@@ -1008,7 +1080,8 @@ case class InterpretedPipeMapper(
           indexRegistrator.registerQueryIndex(indexType, label, properties),
           valueExpr.map(buildExpression),
           indexSeekMode,
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id = id)
 
       case RemoteNodeIndexSeek(
@@ -1064,7 +1137,8 @@ case class InterpretedPipeMapper(
           indexRegistrator.registerQueryIndex(indexType, label, properties),
           valueExpr.map(buildExpression),
           indexSeekMode,
-          IndexOrderNone
+          IndexOrderNone,
+          includeChangesFromThisTransaction = true
         )(id = id)
 
       case NodeUniqueIndexSeek(ident, label, properties, valueExpr, _, indexOrder, indexType, _) =>
@@ -1076,7 +1150,8 @@ case class InterpretedPipeMapper(
           indexRegistrator.registerQueryIndex(indexType, label, properties),
           valueExpr.map(buildExpression),
           indexSeekMode,
-          indexOrder
+          indexOrder,
+          includeChangesFromThisTransaction = true
         )(id = id)
 
       case MergeUniqueNode(
@@ -1107,7 +1182,8 @@ case class InterpretedPipeMapper(
           label,
           properties,
           indexRegistrator.registerQueryIndex(indexType, label, properties),
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id = id)
 
       case PartitionedNodeIndexScan(ident, label, properties, _, indexType) =>
@@ -1116,7 +1192,8 @@ case class InterpretedPipeMapper(
           label,
           properties,
           indexRegistrator.registerQueryIndex(indexType, label, properties),
-          IndexOrderNone
+          IndexOrderNone,
+          includeChangesFromThisTransaction = true
         )(id = id)
 
       case NodeIndexContainsScan(ident, label, property, valueExpr, _, indexOrder, indexType) =>
@@ -1126,7 +1203,8 @@ case class InterpretedPipeMapper(
           property,
           indexRegistrator.registerQueryIndex(indexType, label, property),
           buildExpression(valueExpr),
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id = id)
 
       case NodeIndexEndsWithScan(ident, label, property, valueExpr, _, indexOrder, indexType) =>
@@ -1136,7 +1214,8 @@ case class InterpretedPipeMapper(
           property,
           indexRegistrator.registerQueryIndex(indexType, label, property),
           buildExpression(valueExpr),
-          indexOrder
+          indexOrder,
+          stableLeafPlans.includeChangesFromThisTransaction(id)
         )(id = id)
 
       case NodeVectorIndexSearch(

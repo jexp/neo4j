@@ -76,7 +76,8 @@ case object TestPlanCombinationRewriter {
       PhysicalPlanAttributes(
         query.effectiveCardinalities,
         query.providedOrders,
-        query.leveragedOrders
+        query.leveragedOrders,
+        query.stableLeafPlans
       ),
       parallelExecution,
       anonymousVariableNameGenerator,

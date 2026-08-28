@@ -117,7 +117,8 @@ case class DirectedRelationshipIndexContainsScanSlottedPipe(
   queryIndexId: Int,
   valueExpr: Expression,
   slots: SlotConfiguration,
-  indexOrder: IndexOrder
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID)
     extends AbstractRelationshipIndexStringScanSlottedPipe(
       offset,
@@ -133,7 +134,13 @@ case class DirectedRelationshipIndexContainsScanSlottedPipe(
     index: IndexReadSession,
     value: TextValue
   ): RelationshipValueIndexCursor =
-    state.query.relationshipIndexSeekByContains(index, needsValues, indexOrder, value)
+    state.query.relationshipIndexSeekByContains(
+      index,
+      needsValues,
+      indexOrder,
+      value,
+      includeChangesFromThisTransaction
+    )
 }
 
 case class UndirectedRelationshipIndexContainsScanSlottedPipe(
@@ -144,7 +151,8 @@ case class UndirectedRelationshipIndexContainsScanSlottedPipe(
   queryIndexId: Int,
   valueExpr: Expression,
   slots: SlotConfiguration,
-  indexOrder: IndexOrder
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID)
     extends AbstractRelationshipIndexStringScanSlottedPipe(
       offset,
@@ -160,7 +168,13 @@ case class UndirectedRelationshipIndexContainsScanSlottedPipe(
     index: IndexReadSession,
     value: TextValue
   ): RelationshipValueIndexCursor =
-    state.query.relationshipIndexSeekByContains(index, needsValues, indexOrder, value)
+    state.query.relationshipIndexSeekByContains(
+      index,
+      needsValues,
+      indexOrder,
+      value,
+      includeChangesFromThisTransaction
+    )
 }
 
 case class DirectedRelationshipIndexEndsWithScanSlottedPipe(
@@ -171,7 +185,8 @@ case class DirectedRelationshipIndexEndsWithScanSlottedPipe(
   queryIndexId: Int,
   valueExpr: Expression,
   slots: SlotConfiguration,
-  indexOrder: IndexOrder
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID)
     extends AbstractRelationshipIndexStringScanSlottedPipe(
       offset,
@@ -187,7 +202,13 @@ case class DirectedRelationshipIndexEndsWithScanSlottedPipe(
     index: IndexReadSession,
     value: TextValue
   ): RelationshipValueIndexCursor =
-    state.query.relationshipIndexSeekByEndsWith(index, needsValues, indexOrder, value)
+    state.query.relationshipIndexSeekByEndsWith(
+      index,
+      needsValues,
+      indexOrder,
+      value,
+      includeChangesFromThisTransaction
+    )
 }
 
 case class UndirectedRelationshipIndexEndsWithScanSlottedPipe(
@@ -198,7 +219,8 @@ case class UndirectedRelationshipIndexEndsWithScanSlottedPipe(
   queryIndexId: Int,
   valueExpr: Expression,
   slots: SlotConfiguration,
-  indexOrder: IndexOrder
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID)
     extends AbstractRelationshipIndexStringScanSlottedPipe(
       offset,
@@ -214,5 +236,11 @@ case class UndirectedRelationshipIndexEndsWithScanSlottedPipe(
     index: IndexReadSession,
     value: TextValue
   ): RelationshipValueIndexCursor =
-    state.query.relationshipIndexSeekByEndsWith(index, needsValues, indexOrder, value)
+    state.query.relationshipIndexSeekByEndsWith(
+      index,
+      needsValues,
+      indexOrder,
+      value,
+      includeChangesFromThisTransaction
+    )
 }

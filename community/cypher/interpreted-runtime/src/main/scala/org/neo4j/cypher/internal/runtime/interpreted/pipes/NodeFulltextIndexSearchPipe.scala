@@ -142,6 +142,7 @@ object NodeFulltextIndexSearchPipe {
       NodeValueIndexCursor.EMPTY
     } else {
       val (constraints, predicate) = fulltextSearchQuery(queryString, l, analyzer, skip, row, state)
+      // No includeChangesFromThisTransaction: the reader merges transaction state anyway.
       query.nodeFulltextIndexSeek(index, constraints, predicate)
     }
   }

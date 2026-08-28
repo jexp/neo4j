@@ -39,6 +39,7 @@ import org.neo4j.cypher.internal.logical.builder.Resolver
 import org.neo4j.cypher.internal.logical.plans.LogicalPlan
 import org.neo4j.cypher.internal.logical.plans.NestedPlanCollectExpression
 import org.neo4j.cypher.internal.logical.plans.ordering.ProvidedOrder
+import org.neo4j.cypher.internal.planner.spi.LeafStability.MvccEmptyTx
 import org.neo4j.cypher.internal.planner.spi.PlanningAttributes.EffectiveCardinalities
 import org.neo4j.cypher.internal.planner.spi.PlanningAttributes.LeveragedOrders
 import org.neo4j.cypher.internal.planner.spi.PlanningAttributes.ProvidedOrders
@@ -87,6 +88,11 @@ class LogicalQueryBuilder(
 
   def withLeveragedOrder(): this.type = {
     leveragedOrders.set(idOfLastPlan, true)
+    this
+  }
+
+  def withStableIterators(): this.type = {
+    stableLeafPlans.set(idOfLastPlan, MvccEmptyTx)
     this
   }
 

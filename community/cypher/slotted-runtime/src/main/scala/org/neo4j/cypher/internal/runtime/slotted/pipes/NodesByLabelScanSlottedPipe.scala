@@ -33,7 +33,8 @@ case class NodesByLabelScanSlottedPipe(
   ident: String,
   label: LazyLabel,
   slots: SlotConfiguration,
-  indexOrder: IndexOrder
+  indexOrder: IndexOrder,
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID) extends Pipe {
 
   private val offset = slots.longOffset(ident)
@@ -44,7 +45,12 @@ case class NodesByLabelScanSlottedPipe(
     if (labelId == LazyLabel.UNKNOWN) ClosingIterator.empty
     else {
       PrimitiveLongHelper.map(
-        state.query.getNodesByLabel(state.nodeLabelTokenReadSession.get, labelId, indexOrder),
+        state.query.getNodesByLabel(
+          state.nodeLabelTokenReadSession.get,
+          labelId,
+          indexOrder,
+          includeChangesFromThisTransaction
+        ),
         { nodeId =>
           val context = state.newRowWithArgument(rowFactory)
           context.setLongAt(offset, nodeId)

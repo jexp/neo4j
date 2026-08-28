@@ -228,7 +228,7 @@ object ParallelTransactionBoundQueryContext {
     ): Array[Int] = unsupported()
     override def getById(id: Long): T = unsupported()
     override def isDeletedInThisTx(id: Long): Boolean = unsupported()
-    override def all: ClosingLongIterator = unsupported()
+    override def all(includeChangesFromThisTransaction: Boolean): ClosingLongIterator = unsupported()
     override def acquireExclusiveLock(obj: Long): Unit = unsupported()
     override def releaseExclusiveLock(obj: Long): Unit = unsupported()
     override def entityExists(id: Long): Boolean = unsupported()

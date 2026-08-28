@@ -51,7 +51,12 @@ object PlanningAttributes {
   class EffectiveCardinalities extends Attribute[LogicalPlan, EffectiveCardinality]
   class ProvidedOrders extends Attribute[LogicalPlan, ProvidedOrder]
   class LeveragedOrders extends PartialAttribute[LogicalPlan, Boolean](false)
-  class StableLeafPlans extends PartialAttribute[LogicalPlan, LeafStability](LeafStability.NonMvcc)
+
+  class StableLeafPlans extends PartialAttribute[LogicalPlan, LeafStability](LeafStability.NonMvcc) {
+
+    def includeChangesFromThisTransaction(id: Id): Boolean =
+      get(id).includeChangesFromThisTransaction
+  }
   class LabelAndRelTypeInfos extends PartialAttribute[LogicalPlan, Option[LabelAndRelTypeInfo]](None)
   class CachedPropertiesPerPlan extends PartialAttribute[LogicalPlan, CachedProperties](CachedProperties.empty)
 

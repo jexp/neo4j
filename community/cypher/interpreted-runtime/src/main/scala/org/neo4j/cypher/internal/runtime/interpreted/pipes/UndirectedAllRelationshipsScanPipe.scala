@@ -27,11 +27,12 @@ import org.neo4j.cypher.internal.util.attribution.Id
 case class UndirectedAllRelationshipsScanPipe(
   ident: Option[String],
   fromNode: Option[String],
-  toNode: Option[String]
+  toNode: Option[String],
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID) extends Pipe {
 
   protected def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = {
-    val relIterator = allRelationshipsIterator(state.query)
+    val relIterator = allRelationshipsIterator(state.query, includeChangesFromThisTransaction)
     new UndirectedRelationshipTypeScanPipe.UndirectedIterator(relIterator, ident, fromNode, toNode, rowFactory, state)
   }
 }

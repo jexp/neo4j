@@ -22,19 +22,21 @@ package org.neo4j.cypher.internal.physicalplanning
 import org.neo4j.cypher.internal.planner.spi.PlanningAttributes.EffectiveCardinalities
 import org.neo4j.cypher.internal.planner.spi.PlanningAttributes.LeveragedOrders
 import org.neo4j.cypher.internal.planner.spi.PlanningAttributes.ProvidedOrders
+import org.neo4j.cypher.internal.planner.spi.PlanningAttributes.StableLeafPlans
 import org.neo4j.cypher.internal.util.attribution.Id
 
 /**
  * Bundles the mutable plan attributes used by pipelined pre-physical plan rewriters.
  * Provides a unified copyAll(from, to) to ensure all attributes are propagated consistently.
  *
- * Note: PlanningAttributesCacheKey bundles the same 3 attributes in their immutable form
+ * Note: PlanningAttributesCacheKey bundles the same 4 attributes in their immutable form
  * for execution plan cache keying — that is a separate concern.
  */
 case class PhysicalPlanAttributes(
   effectiveCardinalities: EffectiveCardinalities,
   providedOrders: ProvidedOrders,
-  leveragedOrders: LeveragedOrders
+  leveragedOrders: LeveragedOrders,
+  stableLeafPlans: StableLeafPlans
 ) {
   import PhysicalPlanAttributes.AttributeType
 
@@ -42,6 +44,7 @@ case class PhysicalPlanAttributes(
     effectiveCardinalities.copy(from, to)
     providedOrders.copy(from, to)
     leveragedOrders.copy(from, to)
+    stableLeafPlans.copy(from, to)
   }
 
   /**
@@ -61,6 +64,7 @@ case class PhysicalPlanAttributes(
     effectiveCardinalities.copy(fromSelector(AttributeType.EffectiveCardinalities), target)
     providedOrders.copy(fromSelector(AttributeType.ProvidedOrders), target)
     leveragedOrders.copy(fromSelector(AttributeType.LeveragedOrders), target)
+    stableLeafPlans.copy(fromSelector(AttributeType.StableLeafPlans), target)
   }
 }
 
@@ -71,5 +75,6 @@ object PhysicalPlanAttributes {
     case object EffectiveCardinalities extends AttributeType
     case object ProvidedOrders extends AttributeType
     case object LeveragedOrders extends AttributeType
+    case object StableLeafPlans extends AttributeType
   }
 }

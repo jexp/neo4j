@@ -59,7 +59,8 @@ case class DynamicDirectedRelationshipTypeLookupPipe(
   toNode: Option[String],
   operator: DynamicElement.SetOperator,
   propertyExpressions: Map[PropertyKeyToken, Expression],
-  readOnly: Boolean
+  readOnly: Boolean,
+  includeChangesFromThisTransaction: Boolean
 )(val id: Id = Id.INVALID_ID) extends Pipe {
 
   private val relationshipWriter =
@@ -71,7 +72,8 @@ case class DynamicDirectedRelationshipTypeLookupPipe(
     val relIterator =
       new DynamicRelationshipTypeLookupIterator(
         state,
-        readOnly = readOnly
+        readOnly,
+        includeChangesFromThisTransaction
       ).getRows(typeExpr(ctx, state), propertyQueries, operator)
     PrimitiveLongHelper.map(
       relIterator,
@@ -90,13 +92,21 @@ case class DynamicDirectedRelationshipTypeLookupPipe(
 
 class DynamicRelationshipTypeLookupIterator(
   state: QueryState,
-  readOnly: Boolean
+  readOnly: Boolean,
+  includeChangesFromThisTransaction: Boolean
 ) extends DynamicRelationshipTypeLookupBase[ClosingRelationshipIterator](state, readOnly = readOnly) {
   override protected def empty: ClosingRelationshipIterator = BaseRelationshipCursorIterator.EMPTY
-  override protected def allRels: ClosingRelationshipIterator = allRelationshipsIterator(state.query)
+
+  override protected def allRels: ClosingRelationshipIterator =
+    allRelationshipsIterator(state.query, includeChangesFromThisTransaction)
 
   override protected def getSingleType(relType: Int): ClosingRelationshipIterator = {
-    state.query.getRelationshipsByType(state.relTypeTokenReadSession.get, relType, IndexOrderNone)
+    state.query.getRelationshipsByType(
+      state.relTypeTokenReadSession.get,
+      relType,
+      IndexOrderNone,
+      includeChangesFromThisTransaction
+    )
   }
 
   override protected def anyTypes(relTypes: Array[Int]): ClosingRelationshipIterator = {
@@ -105,7 +115,8 @@ class DynamicRelationshipTypeLookupIterator(
       relTypes,
       IndexOrderNone,
       state.relTypeTokenReadSession.get,
-      callReadFromStore = true
+      callReadFromStore = true,
+      includeChangesFromThisTransaction
     )
   }
 
@@ -117,7 +128,8 @@ class DynamicRelationshipTypeLookupIterator(
       state.query.dataRead.indexReadSession(index),
       needsValues = false,
       IndexOrderNone,
-      predicates
+      predicates,
+      includeChangesFromThisTransaction
     )
     new RelationshipIndexCursorIterator(cursor)
   }
