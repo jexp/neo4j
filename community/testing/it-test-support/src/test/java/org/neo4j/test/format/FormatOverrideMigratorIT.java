@@ -31,6 +31,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
 import org.neo4j.configuration.Config;
+import org.neo4j.test.extension.RequireAlignedFormat;
 
 @Isolated
 class FormatOverrideMigratorIT {
@@ -50,6 +51,7 @@ class FormatOverrideMigratorIT {
     }
 
     @Test
+    @RequireAlignedFormat
     void noOverridesKeepDeclaredDefaults() {
         Config config = Config.defaults();
 
