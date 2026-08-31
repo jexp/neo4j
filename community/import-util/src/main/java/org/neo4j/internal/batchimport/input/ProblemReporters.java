@@ -21,6 +21,7 @@ package org.neo4j.internal.batchimport.input;
 
 import static java.lang.String.format;
 import static org.neo4j.internal.batchimport.input.BadCollector.ALL_SCHEMA_VIOLATIONS;
+import static org.neo4j.internal.batchimport.input.BadCollector.BAD_PROPERTY_COLUMN;
 import static org.neo4j.internal.batchimport.input.BadCollector.BAD_RELATIONSHIP;
 import static org.neo4j.internal.batchimport.input.BadCollector.DATA_AFTER_QUOTE;
 import static org.neo4j.internal.batchimport.input.BadCollector.DUPLICATE_NODES;
@@ -70,7 +71,8 @@ public class ProblemReporters {
             .addSerializer(DataAfterQuoteProblemReporter.SERIALIZER)
             .addSerializer(IllegalQuoteProblemReporter.SERIALIZER)
             .addSerializer(InvalidIdProblemReporter.SERIALIZER)
-            .addSerializer(IdColumnMissingProblemReporter.SERIALIZER);
+            .addSerializer(IdColumnMissingProblemReporter.SERIALIZER)
+            .addSerializer(BadPropertyProblemReporter.SERIALIZER);
 
     /**
      * Prints the {@link ProblemReporter#message()} of any reported errors to the provided {@link OutputStream}
@@ -242,6 +244,10 @@ public class ProblemReporters {
 
     public static ProblemReporter idColumnMissingReporter(String source, long row, int columnIndex) {
         return new IdColumnMissingProblemReporter(source, row, columnIndex);
+    }
+
+    public static ProblemReporter badPropertyReporter(String source, long row, String column, String value) {
+        return new BadPropertyProblemReporter(source, row, column, value);
     }
 
     private static class RelationshipsProblemReporter extends ProblemReporter {
@@ -805,6 +811,49 @@ public class ProblemReporters {
         @Override
         public String message() {
             return Collector.invalidIDMessage(source, row, value);
+        }
+
+        @Override
+        public InputException exception() {
+            return new InputException(message());
+        }
+    }
+
+    private static class BadPropertyProblemReporter extends ProblemReporter {
+
+        private static final StdSerializer<BadPropertyProblemReporter> SERIALIZER =
+                new StdSerializer<>(BadPropertyProblemReporter.class) {
+                    @Override
+                    public void serialize(
+                            BadPropertyProblemReporter reporter,
+                            JsonGenerator jsonGenerator,
+                            SerializerProvider serializerProvider)
+                            throws IOException {
+                        jsonGenerator.writeStartObject();
+                        startReport(jsonGenerator, reporter);
+                        writeSource(jsonGenerator, reporter.source, reporter.row);
+                        writeField(jsonGenerator, "column", reporter.column);
+                        writeField(jsonGenerator, "value", reporter.value);
+                        jsonGenerator.writeEndObject();
+                    }
+                };
+
+        private final String source;
+        private final long row;
+        private final String column;
+        private final String value;
+
+        private BadPropertyProblemReporter(String source, long row, String column, String value) {
+            super(BAD_PROPERTY_COLUMN);
+            this.source = source;
+            this.row = row;
+            this.column = column;
+            this.value = value;
+        }
+
+        @Override
+        public String message() {
+            return Collector.badPropertyMessage(source, row, column, value);
         }
 
         @Override

@@ -115,6 +115,7 @@ public final class BadCollector implements Collector {
     static final int INVALID_NODE_ID = 0x200;
     static final int MISSING_ID_COLUMN = 0x400;
     static final int INVALID_RELATIONSHIP_ID = 0x800;
+    static final int BAD_PROPERTY_COLUMN = 0x1000;
     static final int BAD_NODES = DUPLICATE_NODES | VIOLATING_NODES | OTHER_NODE_VIOLATION | INVALID_NODE_ID;
     static final int BAD_RELATIONSHIPS = BAD_RELATIONSHIP | INVALID_RELATIONSHIP_ID;
 
@@ -137,7 +138,8 @@ public final class BadCollector implements Collector {
             Map.entry(ILLEGAL_QUOTE, "IllegalQuote"),
             Map.entry(INVALID_NODE_ID, "InvalidNodeId"),
             Map.entry(INVALID_RELATIONSHIP_ID, "InvalidRelationshipId"),
-            Map.entry(MISSING_ID_COLUMN, "MissingIdColumn"));
+            Map.entry(MISSING_ID_COLUMN, "MissingIdColumn"),
+            Map.entry(BAD_PROPERTY_COLUMN, "BadPropertyColumn"));
 
     public static final int COLLECT_ALL = -1;
     public static final long UNLIMITED_TOLERANCE = -1;
@@ -328,6 +330,11 @@ public final class BadCollector implements Collector {
     @Override
     public void collectInvalidID(String source, long row, String value, EntityType entityType) {
         collect(ProblemReporters.invalidIdReporter(source, row, value, entityType));
+    }
+
+    @Override
+    public void collectBadProperty(String source, long row, String column, String value) {
+        collect(ProblemReporters.badPropertyReporter(source, row, column, value));
     }
 
     @Override

@@ -2143,7 +2143,7 @@ class ImportCommandTest {
                 .isInstanceOf(CommandFailedException.class)
                 .cause()
                 .hasMessageContaining("1000000")
-                .hasMessageContaining("too big");
+                .hasMessageContaining("Invalid value for property `prop1`");
     }
 
     @Test

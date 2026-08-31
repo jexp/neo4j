@@ -417,6 +417,20 @@ class ProblemReportersTest {
                         Row has fewer columns than expected and ID column is missing.
                         some.file: line 13
                         Missing ID column index: 31.
+                        """),
+                new Problem(ProblemReporters.badPropertyReporter(SOURCE, LINE, P1, DUFF), formatJson("""
+                            {
+                                "problem": "BadPropertyColumn",
+                                "message": "Property value is invalid for the type specified for its column in the header.\\nsome.file: line 13\\nInvalid value for property `p1`: `duff`.",
+                                "source":"some.file",
+                                "line":13,
+                                "column":"p1",
+                                "value":"duff"
+                            }
+                            """), """
+                        Property value is invalid for the type specified for its column in the header.
+                        some.file: line 13
+                        Invalid value for property `p1`: `duff`.
                         """));
     }
 

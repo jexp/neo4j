@@ -78,6 +78,7 @@ public class CsvInputParser implements Closeable {
         Header.Entry entry = null;
         Header.Entry[] entries = header.entries();
         EntityType invalidIdEntityType = null;
+        boolean badProperty = false;
         try {
             boolean doContinue = true;
             idValueBuilder.clear();
@@ -109,31 +110,28 @@ public class CsvInputParser implements Closeable {
                 try {
                     value = seeker.tryExtract(mark, extractor, entry.optionalParameter());
                 } catch (NumberFormatException | ArithmeticException e) {
-                    // We only allow integer/string ids; a value that violates its declared :ID/:START_ID/:END_ID
-                    // integer id-type fails extraction with one of these, and is a bad entry rather than a fatal
-                    // error. Collect the raw value, discard anything read for this row and stop the column scan
-                    // (doContinue = false); the row is skipped but still returned below. Tolerance is gated on the
-                    // step the id came from (nodes vs relationships).
-                    String invalidIdValue = null;
+                    // A value that violates the type its column declares fails extraction with one of these, and is a
+                    // bad entry rather than a fatal error.
                     if (entry.type() == Type.ID) {
-                        invalidIdValue = extractRawValue(entry);
                         invalidIdEntityType = EntityType.NODE;
                     } else if (entry.type() == Type.START_ID || entry.type() == Type.END_ID) {
-                        invalidIdValue = extractRawValue(entry);
                         invalidIdEntityType = EntityType.RELATIONSHIP;
                     }
+                    String rawValue = extractRawValue(entry);
                     if (invalidIdEntityType != null) {
                         badCollector.collectInvalidID(
-                                seeker.sourceDescription(), lineNumber, invalidIdValue, invalidIdEntityType);
-                        // Skip rest of the row
-                        doContinue = false;
-                        // Reset values we might have processed already
-                        idValueBuilder.clear();
-                        startIdValueBuilder.clear();
-                        endIdValueBuilder.clear();
-                        continue;
+                                seeker.sourceDescription(), lineNumber, rawValue, invalidIdEntityType);
+                    } else {
+                        badProperty = true;
+                        badCollector.collectBadProperty(seeker.sourceDescription(), lineNumber, entry.name(), rawValue);
                     }
-                    throw e;
+                    // Skip rest of the row
+                    doContinue = false;
+                    // Reset values we might have processed already
+                    idValueBuilder.clear();
+                    startIdValueBuilder.clear();
+                    endIdValueBuilder.clear();
+                    continue;
                 }
                 if (extractor.isEmpty(value)) {
                     continue;
@@ -206,10 +204,10 @@ public class CsvInputParser implements Closeable {
                     badCollector.collectExtraColumns(seeker.sourceDescription(), lineNumber, value);
                 }
             }
-            if (invalidIdEntityType == null) {
+            if (invalidIdEntityType == null && !badProperty) {
                 visitor.endOfEntity();
             } else {
-                // The row had an invalid id and was bad-collected: emit no entity, but still return below so the
+                // The row had a bad entry and was bad-collected: emit no entity, but still return below so the
                 // caller counts it as one processed row (per-row progress reporting, see BatchNodeWorker).
                 visitor.reset();
             }

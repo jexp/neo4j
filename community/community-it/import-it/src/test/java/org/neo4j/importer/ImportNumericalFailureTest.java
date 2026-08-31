@@ -56,9 +56,7 @@ class ImportNumericalFailureTest {
                     continue;
                 }
 
-                final String error = (type.equals("float") || type.equals("double"))
-                        ? "Not a number: \"" + val + "\""
-                        : "Not an integer: \"" + val + "\"";
+                final String error = "Invalid value for property `adult`: `" + val + "`.";
 
                 params.add(arguments(type, val, error));
             }

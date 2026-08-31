@@ -305,6 +305,61 @@ class CsvInputTest {
     }
 
     @Test
+    void shouldNotFailEstimationOnPropertyValueViolatingItsDeclaredType() {
+        Input input = badAgePropertyInput();
+
+        assertThatCode(() -> input.validateAndEstimate(PROPERTY_SIZE_CALCULATOR, NUMBER_OF_ESTIMATE_THREADS))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void shouldFailOnPropertyValueViolatingItsDeclaredType() throws Exception {
+        Input input = badAgePropertyInput();
+        input.validateAndEstimate(PROPERTY_SIZE_CALCULATOR, NUMBER_OF_ESTIMATE_THREADS);
+
+        // No flag tolerates a bad property value, so it is collected and then aborts the import
+        try (Collector collector = badCollector(true, true)) {
+            assertThatThrownBy(() -> {
+                        try (InputIterator nodes = input.nodes(collector).iterator()) {
+                            readAll(nodes);
+                        }
+                    })
+                    .isInstanceOf(InputException.class)
+                    .hasMessageContaining("Invalid value for property `age`: `notAnInt`.");
+        }
+    }
+
+    @Test
+    void shouldSkipRowWithPropertyValueViolatingItsDeclaredTypeWhenTolerated() throws Exception {
+        Input input = badAgePropertyInput();
+        input.validateAndEstimate(PROPERTY_SIZE_CALCULATOR, NUMBER_OF_ESTIMATE_THREADS);
+
+        try (Collector collector = Collector.EMPTY;
+                InputIterator nodes = input.nodes(collector).iterator()) {
+            // all three rows are processed; the bad one yields no entity
+            assertThat(readAll(nodes)).isEqualTo(3);
+        }
+    }
+
+    private Input badAgePropertyInput() {
+        return new CsvInput(
+                dataIterable(data("""
+                        :ID,name,age:int
+                        1,Alice,30
+                        2,Bob,notAnInt
+                        3,Carol,40""")),
+                defaultFormatNodeFileHeader(),
+                datas(),
+                defaultFormatRelationshipFileHeader(),
+                IdType.STRING,
+                config(MultilineSetting.DISALLOW),
+                false,
+                NO_MONITOR,
+                groups,
+                INSTANCE);
+    }
+
+    @Test
     void shouldFailOnNodeIdViolatingItsDeclaredIdTypeWhenNotSkippingDuplicateNodes() throws Exception {
         Input input = new CsvInput(
                 dataIterable(data("""
