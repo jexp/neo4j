@@ -22,6 +22,7 @@ package org.neo4j.cypher.internal.compiler
 import org.neo4j.configuration.Config
 import org.neo4j.configuration.GraphDatabaseInternalSettings
 import org.neo4j.configuration.GraphDatabaseInternalSettings.RemoteBatchPropertiesImplementation
+import org.neo4j.configuration.GraphDatabaseInternalSettings.RemoteNodeIndexWriteOperators
 import org.neo4j.configuration.GraphDatabaseSettings
 import org.neo4j.cypher.internal.compiler.helpers.HistogramsFromConfigHelper
 import org.neo4j.cypher.internal.config.CypherConfiguration
@@ -314,5 +315,12 @@ class CypherPlannerConfiguration(
       !GraphDatabaseInternalSettings.remote_relationship_index_seek.dynamic()
     )
     () => config.remoteRelationshipIndexSeek
+  }
+
+  val remoteNodeIndexWriteOperators: () => Set[RemoteNodeIndexWriteOperators] = {
+    AssertMacros3.checkOnlyWhenAssertionsAreEnabled(
+      !GraphDatabaseInternalSettings.remote_node_index_write_operators.dynamic()
+    )
+    () => config.remoteNodeIndexWriteOperators
   }
 }

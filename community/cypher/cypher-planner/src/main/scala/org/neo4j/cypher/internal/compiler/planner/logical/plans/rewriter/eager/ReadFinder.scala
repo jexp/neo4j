@@ -490,6 +490,12 @@ object ReadFinder {
       case NodeUniqueIndexSeek(node, LabelToken(labelName, _), properties, _, _, _, _, _) =>
         processNodeIndexPlan(node, labelName, properties)
 
+      case RemoteNodeIndexSeek(node, LabelToken(labelName, _), properties, _, _, _, _, _) =>
+        processNodeIndexPlan(node, labelName, properties)
+
+      case RemoteNodeUniqueIndexSeek(node, LabelToken(labelName, _), properties, _, _, _, _, _) =>
+        processNodeIndexPlan(node, labelName, properties)
+
       case MergeUniqueNode(node, LabelToken(labelName, _), properties, _, _, _, _, _, _) =>
         processNodeIndexPlan(node, labelName, properties)
 
@@ -1145,8 +1151,6 @@ object ReadFinder {
         PlanReads()
 
       case _: PhysicalPlanningPlan |
-        _: RemoteNodeIndexSeek |
-        _: RemoteNodeUniqueIndexSeek |
         _: RemoteDirectedRelationshipIndexSeek |
         _: RemoteUndirectedRelationshipIndexSeek |
         _: RemoteDirectedRelationshipUniqueIndexSeek |

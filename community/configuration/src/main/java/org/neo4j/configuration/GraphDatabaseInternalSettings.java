@@ -1363,6 +1363,21 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
                     "internal.cypher.remote_relationship_index_seek", BOOL, false)
             .build();
 
+    public enum RemoteNodeIndexWriteOperators {
+        NON_LOCKING,
+        UNIQUE_INDEX_LOCKING,
+        CALL_IN_TRANSACTIONS
+    }
+
+    @Internal
+    @Description(
+            "Control flags to decide whether to plan remote (unique) node index seeks on the RHS of write queries in sharded databases.")
+    public static final Setting<Set<RemoteNodeIndexWriteOperators>> remote_node_index_write_operators = newBuilder(
+                    "internal.cypher.remote_node_index_write_operators",
+                    setOf(ofEnum(RemoteNodeIndexWriteOperators.class)),
+                    Set.of())
+            .build();
+
     @Internal
     @Description("A legacy feature flag enabling Sharded Property Databases feature. This flag has no longer any use"
             + "and is part of the settings only for backward compatibility reasons.")

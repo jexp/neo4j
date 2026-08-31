@@ -19,6 +19,7 @@
  */
 package org.neo4j.cypher.internal.compiler.planner.logical.plans.rewriter
 
+import org.neo4j.configuration.GraphDatabaseInternalSettings.RemoteNodeIndexWriteOperators
 import org.neo4j.cypher.internal.logical.plans.DirectedRelationshipIndexSeek
 import org.neo4j.cypher.internal.logical.plans.DirectedRelationshipUniqueIndexSeek
 import org.neo4j.cypher.internal.logical.plans.LogicalPlan
@@ -30,9 +31,13 @@ import org.neo4j.cypher.internal.logical.plans.RemoteNodeIndexSeek
 import org.neo4j.cypher.internal.logical.plans.RemoteNodeUniqueIndexSeek
 import org.neo4j.cypher.internal.logical.plans.RemoteUndirectedRelationshipIndexSeek
 import org.neo4j.cypher.internal.logical.plans.RemoteUndirectedRelationshipUniqueIndexSeek
+import org.neo4j.cypher.internal.logical.plans.TransactionApply
+import org.neo4j.cypher.internal.logical.plans.TransactionForeach
 import org.neo4j.cypher.internal.logical.plans.UndirectedRelationshipIndexSeek
 import org.neo4j.cypher.internal.logical.plans.UndirectedRelationshipUniqueIndexSeek
+import org.neo4j.cypher.internal.util.Foldable.SkipChildren
 import org.neo4j.cypher.internal.util.Rewriter
+import org.neo4j.cypher.internal.util.attribution.Id
 import org.neo4j.cypher.internal.util.attribution.SameId
 import org.neo4j.cypher.internal.util.topDown
 
@@ -50,14 +55,41 @@ import org.neo4j.cypher.internal.util.topDown
  * Node and relationship seeks are gated independently via [[rewriteNodes]] and [[rewriteRelationships]] so
  * that each remote index kind can be enabled separately as runtime support lands.
  */
-case class RemoteIndexSeekRewriter(rewriteNodes: Boolean, rewriteRelationships: Boolean) extends Rewriter {
+case class RemoteIndexSeekRewriter(
+  remoteNodeIndexWriteOperatorsConfig: Set[RemoteNodeIndexWriteOperators],
+  rewriteNodes: Boolean,
+  rewriteRelationships: Boolean
+) extends Rewriter {
 
   override def apply(plan: AnyRef): AnyRef = plan match {
-    case lp: LogicalPlan if lp.readOnly => instance(lp)
-    case other                          => other
+    case lp: LogicalPlan => instance(
+        readOnlyQuery = lp.readOnly,
+        insideCallInTransactionsIds = callInTransactionIds(lp)
+      ).apply(lp)
+    case other => other
   }
 
-  private val instance: Rewriter = topDown(Rewriter.lift {
+  private def allIds(plan: LogicalPlan): Set[Id] =
+    plan.folder.treeCollect {
+      case p: LogicalPlan => p.id
+    }.toSet
+
+  /**
+   * Collect all the ids of the logical plan operators that are within a CALL IN TRANSACTIONS, that is,
+   * on the RHS of a TransactionApply or TransactionForEach
+   */
+  private def callInTransactionIds(plan: LogicalPlan): Set[Id] = {
+    plan.folder.treeFold(Set.empty[Id]) {
+      case cit @ (_: TransactionApply | _: TransactionForeach) =>
+        acc => SkipChildren(acc ++ callInTransactionIds(cit.left) ++ allIds(cit.right))
+    }
+  }
+
+  private def rewriteForWriteQuery(requiredConfig: RemoteNodeIndexWriteOperators, inCallInTx: Boolean): Boolean =
+    remoteNodeIndexWriteOperatorsConfig.contains(requiredConfig) &&
+      (!inCallInTx || remoteNodeIndexWriteOperatorsConfig.contains(RemoteNodeIndexWriteOperators.CALL_IN_TRANSACTIONS))
+
+  private def instance(readOnlyQuery: Boolean, insideCallInTransactionsIds: Set[Id]): Rewriter = topDown(Rewriter.lift {
     case seek @ NodeIndexSeek(
         idName,
         label,
@@ -67,7 +99,11 @@ case class RemoteIndexSeekRewriter(rewriteNodes: Boolean, rewriteRelationships: 
         indexOrder,
         indexType,
         supportPartitionedScan
-      ) if argumentIds.nonEmpty && rewriteNodes =>
+      )
+      if argumentIds.nonEmpty && rewriteNodes && (readOnlyQuery || rewriteForWriteQuery(
+        RemoteNodeIndexWriteOperators.NON_LOCKING,
+        insideCallInTransactionsIds.contains(seek.id)
+      )) =>
       RemoteNodeIndexSeek(
         idName,
         label,
@@ -88,7 +124,11 @@ case class RemoteIndexSeekRewriter(rewriteNodes: Boolean, rewriteRelationships: 
         indexOrder,
         indexType,
         supportPartitionedScan
-      ) if argumentIds.nonEmpty && rewriteNodes =>
+      )
+      if argumentIds.nonEmpty && rewriteNodes && (readOnlyQuery || rewriteForWriteQuery(
+        RemoteNodeIndexWriteOperators.UNIQUE_INDEX_LOCKING,
+        insideCallInTransactionsIds.contains(seek.id)
+      )) =>
       RemoteNodeUniqueIndexSeek(
         idName,
         label,
@@ -111,7 +151,7 @@ case class RemoteIndexSeekRewriter(rewriteNodes: Boolean, rewriteRelationships: 
         indexOrder,
         indexType,
         supportPartitionedScan
-      ) if argumentIds.nonEmpty && rewriteRelationships =>
+      ) if argumentIds.nonEmpty && rewriteRelationships && readOnlyQuery =>
       RemoteDirectedRelationshipIndexSeek(
         idName,
         startNode,
@@ -136,7 +176,7 @@ case class RemoteIndexSeekRewriter(rewriteNodes: Boolean, rewriteRelationships: 
         indexOrder,
         indexType,
         supportPartitionedScan
-      ) if argumentIds.nonEmpty && rewriteRelationships =>
+      ) if argumentIds.nonEmpty && rewriteRelationships && readOnlyQuery =>
       RemoteUndirectedRelationshipIndexSeek(
         idName,
         leftNode,
@@ -160,7 +200,7 @@ case class RemoteIndexSeekRewriter(rewriteNodes: Boolean, rewriteRelationships: 
         argumentIds,
         indexOrder,
         indexType
-      ) if argumentIds.nonEmpty && rewriteRelationships =>
+      ) if argumentIds.nonEmpty && rewriteRelationships && readOnlyQuery =>
       RemoteDirectedRelationshipUniqueIndexSeek(
         idName,
         startNode,

@@ -301,6 +301,9 @@ class CypherConfiguration private (val config: Config) {
   val remoteRelationshipIndexSeek: Boolean =
     config.get(GraphDatabaseInternalSettings.remote_relationship_index_seek).booleanValue()
 
+  val remoteNodeIndexWriteOperators: Set[GraphDatabaseInternalSettings.RemoteNodeIndexWriteOperators] =
+    config.get(GraphDatabaseInternalSettings.remote_node_index_write_operators).asScala.toSet
+
   val displayPlannerVersion: Boolean =
     config.get(GraphDatabaseInternalSettings.display_planner_version).booleanValue()
 

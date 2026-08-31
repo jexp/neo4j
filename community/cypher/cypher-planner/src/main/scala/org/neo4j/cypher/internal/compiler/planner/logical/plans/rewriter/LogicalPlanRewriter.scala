@@ -176,9 +176,9 @@ case object PlanRewriter extends LogicalPlanRewriter with StepSequencer.Step wit
         context.config.mergeOptimizationEnabled()
       )(mergeRewriter(context.planContext.storageSupportsFastExpandInto)),
       Option.when(
-        (context.config.remoteNodeIndexSeek() || context.config.remoteRelationshipIndexSeek()) &&
-          isShardedDatabase && readOnly
+        (context.config.remoteNodeIndexSeek() || context.config.remoteRelationshipIndexSeek()) && isShardedDatabase
       )(RemoteIndexSeekRewriter(
+        context.config.remoteNodeIndexWriteOperators(),
         rewriteNodes = context.config.remoteNodeIndexSeek(),
         rewriteRelationships = context.config.remoteRelationshipIndexSeek()
       ))

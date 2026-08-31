@@ -4430,6 +4430,62 @@ class EagerWhereNeededRewriterTest extends CypherPlannerTestSuite with LogicalPl
     )
   }
 
+  test(
+    "inserts eager between property set and property read (RemoteNodeUniqueIndexSeek) if property read through unstable iterator"
+  ) {
+    val planBuilder = new LogicalPlanBuilder()
+      .produceResults("result")
+      .projection("1 AS result")
+      .setNodeProperty("m", "prop", "5")
+      .apply()
+      .|.remoteNodeIndexOperator("n:N(prop=5)", unique = true)
+      .allNodeScan("m")
+    val plan = planBuilder.build()
+    val rewrittenPlan = eagerizePlan(planBuilder, plan)
+
+    // Same plan and same conflict as the NodeUniqueIndexSeek case above: RemoteNodeUniqueIndexSeek must
+    // register the same property read, or this Eager (and the conflict it prevents) is silently missed.
+    rewrittenPlan should equal(
+      new LogicalPlanBuilder()
+        .produceResults("result")
+        .projection("1 AS result")
+        .setNodeProperty("m", "prop", "5")
+        .eager(ListSet(PropertyReadSetConflict(propName("prop")).withConflict(Conflict(Id(2), Id(4)))))
+        .apply()
+        .|.remoteNodeIndexOperator("n:N(prop = 5)", unique = true)
+        .allNodeScan("m")
+        .build()
+    )
+  }
+
+  test(
+    "inserts eager between property set and property read (RemoteNodeIndexSeek) if property read through unstable iterator"
+  ) {
+    val planBuilder = new LogicalPlanBuilder()
+      .produceResults("result")
+      .projection("1 AS result")
+      .setNodeProperty("m", "prop", "5")
+      .apply()
+      .|.remoteNodeIndexOperator("n:N(prop=5)")
+      .allNodeScan("m")
+    val plan = planBuilder.build()
+    val rewrittenPlan = eagerizePlan(planBuilder, plan)
+
+    // Same plan and same conflict as the RemoteNodeUniqueIndexSeek case above: RemoteNodeIndexSeek must
+    // register the same property read, or this Eager (and the conflict it prevents) is silently missed.
+    rewrittenPlan should equal(
+      new LogicalPlanBuilder()
+        .produceResults("result")
+        .projection("1 AS result")
+        .setNodeProperty("m", "prop", "5")
+        .eager(ListSet(PropertyReadSetConflict(propName("prop")).withConflict(Conflict(Id(2), Id(4)))))
+        .apply()
+        .|.remoteNodeIndexOperator("n:N(prop = 5)")
+        .allNodeScan("m")
+        .build()
+    )
+  }
+
   test("inserts eager between Create and NodeUniqueIndexSeek if property overlap") {
     val planBuilder = new LogicalPlanBuilder()
       .produceResults("o")

@@ -21,6 +21,7 @@ package org.neo4j.cypher.internal.compiler.planner.logical
 
 import org.neo4j.configuration.GraphDatabaseInternalSettings
 import org.neo4j.configuration.GraphDatabaseInternalSettings.RemoteBatchPropertiesImplementation
+import org.neo4j.configuration.GraphDatabaseInternalSettings.RemoteNodeIndexWriteOperators
 import org.neo4j.cypher.internal.ast.AstConstructionTestSupport
 import org.neo4j.cypher.internal.compiler.CypherPlannerTestSuite
 import org.neo4j.cypher.internal.compiler.ExecutionModel
@@ -45,6 +46,8 @@ import org.neo4j.cypher.internal.util.InputPosition
 import org.neo4j.cypher.internal.util.attribution.Id
 import org.neo4j.cypher.internal.util.collection.immutable.ListSet
 import org.neo4j.cypher.internal.util.symbols.CTAny
+
+import java.util
 
 class DefaultRuntimeRemoteBatchPropertiesWritePlanningIntegrationTest
     extends AbstractRemoteBatchPropertiesWritePlanningIntegrationTest(ExecutionModel.default) {
@@ -488,7 +491,7 @@ abstract class AbstractRemoteBatchPropertiesWritePlanningIntegrationTest(executi
     plan shouldEqual planner.subPlanBuilder()
       .emptyResult()
       .transactionForeach(1000)
-      .|.setNodeProperty("p1", "confidence", "cacheR[k.value]") // use cached property `value``
+      .|.setNodeProperty("p1", "confidence", "cacheR[k.value]") // use cached property `value`
       .|.create(createRelationship("x", "p1", "MAYBE_RELATED", "p2"))
       .|.argument("p1", "k", "p2")
       .filter("cacheR[k.since] > 2020", "p2:Person")
@@ -497,7 +500,7 @@ abstract class AbstractRemoteBatchPropertiesWritePlanningIntegrationTest(executi
       .nodeIndexOperator(
         "p1:Person(firstName = 'J')",
         getValue = Map("firstName" -> DoNotGetValue)
-      ) // should NOT plan a remoteNodeIndexSeek operator since it is not supported for write queries.
+      ) // should NOT plan a remoteNodeIndexSeek operator since it is not on the RHS with argumentIds.
       .build()
   }
 
@@ -1490,5 +1493,97 @@ abstract class AbstractRemoteBatchPropertiesWritePlanningIntegrationTest(executi
         .nodeByLabelScan("u", "Person", IndexOrderNone)
         .build()
     )
+  }
+
+  test(
+    "should not plan remoteNodeIndexSeek on RHS of CIT when RemoteNodeIndexWriteOperators.CALL_IN_TRANSACTIONS or RemoteNodeIndexWriteOperators.NON_LOCKING is not set"
+  ) {
+    val query =
+      """MATCH (p1:Person)
+        |CALL (p1) {
+        |  MERGE (p1)-[k:KNOWS]->(p2:Person {firstName: "J"})
+        |} IN TRANSACTIONS OF 1000 ROWS;""".stripMargin
+
+    val remoteNodeIndexWriteSettingsEmpty = new util.HashSet[RemoteNodeIndexWriteOperators]()
+
+    val remoteNodeIndexWriteSettingsNl = new util.HashSet[RemoteNodeIndexWriteOperators]()
+    remoteNodeIndexWriteSettingsNl.add(RemoteNodeIndexWriteOperators.NON_LOCKING)
+
+    val remoteNodeIndexWriteSettingsCit = new util.HashSet[RemoteNodeIndexWriteOperators]()
+    remoteNodeIndexWriteSettingsCit.add(RemoteNodeIndexWriteOperators.CALL_IN_TRANSACTIONS)
+
+    Seq(remoteNodeIndexWriteSettingsEmpty, remoteNodeIndexWriteSettingsEmpty, remoteNodeIndexWriteSettingsCit).foreach {
+      remoteNodeIndexWriteSettings =>
+        val plannerWithConfig = plannerBase
+          .withSetting(GraphDatabaseInternalSettings.remote_node_index_write_operators, remoteNodeIndexWriteSettings)
+          .build()
+
+        val plan = plannerWithConfig.plan(query).stripProduceResults
+        plan should equal(plannerWithConfig.subPlanBuilder()
+          .emptyResult()
+          .transactionForeach(1000)
+          .|.merge(
+            Seq(createNodeFull("p2", labels = Seq("Person"), properties = Some("{firstName: 'J'}"))),
+            Seq(createRelationship("k", "p1", "KNOWS", "p2", OUTGOING)),
+            Seq(),
+            Seq(),
+            Set("p1")
+          )
+          .|.expandInto("(p1)-[k:KNOWS]->(p2)")
+          .|.nodeIndexOperator(
+            "p2:Person(firstName = 'J')",
+            indexOrder = IndexOrderNone,
+            paramExpr = Seq(),
+            argumentIds = Set("p1")
+          )
+          .eager(ListSet(EagernessReason.LabelReadSetConflict(labelName("Person")).withConflict(
+            EagernessReason.Conflict(Id(3), Id(7))
+          )))
+          .nodeByLabelScan("p1", "Person")
+          .build())
+    }
+  }
+
+  test(
+    "should plan remoteNodeIndexSeek for write query when config settings are enabled and nodeIndexSeek is on RHS with argumentIds"
+  ) {
+    val query =
+      """MATCH (p1:Person)
+        |CALL (p1) {
+        |  MERGE (p1)-[k:KNOWS]->(p2:Person {firstName: "J"})
+        |} IN TRANSACTIONS OF 1000 ROWS;""".stripMargin
+
+    val remoteNodeIndexWriteSettings = new util.HashSet[RemoteNodeIndexWriteOperators]()
+    remoteNodeIndexWriteSettings.add(RemoteNodeIndexWriteOperators.NON_LOCKING)
+    remoteNodeIndexWriteSettings.add(RemoteNodeIndexWriteOperators.CALL_IN_TRANSACTIONS)
+
+    val plannerWithConfig = plannerBase
+      .withSetting(GraphDatabaseInternalSettings.remote_node_index_write_operators, remoteNodeIndexWriteSettings)
+      .build()
+
+    val plan = plannerWithConfig.plan(query).stripProduceResults
+    plan should equal(plannerWithConfig.subPlanBuilder()
+      .emptyResult()
+      .transactionForeach(1000)
+      .|.merge(
+        Seq(createNodeFull("p2", labels = Seq("Person"), properties = Some("{firstName: 'J'}"))),
+        Seq(createRelationship("k", "p1", "KNOWS", "p2", OUTGOING)),
+        Seq(),
+        Seq(),
+        Set("p1")
+      )
+      .|.expandInto("(p1)-[k:KNOWS]->(p2)")
+      .|.remoteNodeIndexOperator(
+        "p2:Person(firstName = 'J')",
+        indexOrder = IndexOrderNone,
+        paramExpr = Seq(),
+        argumentIds = Set("p1")
+      )
+      .eager(ListSet(EagernessReason.LabelReadSetConflict(labelName("Person")).withConflict(EagernessReason.Conflict(
+        Id(3),
+        Id(7)
+      ))))
+      .nodeByLabelScan("p1", "Person")
+      .build())
   }
 }
