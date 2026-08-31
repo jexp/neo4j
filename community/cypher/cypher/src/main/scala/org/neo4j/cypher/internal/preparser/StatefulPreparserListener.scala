@@ -55,6 +55,12 @@ class StatefulPreparserListener extends CypherPreparserBaseListener {
         ctx.IDENTIFIER(1).getText,
         pos(ctx.IDENTIFIER(0))
       ))
+    } else if (ctx.IDENTIFIER().size() == 1 && ctx.VERSION() != null) {
+      settings.addOne(PreParserOption.generic(
+        ctx.IDENTIFIER(0).getText,
+        ctx.VERSION().getText,
+        pos(ctx.IDENTIFIER(0))
+      ))
     }
   }
 

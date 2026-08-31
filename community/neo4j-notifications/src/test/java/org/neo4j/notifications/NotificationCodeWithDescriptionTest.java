@@ -1499,26 +1499,21 @@ class NotificationCodeWithDescriptionTest {
 
     @Test
     void shouldConstructNotificationsFor_RETIRED_PLANNER_VERSION_PRE_PARSER_OPTION() {
-        NotificationImplementation notification = retiredPlannerVersionPreParserOption(InputPosition.empty, "v2026_03");
+        NotificationImplementation notification = retiredPlannerVersionPreParserOption(InputPosition.empty, "2026.03");
 
         verifyNotification(
                 notification,
                 "The requested planner version is no longer supported.",
                 SeverityLevel.WARNING,
                 "Neo.ClientNotification.Statement.PlannerVersionUnsupportedWarning",
-                "The Cypher planner version v2026_03 is no longer supported. The default planner version is used instead.",
+                "The Cypher planner version 2026.03 is no longer supported. The default planner version is used instead.",
                 NotificationCategory.UNSUPPORTED,
                 NotificationClassification.UNSUPPORTED,
                 "01N84",
                 new DiagnosticRecord(
-                                warning,
-                                NotificationClassification.UNSUPPORTED,
-                                -1,
-                                -1,
-                                -1,
-                                Map.of("value", "v2026_03"))
+                                warning, NotificationClassification.UNSUPPORTED, -1, -1, -1, Map.of("value", "2026.03"))
                         .asMap(),
-                "warn: unsupported planner version. The Cypher planner version v2026_03 is no longer supported. "
+                "warn: unsupported planner version. The Cypher planner version 2026.03 is no longer supported. "
                         + "The default planner version is used instead.");
     }
 

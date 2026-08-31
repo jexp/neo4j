@@ -797,9 +797,9 @@ object CypherPlannerVersionOption extends CypherOptionCompanion[CypherPlannerVer
     ) {
   case object experimental extends CypherPlannerVersionOption("experimental")
   case object next extends CypherPlannerVersionOption("next")
-  case object v2026_05 extends CypherPlannerVersionOption("v2026_05")
-  case object v2026_04 extends CypherPlannerVersionOption("v2026_04")
-  case object v2026_03 extends CypherPlannerVersionOption("v2026_03")
+  case object v2026_05 extends CypherPlannerVersionOption("2026.05")
+  case object v2026_04 extends CypherPlannerVersionOption("2026.04")
+  case object v2026_03 extends CypherPlannerVersionOption("2026.03")
   // New Planner version release: update the default value to the new version
   val latest: CypherPlannerVersionOption = v2026_05
   val LATEST_ALIAS: String = "latest"

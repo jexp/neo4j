@@ -240,7 +240,7 @@ cypher
   ;
 
 setting
-   : IDENTIFIER '=' IDENTIFIER
+   : IDENTIFIER '=' (IDENTIFIER | VERSION)
    ;
 
 // Matches the first token after the preparser options. Used to determine end of preparser options.

@@ -87,7 +87,7 @@ class ExecutingQueryTest {
         query.onCompilationCompleted(
                 new CompilerInfo(
                         "the-planner",
-                        "v2026_04",
+                        "2026.04",
                         RuntimeName.INTERPRETED,
                         emptyList(),
                         CypherVersion.Legacy.legacyVersion()),
@@ -128,7 +128,7 @@ class ExecutingQueryTest {
         query.onCompilationCompleted(
                 new CompilerInfo(
                         "the-planner",
-                        "v2026_04",
+                        "2026.04",
                         RuntimeName.INTERPRETED,
                         emptyList(),
                         CypherVersion.Legacy.legacyVersion()),
@@ -150,7 +150,7 @@ class ExecutingQueryTest {
         query.onCompilationCompleted(
                 new CompilerInfo(
                         "the-planner",
-                        "v2026_04",
+                        "2026.04",
                         RuntimeName.INTERPRETED,
                         emptyList(),
                         CypherVersion.Legacy.legacyVersion()),

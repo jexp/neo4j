@@ -1264,7 +1264,7 @@ abstract class DeprecationAcceptanceTestBase extends CypherITTestSuite with Befo
   }
 
   test("plannerVersion pre parser option is retired and falls back to default") {
-    val version = "v2026_03"
+    val version = "2026.03"
     val queries = Seq(s"CYPHER plannerVersion=$version RETURN 42")
     val position = new InputPosition(7, 1, 8)
 

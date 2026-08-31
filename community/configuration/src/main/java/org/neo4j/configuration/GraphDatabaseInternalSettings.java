@@ -266,9 +266,25 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
     public enum CypherPlannerVersion {
         LATEST, // Alias to the latest version (immediately following this entry)
         // Planner version update: add the latest version here just after LATEST
-        V2026_05,
-        V2026_04,
-        V2026_03
+        V2026_05("2026.05"),
+        V2026_04("2026.04"),
+        V2026_03("2026.03");
+
+        private final String value;
+
+        // For named versions (e.g. LATEST), whose string value is just the constant's own name.
+        CypherPlannerVersion() {
+            this.value = name();
+        }
+
+        CypherPlannerVersion(String value) {
+            this.value = value;
+        }
+
+        @Override
+        public String toString() {
+            return value;
+        }
     }
 
     @Internal

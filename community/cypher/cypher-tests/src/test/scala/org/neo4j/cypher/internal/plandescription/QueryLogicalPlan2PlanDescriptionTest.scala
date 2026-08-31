@@ -7004,9 +7004,9 @@ class QueryLogicalPlan2PlanDescriptionTest extends LogicalPlan2PlanDescriptionTe
       providedOrders = ImmutablePlanningAttributes.ProvidedOrders(providedOrders),
       StubExecutionPlan().operatorMetadata,
       CypherVersion.Legacy.legacyVersion(),
-      cypherPlannerVersion = Some("v2026_04")
+      cypherPlannerVersion = Some("2026.04")
     )
-    planDesc.arguments should contain(CypherPlannerVersion("v2026_04"))
+    planDesc.arguments should contain(CypherPlannerVersion("2026.04"))
     planDesc.arguments should not contain PlannerVersionArgument.currentVersion
   }
 
@@ -7032,6 +7032,6 @@ class QueryLogicalPlan2PlanDescriptionTest extends LogicalPlan2PlanDescriptionTe
   }
 
   test("PlannerVersionArgument.forDisplay(Some(version)) returns CypherPlannerVersion with that version") {
-    PlannerVersionArgument.forDisplay(Some("v2026_04")) should equal(CypherPlannerVersion("v2026_04"))
+    PlannerVersionArgument.forDisplay(Some("2026.04")) should equal(CypherPlannerVersion("2026.04"))
   }
 }

@@ -41,10 +41,10 @@ class CypherPlannerVersionOptionTest extends CypherFunSuite {
     resolve("experimental") shouldBe experimental
     resolve("next") shouldBe next
     resolve("latest") shouldBe CypherPlannerVersionOption.latest
-    resolve("v2026_05") shouldBe v2026_05
-    resolve("v2026_04") shouldBe v2026_04
+    resolve("2026.05") shouldBe v2026_05
+    resolve("2026.04") shouldBe v2026_04
     // Retired versions resolve to the default planner instead of their own case object.
-    resolve("v2026_03") shouldBe CypherPlannerVersionOption.default
+    resolve("2026.03") shouldBe CypherPlannerVersionOption.default
 
     // The special token 'default' resolves to the default version
     resolve("default") shouldBe CypherPlannerVersionOption.default
@@ -69,8 +69,8 @@ class CypherPlannerVersionOptionTest extends CypherFunSuite {
   }
 
   test("isRetired is case-insensitive and only true for retired versions") {
-    CypherPlannerVersionOption.isRetired("V2026_03") shouldBe true
-    CypherPlannerVersionOption.isRetired("v2026_04") shouldBe false
+    CypherPlannerVersionOption.isRetired("2026.03") shouldBe true
+    CypherPlannerVersionOption.isRetired("2026.04") shouldBe false
     CypherPlannerVersionOption.isRetired("latest") shouldBe false
     CypherPlannerVersionOption.isRetired("experimental") shouldBe false
   }

@@ -84,6 +84,10 @@ class CypherPreParserTest extends CommunityCypherTestSuite with TableDrivenPrope
       (List(PreParserOption.generic("planner", "dp", (1, 8, 7))), (1, 20, 19))
     ),
     (
+      "CYPHER plannerVersion=2026.04 RETURN",
+      (List(PreParserOption.generic("plannerVersion", "2026.04", (1, 8, 7))), (1, 31, 30))
+    ),
+    (
       "CYPHER runtime=interpreted RETURN",
       (List(PreParserOption.generic("runtime", "interpreted", (1, 8, 7))), (1, 28, 27))
     ),

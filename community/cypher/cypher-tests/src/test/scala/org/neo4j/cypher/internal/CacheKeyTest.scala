@@ -97,7 +97,7 @@ class CacheKeyTest extends CommunityCypherTestSuite {
 
     options.cacheKey
       .shouldEqual(
-        """PROFILE planner=dp runtime=pipelined updateStrategy=eager expressionEngine=interpreted operatorEngine=interpreted interpretedPipesFallback=all connectComponentsPlanner=idp debug=querygraph debug=tostring parallelRuntimeSupport=disabled eagerAnalyzer=ir inferSchemaParts=most_selective_label statefulShortestPlanningMode=all_if_possible planVarExpandInto=minimum_cost plannerVersion=v2026_03 transactionBatchStrategy=auto parallelRepeatHeuristic=enabled"""
+        """PROFILE planner=dp runtime=pipelined updateStrategy=eager expressionEngine=interpreted operatorEngine=interpreted interpretedPipesFallback=all connectComponentsPlanner=idp debug=querygraph debug=tostring parallelRuntimeSupport=disabled eagerAnalyzer=ir inferSchemaParts=most_selective_label statefulShortestPlanningMode=all_if_possible planVarExpandInto=minimum_cost plannerVersion=2026.03 transactionBatchStrategy=auto parallelRepeatHeuristic=enabled"""
       )
 
     val derivedOptions = CypherQueryOptions.derivedOptions(options, CypherConfiguration.fromConfig(Config.defaults()))
@@ -138,7 +138,7 @@ class CacheKeyTest extends CommunityCypherTestSuite {
 
     options.logicalPlanCacheKey
       .shouldEqual(
-        """updateStrategy=eager connectComponentsPlanner=idp eagerAnalyzer=ir inferSchemaParts=most_selective_label statefulShortestPlanningMode=all_if_possible planVarExpandInto=minimum_cost plannerVersion=v2026_03 transactionBatchStrategy=auto parallelRepeatHeuristic=enabled"""
+        """updateStrategy=eager connectComponentsPlanner=idp eagerAnalyzer=ir inferSchemaParts=most_selective_label statefulShortestPlanningMode=all_if_possible planVarExpandInto=minimum_cost plannerVersion=2026.03 transactionBatchStrategy=auto parallelRepeatHeuristic=enabled"""
       )
 
     val derivedOptions = CypherQueryOptions.derivedOptions(options, CypherConfiguration.fromConfig(Config.defaults()))
