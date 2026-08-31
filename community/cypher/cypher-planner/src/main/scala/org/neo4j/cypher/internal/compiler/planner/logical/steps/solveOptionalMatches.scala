@@ -29,7 +29,6 @@ import org.neo4j.cypher.internal.expressions.LogicalVariable
 import org.neo4j.cypher.internal.ir.QueryGraph
 import org.neo4j.cypher.internal.ir.helpers.CachedFunction
 import org.neo4j.cypher.internal.ir.ordering.ColumnOrder
-import org.neo4j.cypher.internal.logical.plans.AggregatingPlan
 import org.neo4j.cypher.internal.logical.plans.CachedProperties
 import org.neo4j.cypher.internal.logical.plans.LogicalLeafPlan
 import org.neo4j.cypher.internal.logical.plans.LogicalPlan
@@ -155,7 +154,6 @@ case object ApplyOptionalSolverFactory extends OptionalSolverFactory {
         val innerWithFixedArguments = inner.endoRewrite(bottomUp(
           Rewriter.lift {
             case llp: LogicalLeafPlan => llp.addArgumentIds(lhsSymbols)
-            case ap: AggregatingPlan  => ap.addGroupingExpressions(lhsSymbols.map(s => s -> s).toMap)
             case p: LogicalPlan =>
               AssertMacros3.checkOnlyWhenAssertionsAreEnabled(
                 lhsSymbols.subsetOf(p.availableSymbols),
