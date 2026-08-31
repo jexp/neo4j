@@ -70,10 +70,6 @@ public class TransactionIdTracker {
                 .toArray();
     }
 
-    long lastNotCompletedTransactionChunk(long transactionId) {
-        return notCompletedTransactionChunks.get(transactionId).lastSeenChunkId();
-    }
-
     public void trackBatch(CommittedCommandBatchRepresentation committedBatch) {
         CommandBatch commandBatch = committedBatch.commandBatch();
         if (commandBatch.isFirst() && commandBatch.isLast()) {
@@ -112,7 +108,11 @@ public class TransactionIdTracker {
                 .toList();
     }
 
-    record PartialLastTransactionChunk(
+    public PartialLastTransactionChunk getPartialLastTransactionChunk(long transactionId) {
+        return notCompletedTransactionChunks.get(transactionId);
+    }
+
+    public record PartialLastTransactionChunk(
             long transactionId, long earliestSeenAppendIndex, long lastSeenAppendIndex, long lastSeenChunkId) {
         public PartialLastTransactionChunk updateEarliestSeenAppendIndex(long earliestSeenAppendIndex) {
             return new PartialLastTransactionChunk(

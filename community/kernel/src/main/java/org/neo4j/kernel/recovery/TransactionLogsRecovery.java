@@ -178,7 +178,7 @@ public class TransactionLogsRecovery extends LifecycleAdapter {
                         recoveryContextTracker.getRecoveryToPosition(), recoveryStartInformation.checkpointInfo());
             }
 
-            var rollbackTransactionInfo = rollbackTransactions(
+            var rollbackTransactionInfo = handleIncompleteTransactions(
                     recoveryContextTracker.getRecoveryToPosition(), transactionIdTracker, appendIndexProvider, monitor);
             if (rollbackTransactionInfo != null) {
                 recoveryContextTracker.rollbackBatch(rollbackTransactionInfo, rollbackTransactionInfo.position());
@@ -210,27 +210,27 @@ public class TransactionLogsRecovery extends LifecycleAdapter {
         if (incompleteTransactionAction != IncompleteTransactionAction.APPLY) {
             return RecoveryOutcome.EMPTY_OUTCOME;
         }
-        var transactionInfos = chunkedTransactionTracker.transactionsToRollback();
-        if (transactionInfos.isEmpty()) {
+        var incompleteTransactions = chunkedTransactionTracker.incompleteTransactions();
+        if (incompleteTransactions.isEmpty()) {
             return RecoveryOutcome.EMPTY_OUTCOME;
         }
-        long[] notClosedTransactionIds = new long[transactionInfos.size()];
+        long[] notClosedTransactionIds = new long[incompleteTransactions.size()];
         int index = 0;
-        for (ChunkedTransactionTracker.TransactionInfo transactionInfo : transactionInfos) {
+        for (ChunkedTransactionTracker.TransactionInfo transactionInfo : incompleteTransactions) {
             notClosedTransactionIds[index++] = transactionInfo.transactionId();
         }
         Arrays.sort(notClosedTransactionIds);
 
-        var transactionBatchInfo = recoveryContextTracker.getLastHighestTransactionBatchInfo();
+        var lastHighestTransactionBatchInfo = recoveryContextTracker.getLastHighestTransactionBatchInfo();
         return new PartialRecoveryOutcome(
                 notClosedTransactionIds,
                 new TransactionId(
-                        transactionBatchInfo.txId(),
-                        transactionBatchInfo.appendIndex(),
-                        transactionBatchInfo.kernelVersion(),
-                        transactionBatchInfo.checksum(),
-                        transactionBatchInfo.timeWritten(),
-                        transactionBatchInfo.consensusIndex()),
+                        lastHighestTransactionBatchInfo.txId(),
+                        lastHighestTransactionBatchInfo.appendIndex(),
+                        lastHighestTransactionBatchInfo.kernelVersion(),
+                        lastHighestTransactionBatchInfo.checksum(),
+                        lastHighestTransactionBatchInfo.timeWritten(),
+                        lastHighestTransactionBatchInfo.consensusIndex()),
                 recoveryContextTracker.gapFreeClosedTransactionInfo(),
                 recoveryContextTracker.getEarliestOpenTransactionMetadata());
     }
@@ -413,7 +413,11 @@ public class TransactionLogsRecovery extends LifecycleAdapter {
         }
     }
 
-    private RollbackTransactionInfo rollbackTransactions(
+    /**
+     * Depending on the incomplete transaction action, either rollback the incomplete transactions or register them as incomplete so they can be completed once online.
+     * @return RollbackTransactionInfo if the incomplete transactions were rolled back, null otherwise.
+     */
+    private RollbackTransactionInfo handleIncompleteTransactions(
             LogPosition writePosition,
             TransactionIdTracker transactionTracker,
             AppendIndexProvider appendIndexProvider,
@@ -439,14 +443,16 @@ public class TransactionLogsRecovery extends LifecycleAdapter {
                 for (int i = 0; i < notCompletedTransactions.length; i++) {
                     long notCompletedTransaction = notCompletedTransactions[i];
                     long appendIndex = appendIndexProvider.nextAppendIndex();
+                    var partialLastTransactionChunk =
+                            transactionTracker.getPartialLastTransactionChunk(notCompletedTransaction);
                     int checksum = entryWriter.writeRollbackEntry(
                             kernelVersion,
                             notCompletedTransaction,
                             appendIndex,
-                            transactionTracker.lastNotCompletedTransactionChunk(notCompletedTransaction),
+                            partialLastTransactionChunk.lastSeenChunkId(),
                             time,
                             UNKNOWN_TX_SEQUENCE_NUMBER,
-                            UNKNOWN_APPEND_INDEX); // TODO is this ok? What happens if a secondary pulls this entry
+                            partialLastTransactionChunk.lastSeenAppendIndex());
                     if (i == (notCompletedTransactions.length - 1)) {
                         lastBatchInfo = new CommittedCommandBatchRepresentation.BatchInformation(
                                 notCompletedTransaction,

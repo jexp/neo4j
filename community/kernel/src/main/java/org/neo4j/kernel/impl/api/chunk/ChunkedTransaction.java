@@ -321,7 +321,7 @@ public class ChunkedTransaction implements StorageEngineTransaction {
                 closedCallback.accept(transactionId);
             }
             if (chunkedTransactionTracker != null) {
-                chunkedTransactionTracker.cleanupChunkedTransaction(transactionId);
+                chunkedTransactionTracker.completeTransaction(transactionId);
             }
             if (incompleteTransactionAvailability != null) {
                 incompleteTransactionAvailability.completeTransaction(transactionId);

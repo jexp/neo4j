@@ -42,7 +42,7 @@ public class MvccIncompleteTransactionAvailabilityService extends LifecycleAdapt
 
     @Override
     public void start() throws Exception {
-        var transactionsToRollback = chunkedTransactionTracker.transactionsToRollback();
+        var transactionsToRollback = chunkedTransactionTracker.incompleteTransactions();
         if (transactionsToRollback.isEmpty()) {
             available = true;
             return;

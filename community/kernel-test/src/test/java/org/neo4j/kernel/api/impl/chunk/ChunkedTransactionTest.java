@@ -86,7 +86,7 @@ public class ChunkedTransactionTest {
         append(transaction, 5);
         transaction.commit();
 
-        assertThat(tracker.transactionsToRollback())
+        assertThat(tracker.incompleteTransactions())
                 .containsExactly(new ChunkedTransactionTracker.TransactionInfo(
                         TX_ID, 5, 5, BASE_CHUNK_ID, LATEST_KERNEL_VERSION, LEASE_ID));
     }
@@ -100,7 +100,7 @@ public class ChunkedTransactionTest {
         append(transaction, 9);
         transaction.commit();
 
-        assertThat(tracker.transactionsToRollback())
+        assertThat(tracker.incompleteTransactions())
                 .containsExactly(new ChunkedTransactionTracker.TransactionInfo(
                         TX_ID, 5, 9, BASE_CHUNK_ID + 1, LATEST_KERNEL_VERSION, LEASE_ID));
     }
@@ -127,7 +127,7 @@ public class ChunkedTransactionTest {
         append(transaction, 12);
         transaction.commit();
 
-        assertThat(tracker.transactionsToRollback())
+        assertThat(tracker.incompleteTransactions())
                 .containsExactly(new ChunkedTransactionTracker.TransactionInfo(
                         TX_ID, 5, 12, BASE_CHUNK_ID + 2, LATEST_KERNEL_VERSION, LEASE_ID));
     }
@@ -141,7 +141,7 @@ public class ChunkedTransactionTest {
         append(transaction, 12);
         transaction.commit();
 
-        assertThat(tracker.transactionsToRollback())
+        assertThat(tracker.incompleteTransactions())
                 .containsExactly(new ChunkedTransactionTracker.TransactionInfo(
                         TX_ID, 5, 12, BASE_CHUNK_ID + 2, LATEST_KERNEL_VERSION, LEASE_ID));
     }
@@ -158,13 +158,13 @@ public class ChunkedTransactionTest {
         append(transaction, 5);
         transaction.commit();
 
-        assertThat(tracker.transactionsToRollback())
+        assertThat(tracker.incompleteTransactions())
                 .containsExactly(new ChunkedTransactionTracker.TransactionInfo(
                         TX_ID, 5, 5, BASE_CHUNK_ID, LATEST_KERNEL_VERSION, LEASE_ID));
 
         transaction.close();
 
-        assertThat(tracker.transactionsToRollback()).isEmpty();
+        assertThat(tracker.incompleteTransactions()).isEmpty();
         verify(incompleteTransactionAvailability).completeTransaction(TX_ID);
     }
 
@@ -176,7 +176,7 @@ public class ChunkedTransactionTest {
 
         transaction.close();
 
-        assertThat(tracker.transactionsToRollback()).isEmpty();
+        assertThat(tracker.incompleteTransactions()).isEmpty();
         verify(incompleteTransactionAvailability).completeTransaction(TX_ID);
     }
 
@@ -188,7 +188,7 @@ public class ChunkedTransactionTest {
 
         transaction.close();
 
-        assertThat(tracker.transactionsToRollback()).isEmpty();
+        assertThat(tracker.incompleteTransactions()).isEmpty();
         verify(incompleteTransactionAvailability).completeTransaction(TX_ID);
     }
 
@@ -200,7 +200,7 @@ public class ChunkedTransactionTest {
 
         transaction.close();
 
-        assertThat(tracker.transactionsToRollback()).hasSize(1);
+        assertThat(tracker.incompleteTransactions()).hasSize(1);
         verifyNoInteractions(incompleteTransactionAvailability);
     }
 

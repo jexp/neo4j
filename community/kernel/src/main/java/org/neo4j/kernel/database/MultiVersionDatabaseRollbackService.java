@@ -116,7 +116,7 @@ public class MultiVersionDatabaseRollbackService extends LifecycleAdapter {
             try (var databaseAsyncRollbackEvent = databaseTracer.beginAsyncDatabaseRollback()) {
 
                 Collection<ChunkedTransactionTracker.TransactionInfo> transactionInfos =
-                        chunkedTransactionTracker.transactionsToRollback();
+                        chunkedTransactionTracker.incompleteTransactions();
                 if (transactionInfos.isEmpty()) {
                     internalLog.debug("Post lease switch transaction cleanup had no transactions to cleanup.");
                     databaseAsyncRollbackEvent.databaseRollbackCompleted(true, 0, 0);
@@ -157,7 +157,7 @@ public class MultiVersionDatabaseRollbackService extends LifecycleAdapter {
                                         TransactionApplicationMode.INTERNAL,
                                         scopedTracker);
                             }
-                            chunkedTransactionTracker.cleanupChunkedTransaction(transactionInfo.transactionId());
+                            chunkedTransactionTracker.completeTransaction(transactionInfo.transactionId());
                         }
                         rolledBackTransactions++;
                     }

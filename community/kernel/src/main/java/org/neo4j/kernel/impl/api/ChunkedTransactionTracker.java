@@ -26,7 +26,7 @@ import org.neo4j.kernel.KernelVersion;
 public class ChunkedTransactionTracker {
     private final ConcurrentHashMap<Long, TransactionInfo> registry = new ConcurrentHashMap<>();
 
-    public Collection<TransactionInfo> transactionsToRollback() {
+    public Collection<TransactionInfo> incompleteTransactions() {
         return registry.values();
     }
 
@@ -50,7 +50,7 @@ public class ChunkedTransactionTracker {
         registry.put(transactionId, txInfo);
     }
 
-    public void cleanupChunkedTransaction(long transactionId) {
+    public void completeTransaction(long transactionId) {
         registry.remove(transactionId);
     }
 

@@ -263,8 +263,8 @@ class TransactionIdTrackerTest {
 
         assertThat(transactionIdTracker.notCompletedTransactions()).containsExactly(2, 5);
 
-        assertEquals(2, transactionIdTracker.lastNotCompletedTransactionChunk(2));
-        assertEquals(1, transactionIdTracker.lastNotCompletedTransactionChunk(5));
+        assertEquals(2, transactionIdTracker.getPartialLastTransactionChunk(2).lastSeenChunkId());
+        assertEquals(1, transactionIdTracker.getPartialLastTransactionChunk(5).lastSeenChunkId());
     }
 
     @Test
