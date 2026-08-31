@@ -42,6 +42,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.neo4j.configuration.Config;
 import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.configuration.GraphDatabaseSettings.TransactionTracingLevel;
+import org.neo4j.io.pagecache.context.ClusterHorizonTracker;
 import org.neo4j.io.pagecache.context.CursorContextFactory;
 import org.neo4j.io.pagecache.context.OldestVisibilityHorizonFactory;
 import org.neo4j.io.pagecache.context.TransactionIdSnapshotFactory;
@@ -253,7 +254,8 @@ class KernelTransactionTimeoutMonitorTest {
                 logService,
                 mock(IndexingService.class),
                 mock(DatabaseHealth.class),
-                false);
+                false,
+                ClusterHorizonTracker.NO_OP);
     }
 
     private static KernelTransactionImplementation prepareTxMock(

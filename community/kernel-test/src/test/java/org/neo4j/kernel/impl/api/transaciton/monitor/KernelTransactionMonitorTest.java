@@ -34,6 +34,8 @@ import java.time.Duration;
 import org.junit.jupiter.api.Test;
 import org.neo4j.configuration.Config;
 import org.neo4j.internal.helpers.collection.Iterators;
+import org.neo4j.io.pagecache.context.ClusterHorizonTracker;
+import org.neo4j.io.pagecache.context.ClusterHorizonTracker.ClusterHorizonTrackerImpl;
 import org.neo4j.kernel.api.KernelTransactionHandle;
 import org.neo4j.kernel.api.TransactionTimeout;
 import org.neo4j.kernel.impl.api.KernelTransactions;
@@ -66,7 +68,8 @@ class KernelTransactionMonitorTest {
                 NullLogService.getInstance(),
                 mock(IndexingService.class),
                 mock(DatabaseHealth.class),
-                false);
+                false,
+                ClusterHorizonTracker.NO_OP);
 
         // a 2 minutes old schema transaction which has a timeout of 1 minute
         KernelTransactionHandle oldSchemaTransaction = mock(KernelTransactionHandle.class);
@@ -100,7 +103,8 @@ class KernelTransactionMonitorTest {
                 NullLogService.getInstance(),
                 mock(IndexingService.class),
                 mock(DatabaseHealth.class),
-                false);
+                false,
+                ClusterHorizonTracker.NO_OP);
 
         assertEquals(1, transactionMonitor.oldestVisibilityHorizon());
         assertEquals(1, transactionMonitor.oldestCleanupHorizon());
@@ -144,9 +148,127 @@ class KernelTransactionMonitorTest {
                 NullLogService.getInstance(),
                 mock(IndexingService.class),
                 mock(DatabaseHealth.class),
-                false);
+                false,
+                ClusterHorizonTracker.NO_OP);
 
         assertEquals(42, transactionMonitor.oldestVisibilityHorizon());
         assertEquals(42, transactionMonitor.oldestCleanupHorizon());
+    }
+
+    @Test
+    void clusterApplyHorizonLimitsCleanupHorizonOnly() {
+        var transactionIdStore = mock(TransactionIdStore.class);
+        when(transactionIdStore.getHighestGapFreeClosedTransactionId()).thenReturn(20L);
+
+        var kernelTransactions = mock(KernelTransactions.class);
+        var databaseHealth = mock(DatabaseHealth.class);
+        ClusterHorizonTracker clusterHorizonTracker = new ClusterHorizonTrackerImpl();
+        var transactionMonitor = new KernelTransactionMonitor(
+                kernelTransactions,
+                transactionIdStore,
+                Config.defaults(),
+                new FakeClock(100, MINUTES),
+                NullLogService.getInstance(),
+                mock(IndexingService.class),
+                databaseHealth,
+                true,
+                clusterHorizonTracker);
+
+        var pin = clusterHorizonTracker.pin(5);
+
+        transactionMonitor.run();
+        assertEquals(20, transactionMonitor.oldestVisibilityHorizon());
+        assertEquals(5, transactionMonitor.oldestCleanupHorizon());
+
+        verify(databaseHealth, never()).panic(any());
+
+        clusterHorizonTracker.unpin(pin);
+        clusterHorizonTracker.pin(17);
+
+        transactionMonitor.run();
+        assertEquals(20, transactionMonitor.oldestVisibilityHorizon());
+        assertEquals(17, transactionMonitor.oldestCleanupHorizon());
+        verify(databaseHealth, never()).panic(any());
+    }
+
+    @Test
+    void clusterApplyHorizonIsCombinedWithLocalTransactionHorizons() {
+        var transactionIdStore = mock(TransactionIdStore.class);
+        when(transactionIdStore.getHighestGapFreeClosedTransactionId()).thenReturn(20L);
+
+        var kernelTransactions = mock(KernelTransactions.class);
+        var record = mock(TransactionMonitoringRecord.class);
+        when(record.getTransactionHorizon()).thenReturn(10L);
+        when(record.getHighestGapFreeTxId()).thenReturn(15L);
+        when(kernelTransactions.allTransactions()).thenReturn(Iterators.asSet(record));
+
+        ClusterHorizonTracker clusterHorizonTracker = new ClusterHorizonTrackerImpl();
+        var transactionMonitor = new KernelTransactionMonitor(
+                kernelTransactions,
+                transactionIdStore,
+                Config.defaults(),
+                new FakeClock(100, MINUTES),
+                NullLogService.getInstance(),
+                mock(IndexingService.class),
+                mock(DatabaseHealth.class),
+                false,
+                clusterHorizonTracker);
+
+        var clusterPin = clusterHorizonTracker.pin(7);
+        transactionMonitor.run();
+        assertEquals(15, transactionMonitor.oldestVisibilityHorizon());
+        assertEquals(7, transactionMonitor.oldestCleanupHorizon());
+
+        clusterHorizonTracker.pin(12);
+        clusterHorizonTracker.unpin(clusterPin);
+        transactionMonitor.run();
+        assertEquals(15, transactionMonitor.oldestVisibilityHorizon());
+        assertEquals(10, transactionMonitor.oldestCleanupHorizon());
+    }
+
+    @Test
+    void cleanupIsPausedWhileNoClusterTransactionIsTracked() {
+        var transactionIdStore = mock(TransactionIdStore.class);
+        when(transactionIdStore.getHighestGapFreeClosedTransactionId()).thenReturn(20L);
+
+        var kernelTransactions = mock(KernelTransactions.class);
+        var transactionMonitor = new KernelTransactionMonitor(
+                kernelTransactions,
+                transactionIdStore,
+                Config.defaults(),
+                new FakeClock(100, MINUTES),
+                NullLogService.getInstance(),
+                mock(IndexingService.class),
+                mock(DatabaseHealth.class),
+                true,
+                new ClusterHorizonTrackerImpl());
+
+        transactionMonitor.run();
+
+        assertEquals(20, transactionMonitor.oldestVisibilityHorizon());
+        assertEquals(Long.MIN_VALUE, transactionMonitor.oldestCleanupHorizon());
+    }
+
+    @Test
+    void noOpClusterHorizonTrackerDoesNotLimitCleanupHorizon() {
+        var transactionIdStore = mock(TransactionIdStore.class);
+        when(transactionIdStore.getHighestGapFreeClosedTransactionId()).thenReturn(20L);
+
+        var kernelTransactions = mock(KernelTransactions.class);
+        var transactionMonitor = new KernelTransactionMonitor(
+                kernelTransactions,
+                transactionIdStore,
+                Config.defaults(),
+                new FakeClock(100, MINUTES),
+                NullLogService.getInstance(),
+                mock(IndexingService.class),
+                mock(DatabaseHealth.class),
+                true,
+                ClusterHorizonTracker.NO_OP);
+
+        transactionMonitor.run();
+
+        assertEquals(20, transactionMonitor.oldestVisibilityHorizon());
+        assertEquals(20, transactionMonitor.oldestCleanupHorizon());
     }
 }

@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import org.neo4j.configuration.Config;
+import org.neo4j.io.pagecache.context.ClusterHorizonTracker;
 import org.neo4j.kernel.api.KernelTransactionHandle;
 import org.neo4j.kernel.api.TerminationMark;
 import org.neo4j.kernel.api.TransactionTimeout;
@@ -47,6 +48,7 @@ public class KernelTransactionMonitor extends TransactionMonitor<KernelTransacti
     private final IndexingService indexingService;
     private final DatabaseHealth databaseHealth;
     private final boolean multiVersion;
+    private final ClusterHorizonTracker clusterHorizonTracker;
     private final AtomicLong oldestCleanupHorizon = new AtomicLong(BASE_TX_ID);
     private final AtomicLong oldestVisibilityHorizon = new AtomicLong(BASE_TX_ID);
 
@@ -58,13 +60,15 @@ public class KernelTransactionMonitor extends TransactionMonitor<KernelTransacti
             LogService logService,
             IndexingService indexingService,
             DatabaseHealth databaseHealth,
-            boolean multiVersion) {
+            boolean multiVersion,
+            ClusterHorizonTracker clusterHorizonTracker) {
         super(config, clock, logService);
         this.kernelTransactions = kernelTransactions;
         this.transactionIdStore = transactionIdStore;
         this.indexingService = indexingService;
         this.databaseHealth = databaseHealth;
         this.multiVersion = multiVersion;
+        this.clusterHorizonTracker = clusterHorizonTracker;
         long highestGapFreeClosedTransactionId = transactionIdStore.getHighestGapFreeClosedTransactionId();
         this.oldestVisibilityHorizon.setRelease(highestGapFreeClosedTransactionId);
         this.oldestCleanupHorizon.setRelease(transactionIdStore.getHighestGapFreeClosedTransactionId());
@@ -106,6 +110,9 @@ public class KernelTransactionMonitor extends TransactionMonitor<KernelTransacti
 
             minCleanupHorizon = Math.min(minCleanupHorizon, populationHorizon);
         }
+
+        minCleanupHorizon = Math.min(minCleanupHorizon, clusterHorizonTracker.oldestVisibilityHorizon());
+
         if (multiVersion && minHighestGapFree < previousHorizon) {
             databaseHealth.panic(new Exception("Global visibility horizon went backwards from " + previousHorizon
                     + " to " + minHighestGapFree + ". Gap free closed tx id: "
@@ -114,6 +121,7 @@ public class KernelTransactionMonitor extends TransactionMonitor<KernelTransacti
                     + firstEncounteredIncorrectJob));
             return;
         }
+
         oldestVisibilityHorizon.setRelease(minHighestGapFree);
         oldestCleanupHorizon.setRelease(minCleanupHorizon);
     }

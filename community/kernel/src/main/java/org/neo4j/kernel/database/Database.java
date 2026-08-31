@@ -85,6 +85,8 @@ import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.IOController;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.PagedFile;
+import org.neo4j.io.pagecache.context.ClusterHorizonTracker;
+import org.neo4j.io.pagecache.context.ClusterHorizonTracker.ClusterHorizonTrackerImpl;
 import org.neo4j.io.pagecache.context.CursorContextFactory;
 import org.neo4j.io.pagecache.context.OldestVisibilityHorizonFactory;
 import org.neo4j.io.pagecache.context.TransactionIdSnapshot;
@@ -299,6 +301,7 @@ public class Database extends AbstractDatabase {
     private SegmentTrackingFactory segmentTrackingFactory;
     private final AtomicBoolean mvccRollbackDone = new AtomicBoolean(false);
     private final boolean mergedLogs;
+    private ClusterHorizonTracker clusterHorizonTracker;
 
     public Database(DatabaseCreationContext context) {
         super(
@@ -409,6 +412,11 @@ public class Database extends AbstractDatabase {
         life.add(new LockerLifecycleAdapter(fileLockerService.createDatabaseLocker(fs, databaseLayout)));
         life.add(databaseConfig);
 
+        this.clusterHorizonTracker =
+                mode == HostedOnMode.SINGLE || !isMultiVersioned(storageEngineFactory, namedDatabaseId)
+                        ? ClusterHorizonTracker.NO_OP
+                        : new ClusterHorizonTrackerImpl();
+        databaseDependencies.satisfyDependency(clusterHorizonTracker);
         databaseDependencies.satisfyDependencies(chunkedTransactionTracker);
         databaseDependencies.satisfyDependency(databaseCreationOptions);
         databaseDependencies.satisfyDependency(ioController);
@@ -1292,7 +1300,8 @@ public class Database extends AbstractDatabase {
                 databaseLogService,
                 indexingService,
                 databaseHealth,
-                storageEngineFactory.multiVersioned());
+                storageEngineFactory.multiVersioned(),
+                clusterHorizonTracker);
         databaseDependencies.satisfyDependency(kernelTransactionMonitor);
         TransactionMonitorScheduler transactionMonitorScheduler = new TransactionMonitorScheduler(
                 kernelTransactionMonitor,
