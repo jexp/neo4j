@@ -328,7 +328,10 @@ public class StubPageCursor extends PageCursor {
             page.position(currentOffset);
             page.get(data, arrayOffset, length);
             currentOffset += length;
-        } catch (IndexOutOfBoundsException | BufferOverflowException | BufferUnderflowException e) {
+        } catch (IndexOutOfBoundsException
+                | BufferOverflowException
+                | BufferUnderflowException
+                | IllegalArgumentException e) {
             handleOverflow();
         }
     }
@@ -345,7 +348,10 @@ public class StubPageCursor extends PageCursor {
             page.position(currentOffset);
             page.put(data, arrayOffset, length);
             currentOffset += length;
-        } catch (IndexOutOfBoundsException | BufferOverflowException | BufferUnderflowException e) {
+        } catch (IndexOutOfBoundsException
+                | BufferOverflowException
+                | BufferUnderflowException
+                | IllegalArgumentException e) {
             handleOverflow();
         }
     }
