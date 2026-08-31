@@ -46,7 +46,7 @@ sealed trait SemanticCheck {
    * val check = first chain second chain third
    * }}}
    */
-  def chain(next: SemanticCheck): SemanticCheck = {
+  infix def chain(next: SemanticCheck): SemanticCheck = {
     for {
       a <- this
       b <- next
@@ -57,7 +57,7 @@ sealed trait SemanticCheck {
    * 
    * If `this` produces any errors, `next` is skipped.
    */
-  def ifOkChain(next: => SemanticCheck): SemanticCheck = {
+  infix def ifOkChain(next: => SemanticCheck): SemanticCheck = {
     for {
       a <- this
       b <- when(a.errors.isEmpty)(next)

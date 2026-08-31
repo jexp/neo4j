@@ -231,7 +231,7 @@ abstract class ClosingIterator[+T] extends AutoCloseable {
    * 
    * Note!! If `that` is never materialised it will not be closed!
    */
-  def addAllLazy[B >: T](that: () => ClosingIterator[B]): ClosingIterator[B] = new ClosingIterator[B] {
+  infix def addAllLazy[B >: T](that: () => ClosingIterator[B]): ClosingIterator[B] = new ClosingIterator[B] {
     // We read this into a lazy local variable here to avoid creating a new `that` iterator multiple times.
     // This is OK, since we expect to close both sides anyway.
     private val lazyThat = Suppliers.lazySingleton(() => that.apply())

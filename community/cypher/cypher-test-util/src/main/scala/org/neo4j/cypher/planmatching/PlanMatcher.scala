@@ -153,7 +153,7 @@ trait PlanMatcher extends Matcher[InternalPlanDescription] {
 
   def withNoChildren(): PlanMatcher
 
-  def onTopOf(plan: PlanMatcher): PlanMatcher = withLHS(plan)
+  infix def onTopOf(plan: PlanMatcher): PlanMatcher = withLHS(plan)
 
   def ignoringPlan(planName: String): PlanMatcher
 }

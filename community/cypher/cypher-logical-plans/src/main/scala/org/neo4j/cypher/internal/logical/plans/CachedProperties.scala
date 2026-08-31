@@ -166,7 +166,7 @@ object CachedProperties {
     }
 
     // TODO: do we need to check the consistency of originalEntity and entityType?
-    def union(otherEntry: Entry): Entry =
+    infix def union(otherEntry: Entry): Entry =
       copy(properties = properties.union(otherEntry.properties))
 
   }

@@ -198,8 +198,8 @@ case class NamedEntites[NODE, REL](
   namedNodes: Map[String, NODE],
   namedRels: Map[String, REL]
 ) {
-  def node(name: String): NODE = namedNodes(name)
-  def rel(name: String): REL = namedRels(name)
+  infix def node(name: String): NODE = namedNodes(name)
+  infix def rel(name: String): REL = namedRels(name)
 }
 
 class GraphTemplateTest extends CypherFunSuite {

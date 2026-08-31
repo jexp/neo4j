@@ -417,7 +417,7 @@ sealed trait Result {
     case _              => false
   }
 
-  def replaceVariables(replacements: Seq[LogicalVariable]): Result = this match {
+  infix def replaceVariables(replacements: Seq[LogicalVariable]): Result = this match {
     case TableResult(_) => TableResult(replacements)
     case _              => this
   }
@@ -495,19 +495,19 @@ case class References(
       .collect { case (reference, declaration) if reference == declaration => reference.value }
       .toSet
 
-  def union(that: References): References =
+  infix def union(that: References): References =
     References(references ++ that.references, hidden ++ that.hidden)
 
-  def union(those: Seq[References]): References =
+  infix def union(those: Seq[References]): References =
     References(
       those.foldLeft(references) { case (ref, ref2) => ref ++ ref2.references },
       those.foldLeft(hidden) { case (h, ref2) => h ++ ref2.hidden }
     )
 
-  def intersect(those: Set[LogicalVariable]): References =
+  infix def intersect(those: Set[LogicalVariable]): References =
     copy(references = references.filter(those contains _._1.value))
 
-  def intersectByTarget(those: Set[LogicalVariable]): References = {
+  infix def intersectByTarget(those: Set[LogicalVariable]): References = {
     val targets: Set[(String, Int)] = those.iterator.map(v => (v.name, v.position.offset)).toSet
     copy(references = references.filter { case (_, decl) =>
       targets.contains((decl.value.name, decl.value.position.offset))
@@ -521,10 +521,10 @@ case class References(
   def filterTargets(p: LogicalVariable => Boolean): References =
     copy(references = references.filter { case (_, decl) => p(decl.value) })
 
-  def diff(that: LogicalVariable): References =
+  infix def diff(that: LogicalVariable): References =
     copy(references = references.filterNot(that == _._1.value))
 
-  def diff(those: Set[LogicalVariable]): References =
+  infix def diff(those: Set[LogicalVariable]): References =
     copy(references = references.filterNot(those contains _._1.value))
 
 }

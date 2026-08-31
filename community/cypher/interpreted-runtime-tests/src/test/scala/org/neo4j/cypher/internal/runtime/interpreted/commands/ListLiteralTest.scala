@@ -93,13 +93,13 @@ class ListLiteralTest extends InterpretedRuntimeTestSuite {
 
   implicit class Check(values: Seq[_]) {
 
-    def any(expected: Any) = check(expected, AnyInList.apply)
+    infix def any(expected: Any) = check(expected, AnyInList.apply)
 
-    def all(expected: Any) = check(expected, AllInList.apply)
+    infix def all(expected: Any) = check(expected, AllInList.apply)
 
-    def single(expected: Any) = check(expected, SingleInList.apply)
+    infix def single(expected: Any) = check(expected, SingleInList.apply)
 
-    def none(expected: Any) = check(expected, NoneInList.apply)
+    infix def none(expected: Any) = check(expected, NoneInList.apply)
 
     private def check(expected: Any, collectionFunction: (Expression, String, Int, Predicate) => InList): Unit = {
 

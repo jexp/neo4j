@@ -105,30 +105,30 @@ object TypeSpec {
  * @param ranges A set of TypeRanges, the intersection of which constitutes the entire set of types matched by this specification
  */
 class TypeSpec(val ranges: Seq[TypeRange]) extends Equals {
-  def contains(that: CypherType): Boolean = contains(that, ranges)
+  infix def contains(that: CypherType): Boolean = contains(that, ranges)
   private def contains(that: CypherType, rs: Seq[TypeRange]): Boolean = rs.exists(_ contains that)
 
-  def containsAny(types: CypherType*): Boolean = containsAny(TypeSpec.exact(types))
+  infix def containsAny(types: CypherType*): Boolean = containsAny(TypeSpec.exact(types))
 
-  def containsAny(that: TypeSpec): Boolean = ranges.exists { r1 =>
+  infix def containsAny(that: TypeSpec): Boolean = ranges.exists { r1 =>
     that.ranges.exists(r2 => (r1 constrain r2.lower).isDefined)
   }
 
   /**
    * All of the ranges in the given type spec are contained in this TypeSpec. That is, it is a complete sub-set.
    */
-  def containsAll(that: TypeSpec): Boolean = this.intersect(that) equals that
+  infix def containsAll(that: TypeSpec): Boolean = this.intersect(that) `equals` that
 
-  def union(that: TypeSpec): TypeSpec = TypeSpec(ranges ++ that.ranges)
+  infix def union(that: TypeSpec): TypeSpec = TypeSpec(ranges ++ that.ranges)
   def |(that: TypeSpec): TypeSpec = union(that)
 
-  def intersect(that: TypeSpec): TypeSpec =
+  infix def intersect(that: TypeSpec): TypeSpec =
     TypeSpec(ranges.flatMap { r =>
       that.ranges.flatMap(r intersect)
     })
   def &(that: TypeSpec): TypeSpec = intersect(that)
 
-  def intersectOrCoerce(that: TypeSpec): TypeSpec = {
+  infix def intersectOrCoerce(that: TypeSpec): TypeSpec = {
     val intersection = intersect(that)
     if (intersection.nonEmpty)
       intersection
@@ -136,7 +136,7 @@ class TypeSpec(val ranges: Seq[TypeRange]) extends Equals {
       coercions intersect that
   }
 
-  def coerceOrLeastUpperBound(that: TypeSpec): TypeSpec = {
+  infix def coerceOrLeastUpperBound(that: TypeSpec): TypeSpec = {
     val coerced = coercions intersect that
     if (coerced.nonEmpty)
       coerced
@@ -144,7 +144,7 @@ class TypeSpec(val ranges: Seq[TypeRange]) extends Equals {
       this leastUpperBounds that
   }
 
-  def coerceOrConvert(that: TypeSpec): TypeSpec = {
+  infix def coerceOrConvert(that: TypeSpec): TypeSpec = {
     val coerced = this coerceOrLeastUpperBound that
     if (coerced.equals(that))
       that
@@ -152,11 +152,11 @@ class TypeSpec(val ranges: Seq[TypeRange]) extends Equals {
       this
   }
 
-  def without(aType: CypherType): TypeSpec = TypeSpec(ranges.flatMap(_ without aType))
+  infix def without(aType: CypherType): TypeSpec = TypeSpec(ranges.flatMap(_ without aType))
 
-  def constrain(that: CypherType): TypeSpec = TypeSpec(ranges.flatMap(_ constrain that))
+  infix def constrain(that: CypherType): TypeSpec = TypeSpec(ranges.flatMap(_ constrain that))
 
-  def constrainOrCoerce(that: CypherType): TypeSpec = {
+  infix def constrainOrCoerce(that: CypherType): TypeSpec = {
     val constrained = constrain(that)
     if (constrained.nonEmpty)
       constrained
@@ -164,7 +164,7 @@ class TypeSpec(val ranges: Seq[TypeRange]) extends Equals {
       coercions constrain that
   }
 
-  def leastUpperBounds(that: TypeSpec): TypeSpec =
+  infix def leastUpperBounds(that: TypeSpec): TypeSpec =
     TypeSpec(ranges.flatMap { r =>
       that.ranges.flatMap(r leastUpperBounds)
     })

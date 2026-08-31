@@ -56,7 +56,7 @@ object NfaDsl {
       StateChain(first, state)
     }
 
-    def connect(other: StateChain): StateChain = {
+    infix def connect(other: StateChain): StateChain = {
       last.addNodeJuxtaposition(other.first)
       StateChain(first, other.last)
     }
@@ -257,11 +257,11 @@ object NfaDsl {
     ) {
 
       /** Set a predicate on the relationship expansion */
-      def where(pred: Predicate[RelationshipTraversalEntities]): RelPredicate =
+      infix def where(pred: Predicate[RelationshipTraversalEntities]): RelPredicate =
         copy(pred = Some(pred))
 
       /** Set a predicate on the relationship expansion */
-      def where(pred: RelationshipTraversalEntities => Boolean): RelPredicate =
+      infix def where(pred: RelationshipTraversalEntities => Boolean): RelPredicate =
         where(r => pred(r))
 
       /** Add a relationship type specification (disjunction, naturally) */
@@ -274,7 +274,7 @@ object NfaDsl {
     case class State(name: Option[String], predicate: Option[LongPredicate]) extends RelExpansionOrState {
 
       /** Set a predicate on the node state */
-      def where(predicate: LongPredicate): State =
+      infix def where(predicate: LongPredicate): State =
         copy(predicate = Some(predicate))
     }
 
@@ -294,7 +294,8 @@ object NfaDsl {
       def * : RepeatedRelExpansion = RepeatedRelExpansion(this, Repetition(0, Unlimited))
 
       /** Repeat the relationship expansion a bounded number of times */
-      def rep(min: Int, max: Int): RepeatedRelExpansion = RepeatedRelExpansion(this, Repetition(min, Limited(max)))
+      infix def rep(min: Int, max: Int): RepeatedRelExpansion =
+        RepeatedRelExpansion(this, Repetition(min, Limited(max)))
     }
   }
 

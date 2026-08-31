@@ -599,7 +599,7 @@ trait LogicalPlanningTestSupport2 extends AstConstructionTestSupport with Logica
     }
 
     // Hack to guarantee coverage across cypher versions :/.
-    def getLogicalPlanFor(
+    infix def getLogicalPlanFor(
       query: String,
       conf: CypherPlannerConfiguration = cypherCompilerConfig,
       solver: QueryGraphSolver = queryGraphSolver,

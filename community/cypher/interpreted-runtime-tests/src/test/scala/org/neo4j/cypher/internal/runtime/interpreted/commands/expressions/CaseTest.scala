@@ -174,6 +174,6 @@ class CaseTest extends InterpretedRuntimeTestSuite {
   }
 
   implicit class SimpleCasePimp(in: CaseExpression) {
-    def defaultsTo(a: Any): CaseExpression = CaseExpression(in.alternatives, Some(literal(a)))
+    infix def defaultsTo(a: Any): CaseExpression = CaseExpression(in.alternatives, Some(literal(a)))
   }
 }

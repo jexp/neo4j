@@ -125,7 +125,7 @@ abstract class Predicate extends Expression {
     }
 
   def isTrue(ctx: ReadableRow, state: QueryState): Boolean = isMatch(ctx, state) eq IsTrue
-  def andWith(other: Predicate): Predicate = Ands(Array(this, other))
+  infix def andWith(other: Predicate): Predicate = Ands(Array(this, other))
   def isMatch(ctx: ReadableRow, state: QueryState): IsMatchResult
 
   def andWith(preds: Predicate*): Predicate =

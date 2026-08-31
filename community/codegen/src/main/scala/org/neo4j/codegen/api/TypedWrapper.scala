@@ -138,7 +138,7 @@ object TypedWrapper {
      * Generate an [[Add] operation if [[TYPE]] is numeric.
      * Useful when the compiler gets the + operator confused with the string concatenation operator
      */
-    def add(other: $IR[TYPE])(implicit @unused N: Numeric[TYPE]): $IR[TYPE] =
+    infix def add(other: $IR[TYPE])(implicit @unused N: Numeric[TYPE]): $IR[TYPE] =
       Add(ir, other).typed
 
     /** Generate a [[Subtract]] operation if [[TYPE]] is numeric */

@@ -879,7 +879,7 @@ class UnnestApplyTest extends CypherPlannerTestSuite with LogicalPlanningAttribu
 
   implicit private class AssertableInputBuilder(inputBuilder: LogicalPlanBuilder) {
 
-    def shouldRewriteToPlanWithAttributes(expectedBuilder: LogicalPlanBuilder): Assertion = {
+    infix def shouldRewriteToPlanWithAttributes(expectedBuilder: LogicalPlanBuilder): Assertion = {
       val resultPlan =
         rewrite(
           inputBuilder.build(),

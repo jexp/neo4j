@@ -419,7 +419,7 @@ class IfChain(cases: Vector[(IntermediateRepresentation, IntermediateRepresentat
     $else(noop().typed)
 
   /** Generate the chain of conditions with a final else branch */
-  def $else(onFalse: $IR[_]*): $IR[Unit] =
+  infix def $else(onFalse: $IR[_]*): $IR[Unit] =
     cases.foldRight(flattenIR(onFalse)) { case ((test, ifTrue), ifFalse) =>
       ifElse(test)(ifTrue)(ifFalse)
     }.typed

@@ -303,7 +303,7 @@ object LabelInferenceStrategy {
 
   final private case class LabelsPerNode(values: Map[LogicalVariable, Set[LabelId]]) extends AnyVal {
 
-    def union(other: LabelsPerNode): LabelsPerNode =
+    infix def union(other: LabelsPerNode): LabelsPerNode =
       LabelsPerNode.buildUnion(values.view ++ other.values)
   }
 

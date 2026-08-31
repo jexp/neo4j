@@ -347,7 +347,8 @@ class SemanticStateTest extends CypherFunSuite with AstConstructionTestSupport {
 
   implicit class ChainableSemanticStateEither(either: Either[SemanticError, SemanticState]) {
 
-    def chain(next: SemanticState => Either[SemanticError, SemanticState]): Either[SemanticError, SemanticState] = {
+    infix def chain(next: SemanticState => Either[SemanticError, SemanticState])
+      : Either[SemanticError, SemanticState] = {
       either match {
         case Left(_)      => either
         case Right(state) => next(state)

@@ -95,7 +95,7 @@ trait CypherType extends ASTNode {
   supertype of, the class or interface represented by the
   specified {@code CypherType} parameter.
    */
-  def isAssignableFrom(other: CypherType): Boolean =
+  infix def isAssignableFrom(other: CypherType): Boolean =
     if (other == this)
       true
     else if (other.parentType == other)
@@ -105,12 +105,12 @@ trait CypherType extends ASTNode {
 
   def legacyIteratedType: CypherType = this
 
-  def leastUpperBound(other: CypherType): CypherType =
+  infix def leastUpperBound(other: CypherType): CypherType =
     if (this.isAssignableFrom(other)) this
     else if (other.isAssignableFrom(this)) other
     else parentType leastUpperBound other.parentType
 
-  def greatestLowerBound(other: CypherType): Option[CypherType] =
+  infix def greatestLowerBound(other: CypherType): Option[CypherType] =
     if (this.isAssignableFrom(other)) Some(other)
     else Some(this).filter(other.isAssignableFrom)
 

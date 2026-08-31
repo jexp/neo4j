@@ -222,7 +222,7 @@ class GraphTypeStringifierTest extends CypherFunSuite with AstGraphTypeConstruct
 
     implicit val windowsSafe: WindowsStringSafe.type = WindowsStringSafe
 
-    def shouldStringifyTo(expected: String): Assertion = {
+    infix def shouldStringifyTo(expected: String): Assertion = {
       // using `equal` instead of `be` for the windows line endings
       GraphTypeStringifier.apply(graphType) should equal(expected)
     }

@@ -122,7 +122,7 @@ object Rewritable {
 
   implicit class IteratorEq[A <: AnyRef](val iterator: Iterator[A]) {
 
-    def eqElements[B <: AnyRef](that: Iterator[B]): Boolean = {
+    infix def eqElements[B <: AnyRef](that: Iterator[B]): Boolean = {
       while (iterator.hasNext && that.hasNext) {
         val dis = iterator.next()
         val dat = that.next()

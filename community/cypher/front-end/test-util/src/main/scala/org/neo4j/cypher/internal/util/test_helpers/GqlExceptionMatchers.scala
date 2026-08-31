@@ -212,7 +212,7 @@ trait GqlExceptionMatchers {
       )
     }
 
-    def withCause(causeMatcher: GqlExceptionMatcher): GqlExceptionMatcher = {
+    infix def withCause(causeMatcher: GqlExceptionMatcher): GqlExceptionMatcher = {
       /*
        Assume that cause matcher is not already set.
        This occurs when given the following pattern:

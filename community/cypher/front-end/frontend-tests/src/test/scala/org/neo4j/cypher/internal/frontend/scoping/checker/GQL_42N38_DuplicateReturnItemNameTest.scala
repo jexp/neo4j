@@ -187,7 +187,7 @@ case class ProjItem(exp: String, variable: String)
 object ProjItem {
 
   implicit class StringAsOps(private val exp: String) extends AnyVal {
-    def AS(variable: String): ProjItem = ProjItem(exp, variable)
+    infix def AS(variable: String): ProjItem = ProjItem(exp, variable)
   }
 }
 

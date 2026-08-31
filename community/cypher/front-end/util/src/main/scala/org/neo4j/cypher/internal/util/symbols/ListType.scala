@@ -97,14 +97,14 @@ case class ListType(innerType: CypherType, isNullable: Boolean)(val position: In
       super.isAssignableFrom(other)
   }
 
-  override def leastUpperBound(other: CypherType): CypherType = other match {
+  override infix def leastUpperBound(other: CypherType): CypherType = other match {
     case otherCollection: ListType =>
       copy(innerType leastUpperBound otherCollection.innerType)(position)
     case _ =>
       super.leastUpperBound(other)
   }
 
-  override def greatestLowerBound(other: CypherType): Option[CypherType] = other match {
+  override infix def greatestLowerBound(other: CypherType): Option[CypherType] = other match {
     case otherCollection: ListType =>
       (innerType greatestLowerBound otherCollection.innerType).map(f => copy(f)(position))
     case _ =>

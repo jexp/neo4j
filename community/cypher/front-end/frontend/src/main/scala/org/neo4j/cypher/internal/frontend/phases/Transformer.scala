@@ -56,7 +56,7 @@ import org.neo4j.cypher.internal.util.inSequence
 trait Transformer[-C <: BaseContext, -FROM, +TO] {
   def transform(from: FROM, context: C): TO
 
-  def andThen[D <: C, TO2](other: Transformer[D, TO, TO2]): Transformer[D, FROM, TO2] =
+  infix def andThen[D <: C, TO2](other: Transformer[D, TO, TO2]): Transformer[D, FROM, TO2] =
     new PipeLine(this, other)
 
   def name: String

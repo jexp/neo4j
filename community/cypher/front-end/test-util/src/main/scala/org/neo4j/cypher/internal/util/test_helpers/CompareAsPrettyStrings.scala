@@ -28,7 +28,7 @@ trait CompareAsPrettyStrings {
       pprint.PPrinter.BlackWhite(lhs).render
     }
 
-    def compareAsPrettyStrings(rhs: Any): Assertion = {
+    infix def compareAsPrettyStrings(rhs: Any): Assertion = {
       // wrap to prevent Scalatest from minimizing the String diff
       val lhsPrettyString = pprint.PPrinter.BlackWhite(lhs).render
       val rhsPrettyString = pprint.PPrinter.BlackWhite(rhs).render

@@ -108,8 +108,8 @@ object InMemoryGraph {
     graph: StringMapped,
     entities: NamedEntites[Long, Long]
   ) extends StringMapped(graph.graph, graph.relTypes, graph.labels) {
-    def node(name: String): Long = entities.node(name)
-    def rel(name: String): Long = entities.rel(name)
+    infix def node(name: String): Long = entities.node(name)
+    infix def rel(name: String): Long = entities.rel(name)
   }
 
   /** Provides mappings from String labels and rel types to their primitive ids */

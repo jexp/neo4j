@@ -1921,7 +1921,7 @@ trait AstConstructionTestSupport {
     Foreach(varFor(variable), listExpr, updates)(pos)
 
   implicit class ExpressionOps(expr: Expression) {
-    def as(name: String): ReturnItem = AliasedReturnItem(expr, varFor(name))(pos)
+    infix def as(name: String): ReturnItem = AliasedReturnItem(expr, varFor(name))(pos)
 
     def asc: AscSortItem = AscSortItem(expr)(pos)
     def desc: DescSortItem = DescSortItem(expr)(pos)
