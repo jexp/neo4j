@@ -17,7 +17,6 @@
 package org.neo4j.cypher.internal.rewriting.conditions
 
 import org.neo4j.cypher.internal.ast.AstConstructionTestSupport
-import org.neo4j.cypher.internal.ast.AstConstructionTestSupportWithPosConversion
 import org.neo4j.cypher.internal.ast.Match
 import org.neo4j.cypher.internal.expressions.MatchMode
 import org.neo4j.cypher.internal.expressions.NodePattern
@@ -26,8 +25,7 @@ import org.neo4j.cypher.internal.util.ASTNode
 import org.neo4j.cypher.internal.util.CancellationChecker
 import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
-class CollectNodesOfTypeTest extends CypherFunSuite with AstConstructionTestSupport
-    with AstConstructionTestSupportWithPosConversion {
+class CollectNodesOfTypeTest extends CypherFunSuite with AstConstructionTestSupport {
 
   private val collector: Any => Seq[Variable] =
     CollectNodesOfType[Variable]().apply(_)(CancellationChecker.NeverCancelled)
@@ -35,7 +33,7 @@ class CollectNodesOfTypeTest extends CypherFunSuite with AstConstructionTestSupp
   test("collect all variables") {
     val idA = varFor("a")
     val idB = varFor("b")
-    val nodePattern = NodePattern(Some(idA), None, Some(idB), None) _
+    val nodePattern = NodePattern(Some(idA), None, Some(idB), None)(pos)
     val ast: ASTNode =
       Match(
         optional = false,
@@ -44,7 +42,7 @@ class CollectNodesOfTypeTest extends CypherFunSuite with AstConstructionTestSupp
         Seq(),
         None,
         None
-      ) _
+      )(pos)
 
     collector(ast) should equal(Seq(idA, idB))
   }
@@ -54,11 +52,11 @@ class CollectNodesOfTypeTest extends CypherFunSuite with AstConstructionTestSupp
       Match(
         optional = false,
         matchMode = MatchMode.default(pos),
-        patternForMatch(NodePattern(None, None, None, None) _),
+        patternForMatch(NodePattern(None, None, None, None)(pos)),
         Seq(),
         None,
         None
-      ) _
+      )(pos)
 
     collector(ast) shouldBe empty
   }

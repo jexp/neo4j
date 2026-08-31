@@ -18,7 +18,6 @@ package org.neo4j.cypher.internal.rewriting.conditions
 
 import org.neo4j.cypher.internal.ast.AliasedReturnItem
 import org.neo4j.cypher.internal.ast.AstConstructionTestSupport
-import org.neo4j.cypher.internal.ast.AstConstructionTestSupportWithPosConversion
 import org.neo4j.cypher.internal.ast.FreeProjection
 import org.neo4j.cypher.internal.ast.Match
 import org.neo4j.cypher.internal.ast.Return
@@ -41,8 +40,7 @@ import org.neo4j.cypher.internal.util.ASTNode
 import org.neo4j.cypher.internal.util.CancellationChecker
 import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
-class NoUnnamedNodesAndRelationshipsTest extends CypherFunSuite with AstConstructionTestSupport
-    with AstConstructionTestSupportWithPosConversion {
+class NoUnnamedNodesAndRelationshipsTest extends CypherFunSuite with AstConstructionTestSupport {
 
   private val condition: Any => Seq[String] = NoUnnamedNodesAndRelationships(_)(CancellationChecker.NeverCancelled)
 
@@ -60,19 +58,19 @@ class NoUnnamedNodesAndRelationshipsTest extends CypherFunSuite with AstConstruc
         Seq.empty,
         None,
         None
-      ) _,
+      )(pos),
       Return(
         distinct = false,
         ReturnItems(
           FreeProjection,
           Seq(AliasedReturnItem(varFor("n"), varFor("n"))(pos))
-        ) _,
+        )(pos),
         None,
         None,
         None,
         None
-      ) _
-    )) _
+      )(pos)
+    ))(pos)
 
     condition(ast) shouldBe Seq(s"NodePattern at ${nodePattern.position} is unnamed")
   }
@@ -91,19 +89,19 @@ class NoUnnamedNodesAndRelationshipsTest extends CypherFunSuite with AstConstruc
         Seq.empty,
         None,
         None
-      ) _,
+      )(pos),
       Return(
         distinct = false,
         ReturnItems(
           FreeProjection,
           Seq(AliasedReturnItem(varFor("n"), varFor("n"))(pos))
-        ) _,
+        )(pos),
         None,
         None,
         None,
         None
-      ) _
-    )) _
+      )(pos)
+    ))(pos)
 
     condition(ast) shouldBe Seq(s"RelationshipPattern at ${relationshipPattern.position} is unnamed")
   }
@@ -123,19 +121,19 @@ class NoUnnamedNodesAndRelationshipsTest extends CypherFunSuite with AstConstruc
         Seq.empty,
         None,
         None
-      ) _,
+      )(pos),
       Return(
         distinct = false,
         ReturnItems(
           FreeProjection,
           Seq(AliasedReturnItem(varFor("n"), varFor("n"))(pos))
-        ) _,
+        )(pos),
         None,
         None,
         None,
         None
-      ) _
-    )) _
+      )(pos)
+    ))(pos)
 
     condition(ast) shouldBe Seq(
       s"RelationshipPattern at ${relationshipPattern.position} is unnamed",
@@ -156,19 +154,19 @@ class NoUnnamedNodesAndRelationshipsTest extends CypherFunSuite with AstConstruc
         Seq.empty,
         None,
         None
-      ) _,
+      )(pos),
       Return(
         distinct = false,
         ReturnItems(
           FreeProjection,
           Seq(AliasedReturnItem(varFor("n"), varFor("n"))(pos))
-        ) _,
+        )(pos),
         None,
         None,
         None,
         None
-      ) _
-    )) _
+      )(pos)
+    ))(pos)
 
     condition(ast) shouldBe empty
   }
@@ -177,10 +175,10 @@ class NoUnnamedNodesAndRelationshipsTest extends CypherFunSuite with AstConstruc
     val nodePattern: NodePattern = node(None)
     val relationshipPattern: RelationshipPattern = relationship(None)
     val where: Where =
-      Where(PatternExpression(RelationshipsPattern(chain(nodePattern, relationshipPattern, nodePattern)) _)(
+      Where(PatternExpression(RelationshipsPattern(chain(nodePattern, relationshipPattern, nodePattern))(pos))(
         None,
         None
-      )) _
+      ))(pos)
     val ast: ASTNode = SingleQuery(Seq(
       Match(
         optional = false,
@@ -193,19 +191,19 @@ class NoUnnamedNodesAndRelationshipsTest extends CypherFunSuite with AstConstruc
         Seq.empty,
         Some(where),
         None
-      ) _,
+      )(pos),
       Return(
         distinct = false,
         ReturnItems(
           FreeProjection,
           Seq(AliasedReturnItem(varFor("n"), varFor("n"))(pos))
-        ) _,
+        )(pos),
         None,
         None,
         None,
         None
-      ) _
-    )) _
+      )(pos)
+    ))(pos)
 
     condition(ast) shouldBe Seq(
       s"NodePattern at ${nodePattern.position} is unnamed",
@@ -225,8 +223,8 @@ class NoUnnamedNodesAndRelationshipsTest extends CypherFunSuite with AstConstruc
           nodePattern,
           relationshipPattern,
           nodePattern
-        ) _
-      ) _,
+        )(pos)
+      )(pos),
       None,
       literalString("foo")
     )(pos, None, None)
@@ -243,11 +241,11 @@ class NoUnnamedNodesAndRelationshipsTest extends CypherFunSuite with AstConstruc
       Some(varFor("p")),
       RelationshipsPattern(
         RelationshipChain(
-          NodePattern(Some(varFor("a")), None, None, None) _,
-          RelationshipPattern(Some(varFor("r")), None, None, None, None, SemanticDirection.OUTGOING) _,
-          NodePattern(Some(varFor("b")), None, None, None) _
-        ) _
-      ) _,
+          NodePattern(Some(varFor("a")), None, None, None)(pos),
+          RelationshipPattern(Some(varFor("r")), None, None, None, None, SemanticDirection.OUTGOING)(pos),
+          NodePattern(Some(varFor("b")), None, None, None)(pos)
+        )(pos)
+      )(pos),
       None,
       literalString("foo")
     )(pos, Some(Set(varFor("p"), varFor("a"), varFor("r"), varFor("b"))), None)
@@ -271,14 +269,14 @@ class NoUnnamedNodesAndRelationshipsTest extends CypherFunSuite with AstConstruc
   }
 
   private def chain(left: SimplePattern, rel: RelationshipPattern, right: NodePattern): RelationshipChain = {
-    RelationshipChain(left, rel, right) _
+    RelationshipChain(left, rel, right)(pos)
   }
 
   private def relationship(id: Option[Variable]): RelationshipPattern = {
-    RelationshipPattern(id, None, None, None, None, SemanticDirection.OUTGOING) _
+    RelationshipPattern(id, None, None, None, None, SemanticDirection.OUTGOING)(pos)
   }
 
   private def node(id: Option[Variable]): NodePattern = {
-    NodePattern(id, None, None, None) _
+    NodePattern(id, None, None, None)(pos)
   }
 }

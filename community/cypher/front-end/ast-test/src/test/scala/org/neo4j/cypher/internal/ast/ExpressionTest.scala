@@ -28,8 +28,7 @@ import org.neo4j.cypher.internal.expressions.functions.Nodes
 import org.neo4j.cypher.internal.util.Ref
 import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
-class ExpressionTest extends CypherFunSuite with AstConstructionTestSupport
-    with AstConstructionTestSupportWithPosConversion {
+class ExpressionTest extends CypherFunSuite with AstConstructionTestSupport {
 
   test("should compute dependencies of simple expressions") {
     varFor("a").dependencies should equal(Set(varFor("a")))
@@ -44,11 +43,11 @@ class ExpressionTest extends CypherFunSuite with AstConstructionTestSupport
     // [x IN (n)-->(k) | head(nodes(x)) ]
     val pat: RelationshipsPattern = RelationshipsPattern(
       RelationshipChain(
-        NodePattern(Some(varFor("n")), None, None, None) _,
-        RelationshipPattern(None, None, None, None, None, SemanticDirection.OUTGOING) _,
-        NodePattern(Some(varFor("k")), None, None, None) _
-      ) _
-    ) _
+        NodePattern(Some(varFor("n")), None, None, None)(pos),
+        RelationshipPattern(None, None, None, None, None, SemanticDirection.OUTGOING)(pos),
+        NodePattern(Some(varFor("k")), None, None, None)(pos)
+      )(pos)
+    )(pos)
     val expr: Expression = listComprehension(
       varFor("x"),
       PatternExpression(pat)(Some(Set(varFor("x"))), Some(Set(varFor("n"), varFor("k")))),
@@ -63,11 +62,11 @@ class ExpressionTest extends CypherFunSuite with AstConstructionTestSupport
     // [x IN (n)-->(k) | [y IN [1,2,3] | y] ]
     val pat: RelationshipsPattern = RelationshipsPattern(
       RelationshipChain(
-        NodePattern(Some(varFor("n")), None, None, None) _,
-        RelationshipPattern(None, None, None, None, None, SemanticDirection.OUTGOING) _,
-        NodePattern(Some(varFor("k")), None, None, None) _
-      ) _
-    ) _
+        NodePattern(Some(varFor("n")), None, None, None)(pos),
+        RelationshipPattern(None, None, None, None, None, SemanticDirection.OUTGOING)(pos),
+        NodePattern(Some(varFor("k")), None, None, None)(pos)
+      )(pos)
+    )(pos)
     val innerExpr: Expression = listComprehension(
       varFor("y"),
       listOfInt(1, 2, 3),

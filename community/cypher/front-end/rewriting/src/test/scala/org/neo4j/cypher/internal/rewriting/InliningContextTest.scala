@@ -17,7 +17,6 @@
 package org.neo4j.cypher.internal.rewriting
 
 import org.neo4j.cypher.internal.ast.AstConstructionTestSupport
-import org.neo4j.cypher.internal.ast.AstConstructionTestSupportWithPosConversion
 import org.neo4j.cypher.internal.expressions.Expression
 import org.neo4j.cypher.internal.expressions.LogicalVariable
 import org.neo4j.cypher.internal.expressions.NodePattern
@@ -26,8 +25,7 @@ import org.neo4j.cypher.internal.expressions.SemanticDirection
 import org.neo4j.cypher.internal.rewriting.rewriters.InliningContext
 import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
-class InliningContextTest extends CypherFunSuite with AstConstructionTestSupport
-    with AstConstructionTestSupportWithPosConversion {
+class InliningContextTest extends CypherFunSuite with AstConstructionTestSupport {
 
   private val identN = varFor("n")
   private val identM = varFor("m")
@@ -64,7 +62,7 @@ class InliningContextTest extends CypherFunSuite with AstConstructionTestSupport
   test("should inline aliases into node patterns") {
     val ctx = InliningContext(mapAtoN)
 
-    val expr: NodePattern = NodePattern(Some(identA), None, None, None) _
+    val expr: NodePattern = NodePattern(Some(identA), None, None, None)(pos)
 
     expr.endoRewrite(ctx.patternRewriter).variable should equal(Some(identN))
   }
@@ -73,7 +71,7 @@ class InliningContextTest extends CypherFunSuite with AstConstructionTestSupport
     val ctx = InliningContext(mapAtoN)
 
     val expr: RelationshipPattern =
-      RelationshipPattern(Some(identA), None, None, None, None, SemanticDirection.OUTGOING) _
+      RelationshipPattern(Some(identA), None, None, None, None, SemanticDirection.OUTGOING)(pos)
 
     expr.endoRewrite(ctx.patternRewriter).variable should equal(Some(identN))
   }

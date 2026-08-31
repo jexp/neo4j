@@ -18,7 +18,6 @@ package org.neo4j.cypher.internal.rewriting.conditions
 
 import org.neo4j.cypher.internal.ast.AdditiveProjection
 import org.neo4j.cypher.internal.ast.AstConstructionTestSupport
-import org.neo4j.cypher.internal.ast.AstConstructionTestSupportWithPosConversion
 import org.neo4j.cypher.internal.ast.FreeProjection
 import org.neo4j.cypher.internal.ast.Return
 import org.neo4j.cypher.internal.ast.ReturnItems
@@ -36,20 +35,19 @@ case object TestCondition extends ContainsNoMatchingStatementNodes {
   override val name: String = "NoMatchingNodesTest"
 }
 
-class ContainsNoMatchingNodesTest extends CypherFunSuite with AstConstructionTestSupport
-    with AstConstructionTestSupportWithPosConversion {
+class ContainsNoMatchingNodesTest extends CypherFunSuite with AstConstructionTestSupport {
 
   val condition: Any => Seq[String] = TestCondition(_)(CancellationChecker.NeverCancelled)
 
   test("Happy when not finding ReturnItems(includeExisting = true, ...)") {
     val ast: ASTNode = Return(
       false,
-      ReturnItems(FreeProjection, Seq(UnaliasedReturnItem(varFor("foo"), "foo") _)) _,
+      ReturnItems(FreeProjection, Seq(UnaliasedReturnItem(varFor("foo"), "foo")(pos)))(pos),
       None,
       None,
       None,
       None
-    ) _
+    )(pos)
 
     condition(ast) should equal(Seq())
   }
@@ -57,12 +55,12 @@ class ContainsNoMatchingNodesTest extends CypherFunSuite with AstConstructionTes
   test("Fails when finding ReturnItems(includeExisting = true, ...)") {
     val ast: ASTNode = Return(
       false,
-      ReturnItems(AdditiveProjection, Seq(UnaliasedReturnItem(varFor("foo"), "foo") _)) _,
+      ReturnItems(AdditiveProjection, Seq(UnaliasedReturnItem(varFor("foo"), "foo")(pos)))(pos),
       None,
       None,
       None,
       None
-    ) _
+    )(pos)
 
     condition(ast) should equal(
       Seq("Expected none but found ReturnItems(includeExisting = true, ...) at position line 0, column 0 (offset: 0)")

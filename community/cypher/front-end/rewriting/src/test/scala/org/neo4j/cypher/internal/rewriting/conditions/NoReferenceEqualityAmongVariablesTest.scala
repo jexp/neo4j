@@ -17,7 +17,6 @@
 package org.neo4j.cypher.internal.rewriting.conditions
 
 import org.neo4j.cypher.internal.ast.AstConstructionTestSupport
-import org.neo4j.cypher.internal.ast.AstConstructionTestSupportWithPosConversion
 import org.neo4j.cypher.internal.ast.Match
 import org.neo4j.cypher.internal.expressions.MatchMode
 import org.neo4j.cypher.internal.expressions.NodePattern
@@ -25,14 +24,13 @@ import org.neo4j.cypher.internal.util.ASTNode
 import org.neo4j.cypher.internal.util.CancellationChecker
 import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
-class NoReferenceEqualityAmongVariablesTest extends CypherFunSuite with AstConstructionTestSupport
-    with AstConstructionTestSupportWithPosConversion {
+class NoReferenceEqualityAmongVariablesTest extends CypherFunSuite with AstConstructionTestSupport {
 
   private val collector: Any => Seq[String] = NoReferenceEqualityAmongVariables(_)(CancellationChecker.NeverCancelled)
 
   test("unhappy when same Variable instance is used multiple times") {
     val id = varFor("a")
-    val nodePattern = NodePattern(Some(id), None, Some(id), None) _
+    val nodePattern = NodePattern(Some(id), None, Some(id), None)(pos)
     val ast: ASTNode =
       Match(
         optional = false,
@@ -41,13 +39,13 @@ class NoReferenceEqualityAmongVariablesTest extends CypherFunSuite with AstConst
         Seq(),
         None,
         None
-      ) _
+      )(pos)
 
     collector(ast) should equal(Seq(s"The instance $id is used 2 times"))
   }
 
   test("happy when all variable are no reference equal") {
-    val nodePattern = NodePattern(Some(varFor("a")), None, Some(varFor("a")), None) _
+    val nodePattern = NodePattern(Some(varFor("a")), None, Some(varFor("a")), None)(pos)
     val ast: ASTNode = Match(
       optional = false,
       matchMode = MatchMode.default(pos),
@@ -55,7 +53,7 @@ class NoReferenceEqualityAmongVariablesTest extends CypherFunSuite with AstConst
       Seq(),
       None,
       None
-    ) _
+    )(pos)
 
     collector(ast) shouldBe empty
   }
