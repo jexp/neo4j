@@ -3820,6 +3820,7 @@ public abstract class PageCacheTest<T extends PageCache> extends PageCacheTestSu
 
             fs.write(file("a")).close();
 
+            doNotEnableBackgroundEviction();
             getPageCache(fs, maxPages, PageCacheTracer.NULL);
             PagedFile pagedFile = map(file("a"), filePageSize);
 

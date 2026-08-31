@@ -334,6 +334,10 @@ public abstract class PageCacheTestSupport<T extends PageCache> {
         }
     }
 
+    protected final void doNotEnableBackgroundEviction() {
+        fixture.withBackgroundEvictionEnabled(false);
+    }
+
     protected static Runnable closePageFile(final PagedFile file) {
         return file::close;
     }
@@ -344,6 +348,7 @@ public abstract class PageCacheTestSupport<T extends PageCache> {
         private IOBufferFactory bufferFactory;
         private int reservedBytes = PageCache.RESERVED_BYTES;
         private boolean closeAllocatorOnShutdown = true;
+        private boolean backgroundEvictionEnabled = true;
 
         public abstract T createPageCache(
                 FileSystemAbstraction fs,
@@ -371,8 +376,13 @@ public abstract class PageCacheTestSupport<T extends PageCache> {
             return false;
         }
 
-        public boolean backgroundEvictionEnabled() {
-            return true;
+        public final boolean backgroundEvictionEnabled() {
+            return backgroundEvictionEnabled;
+        }
+
+        public final Fixture<T> withBackgroundEvictionEnabled(boolean backgroundEvictionEnabled) {
+            this.backgroundEvictionEnabled = backgroundEvictionEnabled;
+            return this;
         }
 
         public final boolean closeAllocatorOnShutdown() {
