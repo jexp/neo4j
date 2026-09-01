@@ -123,7 +123,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.provider.Arguments;
 import org.neo4j.configuration.helpers.RemoteUri;
 import org.neo4j.cypher.internal.CypherVersion;
-import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.dbms.database.DbmsRuntimeVersion;
 import org.neo4j.dbms.database.SystemGraphComponent;
 import org.neo4j.dbms.identity.ServerId;
@@ -141,9 +140,6 @@ import org.neo4j.logging.Level;
 import org.neo4j.test.extension.Inject;
 
 public abstract class BaseTopologyGraphDbmsModelIT {
-    @Inject
-    protected DatabaseManagementService managementService;
-
     @Inject
     protected GraphDatabaseService db;
 
