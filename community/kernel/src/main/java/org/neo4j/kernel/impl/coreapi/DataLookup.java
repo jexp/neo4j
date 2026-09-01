@@ -58,7 +58,9 @@ import org.neo4j.internal.kernel.api.InternalIndexState;
 import org.neo4j.internal.kernel.api.KernelReadTracer;
 import org.neo4j.internal.kernel.api.NodeCursor;
 import org.neo4j.internal.kernel.api.NodeIndexCursor;
+import org.neo4j.internal.kernel.api.NodeLabelIndexCursor;
 import org.neo4j.internal.kernel.api.NodeValueIndexCursor;
+import org.neo4j.internal.kernel.api.PropertyCursor;
 import org.neo4j.internal.kernel.api.PropertyIndexQuery;
 import org.neo4j.internal.kernel.api.QueryContext;
 import org.neo4j.internal.kernel.api.Read;
@@ -76,6 +78,7 @@ import org.neo4j.internal.schema.IndexQuery;
 import org.neo4j.internal.schema.IndexType;
 import org.neo4j.internal.schema.SchemaDescriptor;
 import org.neo4j.internal.schema.SchemaDescriptors;
+import org.neo4j.io.IOUtils;
 import org.neo4j.io.pagecache.context.CursorContext;
 import org.neo4j.kernel.api.ResourceMonitor;
 import org.neo4j.kernel.impl.api.TokenAccess;
@@ -424,9 +427,10 @@ public abstract class DataLookup {
         var index = findUsableMatchingIndex(SchemaDescriptors.ANY_TOKEN_NODE_SCHEMA_DESCRIPTOR, query);
 
         if (index != IndexDescriptor.NO_INDEX) {
+            NodeLabelIndexCursor cursor = null;
             try {
                 var session = dataRead().tokenReadSession(index);
-                var cursor = cursors().allocateNodeLabelIndexCursor(cursorContext(), memoryTracker());
+                cursor = cursors().allocateNodeLabelIndexCursor(cursorContext(), memoryTracker());
                 dataRead().nodeLabelScan(session, cursor, unconstrained(), query, cursorContext());
                 return new TrackedCursorIterator<>(
                         cursor,
@@ -435,6 +439,9 @@ public abstract class DataLookup {
                         resourceMonitor());
             } catch (KernelException e) {
                 // ignore, fallback to all node scan
+                if (cursor != null) {
+                    cursor.close();
+                }
             }
         }
 
@@ -497,13 +504,16 @@ public abstract class DataLookup {
         var index = findUsableMatchingIndex(SchemaDescriptors.ANY_TOKEN_NODE_SCHEMA_DESCRIPTOR, tokenQuery);
 
         if (index != IndexDescriptor.NO_INDEX) {
+            NodeLabelIndexCursor cursor = null;
+            NodeCursor nodeCursor = null;
+            PropertyCursor propertyCursor = null;
             try {
                 var session = dataRead().tokenReadSession(index);
-                var cursor = cursors().allocateNodeLabelIndexCursor(cursorContext(), memoryTracker());
+                cursor = cursors().allocateNodeLabelIndexCursor(cursorContext(), memoryTracker());
                 dataRead().nodeLabelScan(session, cursor, unconstrained(), tokenQuery, cursorContext());
 
-                var nodeCursor = cursors().allocateNodeCursor(cursorContext(), memoryTracker());
-                var propertyCursor = cursors().allocatePropertyCursor(cursorContext(), memoryTracker());
+                nodeCursor = cursors().allocateNodeCursor(cursorContext(), memoryTracker());
+                propertyCursor = cursors().allocatePropertyCursor(cursorContext(), memoryTracker());
 
                 return new NodeLabelPropertyIterator(
                         dataRead(),
@@ -515,6 +525,7 @@ public abstract class DataLookup {
                         queries);
             } catch (KernelException e) {
                 // ignore, fallback to all node scan
+                IOUtils.closeAllUnchecked(cursor, nodeCursor, propertyCursor);
             }
         }
         return getNodesByLabelAndPropertyViaAllNodesScan(labelId, queries);
