@@ -24,23 +24,38 @@ import static org.neo4j.dbms.database.ComponentVersion.DBMS_RUNTIME_COMPONENT;
 import static org.neo4j.dbms.database.SystemGraphComponent.VERSION_LABEL;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.neo4j.common.DependencyResolver;
 import org.neo4j.configuration.Config;
 import org.neo4j.configuration.GraphDatabaseInternalSettings;
+import org.neo4j.dbms.systemgraph.TopologyGraphDbmsModel;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.QueryExecutionException;
 import org.neo4j.graphdb.ResultTransformer;
 import org.neo4j.graphdb.Transaction;
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
+import org.neo4j.internal.kernel.api.connectioninfo.RoutingInfo;
+import org.neo4j.internal.kernel.api.security.LoginContext;
+import org.neo4j.io.layout.DatabaseLayout;
+import org.neo4j.kernel.api.KernelTransaction;
+import org.neo4j.kernel.api.exceptions.Status;
+import org.neo4j.kernel.database.NamedDatabaseId;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
+import org.neo4j.kernel.impl.coreapi.TransactionExceptionMapper;
+import org.neo4j.kernel.impl.factory.DbmsInfo;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.test.LatestVersions;
 import org.neo4j.test.extension.DbmsExtension;
 import org.neo4j.test.extension.Inject;
 import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 
 @TestDirectoryExtension
-@DbmsExtension()
+@DbmsExtension
 class DbmsRuntimeSystemGraphComponentTest {
 
     // The trick here is that we pass a normal user database
@@ -204,7 +219,7 @@ class DbmsRuntimeSystemGraphComponentTest {
         }
     }
 
-    private static class FakeSystemDb implements GraphDatabaseService {
+    private static class FakeSystemDb implements GraphDatabaseAPI {
 
         private final GraphDatabaseService wrappedDb;
 
@@ -260,6 +275,66 @@ class DbmsRuntimeSystemGraphComponentTest {
         @Override
         public String databaseName() {
             return "system";
+        }
+
+        @Override
+        public DependencyResolver getDependencyResolver() {
+            return ((GraphDatabaseAPI) wrappedDb).getDependencyResolver();
+        }
+
+        @Override
+        public DatabaseLayout databaseLayout() {
+            throw new IllegalStateException("Not implemented");
+        }
+
+        @Override
+        public NamedDatabaseId databaseId() {
+            throw new IllegalStateException("Not implemented");
+        }
+
+        @Override
+        public DbmsInfo dbmsInfo() {
+            throw new IllegalStateException("Not implemented");
+        }
+
+        @Override
+        public TopologyGraphDbmsModel.HostedOnMode mode() {
+            throw new IllegalStateException("Not implemented");
+        }
+
+        @Override
+        public InternalTransaction beginTransaction(KernelTransaction.Type type, LoginContext loginContext) {
+            throw new IllegalStateException("Not implemented");
+        }
+
+        @Override
+        public InternalTransaction beginTransaction(
+                KernelTransaction.Type type, LoginContext loginContext, ClientConnectionInfo clientInfo) {
+            throw new IllegalStateException("Not implemented");
+        }
+
+        @Override
+        public InternalTransaction beginTransaction(
+                KernelTransaction.Type type,
+                LoginContext loginContext,
+                ClientConnectionInfo clientInfo,
+                long timeout,
+                TimeUnit unit) {
+            throw new IllegalStateException("Not implemented");
+        }
+
+        @Override
+        public InternalTransaction beginTransaction(
+                KernelTransaction.Type type,
+                LoginContext loginContext,
+                ClientConnectionInfo clientInfo,
+                RoutingInfo routingInfo,
+                List<String> bookmarks,
+                long timeout,
+                TimeUnit unit,
+                Consumer<Status> terminationCallback,
+                TransactionExceptionMapper transactionExceptionMapper) {
+            throw new IllegalStateException("Not implemented");
         }
     }
 }

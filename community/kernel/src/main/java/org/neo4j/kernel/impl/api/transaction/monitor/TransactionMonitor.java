@@ -51,7 +51,7 @@ public abstract class TransactionMonitor<T extends TransactionMonitor.MonitoredT
     }
 
     @Override
-    public void run() {
+    public synchronized void run() {
         checkActiveTransactions(getActiveTransactions(), clock.nanos());
         updateTransactionBoundaries();
     }

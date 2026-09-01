@@ -27,6 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.neo4j.exceptions.UpgradeException;
 import org.neo4j.function.ThrowingConsumer;
@@ -35,6 +36,8 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.internal.helpers.Exceptions;
+import org.neo4j.kernel.impl.api.transaction.monitor.TransactionMonitor;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.util.Preconditions;
 
 /**
@@ -100,6 +103,20 @@ public class SystemGraphComponents {
             throw new IllegalStateException(
                     "Failed to initialize system graph component: " + failure.getMessage(), failure);
         }
+
+        awaitSystemGraphSchemaOnline(system);
+    }
+
+    public static void awaitSystemGraphSchemaOnline(GraphDatabaseService system) {
+        // refresh boundaries for populations
+        ((GraphDatabaseAPI) system)
+                .getDependencyResolver()
+                .resolveDependency(TransactionMonitor.class)
+                .run();
+
+        try (Transaction tx = system.beginTx()) {
+            tx.schema().awaitIndexesOnline(10, TimeUnit.MINUTES);
+        }
     }
 
     public void upgradeToCurrent(GraphDatabaseService system) throws Exception {
@@ -117,6 +134,8 @@ public class SystemGraphComponents {
         if (failure != null) {
             throw new IllegalStateException("Failed to upgrade system graph:" + failure.getMessage(), failure);
         }
+
+        awaitSystemGraphSchemaOnline(system);
     }
 
     private List<SystemGraphComponent> componentsToUpgrade(GraphDatabaseService system) throws Exception {
