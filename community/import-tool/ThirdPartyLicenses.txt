@@ -32,7 +32,12 @@ Apache Software License, Version 2.0
   Apache Shiro :: Lang
   Caffeine cache
   Commons Pool
+  error-prone annotations
+  Guava InternalFutureFailureAccess and InternalFutures
+  Guava ListenableFuture only
+  Guava: Google Core Libraries for Java
   IPAddress
+  J2ObjC Annotations
   Jackson-annotations
   Jackson-core
   jackson-databind

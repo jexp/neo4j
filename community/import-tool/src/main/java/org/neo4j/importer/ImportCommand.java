@@ -45,6 +45,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -68,6 +69,7 @@ import org.neo4j.batchimport.api.Monitor;
 import org.neo4j.batchimport.api.ResumableStateWriter;
 import org.neo4j.batchimport.api.input.Collector;
 import org.neo4j.batchimport.api.input.FileGroup;
+import org.neo4j.batchimport.api.input.FileGroup.NumberedFile;
 import org.neo4j.batchimport.api.input.IdType;
 import org.neo4j.batchimport.api.input.Input;
 import org.neo4j.cli.AbstractAdminCommand;
@@ -88,6 +90,7 @@ import org.neo4j.configuration.Config;
 import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.csv.reader.Magic;
 import org.neo4j.cypher.internal.config.CypherConfiguration;
+import org.neo4j.graphdb.config.Setting;
 import org.neo4j.importer.FileImporter.FileInputType;
 import org.neo4j.importer.SchemaCommandReader.ReaderConfig;
 import org.neo4j.importer.SchemaCommandSource.DeferredSchemaCommands;
@@ -736,7 +739,7 @@ public class ImportCommand {
                         importer.dryRun(this);
                     } else {
                         try (var ignore = maybeLockChecker().maybeCheckLock(databaseLayout)) {
-                            preImport(importContext);
+                            preImport(importContext, importer);
                             importer.doImport(this, skidbladnir, resume);
                             postImport(fileSystem, databaseConfig, importContext, databaseLayout);
                             importContext.markSuccessful();
@@ -748,12 +751,46 @@ public class ImportCommand {
             }
         }
 
-        private void preImport(ImportContext importContext) {
+        private void preImport(ImportContext importContext, FileImporter importer) throws IOException {
+            // Verify the input files before everything that writes, since a resume records its own input into the
+            // context directory of the attempt it continues - persisting first would replace the record this reads
+            // with a hash of the very input it is meant to reject
+            ArrayList<Path> inputFiles = new ArrayList<>();
+            collectFiles(importer.nodeFiles().values(), inputFiles);
+            collectFiles(importer.relationshipFiles().values(), inputFiles);
+            verifyInputFilesStillMatch(importContext, inputFiles);
             importContext.preamble(ctx.out());
             importContext.persistCliArgs();
             if (skidbladnir) {
                 // only a skidbladnir import can be resumed, and only a resume has any use for the configuration
                 importContext.persistConfig();
+
+                importContext.persistInputFilesHash(inputFiles);
+            }
+        }
+
+        /**
+         * Refuses a resume whose input is no longer the input the attempt being resumed read. That attempt divided its
+         * work over the input as it stood, and the state it left behind is indexed by where in those files it got to,
+         * so continuing over different input would attribute what it already imported to data that was never there.
+         */
+        private void verifyInputFilesStillMatch(ImportContext importContext, ArrayList<Path> inputFiles)
+                throws IOException {
+            if (importContext.inputFilesChanged(inputFiles)) {
+                throw new CommandFailedException(
+                        "ERROR: the input files are no longer the ones the import attempt being resumed read - a file "
+                                + "was added, removed, renamed or has a different size than it had then. Restore them "
+                                + "to resume that attempt, or import again from the start over the input you have.");
+            }
+        }
+
+        private static void collectFiles(Collection<? extends List<FileGroup>> fileGroups, List<Path> into) {
+            for (List<FileGroup> groups : fileGroups) {
+                for (FileGroup group : groups) {
+                    for (NumberedFile file : group.files()) {
+                        into.add(file.path());
+                    }
+                }
             }
         }
 
@@ -877,7 +914,8 @@ public class ImportCommand {
          * defaults from.
          */
         private void verifyConfigStillMatches(Path contextDir) throws IOException {
-            var changed = ImportContext.resumeSensitiveChanges(contextDir, loadNeo4jConfig(importFormat()));
+            var changed = ImportContext.resumeSensitiveChanges(
+                    contextDir, loadNeo4jConfig(importFormat()), this::resumeSafeSetting);
             if (!changed.isEmpty()) {
                 throw new CommandFailedException(
                         ("ERROR: the state left behind by the import attempt being resumed was laid out under "
@@ -899,6 +937,13 @@ public class ImportCommand {
          * implemented.
          */
         protected void forceOverwriteDestinationForResume() {}
+
+        /**
+         * Whether a resumed import may continue with the given setting resolving differently than it did for the attempt being resumed.
+         */
+        protected boolean resumeSafeSetting(Setting<?> setting) {
+            return false;
+        }
 
         protected boolean isDryRun() {
             return dryRun;

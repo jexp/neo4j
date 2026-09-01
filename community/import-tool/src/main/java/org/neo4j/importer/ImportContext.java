@@ -35,9 +35,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
 import java.io.BufferedOutputStream;
 import java.io.Closeable;
 import java.io.DataInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -69,6 +73,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.neo4j.batchimport.api.DetailedProgressReport;
 import org.neo4j.batchimport.api.Monitor;
@@ -85,6 +90,7 @@ import org.neo4j.internal.helpers.collection.MapUtil;
 import org.neo4j.io.IOUtils;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction.PatternStyle;
+import org.neo4j.io.fs.FileSystemUtils;
 import org.neo4j.io.fs.FileUtils;
 import org.neo4j.io.fs.StoreChannel;
 import org.neo4j.io.locker.FileLockException;
@@ -93,6 +99,7 @@ import org.neo4j.logging.InternalLog;
 import org.neo4j.logging.InternalLogProvider;
 import org.neo4j.logging.log4j.Log4jLogProvider;
 import org.neo4j.logging.log4j.LoggerTarget;
+import org.neo4j.memory.EmptyMemoryTracker;
 import picocli.CommandLine.ParameterException;
 
 public class ImportContext extends Monitor.Delegate implements InternalLogProvider, ResumableStateWriter {
@@ -110,6 +117,11 @@ public class ImportContext extends Monitor.Delegate implements InternalLogProvid
     public static final String SUCCESS_FILE_NAME = "success";
     public static final String TEMP_FILE_SUFFIX = ".tmp";
     public static final String CHECKPOINT_FILE_NAME = "checkpoint";
+    public static final String INPUT_FILES_FILE_NAME = "input-files";
+
+    private static final HashFunction INPUT_FILES_HASH = Hashing.murmur3_128();
+
+    private static final long MISSING_FILE_SIZE = -1;
 
     private final String dbName;
 
@@ -442,7 +454,7 @@ public class ImportContext extends Monitor.Delegate implements InternalLogProvid
 
     /**
      * Renders setting values as the file {@link Config.Builder#fromFile} reads back in
-     * {@link #resumeSensitiveChanges(Path, Config)}. Escaping is left to {@link MapUtil#store}, whose
+     * {@link #resumeSensitiveChanges}. Escaping is left to {@link MapUtil#store}, whose
      * {@link java.util.Properties} format is what that reader parses: the values are raw strings, so on Windows a path
      * value carries backslashes (e.g. {@code Z:\work\...}) that the reader would otherwise take for escape sequences,
      * rejecting a stray backslash-u with a "Malformed" unicode-encoding error.
@@ -500,38 +512,112 @@ public class ImportContext extends Monitor.Delegate implements InternalLogProvid
     }
 
     /**
+     * Persists a 64-bit hash over the input files the import read - every file's name together with its size, in name
+     * order, so that the same sizes shuffled between files hash differently, see {@link #inputFilesHash(ArrayList)}. A
+     * best-effort guard only: it catches input swapped, truncated or regenerated between attempts, not a deliberate
+     * forgery. Modification times are deliberately left out, since copying or checking out the very same input changes
+     * them.
+     * <p>
+     * Written {@link #writeProtected write-protected}, like the other records of an attempt, since a
+     * hand edit would decide whether a resume is allowed to run at all.
+     */
+    void persistInputFilesHash(ArrayList<Path> inputFiles) {
+        try {
+            fs.mkdirs(baseDir());
+            writeProtected(baseDir(), INPUT_FILES_FILE_NAME, Long.toString(inputFilesHash(inputFiles)));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /**
+     * Whether the input files this run would read are no longer the ones the attempt owning the given context
+     * directory read - a file gone, added, renamed, resized, or the same sizes belonging to differently named files
+     * than before. Where those files are kept is not part of it, so the same input reached over another path still
+     * matches. Only says that something changed, not what: all that is kept of the input is the single hash
+     * {@link #persistInputFilesHash persisted} for it.
+     * <p>
+     * An attempt that recorded no hash at all cannot be compared against and passes.
+     */
+    public boolean inputFilesChanged(ArrayList<Path> inputFiles) throws IOException {
+        Path recorded = baseDir().resolve(INPUT_FILES_FILE_NAME);
+        if (!fs.fileExists(recorded)) {
+            return false;
+        }
+        try {
+            String readBackString = FileSystemUtils.readString(fs, recorded, EmptyMemoryTracker.INSTANCE);
+            long oldHash = (readBackString == null ? 0 : Long.parseLong(readBackString));
+            return oldHash != inputFilesHash(inputFiles);
+        } catch (NumberFormatException e) {
+            return true;
+        }
+    }
+
+    /**
+     * Hashes each file's name together with its size, rather than its whole path, so that the same input kept somewhere
+     * else still matches.
+     * <p>
+     * Sorted here, by file name, so that the same files hash the same however their file groups were laid out.
+     */
+    private long inputFilesHash(ArrayList<Path> inputFiles) throws IOException {
+        inputFiles.sort(Comparator.comparing(ImportContext::fileNameOf));
+        Hasher hasher = INPUT_FILES_HASH.newHasher();
+        hasher.putInt(inputFiles.size());
+        for (Path inputFile : inputFiles) {
+            String name = fileNameOf(inputFile);
+            hasher.putInt(name.length());
+            hasher.putUnencodedChars(name);
+            hasher.putLong(sizeOf(inputFile));
+        }
+        return hasher.hash().asLong();
+    }
+
+    private static String fileNameOf(Path file) {
+        Path fileName = file.getFileName();
+        return fileName == null ? file.toString() : fileName.toString();
+    }
+
+    /**
+     * The size of a file that is there, and {@link #MISSING_FILE_SIZE} for one that is not: a file the import is about
+     * to read fails the import on its own terms, whereas one gone missing since the attempt being resumed read it has
+     * to hash differently than it did then.
+     */
+    private long sizeOf(Path file) throws IOException {
+        try {
+            return fs.getFileSize(file);
+        } catch (NoSuchFileException e) {
+            return MISSING_FILE_SIZE;
+        } catch (UncheckedIOException e) {
+            // a cloud storage path fetches its size when asked for it rather than when its attributes are read, so a
+            // missing object surfaces here, wrapped, and as either of the two exceptions that stand for 'not there'
+            if (e.getCause() instanceof NoSuchFileException || e.getCause() instanceof FileNotFoundException) {
+                return MISSING_FILE_SIZE;
+            }
+            throw e;
+        }
+    }
+
+    /**
      * A setting that holds a different value now than it did for the attempt being resumed. A value is null when the
      * setting had none at all on that side.
      */
     public record SettingChange(Setting<?> setting, Object previous, Object current) {}
 
     /**
-     * Settings a resume is free to change without endangering the state left behind by the attempt being resumed:
-     * they leave no trace a resume picks up, so rejecting a resume over one of these would refuse it for a change
-     * that cannot break it. Every other declared setting is treated as resume-sensitive by default, so a setting
-     * newly added to Neo4j is guarded automatically rather than only once someone remembers to deny-list it.
+     * Which declared settings the given configuration resolves differently than the attempt that owns the given context
+     * directory did. Ordered by setting name.
+     *
+     * @param resumeSafe whether a change to the given setting leaves the attempt resumable regardless
      */
-    private static final List<Setting<?>> RESUME_SAFE_SETTINGS = List.of(import_detailed_reporting_interval);
-
-    /**
-     * Which declared settings, other than the {@link #RESUME_SAFE_SETTINGS}, the given configuration resolves
-     * differently than the attempt that owns the given context directory did, empty when a resume can safely
-     * continue that attempt's state. Both sides are the values each setting itself resolves to, rather than two
-     * string representations of the same value. Ordered by setting name, since the configuration holds its settings
-     * in no particular one.
-     * <p>
-     * An attempt that recorded no configuration at all cannot be compared against and passes: only skidbladnir
-     * imports record one, and they are the only ones a resume accepts anyway, so this is an attempt from before the
-     * configuration was recorded.
-     */
-    public static List<SettingChange> resumeSensitiveChanges(Path contextDir, Config current) {
+    public static List<SettingChange> resumeSensitiveChanges(
+            Path contextDir, Config current, Predicate<Setting<?>> resumeSafe) {
         Path configPath = contextDir.resolve(CONFIG_FILE_NAME);
         if (!Files.exists(configPath)) {
             return List.of();
         }
         Config previous = Config.newBuilder().fromFile(configPath).build();
         return current.getDeclaredSettings().values().stream()
-                .filter(setting -> !RESUME_SAFE_SETTINGS.contains(setting))
+                .filter(setting -> !resumeSafe.test(setting))
                 .filter(setting -> !Objects.equals(previous.get(setting), current.get(setting)))
                 .sorted(Comparator.comparing(Setting::name))
                 .map(setting -> new SettingChange(setting, previous.get(setting), current.get(setting)))

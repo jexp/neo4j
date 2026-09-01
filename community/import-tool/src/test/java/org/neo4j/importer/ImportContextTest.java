@@ -27,6 +27,9 @@ import static java.nio.file.attribute.PosixFilePermission.OTHERS_WRITE;
 import static java.nio.file.attribute.PosixFilePermission.OWNER_WRITE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.neo4j.configuration.GraphDatabaseSettings.logs_directory;
 import static org.neo4j.configuration.GraphDatabaseSettings.neo4j_home;
 
@@ -34,6 +37,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
 import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -43,16 +47,20 @@ import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.attribute.AclEntryType;
 import java.nio.file.attribute.AclFileAttributeView;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.FileTime;
 import java.nio.file.attribute.PosixFileAttributeView;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.function.LongSupplier;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 import org.eclipse.collections.api.factory.primitive.IntSets;
 import org.junit.jupiter.api.BeforeEach;
@@ -69,10 +77,15 @@ import org.neo4j.batchimport.api.input.ApplicationMode;
 import org.neo4j.batchimport.api.input.Collector;
 import org.neo4j.batchimport.api.input.Group;
 import org.neo4j.cli.CommandFailedException;
+import org.neo4j.cloud.storage.StoragePath;
+import org.neo4j.cloud.storage.StoragePathAttributes;
+import org.neo4j.cloud.storage.StorageSystem;
+import org.neo4j.cloud.storage.StorageSystemProvider;
 import org.neo4j.commandline.dbms.CannotWriteException;
 import org.neo4j.configuration.Config;
 import org.neo4j.configuration.GraphDatabaseInternalSettings;
 import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.graphdb.config.Setting;
 import org.neo4j.importer.FileImporter.CsvImportException;
 import org.neo4j.internal.batchimport.input.BadCollector;
 import org.neo4j.internal.batchimport.input.Groups;
@@ -94,6 +107,12 @@ import picocli.CommandLine.ParameterException;
 class ImportContextTest {
 
     private static final NormalizedDatabaseName DB = new NormalizedDatabaseName("foo");
+
+    /**
+     * The tests here are not expected to change the settings.
+     * This predicate disallows all changes of settings.
+     */
+    private static final Predicate<Setting<?>> NOTHING_EXEMPT = setting -> false;
 
     @Inject
     private TestDirectory testDir;
@@ -366,11 +385,13 @@ class ImportContextTest {
         try (var importContext = getRetainingImportContext(List.of("--nodes=foo.csv"))) {
             importContext.persistCliArgs();
             importContext.persistConfig();
+            importContext.persistInputFilesHash(new ArrayList<>(List.of(inputFile("nodes.csv", 10))));
             importContext.markSuccessful();
 
             for (var fileName : List.of(
                     ImportContext.CLI_ARGS_FILE_NAME,
                     ImportContext.CONFIG_FILE_NAME,
+                    ImportContext.INPUT_FILES_FILE_NAME,
                     ImportContext.SUCCESS_FILE_NAME)) {
                 Path recorded = importContext.baseDir().resolve(fileName);
                 assertThat(recorded).isReadable();
@@ -435,13 +456,14 @@ class ImportContextTest {
                 .set(GraphDatabaseSettings.pagecache_warmup_prefetch_allowlist, "Z:\\work\\cf47\\uABCD\\store")
                 .build();
 
-        assertThat(ImportContext.resumeSensitiveChanges(persistedConfigOf(windowsLikePaths), windowsLikePaths))
+        assertThat(ImportContext.resumeSensitiveChanges(
+                        persistedConfigOf(windowsLikePaths), windowsLikePaths, NOTHING_EXEMPT))
                 .isEmpty();
     }
 
     @Test
     void noSensitiveChangesWhenAttemptRanWithTheSameConfig() throws IOException {
-        assertThat(ImportContext.resumeSensitiveChanges(persistedConfig(), config))
+        assertThat(ImportContext.resumeSensitiveChanges(persistedConfig(), config, NOTHING_EXEMPT))
                 .isEmpty();
     }
 
@@ -449,7 +471,8 @@ class ImportContextTest {
     void noSensitiveChangesWhenAttemptRecordedNoConfigAtAll() throws IOException {
         Path contextDir = testDir.directory("attempt-from-before-config-was-recorded");
 
-        assertThat(ImportContext.resumeSensitiveChanges(contextDir, config)).isEmpty();
+        assertThat(ImportContext.resumeSensitiveChanges(contextDir, config, NOTHING_EXEMPT))
+                .isEmpty();
     }
 
     @Test
@@ -460,7 +483,7 @@ class ImportContextTest {
                 .set(GraphDatabaseSettings.pagecache_direct_io, true)
                 .build();
 
-        assertThat(ImportContext.resumeSensitiveChanges(contextDir, directIo))
+        assertThat(ImportContext.resumeSensitiveChanges(contextDir, directIo, NOTHING_EXEMPT))
                 .singleElement()
                 .satisfies(change -> {
                     assertThat(change.setting()).isEqualTo(GraphDatabaseSettings.pagecache_direct_io);
@@ -479,7 +502,7 @@ class ImportContextTest {
 
         // every directory that defaults to a location under the data one travels with it, so moving the data
         // directory is reported as the move of each of them too
-        assertThat(ImportContext.resumeSensitiveChanges(contextDir, movedData))
+        assertThat(ImportContext.resumeSensitiveChanges(contextDir, movedData, NOTHING_EXEMPT))
                 .extracting(change -> change.setting().name())
                 .containsExactly(
                         GraphDatabaseInternalSettings.auth_store_directory.name(),
@@ -491,15 +514,210 @@ class ImportContextTest {
     }
 
     @Test
-    void aSettingTheStateOnDiskDoesNotDependOnIsIgnored() throws IOException {
+    void aSettingTheCallerCallsResumeSafeIsIgnored() throws IOException {
         Path contextDir = persistedConfig();
-        var reportingMoreOften = Config.newBuilder()
+        var directIo = Config.newBuilder()
                 .fromConfig(config)
-                .set(GraphDatabaseInternalSettings.import_detailed_reporting_interval, Duration.ofSeconds(1))
+                .set(GraphDatabaseSettings.pagecache_direct_io, true)
                 .build();
 
-        assertThat(ImportContext.resumeSensitiveChanges(contextDir, reportingMoreOften))
+        // which changes are harmless is the caller's to say, and the very change reported without it is dropped once
+        // the caller vouches for that setting
+        assertThat(ImportContext.resumeSensitiveChanges(
+                        contextDir, directIo, GraphDatabaseSettings.pagecache_direct_io::equals))
                 .isEmpty();
+    }
+
+    @Test
+    void noInputChangeWhenTheAttemptReadTheVerySameFiles() throws IOException {
+        ArrayList<Path> input = new ArrayList<>(List.of(inputFile("nodes.csv", 10), inputFile("rels.csv", 20)));
+
+        try (ImportContext importContext = persistedInputFilesHashOf(input)) {
+            assertThat(importContext.inputFilesChanged(input)).isFalse();
+        }
+    }
+
+    @Test
+    void noInputChangeWhenTheFilesAreGivenInAnotherOrder() throws IOException {
+        Path nodes1 = inputFile("nodes-1.csv", 10);
+        Path nodes2 = inputFile("nodes-2.csv", 11);
+        Path rels1 = inputFile("rels-1.csv", 20);
+        Path rels2 = inputFile("rels-2.csv", 21);
+        ArrayList<Path> input = new ArrayList<>(List.of(nodes1, nodes2, rels1, rels2));
+
+        try (ImportContext importContext = persistedInputFilesHashOf(input)) {
+            // the order files are grouped in, both across and within entity types, says nothing about the input
+            // itself, so a resume given the very same files shuffled around still finds them unchanged
+            assertThat(importContext.inputFilesChanged(new ArrayList<>(List.of(rels2, nodes1, rels1, nodes2))))
+                    .isFalse();
+        }
+    }
+
+    @Test
+    void noInputChangeWhenTheAttemptItselfPersistedTheFilesInAnUnsortedOrder() throws IOException {
+        Path nodes = inputFile("nodes.csv", 10);
+        Path rels = inputFile("rels.csv", 20);
+        // persisted out of name order - persistInputFilesHash does not sort, only inputFilesChanged does
+        ArrayList<Path> input = new ArrayList<>(List.of(rels, nodes));
+
+        try (ImportContext importContext = persistedInputFilesHashOf(input)) {
+            assertThat(importContext.inputFilesChanged(new ArrayList<>(List.of(nodes, rels))))
+                    .isFalse();
+        }
+    }
+
+    @Test
+    void aFileThatGrewSinceTheAttemptReadItIsAChange() throws IOException {
+        ArrayList<Path> input = new ArrayList<>(List.of(inputFile("nodes.csv", 10)));
+        try (ImportContext importContext = persistedInputFilesHashOf(input)) {
+            resize(input.getFirst(), 11);
+            assertThat(importContext.inputFilesChanged(input)).isTrue();
+        }
+    }
+
+    @Test
+    void theSameSizesBelongingToOtherFilesIsAChange() throws IOException {
+        Path nodes = inputFile("nodes.csv", 10);
+        Path rels = inputFile("rels.csv", 20);
+        ArrayList<Path> input = new ArrayList<>(List.of(nodes, rels));
+        try (ImportContext importContext = persistedInputFilesHashOf(input)) {
+            // the total is what it was, so only a hash that ties each size to the file it belongs to notices this
+            resize(nodes, 20);
+            resize(rels, 10);
+            assertThat(importContext.inputFilesChanged(input)).isTrue();
+        }
+    }
+
+    @Test
+    void aFileGoneMissingSinceTheAttemptReadItIsAChange() throws IOException {
+        ArrayList<Path> input = new ArrayList<>(List.of(inputFile("nodes.csv", 10), inputFile("rels.csv", 20)));
+        try (ImportContext importContext = persistedInputFilesHashOf(input)) {
+            Files.delete(input.get(1));
+            assertThat(importContext.inputFilesChanged(input)).isTrue();
+        }
+    }
+
+    @Test
+    void anAddedFileIsAChange() throws IOException {
+        ArrayList<Path> input = new ArrayList<>(List.of(inputFile("nodes.csv", 10)));
+        try (ImportContext importContext = persistedInputFilesHashOf(input)) {
+            assertThat(importContext.inputFilesChanged(
+                            new ArrayList<>(List.of(input.getFirst(), inputFile("more-nodes.csv", 10)))))
+                    .isTrue();
+        }
+    }
+
+    @Test
+    void theSameContentUnderAnotherFileNameIsAChange() throws IOException {
+        ArrayList<Path> input = new ArrayList<>(List.of(inputFile("nodes.csv", 10)));
+        try (ImportContext importContext = persistedInputFilesHashOf(input)) {
+            // the name is what says which file is which, so the attempt's roles no longer line up with the input
+            assertThat(importContext.inputFilesChanged(new ArrayList<>(List.of(inputFile("elsewhere.csv", 10)))))
+                    .isTrue();
+        }
+    }
+
+    /**
+     * The same input kept somewhere else is still the same input - moved, restored from a copy, or reached over a path
+     * resolved from another working directory - so what it hashes to cannot depend on where the files sit, only on what
+     * they are called and how big they are.
+     */
+    @Test
+    void noInputChangeWhenTheSameFilesAreReadFromAnotherDirectory() throws IOException {
+        ArrayList<Path> input = new ArrayList<>(List.of(inputFile("nodes.csv", 10), inputFile("rels.csv", 20)));
+
+        try (ImportContext importContext = persistedInputFilesHashOf(input)) {
+            ArrayList<Path> elsewhere =
+                    new ArrayList<>(List.of(inputFileIn("copy", "nodes.csv", 10), inputFileIn("copy", "rels.csv", 20)));
+
+            assertThat(importContext.inputFilesChanged(elsewhere)).isFalse();
+        }
+    }
+
+    @Test
+    void aFileThatGrewWhileTheInputMovedIsStillAChange() throws IOException {
+        ArrayList<Path> input = new ArrayList<>(List.of(inputFile("nodes.csv", 10)));
+
+        try (ImportContext importContext = persistedInputFilesHashOf(input)) {
+            assertThat(importContext.inputFilesChanged(new ArrayList<>(List.of(inputFileIn("copy", "nodes.csv", 11)))))
+                    .isTrue();
+        }
+    }
+
+    @Test
+    void theSameFileNamesSpreadOverDirectoriesDifferentlyIsNoChange() throws IOException {
+        ArrayList<Path> input =
+                new ArrayList<>(List.of(inputFile("nodes.csv", 10), inputFileIn("more", "rels.csv", 20)));
+
+        try (ImportContext importContext = persistedInputFilesHashOf(input)) {
+            // the file groups an import is given say nothing about the directories the files were collected from, so
+            // gathering the very same files under one roof leaves the input it reads unchanged
+            ArrayList<Path> gathered =
+                    new ArrayList<>(List.of(inputFileIn("copy", "nodes.csv", 10), inputFileIn("copy", "rels.csv", 20)));
+
+            assertThat(importContext.inputFilesChanged(gathered)).isFalse();
+        }
+    }
+
+    /**
+     * A cloud storage path fetches its size when asked for it rather than when its attributes are read, so a file
+     * that
+     * is gone cannot report itself through the checked exception a local path fails with - it arrives wrapped in an
+     * unchecked one, as whichever of the two exceptions the storage in question uses for 'not there'.
+     */
+    @ParameterizedTest
+    @MethodSource
+    void aCloudFileGoneMissingSinceTheAttemptReadItIsAChange(IOException notThere) throws IOException {
+        String uri = "cloud://bucket/nodes.csv";
+        try (ImportContext importContext =
+                persistedInputFilesHashOf(new ArrayList<>(List.of(cloudFile(uri, () -> 10))))) {
+
+            Path gone = cloudFile(uri, failingWith(notThere));
+
+            assertThat(importContext.inputFilesChanged(new ArrayList<>(List.of(gone))))
+                    .isTrue();
+        }
+    }
+
+    private static Stream<Arguments> aCloudFileGoneMissingSinceTheAttemptReadItIsAChange() {
+        String uri = "cloud://bucket/nodes.csv";
+        return Stream.of(Arguments.of(new NoSuchFileException(uri)), Arguments.of(new FileNotFoundException(uri)));
+    }
+
+    @Test
+    void aCloudFileThatCannotBeReachedAtAllIsNotPassedOffAsAChange() throws IOException {
+        try (ImportContext importContext =
+                persistedInputFilesHashOf(new ArrayList<>(List.of(inputFile("nodes.csv", 10))))) {
+
+            Path unreachable = cloudFile("cloud://bucket/nodes.csv", failingWith(new IOException("timed out")));
+
+            // reading the size failed for a reason that says nothing about the input, and refusing the resume over it
+            // would turn a storage hiccup into a permanently unresumable attempt
+            assertThatThrownBy(() -> importContext.inputFilesChanged(new ArrayList<>(List.of(unreachable))))
+                    .isInstanceOf(UncheckedIOException.class)
+                    .hasRootCauseMessage("timed out");
+        }
+    }
+
+    @Test
+    void noInputChangeWhenTheAttemptRecordedNoInputAtAll() throws IOException {
+
+        ImportContext importContext = getRetainingImportContext();
+        assertThat(importContext.inputFilesChanged(new ArrayList<>(List.of(inputFile("nodes.csv", 10)))))
+                .isFalse();
+    }
+
+    @Test
+    void aRecordHoldingSomethingOtherThanAHashIsAChange() throws IOException {
+        ArrayList<Path> input = new ArrayList<>(List.of(inputFile("nodes.csv", 10)));
+        try (ImportContext importContext = persistedInputFilesHashOf(input)) {
+            Path recorded = importContext.baseDir().resolve(ImportContext.INPUT_FILES_FILE_NAME);
+            Files.deleteIfExists(recorded);
+
+            Files.writeString(recorded, "not a hash");
+
+            assertThat(importContext.inputFilesChanged(input)).isTrue();
+        }
     }
 
     @Test
@@ -1196,6 +1414,68 @@ class ImportContextTest {
         try (var importContext = getRetainingImportContext()) {
             importContext.persistConfig();
             return importContext.baseDir();
+        }
+    }
+
+    private Path inputFile(String name, int size) throws IOException {
+        return inputFileIn("input", name, size);
+    }
+
+    private Path inputFileIn(String directory, String name, int size) throws IOException {
+        Path file = testDir.directory(directory).resolve(name);
+        resize(file, size);
+        return file;
+    }
+
+    private static void resize(Path file, int size) throws IOException {
+        Files.write(file, new byte[size]);
+    }
+
+    /**
+     * A path into cloud storage, which reads the size of what it points at only once asked for it rather than when its
+     * attributes are read - so that is where a file that is not there fails, and it fails unchecked, since
+     * {@link BasicFileAttributes#size()} cannot do otherwise.
+     */
+    private static Path cloudFile(String uri, LongSupplier size) throws IOException {
+        var provider = mock(StorageSystemProvider.class);
+        var storageSystem = mock(StorageSystem.class);
+        var file = mock(StoragePath.class);
+        when(storageSystem.provider()).thenReturn(provider);
+        when(file.getFileSystem()).thenReturn(storageSystem);
+        when(file.toString()).thenReturn(uri);
+        when(provider.readAttributes(file, BasicFileAttributes.class)).thenReturn(attributesSizedBy(file, size));
+        return file;
+    }
+
+    private static StoragePathAttributes attributesSizedBy(StoragePath file, LongSupplier size) {
+        return new StoragePathAttributes(file) {
+            @Override
+            public long size() {
+                return size.getAsLong();
+            }
+
+            @Override
+            public FileTime creationTime() {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public Object fileKey() {
+                throw new UnsupportedOperationException();
+            }
+        };
+    }
+
+    private static LongSupplier failingWith(IOException cause) {
+        return () -> {
+            throw new UncheckedIOException(cause);
+        };
+    }
+
+    private ImportContext persistedInputFilesHashOf(ArrayList<Path> inputFiles) {
+        try (var importContext = ImportContext.create(fs, DB, null, config, null, List.of(), false, true, false)) {
+            importContext.persistInputFilesHash(inputFiles);
+            return importContext;
         }
     }
 

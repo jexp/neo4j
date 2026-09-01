@@ -20,7 +20,6 @@
 package org.neo4j.importer;
 
 import static java.lang.String.format;
-import static java.util.Collections.unmodifiableMap;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.exception.ExceptionUtils.getThrowableList;
 import static org.apache.commons.lang3.exception.ExceptionUtils.indexOfThrowable;
@@ -46,9 +45,11 @@ import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.Path;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.SequencedSet;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -190,7 +191,11 @@ public class FileImporter {
      * given on the command line.
      */
     public Map<Set<String>, List<FileGroup>> nodeFiles() {
-        return unmodifiableMap(nodeFiles);
+        var copy = new LinkedHashMap<Set<String>, List<FileGroup>>();
+        for (Entry<Set<String>, List<FileGroup>> entry : nodeFiles.entrySet()) {
+            copy.put(Collections.unmodifiableSet(entry.getKey()), Collections.unmodifiableList(entry.getValue()));
+        }
+        return Collections.unmodifiableMap(copy);
     }
 
     /**
@@ -198,7 +203,11 @@ public class FileImporter {
      * were given on the command line.
      */
     public Map<String, List<FileGroup>> relationshipFiles() {
-        return unmodifiableMap(relationshipFiles);
+        var copy = new LinkedHashMap<String, List<FileGroup>>();
+        for (Entry<String, List<FileGroup>> entry : relationshipFiles.entrySet()) {
+            copy.put(entry.getKey(), Collections.unmodifiableList(entry.getValue()));
+        }
+        return Collections.unmodifiableMap(copy);
     }
 
     public void dryRun(ImportCommand.Base type) throws IOException {

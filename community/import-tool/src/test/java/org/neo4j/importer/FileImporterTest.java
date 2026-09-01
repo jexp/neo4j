@@ -256,7 +256,7 @@ class FileImporterTest {
                 .toArray(NumberedFile[]::new));
     }
 
-    private static List<Integer> traversalOrder(Collection<List<FileGroup>> fileGroups) {
+    private static List<Integer> traversalOrder(Collection<? extends List<FileGroup>> fileGroups) {
         return fileGroups.stream()
                 .flatMap(List::stream)
                 .flatMap(fileGroup -> Stream.of(fileGroup.files()))
