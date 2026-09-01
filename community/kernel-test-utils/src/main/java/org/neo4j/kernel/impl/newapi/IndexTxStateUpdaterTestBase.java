@@ -31,6 +31,7 @@ import static org.neo4j.storageengine.api.txstate.TransactionStateBehaviour.DEFA
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.neo4j.internal.kernel.api.Read;
 import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
 import org.neo4j.internal.kernel.api.helpers.StubPropertyCursor;
 import org.neo4j.internal.schema.IndexDescriptor;
@@ -104,8 +105,8 @@ public class IndexTxStateUpdaterTestBase {
         TxStateHolder txStateHolder = mock(TxStateHolder.class);
         when(txStateHolder.txState()).thenReturn(txState);
         transactionStateBehaviour = DEFAULT_BEHAVIOUR;
-        indexTxUpdater =
-                new IndexTxStateUpdater(storageReader, indexingService, txStateHolder, transactionStateBehaviour);
+        indexTxUpdater = new IndexTxStateUpdater(
+                storageReader, mock(Read.class), indexingService, txStateHolder, transactionStateBehaviour);
     }
 
     public TransactionStateBehaviour getTransactionStateBehaviour() {

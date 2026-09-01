@@ -488,7 +488,8 @@ public class KernelTransactionImplementation
         this.operations = new Operations(
                 kernelRead,
                 storageReader,
-                new IndexTxStateUpdater(storageReader, indexingService, txStateHolder, transactionStateBehaviour),
+                new IndexTxStateUpdater(
+                        storageReader, kernelRead, indexingService, txStateHolder, transactionStateBehaviour),
                 commandCreationContext,
                 dbmsRuntimeVersionProvider,
                 kernelVersionProvider,
