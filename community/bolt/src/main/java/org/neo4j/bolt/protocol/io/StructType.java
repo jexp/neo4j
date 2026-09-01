@@ -39,6 +39,7 @@ public enum StructType {
     DATE_TIME_ZONE_ID_LEGACY('f', 3),
     LOCAL_DATE_TIME('d', 2),
     DURATION('E', 4),
+    ENCRYPTED('e', 1), // not used, reserved for encrypted type
     POINT_2D('X', 3),
     POINT_3D('Y', 4),
     VECTOR('V', 2),
