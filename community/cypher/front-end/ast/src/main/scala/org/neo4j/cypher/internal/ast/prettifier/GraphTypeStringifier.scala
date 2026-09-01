@@ -129,9 +129,13 @@ object GraphTypeStringifier {
     val graphTypeEntries = graphType.types.toList.sorted.map(entry => stringifyEntry(entry))
     val graphTypeConstraints =
       graphType.constraints.toList.sorted.map(entry => stringifyGraphTypeConstraint(entry))
-    s"""{
-       |$BASE_INDENT${(graphTypeEntries ++ graphTypeConstraints).mkString(s",$NL$BASE_INDENT")}
-       |}""".stripMargin
+
+    if (graphTypeEntries.isEmpty && graphTypeConstraints.isEmpty) "{}"
+    else {
+      s"""{
+         |$BASE_INDENT${(graphTypeEntries ++ graphTypeConstraints).mkString(s",$NL$BASE_INDENT")}
+         |}""".stripMargin
+    }
   }
 
   private def stringifyEntry(

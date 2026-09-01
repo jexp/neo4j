@@ -212,6 +212,11 @@ class GraphTypeStringifierTest extends CypherFunSuite with AstGraphTypeConstruct
         |}""".stripMargin
   }
 
+  test("should stringify empty graph type") {
+    // {}
+    graphType(Seq(), Seq()) shouldStringifyTo "{}"
+  }
+
   GraphTypeTestCase.testcases.collect { case GraphTypeTestCase(name, _, ast, prettifiedCypher, _) =>
     test(name) {
       ast shouldStringifyTo prettifiedCypher

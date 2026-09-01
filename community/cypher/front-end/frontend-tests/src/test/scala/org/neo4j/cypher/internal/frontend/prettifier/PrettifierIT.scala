@@ -1638,7 +1638,7 @@ class PrettifierIT extends AbstractPrettifierTest {
       "DROP INDEX foo IF EXISTS"
   )
 
-  def constraintCommandTests(): Seq[Test] = Seq(
+  def constraintCommandTests(): Seq[Test] = Seq[Test](
     ChangedBetween5And25(
       "create CONSTRAINT FOR (n:A) REQUIRE (n.p) IS NODE KEY",
       "CREATE CONSTRAINT FOR (n:A) REQUIRE (n.p) IS NODE KEY",
@@ -1940,6 +1940,75 @@ class PrettifierIT extends AbstractPrettifierTest {
       "DROP CONSTRAINT $foo",
     "drop CONSTRAINT foo IF exists" ->
       "DROP CONSTRAINT foo IF EXISTS"
+  ) ++ Seq[Test](
+    FailsInCypher5(
+      "alter current graph type set {}",
+      "ALTER CURRENT GRAPH TYPE SET {}"
+    ),
+    FailsInCypher5(
+      "alter current graph type set { (:Student => :Person) }",
+      """ALTER CURRENT GRAPH TYPE SET {
+        |  (:`Student` => :`Person`)
+        |}""".stripMargin
+    ),
+    FailsInCypher5(
+      "alter current graph type set { (:Label => { prop string }) }",
+      """ALTER CURRENT GRAPH TYPE SET {
+        |  (:`Label` => {`prop` :: STRING})
+        |}""".stripMargin
+    ),
+    FailsInCypher5(
+      "alter current graph type set { CONSTRAINT name FOR (n:Label) REQUIRE n.prop IS NOT NULL }",
+      """ALTER CURRENT GRAPH TYPE SET {
+        |  CONSTRAINT `name` FOR (`n`:`Label`) REQUIRE (`n`.`prop`) IS NOT NULL
+        |}""".stripMargin
+    ),
+    FailsInCypher5(
+      "alter current graph type set { (:Label => {prop::STRING}), CONSTRAINT name FOR (n:Label) REQUIRE n.prop IS KEY }",
+      """ALTER CURRENT GRAPH TYPE SET {
+        |  (:`Label` => {`prop` :: STRING}),
+        |  CONSTRAINT `name` FOR (`n`:`Label`) REQUIRE (`n`.`prop`) IS KEY
+        |}""".stripMargin
+    ),
+    FailsInCypher5(
+      "alter current graph type add {}",
+      "ALTER CURRENT GRAPH TYPE ADD {}"
+    ),
+    FailsInCypher5(
+      "alter current graph type add { (:Label => :Label2) }",
+      """ALTER CURRENT GRAPH TYPE ADD {
+        |  (:`Label` => :`Label2`)
+        |}""".stripMargin
+    ),
+    FailsInCypher5(
+      "alter current graph type add { CONSTRAINT FOR (n:Label) REQUIRE n.prop IS UNIQUE }",
+      """ALTER CURRENT GRAPH TYPE ADD {
+        |  CONSTRAINT FOR (`n`:`Label`) REQUIRE (`n`.`prop`) IS UNIQUE
+        |}""".stripMargin
+    ),
+    FailsInCypher5(
+      "alter current graph type aLtEr {}",
+      "ALTER CURRENT GRAPH TYPE ALTER {}"
+    ),
+    FailsInCypher5(
+      "alter current graph type alter { (:Label => {prop :: int not null}) }",
+      """ALTER CURRENT GRAPH TYPE ALTER {
+        |  (:`Label` => {`prop` :: INTEGER NOT NULL})
+        |}""".stripMargin
+    ),
+    FailsInCypher5(
+      "alter current graph type drop {}",
+      "ALTER CURRENT GRAPH TYPE DROP {}"
+    ),
+    FailsInCypher5(
+      "alter current graph type drop { (:Label =>), ()-[:REL =>]->(:Label), (:Label2 => :Label3 {prop :: float}), constraint name }",
+      """ALTER CURRENT GRAPH TYPE DROP {
+        |  (:`Label` =>),
+        |  (:`Label2` => :`Label3` {`prop` :: FLOAT}),
+        |  ()-[:`REL` =>]->(:`Label`),
+        |  CONSTRAINT `name`
+        |}""".stripMargin
+    )
   )
 
   def showCommandTests(): Seq[Test] = Seq[Test](
