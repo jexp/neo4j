@@ -31,9 +31,14 @@ import static org.neo4j.util.Preconditions.requirePowerOfTwo;
 import static org.neo4j.wal.entry.LogEnvelopeHeader.HEADER_SIZE;
 import static org.neo4j.wal.entry.LogEnvelopeHeader.IGNORE_CONTENT_VERSION;
 import static org.neo4j.wal.entry.LogEnvelopeHeader.MAX_ZERO_PADDING_SIZE;
+import static org.neo4j.wal.entry.LogEnvelopeHeader.OFFSET_APPEND_INDEX;
+import static org.neo4j.wal.entry.LogEnvelopeHeader.OFFSET_CHECKSUM;
+import static org.neo4j.wal.entry.LogEnvelopeHeader.OFFSET_CONTENT_TYPE;
 import static org.neo4j.wal.entry.LogEnvelopeHeader.OFFSET_ENVELOPE_TYPE;
+import static org.neo4j.wal.entry.LogEnvelopeHeader.OFFSET_KERNEL_VERSION;
 import static org.neo4j.wal.entry.LogEnvelopeHeader.OFFSET_PAYLOAD_LENGTH;
 import static org.neo4j.wal.entry.LogEnvelopeHeader.OFFSET_PREVIOUS_CHECKSUM;
+import static org.neo4j.wal.entry.LogEnvelopeHeader.OFFSET_TERM;
 import static org.neo4j.wal.entry.LogEnvelopeHeader.UNSPECIFIED_TERM;
 
 import java.io.Flushable;
@@ -41,6 +46,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.util.zip.Checksum;
+import org.neo4j.io.fs.ChecksumMismatchException;
 import org.neo4j.io.fs.PhysicalLogChannel;
 import org.neo4j.io.fs.StoreChannel;
 import org.neo4j.io.fs.WritableChannel;
@@ -110,7 +116,6 @@ public class EnvelopeWriteChannel implements PhysicalLogChannel {
 
     private static final byte[] PADDING_ZEROES = new byte[MAX_ZERO_PADDING_SIZE];
 
-    // Offsets of fields within an envelope frame header (matches completeEnvelope's write order / HEADER_SIZE).
     private final Checksum checksum = CHECKSUM_FACTORY.get();
     private final ScopedBuffer scopedBuffer;
     private final LogRotation logRotation;
@@ -186,6 +191,8 @@ public class EnvelopeWriteChannel implements PhysicalLogChannel {
     }
 
     public void prepareNextEnvelope() throws IOException {
+        checkState(begin, "Cannot start a new envelope: an entry with index %s is still open.", currentIndex);
+        checkNoBufferedEnvelope("Cannot start a new envelope");
         prepareWrite();
         beginNewEnvelope();
     }
@@ -424,80 +431,293 @@ public class EnvelopeWriteChannel implements PhysicalLogChannel {
     }
 
     /**
-     * Appends raw, already-enveloped bytes (shipped verbatim from another member) at the current position and, unlike
-     * {@link #directPutAll(ByteBuffer, long)} which leaves rotation to the caller, rotates on {@link #rotateAtSize}
-     * like the normal append path. Expects buffers are not cut in middle of header so it's always possible to peek
-     * when rotation is needed.
+     * Appends one whole raft entry, shipped verbatim from another member as the envelopes its log already holds:
+     * {@code chunks} must together carry every envelope of exactly one entry (empty chunks are ignored). Only entry
+     * envelopes ship: a START_OFFSET filler belongs to the local file it was rotated or truncated into, not to the
+     * envelope chain the members share, so it is never valid input here. Unlike
+     * {@link #directPutAll(ByteBuffer, long)}, which leaves rotation to the caller, this rotates on the size limit
+     * like the local append path.
      * <p>
-     * {@code index}/{@code term} are supplied by the caller; the rest of the state a rotated file's
-     * header needs — the chain's previous checksum and whether the boundary splits an entry — is peeked from the
-     * next frame's header when, and only when, a rotation is actually due.
+     * Every envelope is verified before its bytes can reach the log, and the channel's tracked state is updated
+     * from it, so the channel stays calibrated across raw appends without re-reading the tail from disk.
+     * Verification costs one CRC32C pass over the envelope — the same order of work as the copy it accompanies. A corrupt envelope would otherwise be
+     * caught only when later read for apply: by then it is durable in the log and may have been shipped onward, so
+     * rejecting here keeps the durable log clean.
      * <p>
-     * NOTE: This means that the write channel is still in a semi-detached state when this method is used since its
-     * only keeping track of index and term
+     * Padding is not always part of the shipped bytes — the padding after a range's last entry, for instance, is
+     * never shipped — so the zero bytes the sender's log holds before the next entry may be missing here. Whether
+     * they are due cannot be known from the write position alone (a small enough envelope still fits in the tail),
+     * so the inbound envelope's header is peeked before each entry starts, and any missing padding is re-created;
+     * padding that does arrive in-stream is copied verbatim. Kernel-version consistency within a file is not
+     * checked per envelope; the upgrade flow forces a rotation on version changes.
+     *
+     * @throws ChecksumMismatchException when an envelope's checksum does not match its bytes, or its
+     * previous-checksum field does not continue the tracked chain — corrupt shipping or a diverged log.
+     * @throws IllegalStateException when the entry is torn (an envelope cut mid-chunk, or a last envelope leaving
+     * the entry open), ships no envelopes, disagrees with {@code index}/{@code term}, or is misaligned to this
+     * log's segment grid. Only verified bytes are ever flushed, but an entry crossing a segment boundary can
+     * leave earlier envelopes durable before a later one is rejected; recovery truncates that torn tail.
      */
-    public PhysicalLogChannel appendRaw(ByteBuffer src, long index, long term) throws IOException {
-        // Shipped buffers arrive big-endian (ByteBuffer.wrap default), but the envelope header ints we peek were
-        // written in the log's byte order; read them as such. The bulk byte copies below are order-independent.
-        src.order(buffer.order());
-        padAndRotateBeforeRawFrame(src);
-        currentIndex = index;
-        currentTerm = term;
-        nextTerm = term;
-        final int length = src.remaining();
-        final int srcEnd = src.position() + length;
-        int srcIndex = src.position();
-        while (srcIndex < srcEnd) {
-            int payloadChunk = min(srcEnd - srcIndex, nextSegmentOffset - buffer.position());
-            buffer.put(buffer.position(), src, srcIndex, payloadChunk);
-            buffer.position(buffer.position() + payloadChunk);
-            srcIndex += payloadChunk;
-            if (srcIndex != srcEnd) {
-                // A boundary reached mid-buffer must fall between frames: src[srcIndex] has to start a new frame.
-                // Otherwise the shipped bytes are misaligned to our segment grid and we would write a frame
-                // straddling the boundary, corrupting the log (invalid envelope type when later read at the segment).
-                checkRawFrameStart(src, srcIndex);
-                padSegmentAndGoToNext(false);
-                rotateRawIfLimitReached(src, srcIndex);
+    public PhysicalLogChannel appendRaw(ByteBuffer[] chunks, long index, long term) throws IOException {
+        checkNoBufferedEnvelope("Cannot append raw envelopes");
+        boolean sawEnvelope = false;
+        boolean stateSeeded = false;
+        for (ByteBuffer src : chunks) {
+            if (!src.hasRemaining()) {
+                // with nothing to peek, the padding logic below would mistake a short tail for a stripped
+                // padding run and pad (possibly rotate) on thin air
+                continue;
             }
+            // Shipped buffers arrive big-endian (ByteBuffer.wrap default), but the envelope header ints we peek were
+            // written in the log's byte order; read them as such. The bulk byte copies below are order-independent.
+            src.order(buffer.order());
+            padAndRotateBeforeRawEnvelope(src, index);
+            // parse watermark: raw bytes below this buffer offset have been parsed and mirrored into channel state
+            int rawParsedOffset = buffer.position();
+            if (!stateSeeded) {
+                // assigned after the first chunk's pre-write rotation check, so a rotation at the entry start
+                // carries the previous entry's index and term
+                currentIndex = index;
+                currentTerm = term;
+                nextTerm = term;
+                stateSeeded = true;
+            }
+            final int length = src.remaining();
+            final int srcEnd = src.position() + length;
+            int srcIndex = src.position();
+            while (srcIndex < srcEnd) {
+                int payloadChunk = min(srcEnd - srcIndex, nextSegmentOffset - buffer.position());
+                buffer.put(buffer.position(), src, srcIndex, payloadChunk);
+                buffer.position(buffer.position() + payloadChunk);
+                srcIndex += payloadChunk;
+                if (srcIndex != srcEnd) {
+                    // the buffer window may wrap below, so this window's envelopes must be parsed while still in it
+                    var parsed = parseRawEnvelopes(rawParsedOffset);
+                    sawEnvelope |= parsed.sawEnvelope();
+                    // the payload-length bounds keep every envelope inside its own segment, so a walk that got
+                    // this far cannot stall short of the boundary it reached
+                    assert parsed.watermark() == buffer.position();
+                    padSegmentAndGoToNext();
+                    rawParsedOffset = buffer.position();
+                }
+            }
+            var parsed = parseRawEnvelopes(rawParsedOffset);
+            rawParsedOffset = parsed.watermark();
+            sawEnvelope |= parsed.sawEnvelope();
+            if (rawParsedOffset != buffer.position()) {
+                throw new IllegalStateException(
+                        ("Raw appended entry with index %s is torn: a chunk ended with %s bytes of an incomplete "
+                                        + "envelope at file position %s. Every envelope must be appended whole within "
+                                        + "one chunk.")
+                                .formatted(index, buffer.position() - rawParsedOffset, filePosition(rawParsedOffset)));
+            }
+            appendedBytes += length;
         }
-        appendedBytes += length;
+        // the caller has already counted this entry as appended; accepting an envelope-less entry would surface
+        // the divergence one entry later
+        checkState(
+                sawEnvelope,
+                "Raw appended entry with index %s and term %s contains no envelopes: an entry must ship at least "
+                        + "one envelope.",
+                index,
+                term);
+        checkState(
+                begin,
+                "Raw appended entry with index %s is torn: its last envelope leaves the entry open. "
+                        + "All envelopes of an entry must be appended in one call.",
+                index);
         currentEnvelopeStart = buffer.position();
         return this;
     }
 
     /**
-     * Pads the current segment (and rotates on the size limit) before a shipped frame that would not fit in the bytes left to the boundary, folding in the
+     * Parses the raw bytes appended between {@code rawParsedOffset} and the buffer position, mirroring channel
+     * state from every completed envelope and skipping segment-tail padding.
+     *
+     * @return the new watermark — the buffer offset up to which the appended bytes have been parsed — and
+     * whether this walk parsed any envelope.
+     */
+    private RawParse parseRawEnvelopes(int rawParsedOffset) throws IOException {
+        final int parseEnd = buffer.position();
+        boolean sawEnvelope = false;
+        while (rawParsedOffset < parseEnd) {
+            final int segmentEnd = (rawParsedOffset / segmentBlockSize + 1) * segmentBlockSize;
+            final int available = parseEnd - rawParsedOffset;
+            if (segmentEnd - rawParsedOffset <= HEADER_SIZE) {
+                // too close to the boundary to fit any envelope: must be a padding run
+                rawParsedOffset = skipRawPadding(rawParsedOffset, min(segmentEnd, parseEnd));
+                continue;
+            }
+            if (available < OFFSET_ENVELOPE_TYPE + Byte.BYTES) {
+                return new RawParse(rawParsedOffset, sawEnvelope); // cannot tell an envelope from a padding run yet
+            }
+            final byte type = buffer.get(rawParsedOffset + OFFSET_ENVELOPE_TYPE);
+            if (type == EnvelopeType.ZERO.typeValue) {
+                if (segmentEnd - rawParsedOffset > MAX_ZERO_PADDING_SIZE) {
+                    throw new IllegalStateException(
+                            ("Raw append of entry with index %s found a zero envelope type byte at file position %s, "
+                                            + "%s bytes before the segment boundary: zero padding is only valid "
+                                            + "within %s bytes of it.")
+                                    .formatted(
+                                            currentIndex,
+                                            filePosition(rawParsedOffset),
+                                            segmentEnd - rawParsedOffset,
+                                            MAX_ZERO_PADDING_SIZE));
+                }
+                rawParsedOffset = skipRawPadding(rawParsedOffset, min(segmentEnd, parseEnd));
+                continue;
+            }
+            if (!isRawEnvelopeType(type)) {
+                throw new IllegalStateException(
+                        ("Raw append of entry with index %s expected an envelope at file position %s but found envelope "
+                                        + "type %s: only FULL, BEGIN, MIDDLE and END envelopes can be raw appended.")
+                                .formatted(currentIndex, filePosition(rawParsedOffset), type));
+            }
+            if (available < OFFSET_PAYLOAD_LENGTH + Integer.BYTES) {
+                return new RawParse(rawParsedOffset, sawEnvelope); // payload length not appended yet
+            }
+            final int payloadLength = buffer.getInt(rawParsedOffset + OFFSET_PAYLOAD_LENGTH);
+            final int spaceLeftInSegment = segmentEnd - rawParsedOffset - HEADER_SIZE;
+            if (payloadLength <= 0 || payloadLength > spaceLeftInSegment) {
+                throw new IllegalStateException(
+                        ("Raw appended envelope at file position %s (index %s) has payload length %s, "
+                                        + "outside (0, %s], the payload space left in its segment.")
+                                .formatted(
+                                        filePosition(rawParsedOffset),
+                                        currentIndex,
+                                        payloadLength,
+                                        spaceLeftInSegment));
+            }
+            final int envelopeEnd = rawParsedOffset + HEADER_SIZE + payloadLength;
+            if (envelopeEnd > parseEnd) {
+                return new RawParse(rawParsedOffset, sawEnvelope); // incomplete envelope
+            }
+            parseRawEnvelope(rawParsedOffset, envelopeEnd, type);
+            sawEnvelope = true;
+            rawParsedOffset = envelopeEnd;
+        }
+        return new RawParse(rawParsedOffset, sawEnvelope);
+    }
+
+    private void parseRawEnvelope(int envelopeStart, int envelopeEnd, byte type) throws IOException {
+        final int computedChecksum = calculateChecksum(envelopeEnd, envelopeStart + OFFSET_ENVELOPE_TYPE);
+        final int envelopeChecksum = buffer.getInt(envelopeStart + OFFSET_CHECKSUM);
+        if (envelopeChecksum != computedChecksum) {
+            throw new ChecksumMismatchException(
+                    "Raw appended envelope at file position " + filePosition(envelopeStart) + " (index " + currentIndex
+                            + ", term " + currentTerm + "): the stored checksum '%d' does not match the calculated "
+                            + "checksum of '%d'.",
+                    envelopeChecksum,
+                    computedChecksum);
+        }
+        final int envelopePreviousChecksum = buffer.getInt(envelopeStart + OFFSET_PREVIOUS_CHECKSUM);
+        if (envelopePreviousChecksum != previousChecksum) {
+            throw new ChecksumMismatchException(
+                    "Raw appended envelope at file position " + filePosition(envelopeStart) + " (index " + currentIndex
+                            + ", term " + currentTerm + ") broke the checksum chain. Previous checksum field: %d, "
+                            + "expected: %d.",
+                    envelopePreviousChecksum,
+                    previousChecksum);
+        }
+        final long envelopeIndex = buffer.getLong(envelopeStart + OFFSET_APPEND_INDEX);
+        if (envelopeIndex != currentIndex) {
+            throw new IllegalStateException(
+                    "Raw appended envelope at file position %s has index %s but the append was called with index %s"
+                            .formatted(filePosition(envelopeStart), envelopeIndex, currentIndex));
+        }
+        final long envelopeTerm = buffer.getLong(envelopeStart + OFFSET_TERM);
+        if (envelopeTerm != currentTerm) {
+            throw new IllegalStateException(
+                    ("Raw appended envelope at file position %s (index %s) has term %s but the append was called "
+                                    + "with term %s")
+                            .formatted(filePosition(envelopeStart), currentIndex, envelopeTerm, currentTerm));
+        }
+
+        previousChecksum = envelopeChecksum;
+        currentVersion = buffer.get(envelopeStart + OFFSET_KERNEL_VERSION);
+        currentContentType = buffer.get(envelopeStart + OFFSET_CONTENT_TYPE);
+        begin = type == EnvelopeType.FULL.typeValue || type == EnvelopeType.END.typeValue;
+    }
+
+    private record RawParse(int watermark, boolean sawEnvelope) {}
+
+    private int skipRawPadding(int paddingStart, int paddingEnd) throws IOException {
+        for (int i = paddingStart; i < paddingEnd; i++) {
+            final byte padByte = buffer.get(i);
+            if (padByte != 0) {
+                throw new IllegalStateException(
+                        ("Raw append of entry with index %s expected zero padding up to the segment boundary but "
+                                        + "found non-zero byte %s at file position %s.")
+                                .formatted(currentIndex, padByte, filePosition(i)));
+            }
+        }
+        return paddingEnd;
+    }
+
+    private void checkNoBufferedEnvelope(String action) throws IOException {
+        if (buffer.position() != currentEnvelopeStart) {
+            throw new IllegalStateException(
+                    ("%s: an entry is still open with %s bytes pending after the last completed envelope at file "
+                                    + "position %s.")
+                            .formatted(
+                                    action,
+                                    buffer.position() - currentEnvelopeStart,
+                                    filePosition(currentEnvelopeStart)));
+        }
+    }
+
+    /**
+     * Maps a buffer-window offset to its position in the log file. Only for failure messages: the mapping reads
+     * {@code channel.position()}, a syscall too hot for eager checkState arguments, which is why the raw-append
+     * rejections use explicit if-throws.
+     */
+    private long filePosition(int bufferOffset) throws IOException {
+        return channel.position() - lastWrittenPosition + bufferOffset;
+    }
+
+    /**
+     * Pads the current segment (and rotates on the size limit) before a shipped envelope that would not fit in the bytes left to the boundary, folding in the
      * plain "no room for a header" check.
      * <p>
      * It is not possible to know if padding is needed without peeking, this is because padding depends on what content was written after the header and
      * therefor peeking is necessary.
      */
-    private void padAndRotateBeforeRawFrame(ByteBuffer src) throws IOException {
-        int frameStart = src.position();
+    private void padAndRotateBeforeRawEnvelope(ByteBuffer src, long index) throws IOException {
+        int envelopeStart = src.position();
         int tail = nextSegmentOffset - buffer.position();
         if (tail >= segmentBlockSize) {
             return; // already on a fresh segment boundary
         }
         boolean fits;
-        if (src.remaining() >= HEADER_SIZE && isRawEntryStart(src.get(frameStart + OFFSET_ENVELOPE_TYPE))) {
-            final int frameLength = HEADER_SIZE + src.getInt(frameStart + OFFSET_PAYLOAD_LENGTH);
+        if (src.remaining() >= HEADER_SIZE && isRawEntryStart(src.get(envelopeStart + OFFSET_ENVELOPE_TYPE))) {
+            final int payloadLength = src.getInt(envelopeStart + OFFSET_PAYLOAD_LENGTH);
+            final int segmentPayloadSpace = segmentBlockSize - HEADER_SIZE;
+            // the parser's per-position bound only sees this length after the copy, by which point a garbage
+            // length has already decided the padding below, and padding can rotate
             checkState(
-                    frameLength <= tail || tail <= MAX_ZERO_PADDING_SIZE,
-                    "Raw append would pad a %d-byte tail before a %d-byte frame, but a tail larger than the max "
-                            + "zero-padding size (%d) cannot be padding; the shipped bytes are misaligned to the "
-                            + "segment grid.",
+                    payloadLength > 0 && payloadLength <= segmentPayloadSpace,
+                    "Raw append of entry with index %d peeked payload length %d in the shipped envelope header, "
+                            + "outside (0, %d], the payload space of a segment.",
+                    index,
+                    payloadLength,
+                    segmentPayloadSpace);
+            final int envelopeLength = HEADER_SIZE + payloadLength;
+            checkState(
+                    envelopeLength <= tail || tail <= MAX_ZERO_PADDING_SIZE,
+                    "Raw append of entry with index %d would pad a %d-byte tail before a %d-byte envelope, but a "
+                            + "tail larger than the max zero-padding size (%d) cannot be padding; the shipped bytes "
+                            + "are misaligned to the segment grid.",
+                    index,
                     tail,
-                    frameLength,
+                    envelopeLength,
                     MAX_ZERO_PADDING_SIZE);
-            fits = frameLength <= tail;
+            fits = envelopeLength <= tail;
         } else {
             // MIDDLE/END continuation, or a sub-header chunk: only advance the grid when on a boundary.
             fits = tail > HEADER_SIZE;
         }
         if (!fits) {
-            padSegmentAndGoToNext(false);
-            rotateRawIfLimitReached(src, frameStart);
+            padSegmentAndGoToNext();
         }
     }
 
@@ -505,37 +725,11 @@ public class EnvelopeWriteChannel implements PhysicalLogChannel {
         return type == EnvelopeType.FULL.typeValue || type == EnvelopeType.BEGIN.typeValue;
     }
 
-    /**
-     * Peeks the checksum from the next header to perform a rotation. Expects index and term to be set correct.
-     * {@code src}'s byte order is set to the log's in {@link #appendRaw}, so the absolute read uses the right order.
-     */
-    private void rotateRawIfLimitReached(ByteBuffer src, int nextHeaderOffset) throws IOException {
-        if (channel.position() < rotateAtSize) {
-            return;
-        }
-        previousChecksum = src.getInt(nextHeaderOffset + OFFSET_PREVIOUS_CHECKSUM);
-        rotateLogFile();
-    }
-
-    /**
-     * Tripwire for {@link #appendRaw}: a segment boundary reached part-way through {@code src} must land on a frame
-     * header, not inside a frame or in padding. A frame may never straddle a segment boundary (entries that span
-     * segments do so as separate BEGIN/MIDDLE/END frames), so the type byte at {@code frameStart} must be one of the
-     * real frame types. Anything else means the shipped bytes are misaligned to this log's segment grid and we are
-     * about to corrupt it.
-     */
-    private static void checkRawFrameStart(ByteBuffer src, int frameStart) {
-        byte typeValue = src.get(frameStart + OFFSET_ENVELOPE_TYPE);
-        boolean atFrameStart = typeValue == EnvelopeType.FULL.typeValue
-                || typeValue == EnvelopeType.BEGIN.typeValue
-                || typeValue == EnvelopeType.MIDDLE.typeValue
-                || typeValue == EnvelopeType.END.typeValue;
-        checkState(
-                atFrameStart,
-                "Raw append reached a segment boundary in the middle of a frame (envelope type byte %d at buffer "
-                        + "offset %d); the shipped bytes are misaligned to this log's segment grid.",
-                typeValue,
-                frameStart);
+    private static boolean isRawEnvelopeType(byte type) {
+        return type == EnvelopeType.FULL.typeValue
+                || type == EnvelopeType.BEGIN.typeValue
+                || type == EnvelopeType.MIDDLE.typeValue
+                || type == EnvelopeType.END.typeValue;
     }
 
     @Override
@@ -616,6 +810,8 @@ public class EnvelopeWriteChannel implements PhysicalLogChannel {
         this.previousChecksum = previousChecksum;
         this.currentIndex = previousIndex;
         this.currentTerm = previousTerm;
+        // the reseed state describes a complete entry: any half-appended raw entry is truncated away
+        this.begin = true;
         channel.truncate(position);
         // After truncation, it's critical that subsequent writes go to a completely different file rather than
         // overwriting the sections of an existing file. This is because there might be readers in other threads
@@ -637,6 +833,8 @@ public class EnvelopeWriteChannel implements PhysicalLogChannel {
         this.previousChecksum = previousChecksum;
         this.currentIndex = index;
         this.currentTerm = term;
+        // the reseed state describes a complete entry: no entry can be open across a recovery
+        this.begin = true;
     }
 
     @Override
@@ -710,7 +908,7 @@ public class EnvelopeWriteChannel implements PhysicalLogChannel {
         }
 
         // Fill in the header
-        final int checksumStartOffset = currentEnvelopeStart + Integer.BYTES;
+        final int checksumStartOffset = currentEnvelopeStart + OFFSET_ENVELOPE_TYPE;
         buffer.position(checksumStartOffset);
 
         if (type == EnvelopeType.START_OFFSET) {
@@ -881,6 +1079,16 @@ public class EnvelopeWriteChannel implements PhysicalLogChannel {
 
     public long currentIndex() {
         return currentIndex;
+    }
+
+    @VisibleForTesting
+    byte currentVersion() {
+        return currentVersion;
+    }
+
+    @VisibleForTesting
+    byte currentContentType() {
+        return currentContentType;
     }
 
     public long currentTerm() {

@@ -28,23 +28,30 @@ import static org.neo4j.storageengine.api.TransactionIdStore.BASE_TX_CHECKSUM;
 import static org.neo4j.storageengine.api.TransactionIdStore.BASE_TX_ID;
 import static org.neo4j.wal.entry.LogEnvelopeHeader.HEADER_SIZE;
 import static org.neo4j.wal.entry.LogEnvelopeHeader.UNSPECIFIED_TERM;
+import static org.neo4j.wal.entry.LogHeader.UNSPECIFIED_CREATION_TIME;
 import static org.neo4j.wal.rotation.LogRotation.NO_ROTATION;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.neo4j.io.fs.ChannelNativeAccessor;
 import org.neo4j.io.fs.ChecksumWriter;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
+import org.neo4j.io.fs.FileSystemUtils;
 import org.neo4j.io.fs.ReadPastEndException;
 import org.neo4j.io.fs.StoreChannel;
 import org.neo4j.io.memory.HeapScopedBuffer;
 import org.neo4j.io.memory.ScopedBuffer;
 import org.neo4j.kernel.KernelVersion;
 import org.neo4j.memory.EmptyMemoryTracker;
+import org.neo4j.storageengine.api.StoreIdentifier;
 import org.neo4j.test.RandomSupport;
 import org.neo4j.test.extension.Inject;
 import org.neo4j.test.utils.TestDirectory;
@@ -237,9 +244,24 @@ abstract class EnvelopeWriteChannelTestSupport {
             int offset,
             long currentIndex)
             throws IOException {
+        return writeChannel(
+                channel, segmentSize, checksum, scopedBuffer, logRotation, logTracers, offset, currentIndex, BASE_TERM);
+    }
+
+    static EnvelopeWriteChannel writeChannel(
+            StoreChannel channel,
+            int segmentSize,
+            int checksum,
+            ScopedBuffer scopedBuffer,
+            LogRotation logRotation,
+            LogTracers logTracers,
+            int offset,
+            long currentIndex,
+            long initialTerm)
+            throws IOException {
         channel.position(offset);
         final var writeChannel = new EnvelopeWriteChannel(
-                channel, scopedBuffer, segmentSize, checksum, currentIndex, BASE_TERM, logTracers, logRotation);
+                channel, scopedBuffer, segmentSize, checksum, currentIndex, initialTerm, logTracers, logRotation);
         if (logRotation instanceof LogRotationForChannel rotator) {
             rotator.bindWriteChannel(writeChannel);
         }
@@ -527,5 +549,394 @@ abstract class EnvelopeWriteChannelTestSupport {
             }
             return reader.getChecksum();
         }
+    }
+
+    record EnvelopeInfo(
+            long beginPosition,
+            long endPosition,
+            long unpaddedEndPosition,
+            int checksum,
+            long appendIndex,
+            long term) {}
+
+    static Map<Long, EnvelopeInfo> readEnvelopeData(PhysicalLogVersionedStoreChannel storeChannel, int segmentSize)
+            throws IOException {
+        return readEnvelopeData(storeChannel, segmentSize, LogVersionBridge.NO_MORE_CHANNELS);
+    }
+
+    static Map<Long, EnvelopeInfo> readEnvelopeData(
+            PhysicalLogVersionedStoreChannel storeChannel, int segmentSize, LogVersionBridge bridge)
+            throws IOException {
+        var info = new HashMap<Long, EnvelopeInfo>();
+        storeChannel.position(0);
+        try (var reader = new EnvelopeReadChannel(storeChannel, segmentSize, bridge, INSTANCE, false)) {
+            long startPos = reader.alignWithStartEntry();
+            long prevPos = startPos;
+            long unpaddedEndPos = reader.currentSegment * segmentSize + reader.payloadEndOffset;
+            long appendIndex = reader.getAppendIndex();
+            int checksum = reader.getChecksum();
+            long term = reader.getTerm();
+            long i = 0;
+            while (true) {
+                try {
+                    prevPos = startPos;
+                    long lastSegment = reader.currentSegment;
+                    startPos = reader.goToNextEnvelope();
+                    // a position wrap means the reader bridged into the next file: this envelope ended its file
+                    long endPos = startPos < prevPos ? (lastSegment + 1) * segmentSize : startPos;
+                    info.put(i, new EnvelopeInfo(prevPos, endPos, unpaddedEndPos, checksum, appendIndex, term));
+                    appendIndex = reader.getAppendIndex();
+                    checksum = reader.getChecksum();
+                    term = reader.getTerm();
+                    unpaddedEndPos = reader.currentSegment * segmentSize + reader.payloadEndOffset;
+                    ++i;
+                } catch (ReadPastEndException e) {
+                    info.put(
+                            i,
+                            new EnvelopeInfo(
+                                    prevPos, reader.channel().size(), unpaddedEndPos, checksum, appendIndex, term));
+                    break;
+                }
+            }
+        }
+        return info;
+    }
+
+    byte[] fileBytes(long version) throws IOException {
+        return fileBytes(logPath(version));
+    }
+
+    static final int DATA_SIZE = 111;
+    static final int ENTRY_COUNT = 1000;
+
+    static long term(long appendIndex) {
+        // decoupled from the index (but still monotonic) so a swapped index/term argument cannot pass
+        return 3 * appendIndex + 7;
+    }
+
+    /**
+     * How a generated entry's payload is written, which decides the padding runs the log ends up holding: a byte
+     * array is split at a segment boundary, so its envelopes end flush against the grid, while a primitive is never
+     * split and leaves up to seven unwritten bytes there — widening a tail padding run past {@link #HEADER_SIZE},
+     * into the dead zone.
+     */
+    enum PayloadShape {
+        BYTE_RUN {
+            @Override
+            void write(EnvelopeWriteChannel writer, long appendIndex) throws IOException {
+                var bytes = new byte[DATA_SIZE];
+                Arrays.fill(bytes, (byte) appendIndex);
+                writer.put(bytes, 0, bytes.length);
+            }
+        },
+        LONG_RUN {
+            @Override
+            void write(EnvelopeWriteChannel writer, long appendIndex) throws IOException {
+                // the count varies so entries end at every offset in a segment, including the ones where the next
+                // envelope's header still fits but its first long does not — the widest padding runs
+                long longs = 1 + appendIndex % (DATA_SIZE / Long.BYTES);
+                for (long i = 0; i < longs; i++) {
+                    writer.putLong(appendIndex);
+                }
+            }
+        };
+
+        abstract void write(EnvelopeWriteChannel writer, long appendIndex) throws IOException;
+    }
+
+    static void writeEnvelopeData(PhysicalLogVersionedStoreChannel storeChannel, int segmentSize) throws IOException {
+        writeEnvelopeData(storeChannel, segmentSize, PayloadShape.BYTE_RUN);
+    }
+
+    static void writeEnvelopeData(PhysicalLogVersionedStoreChannel storeChannel, int segmentSize, PayloadShape payload)
+            throws IOException {
+        writeV10Header(storeChannel, segmentSize, -1L, BASE_TERM, BASE_TX_CHECKSUM);
+        try (var writer = createWriter(storeChannel, segmentSize, -1L)) {
+            for (long appendIndex = 0; appendIndex < ENTRY_COUNT; ++appendIndex) {
+                writer.beginChecksumForWriting();
+                writer.putAppendIndex(appendIndex);
+                writer.putContentType((byte) (appendIndex & 0x7F));
+                writer.putVersion(LatestVersions.LATEST_KERNEL_VERSION.version());
+                writer.putTerm(term(appendIndex));
+                payload.write(writer, appendIndex);
+                writer.putChecksum();
+            }
+            writer.prepareForFlush().flush();
+        }
+    }
+
+    static void writeV10Header(
+            PhysicalLogVersionedStoreChannel channel,
+            int segmentSize,
+            long previousAppendIndex,
+            long previousTerm,
+            int previousChecksum)
+            throws IOException {
+        var header = LogFormat.V10.newHeader(
+                0L,
+                previousAppendIndex,
+                previousTerm,
+                StoreIdentifier.UNKNOWN,
+                segmentSize,
+                previousChecksum,
+                LatestVersions.LATEST_KERNEL_VERSION,
+                UNSPECIFIED_CREATION_TIME);
+        LogFormat.writeLogHeader(channel, header, EmptyMemoryTracker.INSTANCE);
+    }
+
+    static EnvelopeWriteChannel createWriter(PhysicalLogVersionedStoreChannel channel, int segmentSize, long lastIndex)
+            throws IOException {
+        return createWriter(channel, segmentSize, lastIndex, BASE_TX_CHECKSUM, BASE_TERM);
+    }
+
+    static EnvelopeWriteChannel createWriter(
+            PhysicalLogVersionedStoreChannel channel, int segmentSize, long lastIndex, int lastChecksum, long lastTerm)
+            throws IOException {
+        return writeChannel(
+                channel,
+                segmentSize,
+                lastChecksum,
+                buffer(4 * segmentSize),
+                NO_ROTATION,
+                LogTracers.NULL,
+                segmentSize,
+                lastIndex,
+                lastTerm);
+    }
+
+    static void copySegmentZero(
+            PhysicalLogVersionedStoreChannel src, PhysicalLogVersionedStoreChannel dest, int segmentSize)
+            throws IOException {
+        var headerBuf = ByteBuffer.allocate(segmentSize);
+        src.readAll(headerBuf);
+        headerBuf.flip();
+        dest.write(headerBuf);
+    }
+
+    static ByteBuffer chunk(PhysicalLogVersionedStoreChannel channel, long from, long to) throws IOException {
+        var buf = ByteBuffer.allocate((int) (to - from));
+        channel.readAll(buf, from);
+        return buf.flip();
+    }
+
+    static ByteBuffer[] chunks(ByteBuffer... chunks) {
+        return chunks;
+    }
+
+    /** Envelopes {@code [firstEnvelope, return)} are one entry: consecutive envelopes sharing firstEnvelope's append index. */
+    static long entryEnd(Map<Long, EnvelopeInfo> envelopes, long firstEnvelope) {
+        long appendIndex = envelopes.get(firstEnvelope).appendIndex();
+        long end = firstEnvelope;
+        while (end < envelopes.size() && envelopes.get(end).appendIndex() == appendIndex) {
+            end++;
+        }
+        return end;
+    }
+
+    byte[] fileBytes(Path path) throws IOException {
+        return FileSystemUtils.readAllBytes(fileSystem, path, EmptyMemoryTracker.INSTANCE);
+    }
+
+    PhysicalLogVersionedStoreChannel srcStoreChannel() throws IOException {
+        return srcStoreChannel(1L);
+    }
+
+    PhysicalLogVersionedStoreChannel srcStoreChannel(long version) throws IOException {
+        return storeChannel(version, srcLogPath(version));
+    }
+
+    PhysicalLogVersionedStoreChannel destStoreChannel() throws IOException {
+        return storeChannel(1L, destLogPath());
+    }
+
+    PhysicalLogVersionedStoreChannel storeChannel(long version, Path logPath) throws IOException {
+        return new PhysicalLogVersionedStoreChannel(
+                fileSystem.write(logPath),
+                version,
+                LogFormat.V10,
+                logPath,
+                ChannelNativeAccessor.EMPTY_ACCESSOR,
+                LogTracers.NULL);
+    }
+
+    Path srcLogPath() {
+        return srcLogPath(1L);
+    }
+
+    Path srcLogPath(long version) {
+        return directory.homePath().resolve("src_log." + version);
+    }
+
+    Path destLogPath() {
+        return destLogPath(1L);
+    }
+
+    Path destLogPath(long version) {
+        return directory.homePath().resolve("dest_log." + version);
+    }
+
+    static ByteBuffer zeroBased(ByteBuffer src) {
+        // Copy the entry's envelopes into a position-0 buffer so srcIndex/offsets match the prod RawReplicatedContent
+        // buffer (which starts at 0); the slice helpers hand back a buffer positioned at segmentSize.
+        ByteBuffer out = ByteBuffer.allocate(src.remaining()).order(src.order());
+        out.put(src.duplicate());
+        return out.flip();
+    }
+
+    /** CRC over [OFFSET_ENVELOPE_TYPE, limit) of a zero-based single-envelope buffer, as the writer computes it. */
+    static int envelopeCrc(ByteBuffer envelope) {
+        var checksum = ChecksumWriter.CHECKSUM_FACTORY.get();
+        checksum.update(envelope.duplicate().position(LogEnvelopeHeader.OFFSET_ENVELOPE_TYPE));
+        return (int) checksum.getValue();
+    }
+
+    ByteBuffer rawEntry(int segmentSize, byte[] payload, long term) throws IOException {
+        var srcFile = storeChannel(0);
+        var buf = buffer(segmentSize * 8);
+        try (var src = writeChannel(srcFile, segmentSize, buf)) {
+            writeEntry(src, payload, term);
+            src.prepareForFlush();
+            // skip the reserved first (header) segment so we feed only the entry's envelopes
+            return slice(buf, segmentSize).limit(buf.getBuffer().position());
+        }
+    }
+
+    /** An entry whose envelopes chain from the given seed state, as if written right after that entry on the source. */
+    ByteBuffer rawEntry(int segmentSize, byte[] payload, long term, int seedChecksum, long seedIndex, long seedTerm)
+            throws IOException {
+        var srcFile = storeChannel(0);
+        var buf = buffer(segmentSize * 8);
+        try (var src = writeChannel(
+                srcFile,
+                segmentSize,
+                seedChecksum,
+                buf,
+                NO_ROTATION,
+                LogTracers.NULL,
+                segmentSize,
+                seedIndex,
+                seedTerm)) {
+            writeEntry(src, payload, term);
+            src.prepareForFlush();
+            return slice(buf, segmentSize).limit(buf.getBuffer().position());
+        }
+    }
+
+    ByteBuffer[] rawEntries(int segmentSize, byte[] payloadA, long termA, byte[] payloadB, long termB)
+            throws IOException {
+        var srcFile = storeChannel(0);
+        var buf = buffer(segmentSize * 8);
+        try (var src = writeChannel(srcFile, segmentSize, buf)) {
+            writeEntry(src, payloadA, termA);
+            int splitAt = buf.getBuffer().position();
+            writeEntry(src, payloadB, termB);
+            int end = buf.getBuffer().position();
+            src.prepareForFlush();
+            // skip the reserved first (header) segment; entryA envelopes are [segmentSize, splitAt), entryB [splitAt,
+            // end)
+            ByteBuffer first = slice(buf, segmentSize).limit(splitAt);
+            ByteBuffer second = slice(buf).position(splitAt).limit(end);
+            return new ByteBuffer[] {first, second};
+        }
+    }
+
+    static void writeEntry(EnvelopeWriteChannel channel, byte[] payload, long term) throws IOException {
+        channel.beginChecksumForWriting();
+        channel.putVersion(KERNEL_VERSION);
+        channel.putTerm(term);
+        channel.putContentType(CONTENT_TYPE);
+        channel.put(payload, payload.length);
+        channel.endCurrentEntry();
+    }
+
+    static final long T1 = 5L;
+    static final long T2 = 9L;
+    static final long T3 = 13L;
+    static final long T4 = 17L;
+
+    static final long SOURCE_LOG_VERSION = 7L;
+
+    record EntrySnapshot(int start, int unpaddedEnd, int checksum, long index, long term) {}
+
+    record SourceLog(ByteBuffer data, List<EntrySnapshot> entries) {}
+
+    /**
+     * Writes the given entries through a single pojo channel into log {@value SOURCE_LOG_VERSION}, snapshotting the
+     * channel's state and the entry's envelope range after each one. The snapshots are the source of truth the raw
+     * replay must mirror.
+     */
+    SourceLog writeSourceEntries(int segmentSize, int bufferSegments, byte[][] payloads, long[] terms)
+            throws IOException {
+        var buf = buffer(segmentSize * bufferSegments);
+        var entries = new ArrayList<EntrySnapshot>();
+        try (var source = writeChannel(storeChannel(SOURCE_LOG_VERSION), segmentSize, buf)) {
+            int previousEnd = segmentSize;
+            for (int i = 0; i < payloads.length; i++) {
+                writeEntry(source, payloads[i], terms[i]);
+                int unpaddedEnd = buf.getBuffer().position();
+                entries.add(new EntrySnapshot(
+                        entryStart(buf.getBuffer(), previousEnd, segmentSize),
+                        unpaddedEnd,
+                        source.currentChecksum(),
+                        source.currentIndex(),
+                        source.currentTerm()));
+                previousEnd = unpaddedEnd;
+            }
+            source.prepareForFlush();
+            // slice before close: closing the scoped buffer invalidates the original's limit, not the duplicate's
+            return new SourceLog(slice(buf), entries);
+        }
+    }
+
+    /**
+     * A source log whose second entry sits behind a dead-zone padding run: entry 1 ends 33 bytes short of the
+     * second segment boundary and entry 2's first payload write is an int (as production raft entries: the
+     * metadata block size), which cannot fit in the 2 bytes left after the header reservation — the writer
+     * discards the empty envelope and zero-pads 33 bytes, more than HEADER_SIZE.
+     */
+    SourceLog writeDeadZoneSource(int segmentSize) throws IOException {
+        int deadZoneTail = HEADER_SIZE + 2;
+        var buf = buffer(segmentSize * 8);
+        var entries = new ArrayList<EntrySnapshot>();
+        try (var source = writeChannel(storeChannel(SOURCE_LOG_VERSION), segmentSize, buf)) {
+            writeEntry(source, bytes(random, segmentSize - deadZoneTail - HEADER_SIZE), T1);
+            int firstEnd = buf.getBuffer().position();
+            entries.add(new EntrySnapshot(
+                    segmentSize, firstEnd, source.currentChecksum(), source.currentIndex(), source.currentTerm()));
+
+            source.beginChecksumForWriting();
+            source.putVersion(KERNEL_VERSION);
+            source.putTerm(T2);
+            source.putContentType(CONTENT_TYPE);
+            source.putInt(42);
+            source.put(bytes(random, 16), 16);
+            source.endCurrentEntry();
+            entries.add(new EntrySnapshot(
+                    entryStart(buf.getBuffer(), firstEnd, segmentSize),
+                    buf.getBuffer().position(),
+                    source.currentChecksum(),
+                    source.currentIndex(),
+                    source.currentTerm()));
+            source.prepareForFlush();
+            return new SourceLog(slice(buf), entries);
+        }
+    }
+
+    /** A zero type byte after the previous entry's unpadded end means padding, so the entry starts at the boundary. */
+    static int entryStart(ByteBuffer data, int previousUnpaddedEnd, int segmentSize) {
+        if (data.get(previousUnpaddedEnd + LogEnvelopeHeader.OFFSET_ENVELOPE_TYPE) == 0) {
+            return (previousUnpaddedEnd / segmentSize + 1) * segmentSize;
+        }
+        return previousUnpaddedEnd;
+    }
+
+    /** The entry's envelopes without any leading or trailing padding, as the log shipper cuts its chunks. */
+    static ByteBuffer entryChunk(SourceLog source, int entry) {
+        var snapshot = source.entries().get(entry);
+        return zeroBased(source.data()
+                .duplicate()
+                .position(snapshot.start())
+                .limit(snapshot.unpaddedEnd())
+                .order(LITTLE_ENDIAN));
     }
 }

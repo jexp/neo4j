@@ -518,38 +518,77 @@ public class EnvelopedLogFiles implements EnvelopeReadChannelProvider, AutoClose
      * @throws IOException if an I/O error occurs during recovery
      */
     public void recalibrateWriteChannel() throws IOException {
+        var tail = readFlushedTailState();
+        if (tail == null) {
+            return;
+        }
+        log.info(
+                "Recalibrating write-channel checksum-chain mirrors from on-disk tail: %s (fileVersion=%d, position=%d)",
+                tail, currentWriteChannel.version(), appendingChannel.position());
+        appendingChannel.recoverState(tail.checksum(), tail.index(), tail.term());
+    }
+
+    /**
+     * Verifies that the write channel's tracked state matches the on-disk tail, without mutating it — the
+     * read-only twin of {@link #recalibrateWriteChannel()}. Raw appends mirror channel state from the shipped
+     * envelopes they parse; a divergence here means that mirroring broke, and the next rotation or local append
+     * would seed from bad state.
+     *
+     * @throws IllegalStateException if the tracked state does not match the on-disk tail
+     * @throws InvalidLogEnvelopeReadException if incomplete entries are found at the end of the log
+     * @throws IOException if an I/O error occurs while reading the tail
+     */
+    public void verifyWriteChannelCalibration() throws IOException {
+        var tail = readFlushedTailState();
+        if (tail == null) {
+            return;
+        }
+        if (tail.checksum() != appendingChannel.currentChecksum()
+                || tail.index() != appendingChannel.currentIndex()
+                || tail.term() != appendingChannel.currentTerm()) {
+            var tracked = new TailState(
+                    appendingChannel.currentIndex(),
+                    appendingChannel.currentChecksum(),
+                    appendingChannel.currentTerm());
+            throw new IllegalStateException(
+                    ("The write channel's tracked state has diverged from the on-disk tail (fileVersion=%d, "
+                                    + "position=%d): %s vs tracked %s")
+                            .formatted(currentWriteChannel.version(), appendingChannel.position(), tail, tracked));
+        }
+    }
+
+    private record TailState(long index, int checksum, long term) {}
+
+    /**
+     * Reads the last complete entry's state from the flushed on-disk tail, scanning from the last segment
+     * boundary, or {@code null} when the file holds no entry to compare against: nothing beyond the header
+     * segment, or only the START_OFFSET filler a truncation leaves behind.
+     *
+     * @throws InvalidLogEnvelopeReadException if incomplete entries are found at the end of the log
+     */
+    private TailState readFlushedTailState() throws IOException {
         if (appendingChannel == null) {
             throw new IllegalStateException("Writer channel has not been initialised");
         }
 
         long currentPosition = appendingChannel.position();
-
-        // If we're at the start (just the header), no recovery needed
         if (currentPosition <= segmentBlockSize) {
-            return;
+            return null;
         }
 
-        // Calculate the segment boundary to start reading from
-        // If we're precisely aligned with a segment boundary, we need to start from the previous segment
-        // to ensure we have entries to read for state recovery
+        // Start reading from the last segment boundary; when precisely aligned on one, go back a whole segment
+        // to ensure there are entries to read.
         long segmentBoundary = (currentPosition / segmentBlockSize) * segmentBlockSize;
         if (segmentBoundary == currentPosition) {
-            // We're aligned with a segment boundary, go back one segment
             segmentBoundary -= segmentBlockSize;
         }
 
-        // Open a read channel on the current log file version directly
         long currentVersion = currentWriteChannel.version();
-        log.info(
-                "Recalibrating write-channel checksum-chain mirrors from on-disk tail (fileVersion=%d, segmentBoundary=%d, currentPosition=%d).",
-                currentVersion, segmentBoundary, currentPosition);
         try (var readChannel = envelopedReadChannel(logsRepository.openReadChannel(currentVersion), false)) {
-            // Position the read channel at the segment boundary
             readChannel.position(segmentBoundary);
 
-            // Read through all entries to validate the checksum chain and recover state
+            // Read through all entries to validate the checksum chain
             while (true) {
-                // Try to read the next entry (complete entry, not just envelope)
                 try {
                     readChannel.goToNextEntry();
                 } catch (ReadPastEndException ignored) {
@@ -557,19 +596,20 @@ public class EnvelopedLogFiles implements EnvelopeReadChannelProvider, AutoClose
                 }
             }
             long lastValidPosition = readChannel.position();
-            long recoveredIndex = readChannel.entryIndex();
-            int recoveredChecksum = readChannel.getChecksum();
-            long recoveredTerm = readChannel.getTerm();
-
-            // Check if there's incomplete data after the last valid position
             if (lastValidPosition < currentPosition) {
-                // We have data written beyond the last valid entry - this is incomplete
                 throw new InvalidLogEnvelopeReadException(
-                        "Incomplete entry found at the end of the log. Last valid position: " + lastValidPosition
+                        "Incomplete entry found at the end of the log (fileVersion=" + currentVersion
+                                + "). Last valid position: " + lastValidPosition
                                 + ", current write position: " + currentPosition);
             }
-            // Update the write channel's state with the recovered values
-            appendingChannel.recoverState(recoveredChecksum, recoveredIndex, recoveredTerm);
+            long tailIndex = readChannel.entryIndex();
+            if (tailIndex == LogEnvelopeHeader.UNSPECIFIED_INDEX) {
+                // A truncation opens its file with only the START_OFFSET filler, and the leader-transition hook can
+                // run before any append refills it. The filler carries neither index nor term, so comparing against
+                // its sentinels would fail a channel that legitimately tracks (fromIndex - 1, prevTerm).
+                return null;
+            }
+            return new TailState(tailIndex, readChannel.getChecksum(), readChannel.getTerm());
         }
     }
 

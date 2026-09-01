@@ -20,29 +20,30 @@
 package org.neo4j.wal.enveloped;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.neo4j.wal.entry.LogEnvelopeHeader.EnvelopeType.FULL;
 import static org.neo4j.wal.entry.LogEnvelopeHeader.HEADER_SIZE;
 import static org.neo4j.wal.entry.LogEnvelopeHeader.MAX_ZERO_PADDING_SIZE;
+import static org.neo4j.wal.entry.LogEnvelopeHeader.OFFSET_CHECKSUM;
+import static org.neo4j.wal.entry.LogEnvelopeHeader.OFFSET_PREVIOUS_CHECKSUM;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import org.junit.jupiter.api.Test;
+import org.neo4j.io.fs.ChecksumMismatchException;
 import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.wal.LogTracers;
 
 /**
- * Focused coverage for {@link EnvelopeWriteChannel#appendRaw(ByteBuffer, long, long)}, exercising each control-flow
+ * Focused coverage for {@link EnvelopeWriteChannel#appendRaw(ByteBuffer[], long, long)}, exercising each control-flow
  * state: no boundary crossing, padding-only, rotation during the write, and rotation before the write. The last two
- * pin the index/term timing: those are set only after the first (pre-write) rotation check, so a rotation at an entry
- * start carries the previous entry's index/term while a rotation mid-entry carries the current entry's. The rotated
- * file's header is random test bytes, so we assert on the boundary state the channel seeded into the rotation
+ * pin the index/term timing: those are set only after the first chunk's (pre-write) rotation check, so a rotation at
+ * an entry start carries the previous entry's index/term while a rotation mid-entry carries the current entry's. The
+ * rotated file's header is random test bytes, so we assert on the boundary state the channel seeded into the rotation
  * (captured by {@link EnvelopeWriteChannelTestSupport#logRotation}).
  */
 @TestDirectoryExtension
 class EnvelopeWriteChannelRawAppendTest extends EnvelopeWriteChannelTestSupport {
-
-    private static final long T1 = 5L;
-    private static final long T2 = 9L;
 
     @Test
     void smallEntryDoesNotCrossSegmentAndDoesNotRotate() throws IOException {
@@ -103,12 +104,11 @@ class EnvelopeWriteChannelRawAppendTest extends EnvelopeWriteChannelTestSupport 
                 buffer(segmentSize * 6),
                 logRotation(fileChannel, header(segmentSize), segmentSize * 2), // header + 1 data segment
                 LogTracers.NULL)) {
-            channel.appendRaw(both[0], FIRST_INDEX, T1);
+            channel.appendRaw(chunks(both[0]), FIRST_INDEX, T1);
             assertThat(lastRotatedAppendIndex)
                     .as("entryA fills to the limit but does not rotate yet")
                     .isEqualTo(-1L);
-            channel.appendRaw(both[1], FIRST_INDEX + 1, T2);
-            channel.prepareForFlush();
+            channel.appendRaw(chunks(both[1]), FIRST_INDEX + 1, T2);
         }
 
         assertThat(fileSystem.fileExists(logPath(1)))
@@ -123,80 +123,126 @@ class EnvelopeWriteChannelRawAppendTest extends EnvelopeWriteChannelTestSupport 
     }
 
     @Test
-    void rawAppendPadsTailLargerThanHeaderBeforeFullFrame() throws IOException {
+    void rotationBeforeRawWriteSeedsTrackedChecksum() throws IOException {
+        int segmentSize = 128;
+        // entryA fills exactly to the rotation limit; entryB's append rotates in the pre-write check, and the
+        // rotation must be seeded with entryA's checksum
+        ByteBuffer[] both =
+                rawEntries(segmentSize, bytes(random, segmentSize - HEADER_SIZE), T1, bytes(random, 32), T2);
+        int entryAChecksum = both[0].getInt(both[0].position() + OFFSET_CHECKSUM);
+
+        var fileChannel = storeChannel(0);
+        try (var channel = writeChannel(
+                fileChannel,
+                segmentSize,
+                buffer(segmentSize * 6),
+                logRotation(fileChannel, header(segmentSize), segmentSize * 2),
+                LogTracers.NULL)) {
+            channel.appendRaw(chunks(both[0]), FIRST_INDEX, T1);
+            channel.appendRaw(chunks(both[1]), FIRST_INDEX + 1, T2);
+        }
+
+        assertThat(fileSystem.fileExists(logPath(1)))
+                .as("rotated at entryB's start")
+                .isTrue();
+        assertChecksum(lastRotatedPreviousChecksum, entryAChecksum);
+    }
+
+    @Test
+    void rejectsForgedPreviousChecksumAtRotationBoundary() throws IOException {
+        // The deleted rotation peek adopted entryB's previous-checksum field into the tracked chain, so a forgery
+        // placed exactly at a rotation boundary self-compared and was silently seeded into the rotated file.
+        int segmentSize = 128;
+        ByteBuffer[] both =
+                rawEntries(segmentSize, bytes(random, segmentSize - HEADER_SIZE), T1, bytes(random, 32), T2);
+        int entryAChecksum = both[0].getInt(both[0].position() + OFFSET_CHECKSUM);
+        ByteBuffer entryB = zeroBased(both[1]);
+        int forged = 0xBADC0DE;
+        entryB.putInt(OFFSET_PREVIOUS_CHECKSUM, forged);
+        entryB.putInt(OFFSET_CHECKSUM, envelopeCrc(entryB));
+
+        var fileChannel = storeChannel(0);
+        try (var channel = writeChannel(
+                fileChannel,
+                segmentSize,
+                buffer(segmentSize * 6),
+                logRotation(fileChannel, header(segmentSize), segmentSize * 2),
+                LogTracers.NULL)) {
+            channel.appendRaw(chunks(both[0]), FIRST_INDEX, T1);
+            assertThatThrownBy(() -> channel.appendRaw(chunks(entryB), FIRST_INDEX + 1, T2))
+                    .isInstanceOf(ChecksumMismatchException.class)
+                    .hasMessageContaining("checksum chain")
+                    .hasMessageContaining("file position " + segmentSize)
+                    .hasMessageContaining("index " + (FIRST_INDEX + 1))
+                    .hasMessageContaining("term " + T2)
+                    .hasMessageContaining(String.valueOf(forged))
+                    .hasMessageContaining(String.valueOf(entryAChecksum));
+        }
+
+        // the rotation fired before the forged envelope was parsed, seeded from the tracked chain, not the forgery
+        assertChecksum(lastRotatedPreviousChecksum, entryAChecksum);
+    }
+
+    @Test
+    void rawAppendPadsTailLargerThanHeaderBeforeFullEnvelope() throws IOException {
         // A follower left mid-segment on a tail in (HEADER_SIZE, MAX_ZERO_PADDING_SIZE] must pad it before the next
-        // frame: the old guard only padded tail <= HEADER_SIZE, so such a frame straddled the boundary.
+        // envelope: the old guard only padded tail <= HEADER_SIZE, so such an envelope straddled the boundary.
         int segmentSize = 128;
         int tail = HEADER_SIZE + 1; // 32: > HEADER_SIZE (31), <= MAX_ZERO_PADDING_SIZE (39) -> the dead-zone
         assertThat(tail).isGreaterThan(HEADER_SIZE).isLessThanOrEqualTo(MAX_ZERO_PADDING_SIZE);
 
-        // Entry A: a FULL frame that ends exactly `tail` bytes short of the segment boundary, leaving the follower
+        // Entry A: a FULL envelope that ends exactly `tail` bytes short of the segment boundary, leaving the follower
         // mid-segment (the divergence a restart/store-copy or an omitted last-entry pad produces in prod).
-        int frameA = segmentSize - tail; // 96
-        ByteBuffer entryA = zeroBased(rawEntry(segmentSize, bytes(random, frameA - HEADER_SIZE), T1));
-        // Entry B, shipped from a segment-aligned leader: a clean FULL frame larger than `tail`.
-        ByteBuffer entryB = zeroBased(rawEntry(segmentSize, bytes(random, 40), T2));
+        int envelopeA = segmentSize - tail; // 96
+        ByteBuffer entryA = zeroBased(rawEntry(segmentSize, bytes(random, envelopeA - HEADER_SIZE), T1));
+        // Entry B, shipped from a segment-aligned leader: a clean FULL envelope larger than `tail`, chained after A.
+        ByteBuffer entryB = zeroBased(
+                rawEntry(segmentSize, bytes(random, 40), T2, entryA.getInt(OFFSET_CHECKSUM), FIRST_INDEX, T1));
 
         var fileChannel = storeChannel(0);
         try (var channel = writeChannel(fileChannel, segmentSize, buffer(segmentSize * 8))) {
-            channel.appendRaw(entryA, FIRST_INDEX, T1); // follower now sits `tail` bytes from the boundary
-            channel.appendRaw(entryB, FIRST_INDEX + 1, T2); // must NOT throw: pads to the boundary first
-            channel.prepareForFlush();
+            channel.appendRaw(chunks(entryA), FIRST_INDEX, T1); // follower now sits `tail` bytes from the boundary
+            channel.appendRaw(chunks(entryB), FIRST_INDEX + 1, T2); // must NOT throw: pads to the boundary first
         }
 
         byte[] log = fileBytes(0);
         // The tail after entry A (up to the next segment boundary) must be zero padding...
-        for (int i = segmentSize + frameA; i < 2 * segmentSize; i++) {
+        for (int i = segmentSize + envelopeA; i < 2 * segmentSize; i++) {
             assertThat(log[i]).as("padding byte at offset %d", i).isZero();
         }
-        // ...and entry B's FULL frame must begin exactly on that boundary (type byte after the 4-byte checksum).
+        // ...and entry B's FULL envelope must begin exactly on that boundary (type byte after the 4-byte checksum).
         assertThat(log[2 * segmentSize + Integer.BYTES])
                 .as("entry B type byte at the segment boundary")
                 .isEqualTo(FULL.typeValue);
     }
 
     @Test
-    void rawAppendDoesNotPadWhenFrameFillsTailExactly() throws IOException {
-        // Strict '>' boundary: a frame whose total length equals the remaining tail (a BEGIN split, or an exact-fit
+    void rawAppendDoesNotPadWhenEnvelopeFillsTailExactly() throws IOException {
+        // Strict '>' boundary: an envelope whose total length equals the remaining tail (a BEGIN split, or an exact-fit
         // FULL) is what the leader wrote contiguously in that tail — the follower must place it there, not pad.
         int segmentSize = 128;
         int tail = MAX_ZERO_PADDING_SIZE; // 39
-        int frameA = segmentSize - tail; // 89 -> leaves a 39-byte tail
-        ByteBuffer entryA = zeroBased(rawEntry(segmentSize, bytes(random, frameA - HEADER_SIZE), T1));
-        // Entry B is a FULL frame of exactly `tail` bytes (HEADER_SIZE + 8), filling the tail to the boundary.
-        ByteBuffer entryB = zeroBased(rawEntry(segmentSize, bytes(random, tail - HEADER_SIZE), T2));
+        int envelopeA = segmentSize - tail; // 89 -> leaves a 39-byte tail
+        ByteBuffer entryA = zeroBased(rawEntry(segmentSize, bytes(random, envelopeA - HEADER_SIZE), T1));
+        // Entry B is a FULL envelope of exactly `tail` bytes (HEADER_SIZE + 8), filling the tail to the boundary,
+        // chained after A as the leader would have written it.
+        ByteBuffer entryB = zeroBased(rawEntry(
+                segmentSize, bytes(random, tail - HEADER_SIZE), T2, entryA.getInt(OFFSET_CHECKSUM), FIRST_INDEX, T1));
 
         var fileChannel = storeChannel(0);
         try (var channel = writeChannel(fileChannel, segmentSize, buffer(segmentSize * 8))) {
-            channel.appendRaw(entryA, FIRST_INDEX, T1);
-            channel.appendRaw(entryB, FIRST_INDEX + 1, T2); // exact fit -> written contiguously, no pad
-            channel.prepareForFlush();
+            channel.appendRaw(chunks(entryA), FIRST_INDEX, T1);
+            channel.appendRaw(chunks(entryB), FIRST_INDEX + 1, T2); // exact fit -> written contiguously, no pad
         }
 
         byte[] log = fileBytes(0);
         // Entry B sits immediately after entry A (contiguous), not pushed to the boundary; no padding inserted.
-        assertThat(log[segmentSize + frameA + Integer.BYTES])
+        assertThat(log[segmentSize + envelopeA + Integer.BYTES])
                 .as("entry B type byte, written contiguously after entry A")
                 .isEqualTo(FULL.typeValue);
     }
 
     // ---- helpers ----
-
-    private byte[] fileBytes(long version) throws IOException {
-        try (var ch = fileSystem.read(logPath(version))) {
-            var buf = ByteBuffer.allocate((int) ch.size());
-            ch.readAll(buf);
-            return buf.array();
-        }
-    }
-
-    private static ByteBuffer zeroBased(ByteBuffer src) {
-        // Copy the entry's frames into a position-0 buffer so srcIndex/offsets match the prod RawReplicatedContent
-        // buffer (which starts at 0); the slice helpers hand back a buffer positioned at segmentSize.
-        ByteBuffer out = ByteBuffer.allocate(src.remaining()).order(src.order());
-        out.put(src.duplicate());
-        return out.flip();
-    }
 
     private void appendOne(int segmentSize, long maxFileSize, ByteBuffer entry, long index, long term)
             throws IOException {
@@ -207,45 +253,7 @@ class EnvelopeWriteChannelRawAppendTest extends EnvelopeWriteChannelTestSupport 
                 buffer(segmentSize * 6),
                 logRotation(fileChannel, header(segmentSize), maxFileSize),
                 LogTracers.NULL)) {
-            channel.appendRaw(entry, index, term);
-            channel.prepareForFlush();
+            channel.appendRaw(chunks(entry), index, term);
         }
-    }
-
-    private ByteBuffer rawEntry(int segmentSize, byte[] payload, long term) throws IOException {
-        var srcFile = storeChannel(0);
-        var buf = buffer(segmentSize * 8);
-        try (var src = writeChannel(srcFile, segmentSize, buf)) {
-            writeEntry(src, payload, term);
-            src.prepareForFlush();
-            // skip the reserved first (header) segment so we feed only the entry's frames
-            return slice(buf, segmentSize).limit(buf.getBuffer().position());
-        }
-    }
-
-    private ByteBuffer[] rawEntries(int segmentSize, byte[] payloadA, long termA, byte[] payloadB, long termB)
-            throws IOException {
-        var srcFile = storeChannel(0);
-        var buf = buffer(segmentSize * 8);
-        try (var src = writeChannel(srcFile, segmentSize, buf)) {
-            writeEntry(src, payloadA, termA);
-            int splitAt = buf.getBuffer().position();
-            writeEntry(src, payloadB, termB);
-            int end = buf.getBuffer().position();
-            src.prepareForFlush();
-            // skip the reserved first (header) segment; entryA frames are [segmentSize, splitAt), entryB [splitAt, end)
-            ByteBuffer first = slice(buf, segmentSize).limit(splitAt);
-            ByteBuffer second = slice(buf).position(splitAt).limit(end);
-            return new ByteBuffer[] {first, second};
-        }
-    }
-
-    private static void writeEntry(EnvelopeWriteChannel channel, byte[] payload, long term) throws IOException {
-        channel.beginChecksumForWriting();
-        channel.putVersion(KERNEL_VERSION);
-        channel.putTerm(term);
-        channel.putContentType(CONTENT_TYPE);
-        channel.put(payload, payload.length);
-        channel.endCurrentEntry();
     }
 }

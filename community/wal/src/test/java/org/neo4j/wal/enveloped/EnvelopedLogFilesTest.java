@@ -2405,6 +2405,150 @@ class EnvelopedLogFilesTest {
     }
 
     @Test
+    void shouldVerifyWriteChannelCalibration() throws IOException {
+        envelopedLogFiles.initialise();
+
+        for (var i = 0; i < randomSupport.nextInt(1, 5); i++) {
+            writeData(envelopedLogFiles.currentWriteChannel(), EIGHT_BYTES_MESSAGE.getBytes(StandardCharsets.UTF_8));
+        }
+        envelopedLogFiles.currentWriteChannel().prepareForFlush().flush();
+        // in-band appends keep the tracked state calibrated
+        envelopedLogFiles.verifyWriteChannelCalibration();
+
+        var firstIndex = envelopedLogFiles.currentWriteChannel().currentIndex();
+        try (var reader = envelopedLogFiles.openReadChannel(firstIndex)) {
+            reader.goToEntry(firstIndex);
+            reader.goToEndOfEntry();
+
+            // entries written through a second channel land on disk without the tracked state seeing them
+            try (var scopedBuffer = new HeapScopedBuffer(
+                            segmentBlockSize, ByteOrder.LITTLE_ENDIAN, EmptyMemoryTracker.INSTANCE);
+                    var otherWriteChannel = new EnvelopeWriteChannel(
+                            mirroringRepository
+                                    .openWriteChannel(mirroringRepository
+                                            .logVersionsRange()
+                                            .to())
+                                    .channel()
+                                    .position(envelopedLogFiles
+                                            .currentWriteChannel()
+                                            .position()),
+                            scopedBuffer,
+                            segmentBlockSize,
+                            reader.getChecksum(),
+                            firstIndex,
+                            reader.getTerm(),
+                            LogTracers.NULL,
+                            LogRotation.NO_ROTATION)) {
+                writeData(otherWriteChannel, EIGHT_BYTES_MESSAGE.getBytes(StandardCharsets.UTF_8));
+                otherWriteChannel.prepareForFlush().flush();
+            }
+        }
+
+        assertThatThrownBy(() -> envelopedLogFiles.verifyWriteChannelCalibration())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("diverged from the on-disk tail");
+
+        envelopedLogFiles.recalibrateWriteChannel();
+        envelopedLogFiles.verifyWriteChannelCalibration();
+    }
+
+    @Test
+    void verifyWriteChannelCalibrationShouldFailIfDirtyTail() throws IOException {
+        envelopedLogFiles.initialise();
+
+        for (var i = 0; i < randomSupport.nextInt(1, 5); i++) {
+            writeData(envelopedLogFiles.currentWriteChannel(), EIGHT_BYTES_MESSAGE.getBytes(StandardCharsets.UTF_8));
+        }
+        envelopedLogFiles.currentWriteChannel().prepareForFlush().flush();
+
+        var data = randomSupport.nextBytes(16);
+        envelopedLogFiles.currentWriteChannel().directPutAll(ByteBuffer.wrap(data), -1);
+        assertThatThrownBy(() -> envelopedLogFiles.verifyWriteChannelCalibration())
+                .hasMessageContaining("Incomplete entry found at the end of the log");
+    }
+
+    /**
+     * One comparison arm at a time: the two skewed fields stay equal, so the named arm is the only possible
+     * rejector and deleting it survives nothing else.
+     */
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"checksum", "index", "term"})
+    void verifyWriteChannelCalibrationShouldFailOnSingleFieldDivergence(String field) throws IOException {
+        envelopedLogFiles.initialise();
+
+        writeData(envelopedLogFiles.currentWriteChannel(), EIGHT_BYTES_MESSAGE.getBytes(StandardCharsets.UTF_8));
+        envelopedLogFiles.currentWriteChannel().prepareForFlush().flush();
+        var channel = envelopedLogFiles.currentWriteChannel();
+
+        channel.recoverState(
+                channel.currentChecksum() + (field.equals("checksum") ? 1 : 0),
+                channel.currentIndex() + (field.equals("index") ? 1 : 0),
+                channel.currentTerm() + (field.equals("term") ? 1 : 0));
+
+        assertThatThrownBy(() -> envelopedLogFiles.verifyWriteChannelCalibration())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("diverged from the on-disk tail");
+    }
+
+    @Test
+    void verifyWriteChannelCalibrationIsNoOpBeforeFirstEntry() throws IOException {
+        envelopedLogFiles.initialise();
+
+        // nothing beyond the header segment: there is no tail to compare against
+        envelopedLogFiles.verifyWriteChannelCalibration();
+    }
+
+    /**
+     * A follower that truncates and then wins an election verifies before appending anything, so the only thing
+     * past the header segment is the START_OFFSET filler. The filler carries no index or term, so comparing the
+     * tracked state against it would report divergence on a perfectly calibrated channel.
+     */
+    @Test
+    void verifyWriteChannelCalibrationIsNoOpOnFillerOnlyTailAfterTruncation() throws IOException {
+        envelopedLogFiles.initialise();
+
+        for (var i = 0; i < 3; i++) {
+            writeData(envelopedLogFiles.currentWriteChannel(), EIGHT_BYTES_MESSAGE.getBytes(StandardCharsets.UTF_8));
+        }
+        envelopedLogFiles.currentWriteChannel().prepareForFlush().flush();
+
+        // lands mid-segment, so the truncation's fresh file opens with a filler rather than at a bare boundary
+        envelopedLogFiles.truncate(1);
+
+        // past the header segment, so the "nothing written yet" shortcut is not what makes this pass
+        assertThat(envelopedLogFiles.currentWriteChannel().position()).isGreaterThan(segmentBlockSize);
+        // and the channel does track a real entry, which a sentinel-valued tail would disagree with
+        assertThat(envelopedLogFiles.currentWriteChannel().currentIndex()).isEqualTo(0);
+
+        envelopedLogFiles.verifyWriteChannelCalibration();
+    }
+
+    /**
+     * A write position exactly on a segment boundary points at a segment holding no entry yet, so the tail scan
+     * has to step back a whole segment to find one. The skew arm is what pins that step-back: without it the
+     * scan starts at the end, finds no entry at all, and would report any tracked state as calibrated.
+     */
+    @Test
+    void verifyWriteChannelCalibrationStepsBackFromASegmentAlignedPosition() throws IOException {
+        envelopedLogFiles.initialise();
+
+        var channel = envelopedLogFiles.currentWriteChannel();
+        writeData(channel, EIGHT_BYTES_MESSAGE.getBytes(StandardCharsets.UTF_8));
+        // a second entry sized to consume the rest of the segment exactly, landing the position on the boundary
+        int untilBoundary = (int) (segmentBlockSize - (channel.position() % segmentBlockSize));
+        writeData(channel, randomSupport.nextBytes(untilBoundary - HEADER_SIZE));
+        channel.prepareForFlush().flush();
+        assertThat(channel.position() % segmentBlockSize).isEqualTo(0);
+
+        envelopedLogFiles.verifyWriteChannelCalibration();
+
+        channel.recoverState(channel.currentChecksum(), channel.currentIndex() + 1, channel.currentTerm());
+        assertThatThrownBy(() -> envelopedLogFiles.verifyWriteChannelCalibration())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("diverged from the on-disk tail");
+    }
+
+    @Test
     @Disabled("Currently flaky due to a change when opening a read channel and seting position. This causes the tail"
             + " checker to not catch the dirty bytes properly. Should be enabled when fixed")
     void shouldTruncateAndRecoveryWriteChannelAfterGarbage() throws IOException {
