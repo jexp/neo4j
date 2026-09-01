@@ -689,7 +689,7 @@ public class EnvelopedLogFiles implements EnvelopeReadChannelProvider, AutoClose
     public EnvelopeReadChannel envelopedReadChannel(
             LogChannelContext<StoreChannel> logChannelCtx, boolean keepChannelOpenOnClose) throws IOException {
         LogHeader logHeader = readLogHeader(logChannelCtx);
-        LogVersionedStoreChannel logVersionedChannel = logVersionedChannel(logChannelCtx, logHeader);
+        LogVersionedStoreChannel logVersionedChannel = logVersionedChannel(logChannelCtx, logHeader, true);
         if (keepChannelOpenOnClose) {
             logVersionedChannel = new UnclosableChannel(logVersionedChannel);
         }
@@ -700,7 +700,7 @@ public class EnvelopedLogFiles implements EnvelopeReadChannelProvider, AutoClose
                         ? new KeepChannelOpenEnvelopedLogVersionBridge(this)
                         : new EnvelopedLogVersionBridge(this),
                 memoryTracker,
-                false);
+                true);
     }
 
     private LogHeader readLogHeader(LogChannelContext<StoreChannel> logChannelCtx) throws IOException {
@@ -716,22 +716,24 @@ public class EnvelopedLogFiles implements EnvelopeReadChannelProvider, AutoClose
     }
 
     private PhysicalLogVersionedStoreChannel logVersionedChannel(
-            LogChannelContext<StoreChannel> logChannelCtx, LogHeader header) throws IOException {
+            LogChannelContext<StoreChannel> logChannelCtx, LogHeader header, boolean skipCacheAdvice)
+            throws IOException {
         return new PhysicalLogVersionedStoreChannel(
                 logChannelCtx.channel(),
                 header.getLogVersion(),
                 header.getLogFormatVersion(),
                 logChannelCtx.path(),
                 channelNativeAccessor,
-                logTracers);
+                logTracers,
+                skipCacheAdvice);
     }
 
-    private LogVersionedStoreChannel safeOpenChannel(long version) throws IOException {
+    private LogVersionedStoreChannel safeOpenChannel(long version, boolean skipCacheAdvice) throws IOException {
         var longRange = logsRepository.logVersionsRange();
         if (longRange.isWithinRange(version)) {
             LogChannelContext<StoreChannel> logChannelCtx = logsRepository.openReadChannel(version);
             LogHeader logHeader = readLogHeader(logChannelCtx);
-            return logVersionedChannel(logChannelCtx, logHeader);
+            return logVersionedChannel(logChannelCtx, logHeader, skipCacheAdvice);
         }
         return null;
     }
@@ -934,7 +936,7 @@ public class EnvelopedLogFiles implements EnvelopeReadChannelProvider, AutoClose
 
         @Override
         public LogVersionedStoreChannel next(LogVersionedStoreChannel channel, boolean raw) throws IOException {
-            var nextChannel = envelopedLogFiles.safeOpenChannel(channel.getLogVersion() + 1);
+            var nextChannel = envelopedLogFiles.safeOpenChannel(channel.getLogVersion() + 1, raw);
             if (nextChannel != null) {
                 channel.close();
                 return nextChannel;
@@ -952,7 +954,7 @@ public class EnvelopedLogFiles implements EnvelopeReadChannelProvider, AutoClose
 
         @Override
         public LogVersionedStoreChannel next(LogVersionedStoreChannel channel, boolean raw) throws IOException {
-            var nextChannel = envelopedLogFiles.safeOpenChannel(channel.getLogVersion() + 1);
+            var nextChannel = envelopedLogFiles.safeOpenChannel(channel.getLogVersion() + 1, raw);
             if (nextChannel != null) {
                 ((UnclosableChannel) channel).toClosable().close();
                 return new UnclosableChannel(nextChannel);
