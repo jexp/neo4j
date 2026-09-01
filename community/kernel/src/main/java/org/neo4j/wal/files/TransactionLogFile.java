@@ -233,6 +233,7 @@ public class TransactionLogFile extends LifecycleAdapter implements LogFile {
         }
         if (context.config().get(GraphDatabaseInternalSettings.merged_log)
                 && currentLogFormat.usesSegments()
+                && logHeader.getKernelVersion() != null
                 && logHeader.getKernelVersion().isGreaterThan(currentKernelVersion)) {
             // Mergedlog can have appended a version we have not yet applied and rotated the log. Let that pass without
             // rotation
