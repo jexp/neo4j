@@ -162,6 +162,9 @@ final class ParallelRecoveryVisitor implements RecoveryApplier {
         try (CursorContext cursorContext = contextFactory.create(tracerTag);
                 var storeCursors = storageEngine.createStorageCursors(cursorContext)) {
             var tx = new CompleteTransaction(transaction, cursorContext, storeCursors);
+            var versionContext = cursorContext.getVersionContext();
+            versionContext.initWrite(tx.transactionId());
+            versionContext.initChunkId(transaction.commandBatch().chunkId());
             storageEngine.apply(tx, mode, EmptyMemoryTracker.INSTANCE);
         }
     }
