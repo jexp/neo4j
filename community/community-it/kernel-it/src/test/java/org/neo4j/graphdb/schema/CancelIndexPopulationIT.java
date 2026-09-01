@@ -27,7 +27,6 @@ import static org.neo4j.test.extension.SkipOnSpd.Note.incompatible;
 
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
-import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Transaction;
@@ -54,8 +53,7 @@ class CancelIndexPopulationIT {
 
     @Test
     void shouldKeepIndexInPopulatingStateBetweenRestarts() throws InterruptedException {
-        DatabaseManagementService dbms = new TestDatabaseManagementServiceBuilder(directory.homePath()).build();
-        try {
+        try (var dbms = new TestDatabaseManagementServiceBuilder(directory.homePath()).build()) {
             GraphDatabaseAPI db = (GraphDatabaseAPI) dbms.database(DEFAULT_DATABASE_NAME);
 
             // given
@@ -67,19 +65,13 @@ class CancelIndexPopulationIT {
             createRelevantNode(db);
             createIndex(db);
             barrier.await();
-        } finally {
-            // This call to shutdown will eventually make a call to populationCancelled on the monitor below
-            dbms.shutdown();
         }
 
-        dbms = new TestDatabaseManagementServiceBuilder(directory.homePath()).build();
-        try {
+        try (var dbms = new TestDatabaseManagementServiceBuilder(directory.homePath()).build(); ) {
             GraphDatabaseAPI db = (GraphDatabaseAPI) dbms.database(DEFAULT_DATABASE_NAME);
 
             // then
             assertEquals(Schema.IndexState.ONLINE, awaitAndGetIndexState(db));
-        } finally {
-            dbms.shutdown();
         }
     }
 

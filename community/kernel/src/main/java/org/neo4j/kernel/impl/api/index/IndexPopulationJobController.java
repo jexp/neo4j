@@ -30,14 +30,18 @@ import org.neo4j.scheduler.JobScheduler;
 class IndexPopulationJobController {
     private final Set<IndexPopulationJob> populationJobs = ConcurrentHashMap.newKeySet();
     private final JobScheduler scheduler;
+    private boolean stopped;
 
     IndexPopulationJobController(JobScheduler scheduler) {
         this.scheduler = scheduler;
     }
 
     void stop() throws InterruptedException {
-        for (IndexPopulationJob job : populationJobs) {
-            job.stop();
+        synchronized (this) {
+            stopped = true;
+            for (IndexPopulationJob job : populationJobs) {
+                job.stop();
+            }
         }
 
         InterruptedException interrupted = null;
@@ -53,8 +57,11 @@ class IndexPopulationJobController {
         }
     }
 
-    void startIndexPopulation(IndexPopulationJob job) {
+    synchronized void startIndexPopulation(IndexPopulationJob job) {
         populationJobs.add(job);
+        if (stopped) {
+            job.stop();
+        }
 
         // There is a small race where this jobHandle hasn't been set yet and the population job gets to run and
         // is stopped (job.jobHandle == null and won't get cancelled).

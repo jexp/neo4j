@@ -70,6 +70,16 @@ class IndexPopulationJobControllerTest {
         verify(populationJob).run();
     }
 
+    @Test
+    void stopPopulationJobStartedAfterStop() throws InterruptedException {
+        jobController.stop();
+
+        IndexPopulationJob populationJob = getIndexPopulationJob();
+        jobController.startIndexPopulation(populationJob);
+
+        verify(populationJob).stop();
+    }
+
     private static IndexPopulationJob getIndexPopulationJob() {
         return mock(IndexPopulationJob.class);
     }
