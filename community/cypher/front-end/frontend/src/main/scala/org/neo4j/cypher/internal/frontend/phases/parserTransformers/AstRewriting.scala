@@ -62,11 +62,11 @@ case object AstRewriting extends StepSequencer.Step with ParsePipelineTransforme
   override def preConditions: Set[StepSequencer.Condition] = Set(
     BaseContains[Statement](),
     BaseContains[SemanticState]()
-  )
+  ) ++ ASTRewriter.initialConditions
 
   // ASTRewriting currently does not uphold this condition. Tracked on SURF-1196
   override def postConditions: Set[StepSequencer.Condition] =
-    ASTRewriter.postConditions - NoReferenceEqualityAmongVariables
+    ASTRewriter.postConditions -- ASTRewriter.initialConditions - NoReferenceEqualityAmongVariables
 
   override def invalidatedConditions: Set[StepSequencer.Condition] = SemanticInfoAvailable + UpToDateScopes
 

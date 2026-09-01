@@ -34,6 +34,7 @@ import org.neo4j.cypher.internal.ast.semantics.SemanticFeature.ShowSetting
 import org.neo4j.cypher.internal.ast.semantics.SemanticFeature.UserTags
 import org.neo4j.cypher.internal.ast.semantics.SemanticFeature.UserTagsInPropertyRules
 import org.neo4j.cypher.internal.ast.semantics.SemanticFeature.ValueInListProperty
+import org.neo4j.cypher.internal.frontend.phases.factories.ParsePipelineTransformerFactory
 import org.neo4j.cypher.internal.frontend.phases.factories.ParsingConfig
 import org.neo4j.cypher.internal.frontend.phases.parserTransformers.AstRewriting
 import org.neo4j.cypher.internal.frontend.phases.parserTransformers.ExtractLocalDefinitions
@@ -45,6 +46,8 @@ import org.neo4j.cypher.internal.frontend.phases.parserTransformers.ResolveSimpl
 import org.neo4j.cypher.internal.frontend.phases.parserTransformers.SemanticAnalysis
 import org.neo4j.cypher.internal.frontend.phases.parserTransformers.scoping.ComputeExpressionDependencies
 import org.neo4j.cypher.internal.frontend.phases.parserTransformers.scoping.ScopeSurveyor
+import org.neo4j.cypher.internal.util.StepSequencer
+import org.neo4j.cypher.internal.util.StepSequencer.AccumulatedSteps
 import org.neo4j.graphdb.config.Setting
 import org.neo4j.values.virtual.MapValue
 
@@ -123,26 +126,33 @@ trait FrontEndCompilationPhases {
       SetReturnColumns
   }
 
+  private val fabricFinalizeStepSet: Set[StepSequencer.Step & ParsePipelineTransformerFactory] = Set(
+    ScopeSurveyor,
+    ResolveCallables,
+    LiteralExtraction,
+    SemanticAnalysis,
+    ReplacePatternComprehensionWithCollectSubqueryRewriter,
+    AstRewriting,
+    ComputeExpressionDependencies,
+    ObfuscationMetadataCollection,
+    ExtractLocalDefinitions
+  )
+
+  private val AccumulatedSteps(fabricFinalizeSteps, _) =
+    StepSequencer[StepSequencer.Step & ParsePipelineTransformerFactory]().orderSteps(
+      fabricFinalizeStepSet,
+      initialConditions =
+        ParsePipelineTransformer.postObfuscatorPostConditions -- fabricFinalizeStepSet.flatMap(_.postConditions)
+    )
+
   // Phase 1.1 (Fabric)
   def fabricFinalize(
     config: ParsingConfig,
     resolver: ScopedProcedureSignatureResolver
   ): Transformer[BaseContext, BaseState, BaseState] = {
-    ScopeSurveyor andThen
-      StrictResolveCallables(resolver) andThen
-      LiteralExtraction(config.literalExtractionStrategy) andThen
-      ScopeSurveyor andThen
-      SemanticAnalysis(warn = Some(true)) andThen
-      ReplacePatternComprehensionWithCollectSubqueryRewriter andThen
-      ScopeSurveyor andThen
-      SemanticAnalysis(warn = Some(false)) andThen
-      ComputeExpressionDependencies andThen
-      AstRewriting(parameterTypeMapping = config.parameterTypeMapping) andThen
-      ScopeSurveyor andThen
-      SemanticAnalysis(warn = Some(false)) andThen
-      ComputeExpressionDependencies andThen
-      ObfuscationMetadataCollection andThen
-      ExtractLocalDefinitions
+    val finalizeConfig = config.copy(resolveCallables = StrictResolveCallables(resolver), isFabricPipeline = false)
+    Chainer.chainTransformers(fabricFinalizeSteps.map(_.getCheckedTransformer(finalizeConfig)))
+      .asInstanceOf[Transformer[BaseContext, BaseState, BaseState]]
   }
 }
 

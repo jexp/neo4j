@@ -63,6 +63,13 @@ import org.neo4j.cypher.internal.util.symbols.ParameterTypeInfo
 
 object ASTRewriter {
 
+  val initialConditions: Set[StepSequencer.Condition] = SemanticInfoAvailable ++ Set(
+    ReturnItemsAreAliased,
+    ContainsNoExpandableClauses,
+    ExpressionsHaveComputedDependencies,
+    ContainsNoNodesOfType[PatternComprehension]()
+  )
+
   val AccumulatedSteps(orderedSteps, postConditions) =
     StepSequencer[StepSequencer.Step with ASTRewriterFactory]().orderSteps(
       Set(
@@ -94,12 +101,7 @@ object ASTRewriter {
         SimplifyIterablePredicates,
         UnwrapParenthesizedPath
       ),
-      initialConditions = SemanticInfoAvailable ++ Set(
-        ReturnItemsAreAliased,
-        ContainsNoExpandableClauses,
-        ExpressionsHaveComputedDependencies,
-        ContainsNoNodesOfType[PatternComprehension]()
-      )
+      initialConditions = initialConditions
     )
 
   def rewrite(
