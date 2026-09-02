@@ -1976,7 +1976,7 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
     @Internal
     @Description("")
     public static final Setting<Double> spd_segment_memory_reclaim_trigger = newBuilder(
-                    "internal.db.spd_import.segment_memory_reclaim_trigger", DOUBLE, 0.8)
+                    "internal.db.spd_import.segment_memory_reclaim_trigger", DOUBLE, 0.5)
             .build();
 
     @Internal
@@ -1994,8 +1994,8 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
 
     @Internal
     @Description("")
-    public static final Setting<Integer> spd_import_segment_records_increment = newBuilder(
-                    "internal.db.spd_import.segment_records_icrement", INT, 10_000)
+    public static final Setting<Long> spd_import_segment_increment_size = newBuilder(
+                    "internal.db.spd_import.segment_increment_size", BYTES, mebiBytes(1))
             .build();
 
     @Internal
