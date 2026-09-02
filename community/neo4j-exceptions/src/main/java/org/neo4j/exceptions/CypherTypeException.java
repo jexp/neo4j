@@ -203,6 +203,12 @@ public class CypherTypeException extends Neo4jException {
         return new CypherTypeException(gql, String.format("Expected VirtualNodeValue got %s", gotTypeName));
     }
 
+    public static CypherTypeException expectedVirtualRelationship(
+            String gotPretty, String gotTypeName, String gotCypherType) {
+        var gql = GqlHelper.getGql22G03_22N01(gotPretty, List.of("RELATIONSHIP"), gotCypherType);
+        return new CypherTypeException(gql, String.format("Expected VirtualRelationshipValue got %s", gotTypeName));
+    }
+
     public static CypherTypeException expectedNodeValue(String gotPretty, String gotTypeName, String gotCypherType) {
         var gql = GqlHelper.getGql22G03_22N01(gotPretty, List.of("NODE"), gotCypherType);
         return new CypherTypeException(gql, String.format("Expected NodeValue but got %s", gotTypeName));

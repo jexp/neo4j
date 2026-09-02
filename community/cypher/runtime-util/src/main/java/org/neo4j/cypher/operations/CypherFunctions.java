@@ -3371,6 +3371,16 @@ public final class CypherFunctions {
         }
     }
 
+    public static long relationshipId(AnyValue value) {
+        assert value != NO_VALUE : "NO_VALUE checks need to happen outside this call";
+        if (value instanceof VirtualRelationshipValue relationship) {
+            return relationship.id();
+        } else {
+            throw CypherTypeException.expectedVirtualRelationship(
+                    value.prettyPrint(), value.getClass().getName(), CypherTypeValueMapper.valueType(value));
+        }
+    }
+
     public static long nodeIdOrParameterWrongTypeError(AnyValue value) {
         assert value != NO_VALUE : "NO_VALUE checks need to happen outside this call";
         if (value instanceof VirtualNodeValue node) {
