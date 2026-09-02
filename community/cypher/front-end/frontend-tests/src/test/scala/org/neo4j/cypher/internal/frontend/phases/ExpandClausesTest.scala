@@ -6053,6 +6053,264 @@ class ExpandClausesTest extends CypherFunSuite with RewritePhaseTest with AstCon
     )
   }
 
+  test("Requires collect and unwind") {
+    assertRewritten(
+      """UNWIND [1, 2, 3] AS x
+        |RETURN DISTINCT x, 1 AS y
+        |NEXT
+        |
+        |USE neo4j
+        |CREATE (:L {probe: EXISTS {
+        |  OPTIONAL MATCH (n)
+        |  SEARCH n IN (
+        |    VECTOR INDEX fuzz_node_vector_index
+        |    FOR [1.0, 0.0, 0.0]
+        |    LIMIT 3
+        |  )
+        |}})
+        |LIMIT 1
+        |RETURN {x: x, y: y} AS result""".stripMargin,
+      """UNWIND [1, 2, 3] AS x
+        |WITH DISTINCT x AS x, 1 AS y
+        |WITH count(*) AS `  UNNAMED2`, collect([x]) AS `  UNNAMED0`, collect([y]) AS `  UNNAMED1`
+        |CALL (`  UNNAMED0`,`  UNNAMED1`,`  UNNAMED2`) {
+        |  USE `neo4j`
+        |  UNWIND range(0, `  UNNAMED2` - 1) AS `  UNNAMED3`
+        |  WITH (`  UNNAMED0`[`  UNNAMED3`])[0] AS x, (`  UNNAMED1`[`  UNNAMED3`])[0] AS y
+        |  CREATE (:L {probe: EXISTS {
+        |  OPTIONAL MATCH (n)
+        |    SEARCH n IN (
+        |      VECTOR INDEX fuzz_node_vector_index
+        |      FOR [1.0, 0.0, 0.0]
+        |      LIMIT 3
+        |    )
+        |}})
+        |  WITH x AS x, y AS y
+        |    LIMIT 1
+        |  RETURN {x: x, y: y} AS result
+        |}
+        |RETURN result AS result""".stripMargin,
+      additionalExpectedAstUpdates = withUpdate(),
+      additionalActualAstCleanup = withUpdate()
+    )
+  }
+
+  test("Should require collect and unwind - but missing when invariant added") {
+    assertRewritten(
+      """UNWIND [1, 2, 3] AS x
+        |RETURN DISTINCT x, 1 AS y
+        |NEXT
+        |
+        |USE neo4j
+        |CREATE (:L {probe: EXISTS {
+        |  OPTIONAL MATCH (n)
+        |  SEARCH n IN (
+        |    VECTOR INDEX fuzz_node_vector_index
+        |    FOR [1.0, 0.0, 0.0]
+        |    LIMIT 3
+        |  )
+        |}})
+        |LIMIT 1
+        |CALL (x, y) {
+        |  RETURN CASE WHEN x IS NULL THEN null ELSE x END AS bx,
+        |         CASE WHEN y IS NULL THEN null ELSE y END AS by
+        |}
+        |WITH bx AS x, by AS y
+        |RETURN {x: x, y: y} AS result""".stripMargin,
+      """UNWIND [1, 2, 3] AS x
+        |WITH DISTINCT x AS x, 1 AS y
+        |WITH count(*) AS `  UNNAMED2`, collect([x]) AS `  UNNAMED0`, collect([y]) AS `  UNNAMED1`
+        |CALL (`  UNNAMED0`,`  UNNAMED1`,`  UNNAMED2`) {
+        |  USE `neo4j`
+        |  UNWIND range(0, `  UNNAMED2` - 1) AS `  UNNAMED3`
+        |  WITH (`  UNNAMED0`[`  UNNAMED3`])[0] AS x, (`  UNNAMED1`[`  UNNAMED3`])[0] AS y
+        |  CREATE (:L {probe: EXISTS {
+        |  OPTIONAL MATCH (n)
+        |    SEARCH n IN (
+        |      VECTOR INDEX fuzz_node_vector_index
+        |      FOR [1.0, 0.0, 0.0]
+        |      LIMIT 3
+        |    )
+        |}})
+        |  WITH x AS x, y AS y
+        |    LIMIT 1
+        |CALL (x, y) {
+        |  RETURN CASE WHEN x IS NULL THEN null ELSE x END AS bx,
+        |         CASE WHEN y IS NULL THEN null ELSE y END AS by
+        |}
+        |WITH bx AS x, by AS y
+        |  RETURN {x: x, y: y} AS result
+        |}
+        |RETURN result AS result""".stripMargin,
+      additionalExpectedAstUpdates = withUpdate(),
+      additionalActualAstCleanup = withUpdate()
+    )
+  }
+
+  test("Requires collect and unwind - USE wrapping a UNION ALL with an update") {
+    assertRewritten(
+      """UNWIND [1, 2, 3] AS x
+        |RETURN DISTINCT x, 1 AS y
+        |NEXT
+        |
+        |USE neo4j {
+        |  RETURN {x: x, y: y} AS result
+        |  UNION ALL
+        |  CREATE (:L {probe: x})
+        |  RETURN {x: x, y: y} AS result
+        |}""".stripMargin,
+      """UNWIND [1, 2, 3] AS x
+        |WITH DISTINCT x AS x, 1 AS y
+        |WITH count(*) AS `  UNNAMED2`, collect([x]) AS `  UNNAMED0`, collect([y]) AS `  UNNAMED1`
+        |CALL (`  UNNAMED0`,`  UNNAMED1`,`  UNNAMED2`) {
+        |  USE `neo4j`
+        |  UNWIND range(0, `  UNNAMED2` - 1) AS `  UNNAMED3`
+        |  WITH (`  UNNAMED0`[`  UNNAMED3`])[0] AS x, (`  UNNAMED1`[`  UNNAMED3`])[0] AS y
+        |  RETURN {x: x, y: y} AS result
+        |  UNION ALL
+        |  USE `neo4j`
+        |  UNWIND range(0, `  UNNAMED2` - 1) AS `  UNNAMED3`
+        |  WITH (`  UNNAMED0`[`  UNNAMED3`])[0] AS x, (`  UNNAMED1`[`  UNNAMED3`])[0] AS y
+        |  CREATE (:L {probe: x})
+        |  RETURN {x: x, y: y} AS result
+        |}
+        |RETURN result AS result""".stripMargin,
+      additionalExpectedAstUpdates = withUpdate(),
+      additionalActualAstCleanup = withUpdate()
+    )
+  }
+
+  test("Requires collect and unwind - trigger before a right-nested UNION ALL") {
+    assertRewritten(
+      """UNWIND [1, 2, 3] AS x
+        |RETURN DISTINCT x, 1 AS y
+        |NEXT
+        |
+        |USE neo4j
+        |CREATE (:L {probe: x})
+        |RETURN {x: x, y: y} AS result
+        |UNION ALL
+        |{
+        |  RETURN {x: x, y: y} AS result
+        |  UNION ALL
+        |  RETURN {x: x, y: y} AS result
+        |}""".stripMargin,
+      """UNWIND [1, 2, 3] AS x
+        |WITH DISTINCT x AS x, 1 AS y
+        |WITH count(*) AS `  UNNAMED2`, collect([x]) AS `  UNNAMED0`, collect([y]) AS `  UNNAMED1`
+        |CALL (`  UNNAMED0`,`  UNNAMED1`,`  UNNAMED2`) {
+        |  USE `neo4j`
+        |  UNWIND range(0, `  UNNAMED2` - 1) AS `  UNNAMED3`
+        |  WITH (`  UNNAMED0`[`  UNNAMED3`])[0] AS x, (`  UNNAMED1`[`  UNNAMED3`])[0] AS y
+        |  CREATE (:L {probe: x})
+        |  RETURN {x: x, y: y} AS result
+        |  UNION ALL
+        |  UNWIND range(0, `  UNNAMED2` - 1) AS `  UNNAMED3`
+        |  WITH (`  UNNAMED0`[`  UNNAMED3`])[0] AS x, (`  UNNAMED1`[`  UNNAMED3`])[0] AS y
+        |  CALL (x,y) {
+        |    RETURN {x: x, y: y} AS result
+        |    UNION ALL
+        |    RETURN {x: x, y: y} AS result
+        |  }
+        |  RETURN result AS result
+        |}
+        |RETURN result AS result""".stripMargin,
+      additionalExpectedAstUpdates = withUpdate(),
+      additionalActualAstCleanup = withUpdate()
+    )
+  }
+
+  test("Requires collect and unwind - trigger before a WHEN branch") {
+    assertRewritten(
+      """UNWIND [1, 2, 3] AS x
+        |RETURN DISTINCT x, 1 AS y
+        |NEXT
+        |
+        |USE neo4j
+        |CREATE (:L {probe: x})
+        |RETURN {x: x, y: y} AS result
+        |UNION ALL
+        |{
+        |  WHEN true THEN
+        |    RETURN {x: x, y: y} AS result
+        |  ELSE
+        |    RETURN {x: x, y: y} AS result
+        |}""".stripMargin,
+      """UNWIND [1, 2, 3] AS x
+        |WITH DISTINCT x AS x, 1 AS y
+        |WITH count(*) AS `  UNNAMED2`, collect([x]) AS `  UNNAMED0`, collect([y]) AS `  UNNAMED1`
+        |CALL (`  UNNAMED0`,`  UNNAMED1`,`  UNNAMED2`) {
+        |  USE `neo4j`
+        |  UNWIND range(0, `  UNNAMED2` - 1) AS `  UNNAMED3`
+        |  WITH (`  UNNAMED0`[`  UNNAMED3`])[0] AS x, (`  UNNAMED1`[`  UNNAMED3`])[0] AS y
+        |  CREATE (:L {probe: x})
+        |  RETURN {x: x, y: y} AS result
+        |  UNION ALL
+        |  UNWIND range(0, `  UNNAMED2` - 1) AS `  UNNAMED3`
+        |  WITH (`  UNNAMED0`[`  UNNAMED3`])[0] AS x, (`  UNNAMED1`[`  UNNAMED3`])[0] AS y
+        |  WITH x AS x, y AS y, CASE
+        |  WHEN true THEN 0
+        |  ELSE 1
+        |END AS `  UNNAMED4`
+        |  CALL (x,y,`  UNNAMED4`) {
+        |    WITH `  UNNAMED4` AS `  UNNAMED4`
+        |      WHERE `  UNNAMED4` = 0
+        |    CALL (x,y) {
+        |      RETURN {x: x, y: y} AS result
+        |    }
+        |    RETURN result AS result
+        |    UNION ALL
+        |    WITH `  UNNAMED4` AS `  UNNAMED4`
+        |      WHERE `  UNNAMED4` = 1
+        |    CALL (x,y) {
+        |      RETURN {x: x, y: y} AS result
+        |    }
+        |    RETURN result AS result
+        |  }
+        |  RETURN result AS result
+        |}
+        |RETURN result AS result""".stripMargin,
+      additionalExpectedAstUpdates = withUpdate(),
+      additionalActualAstCleanup = withUpdate()
+    )
+  }
+
+  test("Requires collect and unwind - trigger before a nested NEXT") {
+    assertRewritten(
+      """UNWIND [1, 2, 3] AS x
+        |RETURN DISTINCT x, 1 AS y
+        |NEXT
+        |
+        |USE neo4j
+        |CREATE (:L {probe: x})
+        |RETURN {x: x, y: y} AS result
+        |UNION ALL
+        |{
+        |  RETURN 1 AS result
+        |  NEXT
+        |  RETURN 2 AS result
+        |}""".stripMargin,
+      """UNWIND [1, 2, 3] AS x
+        |WITH DISTINCT x AS x, 1 AS y
+        |WITH count(*) AS `  UNNAMED2`, collect([x]) AS `  UNNAMED0`, collect([y]) AS `  UNNAMED1`
+        |CALL (`  UNNAMED0`,`  UNNAMED1`,`  UNNAMED2`) {
+        |  USE `neo4j`
+        |  UNWIND range(0, `  UNNAMED2` - 1) AS `  UNNAMED3`
+        |  WITH (`  UNNAMED0`[`  UNNAMED3`])[0] AS x, (`  UNNAMED1`[`  UNNAMED3`])[0] AS y
+        |  CREATE (:L {probe: x})
+        |  RETURN {x: x, y: y} AS result
+        |  UNION ALL
+        |  UNWIND range(0, `  UNNAMED2` - 1) AS `  UNNAMED3`
+        |  WITH (`  UNNAMED0`[`  UNNAMED3`])[0] AS x, (`  UNNAMED1`[`  UNNAMED3`])[0] AS y
+        |  WITH 1 AS result
+        |  RETURN 2 AS result
+        |}
+        |RETURN result AS result""".stripMargin,
+      additionalExpectedAstUpdates = withUpdate(),
+      additionalActualAstCleanup = withUpdate()
+    )
+  }
+
 }
 
 class ExpandCommandClauseTest extends CypherFunSuite with AstRewritingTestSupport {

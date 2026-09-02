@@ -506,12 +506,24 @@ case object ExpandClauses extends StatementRewriter with StepSequencer.Step with
       // Logic deciding whether a query queries ByTable semantics.
       def checkQuerySemantics(query: Query, init: QuerySemantics = ByRow): QuerySemantics =
         query.folder.treeFold[QuerySemantics](init) {
-          case _: SubqueryCall         => _ => SkipChildren(ByRow)
-          case _: ConditionalQueryWhen => _ => SkipChildren(ByRow)
-          case _: UnionDistinct        => _ => SkipChildren(RequiresCollecting)
-          case _: UnionAll             => _ => TraverseChildren(ByTable)
-          case ns: NextStatement       => _ => SkipChildren(checkQuerySemantics(ns.queries.head, ByRow))
-          case _: UseGraph             => _ => TraverseChildren(ByTable)
+          case _: SubqueryCall => acc => SkipChildren(acc)
+          case _: ConditionalQueryWhen => {
+            case RequiresCollecting => SkipChildren(RequiresCollecting)
+            case _                  => SkipChildren(ByRow)
+          }
+          case _: UnionDistinct => _ => SkipChildren(RequiresCollecting)
+          case _: UnionAll => {
+            case RequiresCollecting => SkipChildren(RequiresCollecting)
+            case _                  => TraverseChildren(ByTable)
+          }
+          case ns: NextStatement => {
+            case RequiresCollecting => SkipChildren(RequiresCollecting)
+            case _                  => SkipChildren(checkQuerySemantics(ns.queries.head, ByRow))
+          }
+          case _: UseGraph => {
+            case RequiresCollecting => SkipChildren(RequiresCollecting)
+            case _                  => TraverseChildren(ByTable)
+          }
           case p: ProjectionClause => {
             case ByTable if p.distinct =>
               SkipChildren(RequiresCollecting)
