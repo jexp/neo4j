@@ -131,8 +131,8 @@ public class FileImporter {
     private final boolean autoSkipHeaders;
 
     // The same import command must always read the input files in the same order, therefore LinkedHashMaps
-    private final LinkedHashMap<Set<String>, List<FileGroup>> nodeFiles;
-    private final LinkedHashMap<String, List<FileGroup>> relationshipFiles;
+    private final Map<Set<String>, List<FileGroup>> nodeFiles;
+    private final Map<String, List<FileGroup>> relationshipFiles;
 
     private final FileSystemAbstraction fileSystem;
     private final PrintStream stdOut;
@@ -148,7 +148,8 @@ public class FileImporter {
     private final Monitor monitor;
     private final ResumableStateWriter resumableStateWriter;
 
-    private FileImporter(Builder b) {
+    private FileImporter(
+            Builder b, Map<Set<String>, List<FileGroup>> nodeFiles, Map<String, List<FileGroup>> relationshipFiles) {
         this.databaseLayout = requireNonNull(b.databaseLayout);
         this.databaseConfig = requireNonNull(b.databaseConfig);
         this.storageEngineFactory = requireNonNull(b.storageEngineFactory);
@@ -165,8 +166,8 @@ public class FileImporter {
         this.normalizeTypes = b.normalizeTypes;
         this.verbose = b.verbose;
         this.autoSkipHeaders = b.autoSkipHeaders;
-        this.nodeFiles = requireNonNull(b.nodeFiles);
-        this.relationshipFiles = requireNonNull(b.relationshipFiles);
+        this.nodeFiles = nodeFiles;
+        this.relationshipFiles = relationshipFiles;
         this.fileSystem = requireNonNull(b.fileSystem);
         this.pageCacheTracer = requireNonNull(b.pageCacheTracer);
         this.contextFactory = requireNonNull(b.contextFactory);
@@ -188,26 +189,20 @@ public class FileImporter {
 
     /**
      * @return the node input file groups, keyed by the additional labels applied to them, in the order the groups were
-     * given on the command line.
+     * given on the command line. This returns an unmodifiable Map, with unmodifiable Set keys and
+     * unmodifiable List values.
      */
     public Map<Set<String>, List<FileGroup>> nodeFiles() {
-        var copy = new LinkedHashMap<Set<String>, List<FileGroup>>();
-        for (Entry<Set<String>, List<FileGroup>> entry : nodeFiles.entrySet()) {
-            copy.put(Collections.unmodifiableSet(entry.getKey()), Collections.unmodifiableList(entry.getValue()));
-        }
-        return Collections.unmodifiableMap(copy);
+        return nodeFiles;
     }
 
     /**
      * @return the relationship input file groups, keyed by their default relationship type, in the order the groups
-     * were given on the command line.
+     * were given on the command line. This returns an unmodifiable Map, with unmodifiable Set keys and
+     * unmodifiable List values.
      */
     public Map<String, List<FileGroup>> relationshipFiles() {
-        var copy = new LinkedHashMap<String, List<FileGroup>>();
-        for (Entry<String, List<FileGroup>> entry : relationshipFiles.entrySet()) {
-            copy.put(entry.getKey(), Collections.unmodifiableList(entry.getValue()));
-        }
-        return Collections.unmodifiableMap(copy);
+        return relationshipFiles;
     }
 
     public void dryRun(ImportCommand.Base type) throws IOException {
@@ -595,9 +590,15 @@ public class FileImporter {
         private boolean normalizeTypes;
         private boolean verbose;
         private boolean autoSkipHeaders;
-        // The same import command must always read the input files in the same order, therefore LinkedHashMaps
-        private final LinkedHashMap<Set<String>, List<FileGroup>> nodeFiles = new LinkedHashMap<>();
-        private final LinkedHashMap<String, List<FileGroup>> relationshipFiles = new LinkedHashMap<>();
+        /* The same import command must always read the input files in the same order, therefore LinkedHashMaps.
+         * The temp entity files are mutable, the field that we end up constructing the importer with is unmodifiable.
+         *
+         * Warning: do not use these Maps as a source of truth, they are mutating as we are building the importer
+         * setup, the finalized source of truth files should be accessed from FileImporter.nodeFiles()
+         */
+        private final LinkedHashMap<Set<String>, List<FileGroup>> tempNodeFiles = new LinkedHashMap<>();
+        private final LinkedHashMap<String, List<FileGroup>> tempRelationshipFiles = new LinkedHashMap<>();
+
         private FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction();
         private PageCacheTracer pageCacheTracer = PageCacheTracer.NULL;
         private CursorContextFactory contextFactory =
@@ -724,12 +725,12 @@ public class FileImporter {
          * order of applying labels, which is required for resumability
          */
         public Builder addNodeFiles(SequencedSet<String> labels, FileGroup fileGroup) {
-            nodeFiles.computeIfAbsent(labels, unused -> new ArrayList<>()).add(fileGroup);
+            tempNodeFiles.computeIfAbsent(labels, unused -> new ArrayList<>()).add(fileGroup);
             return this;
         }
 
         public Builder addRelationshipFiles(String defaultRelType, FileGroup fileGroup) {
-            relationshipFiles
+            tempRelationshipFiles
                     .computeIfAbsent(defaultRelType, unused -> new ArrayList<>())
                     .add(fileGroup);
             return this;
@@ -810,7 +811,27 @@ public class FileImporter {
         }
 
         public FileImporter build() {
-            return new FileImporter(this);
+            var nodeFiles = unmodifiableNodeFiles(tempNodeFiles);
+            var relationshipFiles = unmodifiableRelationshipFiles(tempRelationshipFiles);
+            return new FileImporter(this, nodeFiles, relationshipFiles);
+        }
+
+        private static Map<Set<String>, List<FileGroup>> unmodifiableNodeFiles(
+                LinkedHashMap<Set<String>, List<FileGroup>> files) {
+            var copy = new LinkedHashMap<Set<String>, List<FileGroup>>();
+            for (Entry<Set<String>, List<FileGroup>> entry : files.entrySet()) {
+                copy.put(Collections.unmodifiableSet(entry.getKey()), Collections.unmodifiableList(entry.getValue()));
+            }
+            return Collections.unmodifiableMap(copy);
+        }
+
+        private static Map<String, List<FileGroup>> unmodifiableRelationshipFiles(
+                LinkedHashMap<String, List<FileGroup>> files) {
+            var copy = new LinkedHashMap<String, List<FileGroup>>();
+            for (Entry<String, List<FileGroup>> entry : files.entrySet()) {
+                copy.put(entry.getKey(), Collections.unmodifiableList(entry.getValue()));
+            }
+            return Collections.unmodifiableMap(copy);
         }
     }
 }

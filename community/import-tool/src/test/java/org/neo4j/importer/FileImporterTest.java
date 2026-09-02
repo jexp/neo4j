@@ -246,6 +246,38 @@ class FileImporterTest {
         assertThat(traversalOrder(importer.relationshipFiles().values())).containsExactly(0, 4, 1, 2, 3);
     }
 
+    @Test
+    void nodeFilesIsUnmodifiable() {
+        var importer = importerBuilder()
+                .withDatabaseConfig(dbConfig())
+                .withReportFile(testDir.file("report.txt"))
+                .addNodeFiles(labels("Person"), fileGroup(0))
+                .build();
+
+        var nodeFiles = importer.nodeFiles();
+        assertThatThrownBy(() -> nodeFiles.put(labels("Actor"), List.of()))
+                .isInstanceOf(UnsupportedOperationException.class);
+        assertThatThrownBy(() -> nodeFiles.values().iterator().next().add(fileGroup(9)))
+                .isInstanceOf(UnsupportedOperationException.class);
+        assertThatThrownBy(() -> nodeFiles.keySet().iterator().next().add("Extra"))
+                .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    void relationshipFilesIsUnmodifiable() {
+        var importer = importerBuilder()
+                .withDatabaseConfig(dbConfig())
+                .withReportFile(testDir.file("report.txt"))
+                .addRelationshipFiles("KNOWS", fileGroup(0))
+                .build();
+
+        var relationshipFiles = importer.relationshipFiles();
+        assertThatThrownBy(() -> relationshipFiles.put("ACTED_IN", List.of()))
+                .isInstanceOf(UnsupportedOperationException.class);
+        assertThatThrownBy(() -> relationshipFiles.values().iterator().next().add(fileGroup(9)))
+                .isInstanceOf(UnsupportedOperationException.class);
+    }
+
     private static SequencedSet<String> labels(String... labels) {
         return new LinkedHashSet<>(List.of(labels));
     }
