@@ -23,6 +23,7 @@ import static java.util.concurrent.TimeUnit.MINUTES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.test.extension.SkipOnSpd.Note.incompatible;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -49,6 +50,7 @@ import org.neo4j.test.LatestVersions;
 import org.neo4j.test.TestDatabaseManagementServiceBuilder;
 import org.neo4j.test.extension.Inject;
 import org.neo4j.test.extension.Neo4jLayoutExtension;
+import org.neo4j.test.extension.SkipOnSpd;
 
 /**
  * Shutting the database down while a vector index is running its post-population compaction must not wait for that
@@ -57,6 +59,11 @@ import org.neo4j.test.extension.Neo4jLayoutExtension;
  * merged so far would leave a permanently uncompacted index that nothing would ever go back and fix.
  */
 @Neo4jLayoutExtension
+@SkipOnSpd(
+        notes = incompatible,
+        reason = "Drives the graph-shard VectorIndexPopulator directly through its IndexMonitor. Under SPD the "
+                + "vector index is populated from the property shards, so that populator scans no entities, never "
+                + "has a merge in flight, and there is no in-flight compaction here to shut down into")
 class VectorIndexShutdownDuringCompactionIT {
     private static final Label LABEL = Label.label("Vector");
     private static final String PROPERTY = "embedding";

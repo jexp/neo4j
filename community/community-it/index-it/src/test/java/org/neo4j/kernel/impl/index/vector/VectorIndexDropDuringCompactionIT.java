@@ -24,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 import static org.neo4j.logging.AssertableLogProvider.Level.ERROR;
+import static org.neo4j.test.extension.SkipOnSpd.Note.incompatible;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -55,6 +56,7 @@ import org.neo4j.test.LatestVersions;
 import org.neo4j.test.TestDatabaseManagementServiceBuilder;
 import org.neo4j.test.extension.Inject;
 import org.neo4j.test.extension.Neo4jLayoutExtension;
+import org.neo4j.test.extension.SkipOnSpd;
 
 /**
  * Dropping a vector index while its post-population compaction is merging segments used to queue behind the merge,
@@ -62,6 +64,11 @@ import org.neo4j.test.extension.Neo4jLayoutExtension;
  * large index can take hours, that made the drop appear to hang.
  */
 @Neo4jLayoutExtension
+@SkipOnSpd(
+        notes = incompatible,
+        reason = "Drives the graph-shard VectorIndexPopulator directly through its IndexMonitor. Under SPD the "
+                + "vector index is populated from the property shards, so that populator scans no entities, never "
+                + "has a merge in flight, and there is no in-flight compaction here to drop into")
 class VectorIndexDropDuringCompactionIT {
     private static final Label LABEL = Label.label("Vector");
     private static final String PROPERTY = "embedding";
