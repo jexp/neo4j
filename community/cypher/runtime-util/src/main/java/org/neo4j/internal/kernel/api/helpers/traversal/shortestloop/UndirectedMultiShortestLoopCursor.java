@@ -130,9 +130,10 @@ public final class UndirectedMultiShortestLoopCursor extends UndirectedShortestL
     }
 
     private boolean bfs() {
-        int pathLength = -1;
+        int pathLength = Integer.MAX_VALUE;
+        boolean exhausted = false;
         HeapTrackingLongHashSet currentRoots = HeapTrackingCollections.newLongSet(memoryTracker);
-        while (2 * (currentDepth + 1) - 1 <= maxDepth
+        while (2 * currentDepth <= maxDepth
                 && currentDepth <= intersectionDepth) { // We only check current frontier for loops so this is fine
             currentRoots.clear();
             while (currentFrontierIterator.hasNext()) {
@@ -153,7 +154,7 @@ public final class UndirectedMultiShortestLoopCursor extends UndirectedShortestL
                         int temp = handleLoop(
                                 loop, foundNode, intersectionFoundEarly, origin, selectionCursor.reference());
                         if (temp != -1) {
-                            pathLength = temp;
+                            pathLength = Math.min(pathLength, temp);
                         }
                     }
                 }
@@ -162,11 +163,11 @@ public final class UndirectedMultiShortestLoopCursor extends UndirectedShortestL
                     return false;
                 } // If there is just one relation from startNode then we cannot find a loop (in trail mode)
                 if (currentDepth > 1 && currentRoots.size() < 2) {
-                    currentRoots.close();
-                    return false;
+                    exhausted = true;
+                    break;
                 }
             }
-            if (nextFrontier.isEmpty()) {
+            if (exhausted || nextFrontier.isEmpty()) {
                 break;
             }
             var tmp = currentFrontier;
@@ -181,8 +182,8 @@ public final class UndirectedMultiShortestLoopCursor extends UndirectedShortestL
             closeInternal();
             return false;
         }
-        if (intersectionDepth == 1) {
-            dfs = new ShortestLoopLengthOneIterator();
+        if (pathLength == 2) {
+            dfs = new ShortestLoopLengthTwoIterator();
         } else {
             dfs = new MultiShortestLoopIterator(startNode, pathLength);
         }
@@ -218,7 +219,7 @@ public final class UndirectedMultiShortestLoopCursor extends UndirectedShortestL
                     return -1;
                 }
                 int pathLength = loop.loopLength(currentDepth);
-                if (nodeFilter.test(foundNode)) {
+                if (pathLength <= maxDepth && nodeFilter.test(foundNode)) {
                     nextFrontier.add(foundNode);
                     intersections.add(foundNode);
                     this.intersectionFoundEarly = true;
@@ -340,63 +341,47 @@ public final class UndirectedMultiShortestLoopCursor extends UndirectedShortestL
         }
     }
 
-    private final class ShortestLoopLengthOneIterator extends DFSIterator {
-        private final HeapTrackingArrayDeque<State> stack;
-        private State current;
-        private int currentTrace;
+    private final class ShortestLoopLengthTwoIterator extends DFSIterator {
+        private final LongIterator intersectionIterator;
+        private long intersection;
+        private HeapTrackingArrayList<Trace> traces;
+        private int outIndex;
+        private int backIndex;
 
-        public ShortestLoopLengthOneIterator() {
-            this.stack = HeapTrackingCollections.newArrayDeque(memoryTracker);
-            this.current = null;
-            this.currentTrace = -1;
-
-            for (Trace trace : pathTracer.get(startNode)) {
-                State state =
-                        new State(trace, intersections.contains(trace.prevNode()), pathTracer.depth(trace.prevNode()));
-                stack.push(state);
-            }
-        }
-
-        private PathReference nextFromTraces() {
-            while (currentTrace >= 0) {
-                Trace trace = pathTracer.get(current.currentNode()).get(currentTrace);
-                currentTrace--;
-                if (current.trace.relId() != trace.relId() && trace.prevNode() == startNode) {
-                    return createPath(trace.relId());
-                } // We don't need to add states since all paths will be length one
-            }
-            return null; // We should never reach this
+        public ShortestLoopLengthTwoIterator() {
+            this.intersectionIterator = intersections.longIterator();
+            this.intersection = -1;
+            this.traces = null;
+            this.outIndex = 0;
+            this.backIndex = 0;
         }
 
         @Override
         protected PathReference fetchNextOrNull() {
-            if (currentTrace != -1) {
-                return nextFromTraces();
-            } else if (!stack.isEmpty()) {
-                current = stack.pop();
-                currentTrace = pathTracer.get(current.currentNode()).size() - 1;
-                return nextFromTraces();
-            } else {
-                return null;
+            while (true) {
+                while (traces != null && outIndex < traces.size()) {
+                    if (backIndex >= traces.size()) {
+                        outIndex++;
+                        backIndex = 0;
+                        continue;
+                    }
+                    Trace out = traces.get(outIndex);
+                    Trace back = traces.get(backIndex);
+                    backIndex++;
+                    if (out.relId() != back.relId() && out.prevNode() == startNode && back.prevNode() == startNode) {
+                        return pathReference(
+                                new long[] {startNode, intersection, startNode},
+                                new long[] {out.relId(), back.relId()});
+                    }
+                }
+                if (!intersectionIterator.hasNext()) {
+                    return null;
+                }
+                intersection = intersectionIterator.next();
+                traces = pathTracer.get(intersection);
+                outIndex = 0;
+                backIndex = 0;
             }
-        }
-
-        public PathReference createPath(long relation) {
-            long[] relationships = new long[2];
-            long[] nodes = new long[3];
-
-            nodes[0] = startNode;
-            nodes[1] = current.currentNode();
-            nodes[2] = startNode;
-            relationships[0] = current.trace.relId();
-            relationships[1] = relation;
-
-            return pathReference(nodes, relationships);
-        }
-
-        @Override
-        public void close() {
-            stack.close();
         }
     }
 

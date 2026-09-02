@@ -1103,6 +1103,154 @@ class UndirectedShortestLoopCursorTest {
         }
     }
 
+    @Test
+    void shouldFindAllTwoNodeLoopsWhenSeveralNeighboursFormThem() throws KernelException {
+        try (var fixture = new Fixture()) {
+            Write write = fixture.tx.dataWrite();
+            int rel = fixture.tx.tokenWrite().relationshipTypeGetOrCreateForName("R");
+            // (a) ↔ (start) ↔ (b), and additionally (b) - (a), so that a longer loop exists as well
+            long start = write.nodeCreate();
+            long a = write.nodeCreate();
+            long b = write.nodeCreate();
+            long startToA = write.relationshipCreate(start, rel, a);
+            long aToStart = write.relationshipCreate(a, rel, start);
+            long startToB = write.relationshipCreate(start, rel, b);
+            long bToStart = write.relationshipCreate(b, rel, start);
+            write.relationshipCreate(b, rel, a);
+
+            var cursor = fixture.undirectedMultiLoopCursor(start);
+            var iterator = cursor.shortestPathIterator();
+
+            assertThat(toList(iterator))
+                    .containsExactlyInAnyOrder(
+                            pathReference(new long[] {start, a, start}, new long[] {startToA, aToStart}),
+                            pathReference(new long[] {start, a, start}, new long[] {aToStart, startToA}),
+                            pathReference(new long[] {start, b, start}, new long[] {startToB, bToStart}),
+                            pathReference(new long[] {start, b, start}, new long[] {bToStart, startToB}));
+            assertThat(iterator).isExhausted();
+        }
+    }
+
+    @Test
+    void shouldFindAllTwoNodeLoopsWhenALongerLoopStartsWithTheSameRelationship() throws KernelException {
+        try (var fixture = new Fixture()) {
+            Write write = fixture.tx.dataWrite();
+            int rel = fixture.tx.tokenWrite().relationshipTypeGetOrCreateForName("R");
+            // (start) ↔ (a) - (b) - (start)
+            long start = write.nodeCreate();
+            long a = write.nodeCreate();
+            long b = write.nodeCreate();
+            long startToA = write.relationshipCreate(start, rel, a);
+            long aToStart = write.relationshipCreate(a, rel, start);
+            write.relationshipCreate(a, rel, b);
+            write.relationshipCreate(b, rel, start);
+
+            var cursor = fixture.undirectedMultiLoopCursor(start);
+            var iterator = cursor.shortestPathIterator();
+
+            assertThat(toList(iterator))
+                    .containsExactlyInAnyOrder(
+                            pathReference(new long[] {start, a, start}, new long[] {startToA, aToStart}),
+                            pathReference(new long[] {start, a, start}, new long[] {aToStart, startToA}));
+            assertThat(iterator).isExhausted();
+        }
+    }
+
+    @Test
+    void shouldFindTwoNodeLoopWhenMaxDepthIsExactlyTwo() throws KernelException {
+        try (var fixture = new Fixture()) {
+            Write write = fixture.tx.dataWrite();
+            int rel = fixture.tx.tokenWrite().relationshipTypeGetOrCreateForName("R");
+            // (start) ↔ (a)
+            long start = write.nodeCreate();
+            long a = write.nodeCreate();
+            long startToA = write.relationshipCreate(start, rel, a);
+            long aToStart = write.relationshipCreate(a, rel, start);
+
+            var cursor = fixture.undirectedMultiLoopCursor(start, 2);
+            var iterator = cursor.shortestPathIterator();
+
+            assertThat(toList(iterator))
+                    .containsExactlyInAnyOrder(
+                            pathReference(new long[] {start, a, start}, new long[] {startToA, aToStart}),
+                            pathReference(new long[] {start, a, start}, new long[] {aToStart, startToA}));
+            assertThat(iterator).isExhausted();
+        }
+    }
+
+    @Test
+    void shouldNotFindTwoNodeLoopWhenMaxDepthIsOne() throws KernelException {
+        try (var fixture = new Fixture()) {
+            Write write = fixture.tx.dataWrite();
+            int rel = fixture.tx.tokenWrite().relationshipTypeGetOrCreateForName("R");
+            // (start) ↔ (a), the only loop has length two and so exceeds the max depth
+            long start = write.nodeCreate();
+            long a = write.nodeCreate();
+            write.relationshipCreate(start, rel, a);
+            write.relationshipCreate(a, rel, start);
+
+            var cursor = fixture.undirectedMultiLoopCursor(start, 1);
+
+            assertThat(cursor.shortestPathIterator()).isExhausted();
+        }
+    }
+
+    @Test
+    void shouldFindEvenLengthLoopWhenMaxDepthIsExactlyTheLoopLength() throws KernelException {
+        try (var fixture = new Fixture()) {
+            Write write = fixture.tx.dataWrite();
+            int rel = fixture.tx.tokenWrite().relationshipTypeGetOrCreateForName("R");
+            // (start) - (a) - (b) - (c) - (start), the only loop has length four
+            long start = write.nodeCreate();
+            long a = write.nodeCreate();
+            long b = write.nodeCreate();
+            long c = write.nodeCreate();
+            long startToA = write.relationshipCreate(start, rel, a);
+            long aToB = write.relationshipCreate(a, rel, b);
+            long bToC = write.relationshipCreate(b, rel, c);
+            long cToStart = write.relationshipCreate(c, rel, start);
+
+            var cursor = fixture.undirectedMultiLoopCursor(start, 4);
+            var iterator = cursor.shortestPathIterator();
+
+            assertThat(toList(iterator))
+                    .containsExactlyInAnyOrder(
+                            pathReference(
+                                    new long[] {start, a, b, c, start}, new long[] {startToA, aToB, bToC, cToStart}),
+                            pathReference(
+                                    new long[] {start, c, b, a, start}, new long[] {cToStart, bToC, aToB, startToA}));
+            assertThat(iterator).isExhausted();
+        }
+    }
+
+    @Test
+    void shouldKeepLoopsFoundBeforeALevelThatCannotExtendThem() throws KernelException {
+        try (var fixture = new Fixture()) {
+            Write write = fixture.tx.dataWrite();
+            int rel = fixture.tx.tokenWrite().relationshipTypeGetOrCreateForName("R");
+            // (start) - (a) - (b) - (start), with (a) ↔ (c) hanging off the loop. Expanding the third level
+            // cannot extend the length three loop, which must still be returned.
+            long start = write.nodeCreate();
+            long a = write.nodeCreate();
+            long b = write.nodeCreate();
+            long c = write.nodeCreate();
+            long startToA = write.relationshipCreate(start, rel, a);
+            long aToB = write.relationshipCreate(a, rel, b);
+            long bToStart = write.relationshipCreate(b, rel, start);
+            write.relationshipCreate(a, rel, c);
+            write.relationshipCreate(c, rel, a);
+
+            var cursor = fixture.undirectedMultiLoopCursor(start, 6);
+            var iterator = cursor.shortestPathIterator();
+
+            assertThat(toList(iterator))
+                    .containsExactlyInAnyOrder(
+                            pathReference(new long[] {start, a, b, start}, new long[] {startToA, aToB, bToStart}),
+                            pathReference(new long[] {start, b, a, start}, new long[] {bToStart, aToB, startToA}));
+            assertThat(iterator).isExhausted();
+        }
+    }
+
     private class Fixture implements AutoCloseable {
         private final KernelTransaction tx;
         private final NodeCursor nodeCursor;
@@ -1197,6 +1345,19 @@ class UndirectedShortestLoopCursorTest {
                     start,
                     null,
                     Integer.MAX_VALUE,
+                    tx.dataRead(),
+                    nodeCursor,
+                    relCursor,
+                    LongPredicates.alwaysTrue(),
+                    Predicates.alwaysTrue(),
+                    EmptyMemoryTracker.INSTANCE);
+        }
+
+        public UndirectedShortestLoopCursor undirectedMultiLoopCursor(long start, int maxDepth) {
+            return new UndirectedMultiShortestLoopCursor(
+                    start,
+                    null,
+                    maxDepth,
                     tx.dataRead(),
                     nodeCursor,
                     relCursor,
