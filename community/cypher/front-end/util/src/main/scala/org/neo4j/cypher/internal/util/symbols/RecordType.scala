@@ -21,7 +21,6 @@ import org.neo4j.cypher.internal.util.InputPosition
 case class RecordType(
   override val fields: Map[String, CypherType],
   override val defaultFieldType: CypherType,
-  isBaseTypeOpen: Boolean,
   override val isNullable: Boolean
 )(val position: InputPosition) extends AbstractRecordType {
 
@@ -36,34 +35,32 @@ case class RecordType(
   override def sortOrder: Int = CypherTypeOrder.RECORD.id
 
   override def toCypherTypeString: String =
-    (if (isFieldOpen) "ANY " else "") + toFieldTypesString
+    (if (isOpen) "ANY " else "") + toFieldTypesString
 
   override def toClassString: String = "Record"
 
-  // type only contains the empty record
-  override def onlyEmpty: Boolean = super.onlyEmpty && !isBaseTypeOpen
+  def asOpen: RecordType = this.copy(defaultFieldType = AnyType(true)(InputPosition.NONE))(position)
 }
 
 object RecordType {
 
   def apply(
     fields: Map[String, CypherType],
-    isFieldOpen: Boolean,
-    isBaseTypeOpen: Boolean,
+    isOpen: Boolean,
     isNullable: Boolean
   )(position: InputPosition): RecordType = {
-    val defaultFieldType = if (isFieldOpen) AnyType(isNullable = true)(position) else NothingType()(position)
-    RecordType(fields, defaultFieldType, isBaseTypeOpen, isNullable)(position)
+    val defaultFieldType = if (isOpen) AnyType(isNullable = true)(position) else NothingType()(position)
+    RecordType(fields, defaultFieldType, isNullable)(position)
   }
 
   def any(isNullable: Boolean)(position: InputPosition): RecordType =
-    RecordType(Map.empty, isFieldOpen = true, isBaseTypeOpen = true, isNullable)(position)
+    RecordType(Map.empty, isOpen = true, isNullable)(position)
 
   object Any {
 
     def unapply(rt: RecordType): Option[Boolean] = rt match {
-      case RecordType(fields, AnyType(true), true, isNullable) if fields.isEmpty => Some(isNullable)
-      case _                                                                     => None
+      case RecordType(fields, AnyType(true), isNullable) if fields.isEmpty => Some(isNullable)
+      case _                                                               => None
     }
   }
 }

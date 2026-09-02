@@ -28,4 +28,9 @@ case class RelationshipType(isNullable: Boolean)(val position: InputPosition) ex
   override def withIsNullable(isNullable: Boolean): CypherType = this.copy(isNullable = isNullable)(position)
 
   def withPosition(newPosition: InputPosition): CypherType = this.copy()(position = newPosition)
+
+  def asRelationshipReferenceValueType: RelationshipReferenceValueType = {
+    val endpoint = NodeReferenceValueType.any(false)(InputPosition.NONE)
+    RelationshipReferenceValueType(None, Map.empty, isOpen = true, endpoint, endpoint, isNullable)(position)
+  }
 }

@@ -16,31 +16,39 @@
  */
 package org.neo4j.cypher.internal.util.symbols
 
-import org.neo4j.cypher.internal.util.InputPosition
+object HasIntersection {
+  def unapply(typePair: (CypherType, CypherType)): CypherType = IntersectionOf(typePair._1, typePair._2)
+}
 
-object IntersectionOf {
-  private val pos = InputPosition.NONE
+object IntersectionOf extends TypeIntersection {
 
+  /**
+   * Computes the largest type that is subtype of `a` and subtype of `b`.
+   *
+   * In other words, when `a` and `b` intersect to X, then
+   * 1) Assigning `a` to `b` (`b` to `a`) may involve instances of `a` (`b`) that also of type `b` (`a`)
+   *    and, hence, should compile under dynamic typing discipline.
+   * 2) At runtime, instance of `a` (`b`) needs to be type checked for X.
+   *    Instances that are of type X are also of type `b` (`a`) and, hence, assignable.
+   *    Instances that are not of type X shall result in a runtime type error.
+   *
+   * Note that `IntersectionOf` is commutative.
+   */
   def apply(a: CypherType, b: CypherType): CypherType = (a, b) match {
+    // shortcuts
+    case (CTNothing, _)                    => CTNothing
+    case (_, CTNothing)                    => CTNothing
+    case (CTNull, o) if !o.isNullable      => CTNothing
+    case (o, CTNull) if !o.isNullable      => CTNothing
+    case (CTNull, o) /* if o.isNullable */ => CTNull
+    case (o, CTNull) /* if o.isNullable */ => CTNull
+    case (a: AnyType, o)                   => o.withIsNullable(intersectNullability(a, o))
+    case (o, a: AnyType)                   => o.withIsNullable(intersectNullability(a, o))
+
+    // intersection rules
     case (mt: MapType, rt: RecordType)      => nullabilityIntersected(rt, mt)
     case (rt: RecordType, mt: MapType)      => nullabilityIntersected(rt, mt)
     case (rtA: RecordType, rtB: RecordType) => intersectRecordTypes(rtA, rtB)
-
-    case (nt: NodeType, rt: RecordType) if rt.isBaseTypeOpen => intersectNodeTypeAndRecordType(nt, rt)
-    case (rt: RecordType, nt: NodeType) if rt.isBaseTypeOpen => intersectNodeTypeAndRecordType(nt, rt)
-    case (nt: NodeReferenceValueType, rt: RecordType) if rt.isBaseTypeOpen =>
-      intersectNodeReferenceValueTypeAndRecordType(nt, rt)
-    case (rt: RecordType, nt: NodeReferenceValueType) if rt.isBaseTypeOpen =>
-      intersectNodeReferenceValueTypeAndRecordType(nt, rt)
-
-    case (relT: RelationshipType, rt: RecordType) if rt.isBaseTypeOpen =>
-      intersectRelationshipTypeAndRecordType(relT, rt)
-    case (rt: RecordType, relT: RelationshipType) if rt.isBaseTypeOpen =>
-      intersectRelationshipTypeAndRecordType(relT, rt)
-    case (rrt: RelationshipReferenceValueType, rt: RecordType) if rt.isBaseTypeOpen =>
-      intersectRelationshipReferenceValueTypeAndRecordType(rrt, rt)
-    case (rt: RecordType, rrt: RelationshipReferenceValueType) if rt.isBaseTypeOpen =>
-      intersectRelationshipReferenceValueTypeAndRecordType(rrt, rt)
 
     case (nt: NodeType, nrt: NodeReferenceValueType)                => nullabilityIntersected(nrt, nt)
     case (nrt: NodeReferenceValueType, nt: NodeType)                => nullabilityIntersected(nrt, nt)
@@ -53,8 +61,9 @@ object IntersectionOf {
 
     case (lA: ListType, lB: ListType) => intersectListTypes(lA, lB)
 
-    case (du: ClosedDynamicUnionType, o) => intersectDynamicUnionType(du, o)
-    case (o, du: ClosedDynamicUnionType) => intersectDynamicUnionType(du, o)
+    case (du: ClosedDynamicUnionType, o) => intersectDynamicUnionType(du, o, innerFirst = true)
+    // `innerFirst = false` is not actually important here since `IntersectionOf` is commutative
+    case (o, du: ClosedDynamicUnionType) => intersectDynamicUnionType(du, o, innerFirst = false)
 
     case _ if IsSubtypeOf(a, b) => a
     case _ if IsSubtypeOf(b, a) => b
@@ -63,160 +72,10 @@ object IntersectionOf {
     case _                                 => CTNothing
   }
 
-  private inline def intersectAbstractRecordTypes(
-    a: AbstractRecordType,
-    b: AbstractRecordType
-  ): RecordType | NullType | NothingType = {
-    val defaultFieldType = IntersectionOf(a.defaultFieldType, b.defaultFieldType)
-    val aExclusiveFieldNames = a.fields.keySet -- b.fields.keySet
-    val bExclusiveFieldNames = b.fields.keySet -- a.fields.keySet
-    val commonFieldNames = a.fields.keySet intersect b.fields.keySet
+  override protected inline def rhsDefaultFieldType(rhs: AbstractRecordType): CypherType = rhs.defaultFieldType
 
-    val aExclusiveFields =
-      aExclusiveFieldNames.map(name => name -> IntersectionOf(a.fieldType(name), b.defaultFieldType))
-    val bExclusiveFields =
-      bExclusiveFieldNames.map(name => name -> IntersectionOf(b.fieldType(name), a.defaultFieldType))
-    val commonFields = commonFieldNames.map(name =>
-      name -> IntersectionOf(a.fieldType(name), b.fieldType(name))
-    )
-    val fields = (aExclusiveFields union bExclusiveFields union commonFields).toMap
-
-    if (fields.exists(_._2.isNothing)) {
-      if (intersectNullability(a, b)) {
-        CTNull
-      } else {
-        CTNothing
-      }
-    } else {
-      RecordType(fields, defaultFieldType, isBaseTypeOpen = true, intersectNullability(a, b))(pos)
-    }
-  }
-
-  private inline def intersectRecordTypes(a: RecordType, b: RecordType): RecordType | NullType | NothingType = {
-    intersectAbstractRecordTypes(a, b) match {
-      case rtIntersection: RecordType => rtIntersection.copy(isBaseTypeOpen = a.isBaseTypeOpen && b.isBaseTypeOpen)(pos)
-      case n: (NullType | NothingType) => n
-    }
-  }
-
-  private inline def intersectNodeTypeAndRecordType(nt: NodeType, rt: RecordType): NodeReferenceValueType = {
-    NodeReferenceValueType(Set.empty, rt.fields, rt.defaultFieldType, intersectNullability(nt, rt))(pos)
-  }
-
-  private inline def intersectNodeReferenceValueTypeAndRecordType(
-    nt: NodeReferenceValueType,
-    rt: RecordType
-  ): NodeReferenceValueType | NullType | NothingType = {
-    intersectAbstractRecordTypes(nt, rt) match {
-      case rtIntersection: RecordType =>
-        NodeReferenceValueType(
-          nt.labels,
-          rtIntersection.fields,
-          rtIntersection.defaultFieldType,
-          rtIntersection.isNullable
-        )(pos)
-      case n: (NullType | NothingType) => n
-    }
-  }
-
-  private inline def intersectNodeReferenceValueTypes(
-    a: NodeReferenceValueType,
-    b: NodeReferenceValueType
-  ): NodeReferenceValueType | NullType | NothingType = {
-    val aExclusiveLabels = a.labels -- b.labels
-    val bExclusiveLabels = b.labels -- a.labels
-    intersectAbstractRecordTypes(a, b) match {
-      case rt: RecordType if (b.isOpen || aExclusiveLabels.isEmpty) && (a.isOpen || bExclusiveLabels.isEmpty) =>
-        NodeReferenceValueType(a.labels union b.labels, rt.fields, rt.defaultFieldType, rt.isNullable)(pos)
-      case _ =>
-        if (intersectNullability(a, b)) {
-          CTNull
-        } else {
-          CTNothing
-        }
-    }
-  }
-
-  private inline def intersectRelationshipTypeAndRecordType(
-    relT: RelationshipType,
-    rt: RecordType
-  ): RelationshipReferenceValueType = {
-    val endpoint = NodeReferenceValueType.any(false)(pos)
-    RelationshipReferenceValueType(
-      Option.empty,
-      rt.fields,
-      rt.defaultFieldType,
-      endpoint,
-      endpoint,
-      intersectNullability(relT, rt)
-    )(pos)
-  }
-
-  private inline def intersectRelationshipReferenceValueTypeAndRecordType(
-    rrt: RelationshipReferenceValueType,
-    rt: RecordType
-  ): RelationshipReferenceValueType | NullType | NothingType = {
-    intersectAbstractRecordTypes(rrt, rt) match {
-      case rtIntersection: RecordType =>
-        RelationshipReferenceValueType(
-          rrt.label,
-          rtIntersection.fields,
-          rtIntersection.defaultFieldType,
-          rrt.source,
-          rrt.destination,
-          rtIntersection.isNullable
-        )(pos)
-      case n: (NullType | NothingType) => n
-    }
-  }
-
-  private inline def intersectRelationshipReferenceValueTypes(
-    a: RelationshipReferenceValueType,
-    b: RelationshipReferenceValueType
-  ): RelationshipReferenceValueType | NullType | NothingType = {
-    val source = intersectNodeReferenceValueTypes(a.source, b.source)
-    val destination = intersectNodeReferenceValueTypes(a.destination, b.destination)
-    val record = intersectAbstractRecordTypes(a, b)
-    (record, source, destination) match {
-      case (rt: RecordType, s: NodeReferenceValueType, d: NodeReferenceValueType)
-        if (a.isOpen || b.isOpen || a.label == b.label) =>
-        RelationshipReferenceValueType(
-          a.label.orElse(b.label),
-          rt.fields,
-          rt.defaultFieldType,
-          s,
-          d,
-          rt.isNullable
-        )(pos)
-      case _ =>
-        if (intersectNullability(a, b)) {
-          CTNull
-        } else {
-          CTNothing
-        }
-    }
-  }
-
-  private inline def intersectListTypes(a: ListType, b: ListType): ListType = {
-    ListType(IntersectionOf(a.innerType, b.innerType), intersectNullability(a, b))(pos)
-  }
-
-  private inline def intersectDynamicUnionType(du: ClosedDynamicUnionType, other: CypherType): CypherType = {
-    du.innerTypes.map(innerType => IntersectionOf(innerType, other)).filterNot(_.isNothing) match {
-      case set if set.isEmpty   => NothingType()(pos)
-      case set if set.size == 1 => set.head
-      case set                  => CypherType.normalizeTypes(ClosedDynamicUnionType(set)(pos))
-    }
-  }
-
-  /*
-   * Returns the first type set nullable only nullable if both types (first and second) are nullable.
-   */
-  private inline def nullabilityIntersected(t: CypherType, o: CypherType): CypherType =
-    t.withIsNullable(intersectNullability(t, o))
-
-  /*
-   * Returns true if both types (first and second) are nullable.
-   */
-  private inline def intersectNullability(a: CypherType, b: CypherType): Boolean = a.isNullable && b.isNullable
+  override protected inline def opennessRequirementForRhsNodeLabels(
+    rhs: NodeReferenceValueType | RelationshipReferenceValueType,
+    lhsExclusiveLabels: Set[String]
+  ): Boolean = rhs.isOpen || lhsExclusiveLabels.isEmpty
 }

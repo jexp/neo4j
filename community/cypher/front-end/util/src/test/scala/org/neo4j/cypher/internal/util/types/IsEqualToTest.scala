@@ -97,14 +97,14 @@ class IsEqualToTest extends CypherTypeTestSuite {
   }
 
   private val legacyPairs = Set(
-    CTMap -> RecordType(Map.empty, isFieldOpen = true, isBaseTypeOpen = true, isNullable = true)(pos),
-    CTNode -> NodeReferenceValueType(Set.empty, Map.empty, isFieldOpen = true, isNullable = true)(pos),
+    CTMap -> RecordType(Map.empty, isOpen = true, isNullable = true)(pos),
+    CTNode -> NodeReferenceValueType(Set.empty, Map.empty, isOpen = true, isNullable = true)(pos),
     CTRelationship -> RelationshipReferenceValueType(
       Option.empty,
       Map.empty,
-      isFieldOpen = true,
-      NodeReferenceValueType(Set.empty, Map.empty, isFieldOpen = true, isNullable = false)(pos),
-      NodeReferenceValueType(Set.empty, Map.empty, isFieldOpen = true, isNullable = false)(pos),
+      isOpen = true,
+      NodeReferenceValueType(Set.empty, Map.empty, isOpen = true, isNullable = false)(pos),
+      NodeReferenceValueType(Set.empty, Map.empty, isOpen = true, isNullable = false)(pos),
       isNullable = true
     )(pos)
   )

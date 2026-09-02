@@ -17,7 +17,9 @@
 package org.neo4j.cypher.internal.util.types
 
 import org.neo4j.cypher.internal.util.InputPosition
+import org.neo4j.cypher.internal.util.symbols.AnyType
 import org.neo4j.cypher.internal.util.symbols.CTAny
+import org.neo4j.cypher.internal.util.symbols.CTAnyNotNull
 import org.neo4j.cypher.internal.util.symbols.CTBoolean
 import org.neo4j.cypher.internal.util.symbols.CTDate
 import org.neo4j.cypher.internal.util.symbols.CTDateTime
@@ -40,6 +42,7 @@ import org.neo4j.cypher.internal.util.symbols.CTPath
 import org.neo4j.cypher.internal.util.symbols.CTPoint
 import org.neo4j.cypher.internal.util.symbols.CTRelationship
 import org.neo4j.cypher.internal.util.symbols.CTString
+import org.neo4j.cypher.internal.util.symbols.CTStringNotNull
 import org.neo4j.cypher.internal.util.symbols.CTTime
 import org.neo4j.cypher.internal.util.symbols.CTUUID
 import org.neo4j.cypher.internal.util.symbols.CTVector
@@ -51,18 +54,44 @@ import org.neo4j.cypher.internal.util.symbols.CypherType.normalizeTypes
 import org.neo4j.cypher.internal.util.symbols.ListType
 import org.neo4j.cypher.internal.util.symbols.MapType
 import org.neo4j.cypher.internal.util.symbols.NodeReferenceValueType
+import org.neo4j.cypher.internal.util.symbols.NodeType
 import org.neo4j.cypher.internal.util.symbols.NothingType
 import org.neo4j.cypher.internal.util.symbols.RecordType
 import org.neo4j.cypher.internal.util.symbols.RelationshipReferenceValueType
+import org.neo4j.cypher.internal.util.symbols.RelationshipType
 import org.neo4j.cypher.internal.util.symbols.VectorType
 import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
 import scala.collection.BuildFrom
+import scala.language.implicitConversions
 import scala.util.Random
 
 trait CypherTypeTestSuite extends CypherFunSuite {
 
   protected val pos: InputPosition.Range = InputPosition.NONE
+
+  protected val baseTypeRepresentatives_Legacy: Set[CypherType] = Set(
+    CTBoolean,
+    CTInteger,
+    CTFloat,
+    CTVector,
+    CTString,
+    CTList(CTAny),
+    CTMap,
+    CTNode,
+    CTRelationship,
+    CTPath,
+    CTPoint,
+    CTTime,
+    CTLocalTime,
+    CTZonedTime,
+    CTDate,
+    CTDateTime,
+    CTLocalDateTime,
+    CTZonedDateTime,
+    CTDuration,
+    CTUUID
+  )
 
   protected val baseTypeRepresentatives: Set[CypherType] = Set(
     CTBoolean,
@@ -72,6 +101,8 @@ trait CypherTypeTestSuite extends CypherFunSuite {
     CTString,
     CTList(CTAny),
     rt("z" :: CTBoolean),
+    nrt(Set.empty),
+    rrt(None, nrt(Set.empty).notNull, nrt(Set.empty).notNull),
     CTPath,
     CTPoint,
     CTTime,
@@ -89,12 +120,26 @@ trait CypherTypeTestSuite extends CypherFunSuite {
    * lattices
    */
 
-  case class Lattice(name: String, edges: (CypherType, CypherType)*)
+  case class Lattice(name: String, edges: ((CypherType, CypherType), Boolean)*) {
+    def coercionEdges: Seq[(CypherType, CypherType)] = edges.filter(_._2).map(_._1)
+    def edgesWithCoercion: Seq[(CypherType, CypherType)] = edges.map(_._1)
+    def edgesWithoutCoercion: Seq[(CypherType, CypherType)] = edges.filterNot(_._2).map(_._1)
+
+    def allTypes: Set[CypherType] = edges.flatMap {
+      case ((a, b), _) => Set(a, b)
+    }.toSet
+  }
+
+  def coercing(edge: (CypherType, CypherType)): ((CypherType, CypherType), Boolean) = (edge, true)
+
+  given CypherTypeCypherType2CypherTypeCypherTypeBoolean
+    : Conversion[(CypherType, CypherType), ((CypherType, CypherType), Boolean)] with
+    def apply(edge: (CypherType, CypherType)): ((CypherType, CypherType), Boolean) = (edge, false)
 
   object Lattice {
 
     /*
-     * Subtype lattice — arcs point upward (subtype -> supertype).
+     * Subtype lattice — arcs point upward (subtype below -> supertype above).
      *
      *   CTAny
      *     |
@@ -109,13 +154,34 @@ trait CypherTypeTestSuite extends CypherFunSuite {
     )
 
     /*
-     * Subtype lattice — arcs point upward (subtype -> supertype).
+     * Subtype lattice — arcs point upward (subtype below -> supertype above).
      *
+     *            CTAny
+     *           /     \
+     *     CTString   CTAnyNotNull
+     *      /     \    /
+     *  CTNull  CTStringNotNull
+     *      \     /
+     *     CTNothing
+     */
+    val basics2: Lattice = Lattice(
+      "basics 2",
+      CTNothing -> CTNull,
+      CTNothing -> CTStringNotNull,
+      CTStringNotNull -> CTString,
+      CTStringNotNull -> CTAnyNotNull,
+      CTNull -> CTString,
+      CTString -> CTAny,
+      CTAnyNotNull -> CTAny
+    )
+
+    /*
+     * Subtype lattice — arcs point upward (subtype below -> supertype above)
      *           CTNumber
      *          /        \
-     *   CTInteger     CTFloat
+     *   CTInteger      CTFloat
      *         |          |
-     *   CTInteger32   CTFloat32
+     *   CTInteger32    CTFloat32
      *         |
      *   CTInteger16
      *         |
@@ -140,6 +206,8 @@ trait CypherTypeTestSuite extends CypherFunSuite {
       val vF32D100 = VectorType(Some(CTFloat32), Some(100), isNullable = true)(pos)
       val vFD100 = VectorType(Some(CTFloat), Some(100), isNullable = true)(pos)
       /*
+       * Subtype lattice — arcs point upward (subtype below -> supertype above)
+       *
        *                  v
        *                /   \
        *              /       \
@@ -161,104 +229,115 @@ trait CypherTypeTestSuite extends CypherFunSuite {
 
     val recordTypes: Lattice = {
       val mt = CTMap
-      val aIbS_fo = rt("a" :: CTInteger.notNull, "b" :: CTString.notNull)
-      val aIbS_S = aIbS_fo.default(CTString.notNull)
-      val aIbS_fc = aIbS_fo.fieldClosed
-      val aI_fo = rt("a" :: CTInteger.notNull)
-      val aI_S = aI_fo.default(CTString.notNull)
-      val aI_fc = aI_fo.fieldClosed
-      val bS_fo = rt("b" :: CTString.notNull)
-      val bS_S = bS_fo.default(CTString.notNull)
-      val bS_fc = bS_fo.fieldClosed
-      val empty_fo = rt()
-      val empty_fc = empty_fo.fieldClosed
+      val aIbS_o = rt("a" :: CTInteger.notNull, "b" :: CTString.notNull)
+      val aIbS_S = aIbS_o.default(CTString.notNull)
+      val aIbS_c = aIbS_o.closed
+      val aI_o = rt("a" :: CTInteger.notNull)
+      val aI_S = aI_o.default(CTString.notNull)
+      val aI_c = aI_o.closed
+      val bS_o = rt("b" :: CTString.notNull)
+      val bS_S = bS_o.default(CTString.notNull)
+      val bS_c = bS_o.closed
+      val empty_o = rt()
+      val empty_c = empty_o.closed
       /*
-       * Subtype lattice — arcs point upward (subtype -> supertype).
+       * Subtype lattice — arcs point upward (subtype below -> supertype above)
+       * Coercion — dashed arrows (source type -> target type)
        *
-       *           empty_fo == mt
-       *            /    |     \
-       *           /     |      \
-       *       aI_fo  empty_fc  bS_fo
-       *       /    \          /   \
-       *      /      \        /     \
-       *    aI_S      aIbS_fo       bS_S
-       *     |   \       |            |
-       *     |     \     |            |
-       *     |       \   |            |
-       *    aI_fc     aIbS_S       bS_fc
-       *                 |
-       *              aIbS_fc
+       *             empty_o == mt
+       *             /    | ┊    \
+       *            /     | ↓     \
+       *  ╭╌╌╌╌╌ aI_o   empty_c   bS_o ╌╌╌╌╌╮
+       *  ┊     /    \           /    \     ┊
+       *  ┊    /      \         /      \    ┊
+       *  ┊  aI_S        aIbS_o       bS_S  ┊
+       *  ┊   |   \       |  ┊          |   ┊
+       *  ┊   |     \     |  ┊          |   ┊
+       *  ┊   |       \   |  ┊          |   ┊
+       *  ╰→ aI_c     aIbS_S ┊        bS_c ←╯
+       *                  |  ┊
+       *                  |  ↓
+       *                 aIbS_c
        */
       Lattice(
         "record types",
-        aIbS_fc -> aIbS_S,
-        aIbS_S -> aIbS_fo,
+        aIbS_c -> aIbS_S,
+        aIbS_S -> aIbS_o,
         aIbS_S -> aI_S,
         // aIbS_S -> bS_S, // not because bS_S mandates all other fields to be STRING, i.e. field a cannot be INTEGER as in aIbS_S
-        aIbS_fo -> aI_fo,
-        aIbS_fo -> bS_fo,
-        aI_fc -> aI_S,
-        aI_S -> aI_fo,
-        bS_fc -> bS_S,
-        bS_S -> bS_fo,
-        aI_fo -> empty_fo,
-        bS_fo -> empty_fo,
-        empty_fc -> empty_fo,
-        empty_fo -> mt,
-        mt -> empty_fo
+        aIbS_o -> aI_o,
+        aIbS_o -> bS_o,
+        coercing(aIbS_o -> aIbS_c),
+        aI_c -> aI_S,
+        aI_S -> aI_o,
+        bS_c -> bS_S,
+        bS_S -> bS_o,
+        aI_o -> empty_o,
+        coercing(aI_o -> aI_c),
+        bS_o -> empty_o,
+        coercing(bS_o -> bS_c),
+        empty_c -> empty_o,
+        coercing(empty_o -> empty_c),
+        empty_o -> mt,
+        mt -> empty_o
       )
     }
 
     val recordTypes_withNullableFields: Lattice = {
       val mt = CTMap
-      val aN_fo = rt("a" :: CTNull)
-      val aN_S = aN_fo.default(CTString)
-      val aN_fc = aN_fo.fieldClosed
-      val aI_fo = rt("a" :: CTInteger)
-      val aI_S = aI_fo.default(CTString)
-      val aI_fc = aI_fo.fieldClosed
-      val aS_fo = rt("a" :: CTString)
-      val aS_S = aS_fo.default(CTString)
-      val aS_fc = aS_fo.fieldClosed
-      val empty_fo = rt()
-      val empty_fc = empty_fo.fieldClosed
+      val aNull_o = rt("a" :: CTNull)
+      val aNull_S = aNull_o.default(CTString)
+      val aNull_c = aNull_o.closed
+      val aI_o = rt("a" :: CTInteger)
+      val aI_S = aI_o.default(CTString)
+      val aI_c = aI_o.closed
+      val aS_o = rt("a" :: CTString)
+      val aS_S = aS_o.default(CTString)
+      val aS_c = aS_o.closed
+      val empty_o = rt()
+      val empty_c = empty_o.closed
       /*
-       * Subtype lattice — arcs point upward (subtype -> supertype).
+       * Subtype lattice — arcs point upward (subtype below -> supertype above)
+       * Coercion — dashed arrows (source type -> target type)
        *
-       *           empty_fo == mt
-       *            /    |     \
-       *           /     |      \
-       *       aI_fo  empty_fc  aS_fo
-       *       /    \          /   \
-       *      /      \        /     \
-       *    aI_S       aN_fo       aS_S
-       *     |   \       |       /   |
-       *     |     \     |     /     |
-       *     |       \   |   /       |
-       *    aI_fc      aN_S       aS_fc
-       *          \      |      /
-       *            \    |    /
-       *               aN_fc
+       *           empty_o == mt
+       *            /   | ┊   \
+       *           /    | ↓    \
+       *  ╭╌╌╌ aI_o   empty_c   aS_o ╌╌╌╮
+       *  ┊    /   \           /   \    ┊
+       *  ┊   /     \         /     \   ┊
+       *  ┊  aI_S     aNull_o     aS_S  ┊
+       *  ┊  |   \      | ┊      /   |  ┊
+       *  ┊  |     \    | ┊    /     |  ┊
+       *  ┊  |       \  | ┊  /       |  ┊
+       *  ╰→ aI_c     aNull_S     aS_c ←╯
+       *          \     | ┊     /
+       *            \   | ↓   /
+       *              aNull_c
        */
       Lattice(
         "record types with nullable fields",
-        aN_fc -> aI_fc,
-        aN_fc -> aN_S,
-        aN_fc -> aS_fc,
-        aN_S -> aI_S,
-        aN_S -> aN_fo,
-        aN_S -> aS_S,
-        aN_fo -> aI_fo,
-        aN_fo -> aS_fo,
-        aI_fc -> aI_S,
-        aI_S -> aI_fo,
-        aS_fc -> aS_S,
-        aS_S -> aS_fo,
-        aI_fo -> empty_fo,
-        aS_fo -> empty_fo,
-        empty_fc -> empty_fo,
-        empty_fo -> mt,
-        mt -> empty_fo
+        aNull_c -> aI_c,
+        aNull_c -> aNull_S,
+        aNull_c -> aS_c,
+        aNull_S -> aI_S,
+        aNull_S -> aNull_o,
+        aNull_S -> aS_S,
+        aNull_o -> aI_o,
+        aNull_o -> aS_o,
+        coercing(aNull_o -> aNull_c),
+        aI_c -> aI_S,
+        aI_S -> aI_o,
+        aS_c -> aS_S,
+        aS_S -> aS_o,
+        aI_o -> empty_o,
+        coercing(aI_o -> aI_c),
+        aS_o -> empty_o,
+        coercing(aS_o -> aS_c),
+        empty_c -> empty_o,
+        coercing(empty_o -> empty_c),
+        empty_o -> mt,
+        mt -> empty_o
       )
     }
 
@@ -281,7 +360,7 @@ trait CypherTypeTestSuite extends CypherFunSuite {
       val bUc = b intersect c
       val aUbUc = a intersect b intersect c
       /*
-       * Subtype lattice — arcs point upward (subtype -> supertype).
+       * Subtype lattice — arcs point upward (subtype below -> supertype above).
        * Every label is wrapped in rt(...);  X = two edges crossing (not a node).
        *
        *        aUbUc
@@ -336,29 +415,34 @@ trait CypherTypeTestSuite extends CypherFunSuite {
       val empty_o = nrt(Set.empty)
       val empty_c = empty_o.closed
       /*
-       * Subtype lattice — arcs point upward (subtype -> supertype).
+       * Subtype lattice — arcs point upward (subtype below -> supertype above)
+       * Coercion — dashed arrows (source type -> target type)
        *
        *          empty_o == nt
-       *            /   |   \
-       *           /    |    \
+       *            /  | ┊  \
+       *           /   | ↓   \
        *       lA_o  empty_c  lB_o
-       *        |  \         /  |
-       *        |   \       /   |
+       *       ┊ | \         / | ┊
+       *       ↓ |  \       /  | ↓
        *       lA_c   lAB_o   lB_c
-       *                |
-       *                |
+       *               | ┊
+       *               | ↓
        *              lAB_c
        */
       Lattice(
         "node reference value types — labels only",
         lAB_c -> lAB_o,
+        coercing(lAB_o -> lAB_c),
         lAB_o -> lA_o,
         lAB_o -> lB_o,
         lA_c -> lA_o,
+        coercing(lA_o -> lA_c),
         lA_o -> empty_o,
         lB_c -> lB_o,
+        coercing(lB_o -> lB_c),
         lB_o -> empty_o,
         empty_c -> empty_o,
+        coercing(empty_o -> empty_c),
         empty_o -> nt,
         nt -> empty_o
       )
@@ -378,20 +462,23 @@ trait CypherTypeTestSuite extends CypherFunSuite {
       val empty_o = nrt(Set.empty)
       val empty_c = empty_o.closed
       /*
-       * Subtype lattice — arcs point upward (subtype -> supertype).
+       * Subtype lattice — arcs point upward (subtype below -> supertype above)
+       * Coercion — dashed arrows (source type -> target type)
        *
-       *          empty_o == nt
-       *           /    |    \
-       *       aI_o  empty_c  bS_o
-       *       /   \         /   \
-       *      /     \       /     \
-       *    aI_S     aIbS_o      bS_S
-       *     |      /   |          |
-       *     |    /     |          |
-       *     |  /       |          |
-       *    aI_c     aIbS_S      bS_c
-       *                |
-       *             aIbS_c
+       *             empty_o == nt
+       *             /    | ┊    \
+       *            /     | ↓     \
+       *  ╭╌╌╌╌╌ aI_o   empty_c   bS_o ╌╌╌╌╌╮
+       *  ┊     /    \           /    \     ┊
+       *  ┊    /      \         /      \    ┊
+       *  ┊  aI_S        aIbS_o       bS_S  ┊
+       *  ┊   |   \       |  ┊          |   ┊
+       *  ┊   |     \     |  ┊          |   ┊
+       *  ┊   |       \   |  ┊          |   ┊
+       *  ╰→ aI_c     aIbS_S ┊        bS_c ←╯
+       *                  |  ┊
+       *                  |  ↓
+       *                 aIbS_c
        */
       Lattice(
         "node reference value types — properties only, open and closed",
@@ -401,13 +488,17 @@ trait CypherTypeTestSuite extends CypherFunSuite {
         // aIbS_S -> bS_S, // not because bS_S mandates all other fields to be STRING, i.e. field a cannot be INTEGER as in aIbS_S
         aIbS_o -> aI_o,
         aIbS_o -> bS_o,
+        coercing(aIbS_o -> aIbS_c),
         aI_c -> aI_S,
         aI_S -> aI_o,
         bS_c -> bS_S,
         bS_S -> bS_o,
         aI_o -> empty_o,
+        coercing(aI_o -> aI_c),
         bS_o -> empty_o,
+        coercing(bS_o -> bS_c),
         empty_c -> empty_o,
+        coercing(empty_o -> empty_c),
         empty_o -> nt,
         nt -> empty_o
       )
@@ -415,9 +506,9 @@ trait CypherTypeTestSuite extends CypherFunSuite {
 
     val nodeReferenceValueTypes_withNullableFields: Lattice = {
       val nt = CTNode
-      val aN_o = nrt(Set.empty, "a" :: CTNull)
-      val aN_S = aN_o.default(CTString)
-      val aN_c = aN_o.closed
+      val aNull_o = nrt(Set.empty, "a" :: CTNull)
+      val aNull_S = aNull_o.default(CTString)
+      val aNull_c = aNull_o.closed
       val aI_o = nrt(Set.empty, "a" :: CTInteger)
       val aI_S = aI_o.default(CTString)
       val aI_c = aI_o.closed
@@ -427,40 +518,45 @@ trait CypherTypeTestSuite extends CypherFunSuite {
       val empty_o = nrt(Set.empty)
       val empty_c = empty_o.closed
       /*
-       * Subtype lattice — arcs point upward (subtype -> supertype).
+       * Subtype lattice — arcs point upward (subtype below -> supertype above)
+       * Coercion — dashed arrows (source type -> target type)
        *
        *           empty_o == nt
-       *            /    |     \
-       *           /     |      \
-       *       aI_o   empty_c   aS_o
-       *       /    \          /   \
-       *      /      \        /     \
-       *    aI_S        aN_o       aS_S
-       *     |   \       |       /   |
-       *     |     \     |     /     |
-       *     |       \   |   /       |
-       *    aI_c        aN_S       aS_c
-       *          \      |      /
-       *            \    |    /
-       *                aN_c
+       *            /   | ┊   \
+       *           /    | ↓    \
+       *  ╭╌╌╌ aI_o   empty_c   aS_o ╌╌╌╮
+       *  ┊    /   \           /   \    ┊
+       *  ┊   /     \         /     \   ┊
+       *  ┊  aI_S     aNull_o     aS_S  ┊
+       *  ┊  |   \      | ┊      /   |  ┊
+       *  ┊  |     \    | ┊    /     |  ┊
+       *  ┊  |       \  | ┊  /       |  ┊
+       *  ╰→ aI_c     aNull_S     aS_c ←╯
+       *          \     | ┊     /
+       *            \   | ↓   /
+       *              aNull_c
        */
       Lattice(
         "node reference value types with nullable fields",
-        aN_c -> aI_c,
-        aN_c -> aN_S,
-        aN_c -> aS_c,
-        aN_S -> aI_S,
-        aN_S -> aN_o,
-        aN_S -> aS_S,
-        aN_o -> aI_o,
-        aN_o -> aS_o,
+        aNull_c -> aI_c,
+        aNull_c -> aNull_S,
+        aNull_c -> aS_c,
+        aNull_S -> aI_S,
+        aNull_S -> aNull_o,
+        aNull_S -> aS_S,
+        aNull_o -> aI_o,
+        aNull_o -> aS_o,
+        coercing(aNull_o -> aNull_c),
         aI_c -> aI_S,
         aI_S -> aI_o,
         aS_c -> aS_S,
         aS_S -> aS_o,
         aI_o -> empty_o,
+        coercing(aI_o -> aI_c),
         aS_o -> empty_o,
+        coercing(aS_o -> aS_c),
         empty_c -> empty_o,
+        coercing(empty_o -> empty_c),
         empty_o -> nt,
         nt -> empty_o
       )
@@ -473,7 +569,7 @@ trait CypherTypeTestSuite extends CypherFunSuite {
       val empty_a = nrt(Set.empty, "a" :: CTInteger)
       val empty = nrt(Set.empty)
       /*
-       * Subtype lattice — arcs point upward (subtype below -> supertype above).
+       * Subtype lattice — arcs point upward (subtype below -> supertype above)
        *
        *    empty = nt
        *      /    \
@@ -500,25 +596,21 @@ trait CypherTypeTestSuite extends CypherFunSuite {
 
       val nt = CTNode
 
-      val r_a_bto = rt("a" :: CTInteger)
-      val r_a_btc = r_a_bto.baseTypeClosed
-      val r_bto = rt()
-      val r_btc = r_bto.baseTypeClosed
+      val r_a_o = rt("a" :: CTInteger)
+      val r_a_c = r_a_o.closed
+      val r_o = rt()
+      val r_c = r_o.closed
       /*
-       * Subtype lattice — arcs point upward (subtype below -> supertype above).
+       * Subtype lattice — arcs point upward (subtype below -> supertype above)
+       * Coercion — dashed arrows (source type -> target type)
        *
-       *                  r_bto
-       *                /  |    \
-       *               /   |     \
-       *              /    |      \
-       * n_empty == nt   r_a_bto   r_btc
-       *      |   \      /   \      /
-       *      |    \    /     \    /
-       *      |     \  /       \  /
-       *    n_lA  n_empty_a   r_a_btc
-       *       \    /
-       *        \  /
-       *       n_lA_a
+       *    n_empty == nt ╌╌╌╌╌╌╌╌╌╌╌╌→ r_o ╌╌╌╌╌╮
+       *        /    \                 /   \     ┊
+       *       /      \               /     \    ┊
+       *    n_lA  n_empty_a ╌╌╌→ r_a_o ╌╌╮  r_c ←╯
+       *       \      /               \  ┊
+       *        \    /                 \ ↓
+       *        n_lA_a                 r_a_c
        */
       Lattice(
         "node reference value types and record types",
@@ -526,15 +618,15 @@ trait CypherTypeTestSuite extends CypherFunSuite {
         n_lA_a -> n_empty_a,
         n_lA -> n_empty,
         n_empty_a -> n_empty,
-        n_empty_a -> r_a_bto,
+        coercing(n_empty_a -> r_a_o),
         n_empty -> nt,
-        n_empty -> r_bto,
         nt -> n_empty,
-        nt -> r_bto,
-        r_a_btc -> r_a_bto,
-        r_a_btc -> r_btc,
-        r_a_bto -> r_bto,
-        r_btc -> r_bto
+        coercing(nt -> r_o),
+        r_a_c -> r_a_o,
+        r_a_o -> r_o,
+        coercing(r_a_o -> r_a_c),
+        r_c -> r_o,
+        coercing(r_o -> r_c)
       )
     }
 
@@ -647,23 +739,21 @@ trait CypherTypeTestSuite extends CypherFunSuite {
 
       val relt = CTRelationship
 
-      val r_a_bto = rt("a" :: CTInteger)
-      val r_a_btc = r_a_bto.baseTypeClosed
-      val r_bto = rt()
-      val r_btc = r_bto.baseTypeClosed
+      val r_a_o = rt("a" :: CTInteger)
+      val r_a_c = r_a_o.closed
+      val r_o = rt()
+      val r_c = r_o.closed
       /*
-       * Subtype lattice — arcs point upward (subtype below -> supertype above).
+       * Subtype lattice — arcs point upward (subtype below -> supertype above)
+       * Coercion — dashed arrows (source type -> target type)
        *
-       *                           r_bto
-       *                         /    |  \
-       *                       /      |    \
-       *                     /        |      \
-       *       rel_empty = relt    r_a_bto   r_btc
-       *         /          \      /     \     |
-       *  rel_AB_empty   rel_empty_a      \    |
-       *        |     \      |             \   |
-       *        |      \     |             r_a_btc
-       *        |       \    |
+       *       rel_empty = relt ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌→ r_o ╌╌╌╌╌╮
+       *          /        \                    /   \     ┊
+       *         /          \                  /     \    ┊
+       *  rel_AB_empty   rel_empty_a ╌╌╌→ r_a_o ╌╌╮  r_c ←╯
+       *        |     \      |                 \  ┊
+       *        |      \     |                  \ ↓
+       *        |       \    |                  r_a_c
        *    rel_AB_lA   rel_AB_empty_a
        *          \        /
        *           \      /
@@ -679,14 +769,15 @@ trait CypherTypeTestSuite extends CypherFunSuite {
         rel_AB_empty -> relt,
         rel_AB_empty -> rel_empty,
         rel_empty_a -> rel_empty,
-        rel_empty_a -> r_a_bto,
+        coercing(rel_empty_a -> r_a_o),
         rel_empty -> relt,
         relt -> rel_empty,
-        relt -> r_bto,
-        r_a_btc -> r_a_bto,
-        r_a_btc -> r_btc,
-        r_a_bto -> r_bto,
-        r_btc -> r_bto
+        coercing(relt -> r_o),
+        r_a_c -> r_a_o,
+        r_a_o -> r_o,
+        coercing(r_a_o -> r_a_c),
+        r_c -> r_o,
+        coercing(r_o -> r_c)
       )
     }
 
@@ -698,7 +789,7 @@ trait CypherTypeTestSuite extends CypherFunSuite {
       val uISD = CTInteger | CTString | CTDate
       val uNSD = CTNumber | CTString | CTDate
       /*
-       * Subtype lattice — arcs point upward (subtype -> supertype).
+       * Subtype lattice — arcs point upward (subtype below -> supertype above).
        * X = two edges crossing (not a node).
        *
        *                  uNSD
@@ -734,6 +825,56 @@ trait CypherTypeTestSuite extends CypherFunSuite {
       )
     }
 
+    val coercibleDynamicUnionTypes: Lattice = {
+      val rec = rt()
+      val nod = nrt(Set.empty)
+      val rel = rrt(Option.empty, nod.notNull, nod.notNull)
+      val uRecNod = rec | nod
+      val uRecRel = rec | rel
+      val uRecInt = rec | CTInteger
+      val uNodRel = nod | rel
+      val uNodInt = nod | CTInteger
+      val uRelInt = rel | CTInteger
+      /*
+       * Subtype lattice — arcs point upward (subtype below -> supertype above).
+       * Coercion — dashed arrows (source type -> target type).
+       * X = two edges crossing (not a node).
+       *
+       *                                    uNodInt             uRelInt
+       *                                     │ │ ┊               ┊ │ │
+       *      uRecNod   uNodRel   uRecRel    │ │ ╰╌╌→ uRecInt ←╌╌╯ │ │
+       *       ┊ │ │     ┊ │ │     │ │ ┊     │ ╰────────│─┴────┬───╯ │
+       *       ┊ │ │     ┊ │ ╰─────│─┴─┊─────│─────┬────│──────│─────╯
+       *       ┊ │ ╰─────┊─│─────┬─┴───┊─────│─────│────╯      │
+       *       ┊ ╰───┬───┊─┴─────│─────┊─────╯     │           │
+       *       ┊    nod  ┊       │     ┊          rel         Int
+       *       ┊     ┊   ┊       │     ┊           ┊
+       *       ╰╌╌╌╌╌┴╌╌╌┴╌╌╌╌→ rec ←╌╌┴╌╌╌╌╌╌╌╌╌╌╌╯
+       */
+      Lattice(
+        "coercible dynamic union types",
+        rec -> uRecNod,
+        rec -> uRecRel,
+        rec -> uRecInt,
+        nod -> uRecNod,
+        nod -> uNodRel,
+        nod -> uNodInt,
+        coercing(nod -> rec),
+        rel -> uRecRel,
+        rel -> uNodRel,
+        rel -> uRelInt,
+        coercing(rel -> rec),
+        CTInteger -> uRecInt,
+        CTInteger -> uNodInt,
+        CTInteger -> uRelInt,
+        coercing(uRecNod -> rec),
+        coercing(uRecRel -> rec),
+        coercing(uNodRel -> rec),
+        coercing(uNodInt -> uRecInt),
+        coercing(uRelInt -> uRecInt)
+      )
+    }
+
     val dynamicUnionTypesRandomized: Lattice = {
       val dynamicUnionsRandomizedSeed = Random.nextInt(1024)
 
@@ -751,7 +892,7 @@ trait CypherTypeTestSuite extends CypherFunSuite {
       val bUc = b union c
       val aUbUc = a union b union c
       /*
-       * Subtype lattice — arcs point upward (subtype -> supertype).
+       * Subtype lattice — arcs point upward (subtype below -> supertype above).
        * Every label is wrapped in u(...);  X = two edges crossing (not a node).
        *
        *        aUbUc
@@ -817,7 +958,7 @@ trait CypherTypeTestSuite extends CypherFunSuite {
       val u_lblc = l_b | l_c
       val u_lalblcl = l_a | l_b | l_c
       /*
-       * Subtype lattice — arcs point upward (subtype -> supertype).
+       * Subtype lattice — arcs point upward (subtype below -> supertype above).
        * X = two edges crossing (not a node).
        *
        *                l_abc
@@ -863,6 +1004,7 @@ trait CypherTypeTestSuite extends CypherFunSuite {
 
     val allLattices: Seq[Lattice] = Seq(
       basics,
+      basics2,
       numericTypes,
       vectorTypes,
       recordTypes,
@@ -876,6 +1018,7 @@ trait CypherTypeTestSuite extends CypherFunSuite {
       relationshipReferenceValueTypes_endpoints,
       relationshipReferenceValueTypesAndRecordTypes,
       dynamicUnionTypes,
+      coercibleDynamicUnionTypes,
       dynamicUnionTypesRandomized,
       listTypesAndDynamicUnionTypesRandomized
     )
@@ -907,16 +1050,38 @@ trait CypherTypeTestSuite extends CypherFunSuite {
     case _                         => true
   }
 
+  protected def noNodeReferenceValueType(t: CypherType): Boolean = normalizeTypes(t) match {
+    case _: NodeReferenceValueType => false
+    case _: NodeType               => false
+    case u: ClosedDynamicUnionType => u.innerTypes.forall(noNodeReferenceValueType)
+    case _                         => true
+  }
+
+  protected def noRelationshipReferenceValueType(t: CypherType): Boolean = normalizeTypes(t) match {
+    case _: RelationshipReferenceValueType => false
+    case _: RelationshipType               => false
+    case u: ClosedDynamicUnionType         => u.innerTypes.forall(noRelationshipReferenceValueType)
+    case _                                 => true
+  }
+
+  protected def notAny(t: CypherType): Boolean = normalizeTypes(t) match {
+    case _: AnyType                => false
+    case u: ClosedDynamicUnionType => u.innerTypes.forall(notAny)
+    case _                         => true
+  }
+
+  protected inline def isAny(t: CypherType): Boolean = !notAny(t)
+
   /*
    * type construction helpers
    */
 
   protected inline def rt(fields: (String, CypherType)*): RecordType =
-    RecordType(fields.toMap, isFieldOpen = true, isBaseTypeOpen = true, isNullable = true)(pos)
+    RecordType(fields.toMap, isOpen = true, isNullable = true)(pos)
   protected inline def rt(fields: Set[(String, CypherType)]): RecordType = rt(fields.toSeq: _*)
 
   protected inline def nrt(labels: Set[String], fields: (String, CypherType)*): NodeReferenceValueType =
-    NodeReferenceValueType(labels, fields.toMap, isFieldOpen = true, isNullable = true)(pos)
+    NodeReferenceValueType(labels, fields.toMap, isOpen = true, isNullable = true)(pos)
 
   protected inline def rrt(
     label: Option[String],
@@ -924,7 +1089,7 @@ trait CypherTypeTestSuite extends CypherFunSuite {
     destination: NodeReferenceValueType,
     fields: (String, CypherType)*
   ): RelationshipReferenceValueType =
-    RelationshipReferenceValueType(label, fields.toMap, isFieldOpen = true, source, destination, isNullable = true)(pos)
+    RelationshipReferenceValueType(label, fields.toMap, isOpen = true, source, destination, isNullable = true)(pos)
 
   protected inline def u(types: Set[CypherType]): ClosedDynamicUnionType | NothingType = {
     if (types.isEmpty) NothingType()(pos)
@@ -949,8 +1114,7 @@ trait CypherTypeTestSuite extends CypherFunSuite {
   }
 
   extension (rt: RecordType) {
-    inline def fieldClosed: RecordType = rt.copy(defaultFieldType = NothingType()(pos))(pos)
-    inline def baseTypeClosed: RecordType = rt.copy(isBaseTypeOpen = false)(pos)
+    inline def closed: RecordType = rt.copy(defaultFieldType = NothingType()(pos))(pos)
     inline def default(cypherType: CypherType): RecordType = rt.copy(defaultFieldType = cypherType)(pos)
   }
 
@@ -974,7 +1138,57 @@ trait CypherTypeTestSuite extends CypherFunSuite {
    * lattice gymnastics
    */
 
-  protected def transitiveClosure[A](edges: (A, A)*): Set[(A, A)] = {
+  protected def taggedTransitiveClosure[A](edges: Seq[((A, A), Boolean)]): Set[((A, A), Boolean)] = {
+    @annotation.tailrec
+    def loop(closure: Set[((A, A), Boolean)]): Set[((A, A), Boolean)] = {
+      val next =
+        closure ++
+          (for {
+            ((a, b), x) <- closure
+            ((c, d), y) <- closure
+            if b == c
+          } yield ((a, d), x || y))
+      if next == closure then {
+        closure
+      } else {
+        loop(next)
+      }
+    }
+    loop(edges.toSet)
+  }
+
+  protected def computeTaggedMeets[T](latticeEdges: Seq[((T, T), Boolean)]): Seq[(T, T, Option[(T, Boolean)])] = {
+    // 1. Extract all unique nodes in the graph
+    val nodes = latticeEdges.flatMap { case ((a, b), _) => Seq(a, b) }.distinct
+
+    // 2. Compute reflexive transitive closure
+    val tc = taggedTransitiveClosure(latticeEdges) union nodes.map(t => ((t, t), false)).toSet
+
+    // 3. Compute the meet for every possible pair
+    for {
+      from <- nodes
+      to <- nodes
+      if from != to
+    } yield {
+      // Find all Z such that Z <= FROM and Z <~ TO
+      val commonLowerBounds = nodes.collect {
+        case z if tc.contains(((z, from), false)) && tc.contains(((z, to), false)) => (z, false)
+        case z if tc.contains(((z, from), false)) && tc.contains(((z, to), true))  => (z, true)
+      }
+      // The meet is a lower bound M where every other lower bound Z satisfies Z <= M
+      def findMeet(commonLowerBounds: Seq[(T, Boolean)]): Option[(T, Boolean)] = {
+        commonLowerBounds.find(m =>
+          commonLowerBounds.forall(z => tc.contains(((z._1, m._1), false)))
+        )
+      }
+      // for the meet, we prefer one with the lower tag
+      val meet = findMeet(commonLowerBounds.filterNot(_._2)).orElse(findMeet(commonLowerBounds))
+
+      (from, to, meet)
+    }
+  }
+
+  protected def transitiveClosure[A](edges: Seq[(A, A)]): Set[(A, A)] = {
     @annotation.tailrec
     def loop(closure: Set[(A, A)]): Set[(A, A)] = {
       val next =
@@ -993,12 +1207,12 @@ trait CypherTypeTestSuite extends CypherFunSuite {
     loop(edges.toSet)
   }
 
-  protected def computeMeets[T](latticeEdges: (T, T)*): Seq[(T, T, Option[T])] = {
+  protected def computeMeets[T](latticeEdges: Seq[(T, T)]): Seq[(T, T, Option[T])] = {
     // 1. Extract all unique nodes in the graph
     val nodes = latticeEdges.flatMap((a, b) => Seq(a, b)).distinct
 
     // 2. Compute reflexive transitive closure
-    val lte = transitiveClosure(latticeEdges*) union nodes.map(t => (t, t)).toSet
+    val tc = transitiveClosure(latticeEdges) union nodes.map(t => (t, t)).toSet
 
     // 3. Compute the meet for every possible pair
     for {
@@ -1007,14 +1221,39 @@ trait CypherTypeTestSuite extends CypherFunSuite {
       if x != y
     } yield {
       // Find all Z such that Z <= X and Z <= Y
-      val commonLowerBounds = nodes.filter(z => lte.contains((z, x)) && lte.contains((z, y)))
+      val commonLowerBounds = nodes.filter(z => tc.contains((z, x)) && tc.contains((z, y)))
 
       // The meet is a lower bound M where every other lower bound Z satisfies Z <= M
       val meet = commonLowerBounds.find(m =>
-        commonLowerBounds.forall(z => lte.contains((z, m)))
+        commonLowerBounds.forall(z => tc.contains((z, m)))
       )
 
       (x, y, meet)
     }
+  }
+
+  @annotation.tailrec
+  private def traverse[T](stack: List[T], visited: Set[T])(using steps: Map[T, Seq[T]]): Set[T] = {
+    stack match
+      case Nil => visited
+      case current :: rest =>
+        if (visited.contains(current)) {
+          traverse(rest, visited)
+        } else {
+          val reached = steps.getOrElse(current, Seq.empty)
+          traverse(reached.toList ++ rest, visited + current)
+        }
+  }
+
+  protected def computeFilter[T](infimum: T, latticeEdges: Seq[(T, T)]): Set[T] = {
+    // Map each target node to its direct successors: (u, v) implies u => v
+    given successors: Map[T, Seq[T]] = latticeEdges.groupMap(_._1)(_._2)
+    traverse(List(infimum), Set.empty)
+  }
+
+  protected def computeIdeal[T](supremum: T, latticeEdges: Seq[(T, T)]): Set[T] = {
+    // Map each target node to its direct predecessors: (u, v) implies u <= v
+    given predecessors: Map[T, Seq[T]] = latticeEdges.groupMap(_._2)(_._1)
+    traverse(List(supremum), Set.empty)
   }
 }

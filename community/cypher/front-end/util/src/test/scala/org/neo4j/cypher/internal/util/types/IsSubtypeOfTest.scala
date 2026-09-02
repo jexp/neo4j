@@ -22,8 +22,8 @@ import org.neo4j.cypher.internal.util.symbols.CTBoolean
 import org.neo4j.cypher.internal.util.symbols.CTNothing
 import org.neo4j.cypher.internal.util.symbols.CTNull
 import org.neo4j.cypher.internal.util.symbols.CypherType
+import org.neo4j.cypher.internal.util.symbols.IsEqualTo
 import org.neo4j.cypher.internal.util.symbols.IsSubtypeOf
-import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
 import scala.util.Random
 
@@ -33,9 +33,13 @@ class IsSubtypeOfTest extends CypherTypeTestSuite {
     shouldNotBeSubtypesOfEachOther(baseTypeRepresentatives)
   }
 
+  test("base types representatives should not be subtypes of each other - legacy") {
+    shouldNotBeSubtypesOfEachOther(baseTypeRepresentatives_Legacy)
+  }
+
   for (l <- Lattice.allLattices) {
     test(s"lattice: ${l.name}") {
-      shouldBeSubtypeLattice(l.edges*)
+      shouldBeSubtypeLattice(l)
     }
   }
 
@@ -54,14 +58,13 @@ class IsSubtypeOfTest extends CypherTypeTestSuite {
     }
   }
 
-  private def shouldBeSubtypeLattice(latticeEdges: (CypherType, CypherType)*): Unit = {
-    val allSubtypeRelationships = transitiveClosure(latticeEdges*)
+  private def shouldBeSubtypeLattice(lattice: Lattice): Unit = {
+    val edgesWithoutCoercion = lattice.edgesWithoutCoercion
+    val allSubtypeRelationships = transitiveClosure(edgesWithoutCoercion)
     for ((sub, sup) <- allSubtypeRelationships) {
       checkIsSubtypeOf(sub, sup)
     }
-    val allTypes = latticeEdges.flatMap {
-      case (sub, sup) => Seq(sub, sup)
-    }
+    val allTypes = lattice.allTypes
     for (t <- allTypes) {
       checkInvariants(t)
     }
@@ -168,13 +171,15 @@ class IsSubtypeOfTest extends CypherTypeTestSuite {
   }
 
   private def checkNullabilityInvariantForNonSubtypes(sub: CypherType, sup: CypherType): Unit = {
-    if (sub.notNull != CTNothing) {
-      if (sup.nullable != CTAny) assertIsNotSubtypeOf(sub.notNull, sup.nullable)
-      if (sup.notNull != CTAnyNotNull) assertIsNotSubtypeOf(sub.notNull, sup.notNull)
-    }
-    if (sub.nullable != CTNull) {
-      if (sup.nullable != CTAny) assertIsNotSubtypeOf(sub.nullable, sup.nullable)
-      if (sup.notNull != CTAnyNotNull) assertIsNotSubtypeOf(sub.nullable, sup.notNull)
+    if (!IsEqualTo(sub.nullable, sup.nullable)) {
+      if (sub.nullable != CTNull) {
+        if (sup.nullable != CTAny) assertIsNotSubtypeOf(sub.nullable, sup.nullable)
+        if (sup.notNull != CTAnyNotNull) assertIsNotSubtypeOf(sub.nullable, sup.notNull)
+      }
+      if (sub.notNull != CTNothing) {
+        if (sup.nullable != CTAny) assertIsNotSubtypeOf(sub.notNull, sup.nullable)
+        if (sup.notNull != CTAnyNotNull) assertIsNotSubtypeOf(sub.notNull, sup.notNull)
+      }
     }
   }
 

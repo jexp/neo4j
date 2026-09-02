@@ -129,6 +129,11 @@ trait CypherType extends ASTNode {
     case _: NothingType => true
     case _              => false
   }
+
+  // for Scala 3 Option-less pattern matching
+  def isEmpty: Boolean = isNothing
+
+  def get: CypherType = this
 }
 
 object CypherType {

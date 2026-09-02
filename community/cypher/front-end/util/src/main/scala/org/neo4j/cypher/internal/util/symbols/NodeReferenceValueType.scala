@@ -24,8 +24,6 @@ case class NodeReferenceValueType(
   override val defaultFieldType: CypherType,
   override val isNullable: Boolean
 )(val position: InputPosition) extends AbstractRecordType {
-  val isOpen: Boolean = isFieldOpen
-
   override def parentType: CypherType = ???
 
   override def withIsNullable(isNullable: Boolean): NodeReferenceValueType =
@@ -46,6 +44,8 @@ case class NodeReferenceValueType(
   }
 
   override def toClassString: String = "NodeReferenceValue"
+
+  def asOpen: NodeReferenceValueType = this.copy(defaultFieldType = AnyType(true)(InputPosition.NONE))(position)
 }
 
 object NodeReferenceValueType {
@@ -53,15 +53,15 @@ object NodeReferenceValueType {
   def apply(
     labels: Set[String],
     fields: Map[String, CypherType],
-    isFieldOpen: Boolean,
+    isOpen: Boolean,
     isNullable: Boolean
   )(position: InputPosition): NodeReferenceValueType = {
-    val defaultFieldType = if (isFieldOpen) AnyType(isNullable = true)(position) else NothingType()(position)
+    val defaultFieldType = if (isOpen) AnyType(isNullable = true)(position) else NothingType()(position)
     NodeReferenceValueType(labels, fields, defaultFieldType, isNullable)(position)
   }
 
   def any(isNullable: Boolean)(position: InputPosition): NodeReferenceValueType =
-    NodeReferenceValueType(Set.empty, Map.empty, isFieldOpen = true, isNullable)(position)
+    NodeReferenceValueType(Set.empty, Map.empty, isOpen = true, isNullable)(position)
 
   object Any {
 

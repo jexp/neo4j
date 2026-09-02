@@ -27,6 +27,7 @@ import org.neo4j.cypher.internal.util.symbols.MapType
 import org.neo4j.cypher.internal.util.symbols.NodeReferenceValueType
 import org.neo4j.cypher.internal.util.symbols.NodeType
 import org.neo4j.cypher.internal.util.symbols.RecordType
+import org.neo4j.cypher.internal.util.symbols.RelationshipType
 import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
 class IntersectionOfTest extends CypherTypeTestSuite {
@@ -35,9 +36,13 @@ class IntersectionOfTest extends CypherTypeTestSuite {
     shouldNotIntersect(baseTypeRepresentatives)
   }
 
+  test("base type representatives should not intersect - legacy") {
+    shouldNotIntersect(baseTypeRepresentatives_Legacy)
+  }
+
   for (l <- Lattice.allLattices) {
     test(s"lattice: ${l.name}") {
-      shouldIntersectAtMeetOfLattice(l.edges*)
+      shouldIntersectAtMeetOfLattice(l)
     }
   }
 
@@ -52,11 +57,13 @@ class IntersectionOfTest extends CypherTypeTestSuite {
     }
   }
 
-  private def shouldIntersectAtMeetOfLattice(latticeEdges: (CypherType, CypherType)*): Unit = {
-    val meets = computeMeets(latticeEdges*).map {
-      case (a, b, Some(mt: MapType))  => (a, b, Some(RecordType.any(mt.isNullable)(mt.position)))
-      case (a, b, Some(nt: NodeType)) => (a, b, Some(NodeReferenceValueType.any(nt.isNullable)(nt.position)))
-      case x                          => x
+  private def shouldIntersectAtMeetOfLattice(lattice: Lattice): Unit = {
+    val latticeEdges = lattice.edgesWithoutCoercion
+    val meets = computeMeets(latticeEdges).map {
+      case (a, b, Some(mt: MapType))          => (a, b, Some(mt.asRecordType))
+      case (a, b, Some(nt: NodeType))         => (a, b, Some(nt.asNodeReferenceValueType))
+      case (a, b, Some(rt: RelationshipType)) => (a, b, Some(rt.asRelationshipReferenceValueType))
+      case x                                  => x
     }
     for ((a, b, meetOpt) <- meets) {
       if (meetOpt.isDefined) {
@@ -101,19 +108,33 @@ class IntersectionOfTest extends CypherTypeTestSuite {
       assertIntersectionOf(a, CTNull)(CTNothing)
     }
     val listOfA = l(a)
-    if (noListType(a) && !IsSubtypeOf(listOfA, a)) {
+    if (notAny(a) && noListType(a) && !IsSubtypeOf(listOfA, a)) {
       if (a.isNullable) {
         assertIntersectionOf(a, listOfA)(CTNull)
       } else {
         assertIntersectionOf(a, listOfA)(CTNothing)
       }
     }
-    val recordOfA = rt("x" :: a).baseTypeClosed
-    if (noRecordType(a) && !IsSubtypeOf(recordOfA, a)) {
+    if (isAny(a)) {
+      if (a.isNullable) {
+        assertIntersectionOf(a, listOfA)(listOfA)
+      } else {
+        assertIntersectionOf(a, listOfA)(listOfA.notNull)
+      }
+    }
+    val recordOfA = rt("x" :: a)
+    if (notAny(a) && noRecordType(a) && !IsSubtypeOf(recordOfA, a)) {
       if (a.isNullable) {
         assertIntersectionOf(a, recordOfA)(CTNull)
       } else {
         assertIntersectionOf(a, recordOfA)(CTNothing)
+      }
+    }
+    if (isAny(a)) {
+      if (a.isNullable) {
+        assertIntersectionOf(a, recordOfA)(recordOfA)
+      } else {
+        assertIntersectionOf(a, recordOfA)(recordOfA.notNull)
       }
     }
   }

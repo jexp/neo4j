@@ -28,4 +28,6 @@ case class MapType(isNullable: Boolean)(val position: InputPosition) extends Cyp
   override def withIsNullable(isNullable: Boolean): CypherType = this.copy(isNullable = isNullable)(position)
 
   def withPosition(newPosition: InputPosition): CypherType = this.copy()(position = newPosition)
+
+  def asRecordType: RecordType = RecordType(Map.empty, isOpen = true, isNullable)(position)
 }

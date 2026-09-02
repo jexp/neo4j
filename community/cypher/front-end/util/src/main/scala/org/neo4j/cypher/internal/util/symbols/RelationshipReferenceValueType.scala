@@ -40,8 +40,6 @@ case class RelationshipReferenceValueType(
     )
   }
 
-  val isOpen: Boolean = isFieldOpen
-
   override def parentType: CypherType = ???
 
   override def withIsNullable(isNullable: Boolean): RelationshipReferenceValueType =
@@ -65,6 +63,14 @@ case class RelationshipReferenceValueType(
   }
 
   override def toClassString: String = "RelationshipReferenceValue"
+
+  def asOpen: RelationshipReferenceValueType = this.copy(defaultFieldType = AnyType(true)(InputPosition.NONE))(position)
+
+  def asOpenAndEndpointOpen: RelationshipReferenceValueType = this.copy(
+    defaultFieldType = AnyType(true)(InputPosition.NONE),
+    source = source.asOpen,
+    destination = destination.asOpen
+  )(position)
 }
 
 object RelationshipReferenceValueType {
@@ -72,14 +78,14 @@ object RelationshipReferenceValueType {
   def apply(
     label: Option[String],
     fields: Map[String, CypherType],
-    isFieldOpen: Boolean,
+    isOpen: Boolean,
     source: NodeReferenceValueType,
     destination: NodeReferenceValueType,
     isNullable: Boolean
   )(position: InputPosition): RelationshipReferenceValueType = {
     assert(!source.isNullable)
     assert(!destination.isNullable)
-    val defaultFieldType = if (isFieldOpen) AnyType(isNullable = true)(position) else NothingType()(position)
+    val defaultFieldType = if (isOpen) AnyType(isNullable = true)(position) else NothingType()(position)
     RelationshipReferenceValueType(label, fields, defaultFieldType, source, destination, isNullable)(position)
   }
 
@@ -88,7 +94,7 @@ object RelationshipReferenceValueType {
     RelationshipReferenceValueType(
       None,
       Map.empty,
-      isFieldOpen = true,
+      isOpen = true,
       endpointType,
       endpointType,
       isNullable

@@ -21,7 +21,7 @@ trait AbstractRecordType extends CypherType {
   def defaultFieldType: CypherType
   def isNullable: Boolean
 
-  val isFieldOpen: Boolean = defaultFieldType match {
+  val isOpen: Boolean = defaultFieldType match {
     case NothingType() => false
     case _             => true
   }

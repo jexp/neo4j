@@ -27,4 +27,7 @@ case class NodeType(isNullable: Boolean)(val position: InputPosition) extends Cy
   override def withIsNullable(isNullable: Boolean): CypherType = this.copy(isNullable = isNullable)(position)
 
   def withPosition(newPosition: InputPosition): CypherType = this.copy()(position = newPosition)
+
+  def asNodeReferenceValueType: NodeReferenceValueType =
+    NodeReferenceValueType(Set.empty, Map.empty, isOpen = true, isNullable)(position)
 }
