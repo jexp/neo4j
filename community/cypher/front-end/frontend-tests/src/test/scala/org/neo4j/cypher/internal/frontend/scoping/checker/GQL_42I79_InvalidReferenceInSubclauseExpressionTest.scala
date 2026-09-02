@@ -44,7 +44,7 @@ class GQL_42I79_InvalidReferenceInSubclauseExpressionTest extends VariableChecki
         |RETURN a, SUM(x / a) + a * 5 AS s
         |  ORDER BY s * MAX(a * x) - a ASCENDING""".stripMargin,
       differentOutcomeCypher25Onwards(E42I79("s"), E42I24("MAX(a * x)")),
-      Seq("a", "`SUM(x / a) + a * 5`")
+      Seq("a", "s")
     ),
     TestQuery(
       """WITH 10 AS a
@@ -52,7 +52,7 @@ class GQL_42I79_InvalidReferenceInSubclauseExpressionTest extends VariableChecki
         |RETURN a, x + 1 AS y, SUM(x / a) + a * 5 AS s
         |  ORDER BY y * MAX(a * x) - a ASCENDING""".stripMargin,
       differentOutcomeCypher25Onwards(E42I79("y"), E42I24("MAX(a * x)")),
-      Seq("a", "y", "`SUM(x / a) + a * 5`")
+      Seq("a", "y", "s")
     ),
     TestQuery(
       """WITH 10 AS a
@@ -60,7 +60,7 @@ class GQL_42I79_InvalidReferenceInSubclauseExpressionTest extends VariableChecki
         |RETURN a, x + 1 AS y, SUM(x / a) + a * 5 AS s
         |  ORDER BY 1 * MAX(s * a * x) - a ASCENDING""".stripMargin,
       differentOutcomeCypher25Onwards(E42I79("s"), E42I24("MAX((s * a) * x)")),
-      Seq("a", "y", "`SUM(x / a) + a * 5`")
+      Seq("a", "y", "s")
     ),
 
     // Positive tests

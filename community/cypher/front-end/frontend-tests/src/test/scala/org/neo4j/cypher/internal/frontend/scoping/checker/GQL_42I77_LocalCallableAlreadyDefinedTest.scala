@@ -265,7 +265,7 @@ class GQL_42I77_LocalCallableAlreadyDefinedTest extends VariableCheckingWithLoca
              |}
              |ELSE RETURN 1 AS foo""".stripMargin,
           ignoreBeforeCypher25(outcome("foo")),
-          Seq.empty
+          Seq("foo")
         ),
         TestQuery(
           s"""${firstDefinition("foo()")}
@@ -278,7 +278,7 @@ class GQL_42I77_LocalCallableAlreadyDefinedTest extends VariableCheckingWithLoca
              |  RETURN foo
              |}""".stripMargin,
           ignoreBeforeCypher25(outcome("foo")),
-          Seq.empty
+          Seq("foo")
         ),
         TestQuery(
           s"""WHEN true THEN {
@@ -294,7 +294,7 @@ class GQL_42I77_LocalCallableAlreadyDefinedTest extends VariableCheckingWithLoca
              |}
              |ELSE RETURN 1 AS foo""".stripMargin,
           ignoreBeforeCypher25(outcome("foo")),
-          Seq.empty
+          Seq("foo")
         ),
         TestQuery(
           s"""WHEN EXISTS {
@@ -310,7 +310,7 @@ class GQL_42I77_LocalCallableAlreadyDefinedTest extends VariableCheckingWithLoca
              |}
              |ELSE RETURN 1 AS foo""".stripMargin,
           ignoreBeforeCypher25(outcome("foo")),
-          Seq.empty
+          Seq("foo")
         )
       ) ++ (
         for {

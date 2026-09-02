@@ -103,13 +103,13 @@ class GQL_42N59_VariableAlreadyDeclaredTest extends VariableCheckingWithLocalCal
       """CALL test.my.proc(null) YIELD a, b AS a
         |RETURN a""".stripMargin,
       E42N59("a"),
-      Seq("n")
+      Seq("a")
     ),
     TestQuery(
       """CALL test.my.proc(null) YIELD a AS c, b AS c
         |RETURN c""".stripMargin,
       E42N59("c"),
-      Seq("n")
+      Seq("c")
     ),
     TestQuery(
       """LET query = "bob"
@@ -291,7 +291,7 @@ class GQL_42N59_VariableAlreadyDeclaredTest extends VariableCheckingWithLocalCal
         |}
         |RETURN *""".stripMargin,
       ignoreBeforeCypher25(Passes),
-      Seq("n", "x", "result")
+      Seq("n", "x")
     ),
     TestQuery(
       """LET query = "bob"

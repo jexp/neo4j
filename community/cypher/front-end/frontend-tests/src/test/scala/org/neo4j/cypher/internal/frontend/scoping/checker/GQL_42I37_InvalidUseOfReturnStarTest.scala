@@ -40,7 +40,7 @@ class GQL_42I37_InvalidUseOfReturnStarTest extends VariableCheckingWithLocalCall
          |  RETURN 1 AS x
          |} AS y""".stripMargin,
       ignoreBeforeCypher25(E42I37),
-      Seq("x")
+      Seq("y")
     ),
     TestQuery(
       """RETURN *""".stripMargin,

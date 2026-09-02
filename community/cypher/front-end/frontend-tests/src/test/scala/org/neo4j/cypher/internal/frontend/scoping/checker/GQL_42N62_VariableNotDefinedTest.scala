@@ -317,7 +317,7 @@ class GQL_42N62_VariableNotDefinedTest extends VariableCheckingWithLocalCallable
         |UNWIND [1, 2, 3] AS x
         |RETURN a, SUM(x/a) + x, SUM(x / a) + b + g + c * 5 AS s""".stripMargin,
       ignoreBeforeCypher25(E42N62("g")),
-      Seq("g", "`SUM(x/a) + x`", "s")
+      Seq("a", "`SUM(x/a) + x`", "s")
     ),
     TestQuery(
       """LET a = 10
@@ -342,7 +342,7 @@ class GQL_42N62_VariableNotDefinedTest extends VariableCheckingWithLocalCallable
       """MATCH (a {name: 'Andres'})<-[:FATHER]-(child)
         |RETURN a.name AS x, {foo: x='Andres', kids: collect(child.name)}""".stripMargin,
       E42N62("x"),
-      Seq("x", "`S{foo: x='Andres', kids: collect(child.name)}`")
+      Seq("x", "`{foo: x='Andres', kids: collect(child.name)}`")
     ),
     TestQuery(
       """MATCH (a {name: 'Andres'})<-[:FATHER]-(child)
@@ -418,7 +418,7 @@ class GQL_42N62_VariableNotDefinedTest extends VariableCheckingWithLocalCallable
         |  )
         |RETURN movie.title AS title""".stripMargin,
       ignoreBeforeCypher25(E42N62("m")),
-      Seq("title", "score")
+      Seq("title")
     ),
     TestQuery(
       """MATCH (movie: Movie)
@@ -458,37 +458,48 @@ class GQL_42N62_VariableNotDefinedTest extends VariableCheckingWithLocalCallable
     TestQuery(
       """SHOW USERS YIELD user ORDER BY bar ASCENDING""".stripMargin,
       E42N62("bar"),
-      Seq.empty,
+      Seq("user"),
       compositionRestriction = NoLocalCallableBody
     ),
     TestQuery(
       """SHOW USERS YIELD user ORDER BY passwordChangeRequired""".stripMargin,
       E42N62("passwordChangeRequired"),
-      Seq.empty,
+      Seq("user"),
       compositionRestriction = NoLocalCallableBody
     ),
     TestQuery(
       """SHOW SETTINGS foo""".stripMargin,
       E42N62("foo"),
-      Seq.empty,
+      Seq("name", "value", "defaultValue", "isDynamic", "description"),
       compositionRestriction = NoLocalCallableBody
     ),
     TestQuery(
       """SHOW TRANSACTIONS YIELD nope""".stripMargin,
       E42N62("nope"),
-      Seq.empty,
+      Seq("nope"),
       compositionRestriction = NoLocalCallableBody
     ),
     TestQuery(
       """SHOW TRANSACTIONS foo""".stripMargin,
       E42N62("foo"),
-      Seq.empty,
+      Seq(
+        "database",
+        "transactionId",
+        "currentQueryId",
+        "connectionId",
+        "clientAddress",
+        "username",
+        "currentQuery",
+        "startTime",
+        "status",
+        "elapsedTime"
+      ),
       compositionRestriction = NoLocalCallableBody
     ),
     TestQuery(
       """TERMINATE TRANSACTIONS foo""".stripMargin,
       E42N62("foo"),
-      Seq.empty,
+      Seq("transactionId", "username", "message"),
       compositionRestriction = NoLocalCallableBody
     ),
     TestQuery(
@@ -530,13 +541,13 @@ class GQL_42N62_VariableNotDefinedTest extends VariableCheckingWithLocalCallable
         |}
         |RETURN y""".stripMargin,
       E42N62("a"),
-      Seq()
+      Seq("y")
     ),
     TestQuery(
       """MATCH (a)
         |RETURN a AS x, COUNT { CALL { RETURN a.p + 1 AS y } RETURN y } + count(a)""".stripMargin,
       E42N62("a"),
-      Seq()
+      Seq("x", "`COUNT { CALL { RETURN a.p + 1 AS y } RETURN y } + count(a)`")
     ),
     TestQuery(
       """UNWIND graph.names() AS graphName
@@ -956,7 +967,7 @@ class GQL_42N62_VariableNotDefinedTest extends VariableCheckingWithLocalCallable
       """CREATE (:A)-[m:R {p:'hello'}]->(:B)
         |CREATE (c:C {t:type(m), p:m.p}) RETURN m, c""".stripMargin,
       Passes,
-      Seq.empty
+      Seq("m", "c")
     ),
     TestQuery(
       """UNWIND [1, 2] as i

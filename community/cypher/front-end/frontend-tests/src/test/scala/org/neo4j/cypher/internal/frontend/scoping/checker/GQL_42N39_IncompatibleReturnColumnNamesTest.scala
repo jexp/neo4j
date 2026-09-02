@@ -75,7 +75,7 @@ class GQL_42N39_IncompatibleReturnColumnNamesTest extends VariableCheckingWithLo
         |CALL db.labels() YIELD label
         |RETURN label""".stripMargin,
       E42N39,
-      Seq("x", "y")
+      Seq()
     ),
 
     // Positive tests

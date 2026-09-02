@@ -33,14 +33,14 @@ class GQL_42N3A_IncompatibleConditionalQueryTest extends VariableCheckingWithLoc
         |WHEN false THEN RETURN 2 AS x
         |ELSE FINISH""".stripMargin,
       ignoreBeforeCypher25(E42N3A),
-      Seq("x", "y")
+      Seq("x")
     ),
     TestQuery(
       """WHEN true THEN CREATE()
         |WHEN false THEN RETURN 2 AS x
         |ELSE FINISH""".stripMargin,
       ignoreBeforeCypher25(E42N3A),
-      Seq("x", "y")
+      Seq.empty
     ),
 
     // Positive tests

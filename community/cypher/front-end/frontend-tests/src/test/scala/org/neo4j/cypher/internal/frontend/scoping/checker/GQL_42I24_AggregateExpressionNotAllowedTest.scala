@@ -59,7 +59,7 @@ class GQL_42I24_AggregateExpressionNotAllowedTest extends VariableCheckingWithLo
         |RETURN a, SUM(x / a) + a * 5 AS s
         |  ORDER BY s * MAX(a * x) - a ASCENDING""".stripMargin,
       differentOutcomeCypher25Onwards(E42I79("s"), E42I24("MAX(a * x)")),
-      Seq("a", "`SUM(x / a) + a * 5`")
+      Seq("a", "s")
     ),
     TestQuery(
       """MATCH (a:A)
