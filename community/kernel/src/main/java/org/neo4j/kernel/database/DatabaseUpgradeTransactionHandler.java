@@ -31,12 +31,14 @@ import java.util.concurrent.locks.LockSupport;
 import org.neo4j.configuration.Config;
 import org.neo4j.dbms.DbmsRuntimeVersionProvider;
 import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.TransactionTerminatedHelper;
 import org.neo4j.graphdb.event.TransactionData;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.kernel.DeadlockDetectedException;
 import org.neo4j.kernel.KernelVersion;
 import org.neo4j.kernel.KernelVersionProvider;
 import org.neo4j.kernel.api.KernelTransaction;
+import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.impl.api.KernelImpl;
 import org.neo4j.kernel.impl.api.KernelTransactionImplementation;
 import org.neo4j.kernel.impl.api.KernelTransactions;
@@ -50,7 +52,7 @@ import org.neo4j.logging.InternalLogProvider;
 import org.neo4j.wal.LogFormatVersionProvider;
 import org.neo4j.wal.entry.LogFormat;
 
-class DatabaseUpgradeTransactionHandler {
+public class DatabaseUpgradeTransactionHandler {
     private final DbmsRuntimeVersionProvider dbmsRuntimeVersionProvider;
     private final KernelVersionProvider kernelVersionProvider;
     private final LogFormatVersionProvider logFormatVersionProvider;
@@ -273,12 +275,17 @@ class DatabaseUpgradeTransactionHandler {
                         if (currentValue > transactionSequenceNumber) {
                             return false;
                         }
+                        throwIfTerminated(tx);
                         // we are in a transaction that should wait
                         LockSupport.parkNanos(100);
                     }
                 } while (!upgradeLock.weakCompareAndSetRelease(INITIAL_VALUE, transactionSequenceNumber));
 
                 while (!oldTransactionCompleted(transactionSequenceNumber)) {
+                    if (tx.isTerminated()) {
+                        release();
+                        throwIfTerminated(tx);
+                    }
                     LockSupport.parkNanos(100);
                 }
 
@@ -294,6 +301,13 @@ class DatabaseUpgradeTransactionHandler {
 
             private boolean oldTransactionCompleted(long currentValue) {
                 return kernelTransactions.earliestTransactionSequenceNumber() >= currentValue;
+            }
+
+            private static void throwIfTerminated(KernelTransaction tx) {
+                if (tx.isTerminated()) {
+                    throw TransactionTerminatedHelper.transactionTerminated(
+                            tx.getReasonIfTerminated().orElse(Status.Transaction.Terminated));
+                }
             }
         }
     }
