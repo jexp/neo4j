@@ -2030,6 +2030,19 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
 
     @Internal
     @Description("")
+    public static final Setting<Double> spd_import_prefetcher_heap_fraction = newBuilder(
+                    "internal.db.spd_import.prefetcher_heap_fraction", DOUBLE, 0.01)
+            .build();
+
+    @Internal
+    @Description("")
+    public static final Setting<Long> spd_import_prefetcher_batch_size = newBuilder(
+                    "internal.db.spd_import.prefetcher_batch_size", BYTES, mebiBytes(2))
+            .addConstraint(max(gibiBytes(1)))
+            .build();
+
+    @Internal
+    @Description("")
     public static final Setting<Integer> spd_import_entity_executor_preallocation_size = newBuilder(
                     "internal.db.spd_import.entity_executor_preallocation_size", INT, 10_000)
             .build();
