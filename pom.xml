@@ -191,6 +191,7 @@
     <slf4j.version>2.0.17</slf4j.version>
     <sqlite-jdbc.version>3.53.2.1</sqlite-jdbc.version>
     <teavm.version>0.15.0</teavm.version>
+    <test.runner.jamm.agent>-javaagent:${settings.localRepository}/com/github/jbellis/jamm/${jamm.version}/jamm-${jamm.version}.jar</test.runner.jamm.agent>
     <test.runner.jvm />
     <test.runner.jvm.settings>${test.runner.mockito.agent}
       -Xmx${test.vm.heap.size}
@@ -2256,6 +2257,24 @@
       </activation>
       <properties>
         <test.runner.jvm.settings.db.format>-DNEO4J_OVERRIDE_STORE_FORMAT=block</test.runner.jvm.settings.db.format>
+      </properties>
+    </profile>
+    <!-- Under Maven's split local repository (Aether enhancedLocalRepository.split),
+         external downloads live under ${settings.localRepository}/cached/ rather than
+         the repository root. The javaagent paths below point at external jars (mockito,
+         jamm), so they must resolve into cached/ to be found. Non-split checkouts do not
+         set this property and keep the default root-relative paths. -->
+    <profile>
+      <id>split-local-repository</id>
+      <activation>
+        <property>
+          <name>aether.enhancedLocalRepository.split</name>
+          <value>true</value>
+        </property>
+      </activation>
+      <properties>
+        <test.runner.jamm.agent>-javaagent:${settings.localRepository}/cached/com/github/jbellis/jamm/${jamm.version}/jamm-${jamm.version}.jar</test.runner.jamm.agent>
+        <test.runner.mockito.agent>-javaagent:${settings.localRepository}/cached/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar</test.runner.mockito.agent>
       </properties>
     </profile>
     <profile>

@@ -23,7 +23,7 @@
 
   <properties>
     <moduleName>org.neo4j.procedure</moduleName>
-    <test.runner.jvm.settings.additional>-javaagent:${settings.localRepository}/com/github/jbellis/jamm/${jamm.version}/jamm-${jamm.version}.jar</test.runner.jvm.settings.additional>
+    <test.runner.jvm.settings.additional>${test.runner.jamm.agent}</test.runner.jvm.settings.additional>
   </properties>
 
   <dependencies>
