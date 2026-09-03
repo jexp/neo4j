@@ -99,7 +99,7 @@ final class MuninnReadPageCursor extends MuninnPageCursor {
 
     private static boolean shouldLoadSnapshot(
             long pageVersion, VersionContext versionContext, boolean includeCurrentTransaction) {
-        if (pageVersion == versionContext.committingTransactionId()) {
+        if (versionContext.initializedForWrite() && pageVersion == versionContext.committingTransactionId()) {
             return !includeCurrentTransaction;
         }
         return pageVersion > versionContext.highestClosed()
