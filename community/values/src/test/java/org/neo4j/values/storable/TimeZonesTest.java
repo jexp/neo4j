@@ -89,7 +89,7 @@ class TimeZonesTest {
 
     /**
      * If this test fails, you have changed something in TZIDS. This is fine, as long as you only append lines to the end, or add a mapping to a deleted
-     * timezone. You are not allowed to change the order of lines or remove a line. p> If your changes were legit, please change the expected byte[] below.
+     * timezone. You are not allowed to change the order of lines or remove a line. If your changes were legit, please change the expected byte[] below.
      */
     @Test
     void tzidsOrderMustNotChange() throws URISyntaxException, IOException {
@@ -97,8 +97,8 @@ class TimeZonesTest {
         String timeZonesInfo = Files.readString(path).replace("\r\n", "\n");
         byte[] timeZonesHash = DigestUtils.sha256(timeZonesInfo);
         assertThat(timeZonesHash).isEqualTo(new byte[] {
-            120, 118, 40, -13, 97, -80, -63, 42, 112, -15, -120, -3, -7, 68, 35, -91, -54, 53, 84, -114, -97, -47, 92,
-            114, 29, 69, 58, 52, -60, -91, -123, 27
+            -38, 67, 76, -3, 92, -53, -53, -57, -114, 5, -43, -103, 60, -58, -61, -110, 83, -108, 105, 15, 24, 107, 33,
+            -73, -92, 45, 5, -67, 87, 21, 127, -77
         });
     }
 }
