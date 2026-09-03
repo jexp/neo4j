@@ -19,31 +19,29 @@
  */
 package org.neo4j.values.storable;
 
-import static java.lang.String.format;
-
 import java.util.Arrays;
+import org.neo4j.graphdb.Vector;
 import org.neo4j.memory.HeapEstimator;
-import org.neo4j.values.ValueMapper;
 
-public final class Float64Vector extends FloatingPointVector {
-    public static final String NESTED_TYPE_NAME = "FLOAT64";
+public abstract sealed class AbstractFloat16Vector extends FloatingPointVector permits Float16Vector, BFloat16Vector {
+    private static final long SHALLOW_SIZE = HeapEstimator.shallowSizeOfInstance(Float16Vector.class);
 
-    private static final long SHALLOW_SIZE = HeapEstimator.shallowSizeOfInstance(Float64Vector.class);
+    private final Float16Format format;
+    private final short[] coordinates;
 
-    private final double[] coordinates;
-
-    Float64Vector(double... coordinates) {
+    AbstractFloat16Vector(Float16Format format, short... coordinates) {
+        this.format = format;
         this.coordinates = coordinates;
     }
 
     @Override
     public float floatValue(int index) {
-        return (float) coordinates[index];
+        return format.toFloat32(coordinates[index]);
     }
 
     @Override
     public double doubleValue(int index) {
-        return coordinates[index];
+        return floatValue(index);
     }
 
     @Override
@@ -52,57 +50,56 @@ public final class Float64Vector extends FloatingPointVector {
     }
 
     @Override
-    public String getTypeName() {
-        return "Float64Vector";
-    }
-
-    @Override
-    public CoordinateType coordinateType() {
-        return CoordinateType.FLOAT64;
+    public Vector.CoordinateType coordinateType() {
+        return format.coordinateType();
     }
 
     @Override
     public ValueRepresentation valueRepresentation() {
-        return ValueRepresentation.FLOAT64_VECTOR;
+        return format.valueRepresentation();
     }
 
     @Override
     public boolean equals(Value other) {
-        if (other instanceof Float64Vector v) {
-            return Arrays.equals(this.coordinates, v.coordinates);
+        if (other instanceof AbstractFloat16Vector v) {
+            return format.equals(v.format) && Arrays.equals(this.coordinates, v.coordinates);
         }
         return false;
     }
 
     @Override
     protected int unsafeCompareTo(Value other) {
-        Float64Vector that = (Float64Vector) other;
+        final var that = (AbstractFloat16Vector) other;
+        if (format != that.format) {
+            throw new IllegalStateException(
+                    "Comparing two float16 vectors of different formats " + format + " and " + that.format);
+        }
         int comparison = Integer.compare(this.dimensions(), that.dimensions());
         if (comparison != 0) {
             return comparison;
         }
-
-        return Arrays.compare(this.coordinates, that.coordinates);
+        for (int i = 0; i < coordinates.length; i++) {
+            comparison = format.compare(coordinates[i], that.coordinates[i]);
+            if (comparison != 0) {
+                return comparison;
+            }
+        }
+        return 0;
     }
 
     @Override
     public <E extends Exception> void writeTo(ValueWriter<E> writer) throws E {
-        writer.writeFloat64Vector(coordinates);
-    }
-
-    @Override
-    public <T> T map(ValueMapper<T> mapper) {
-        return mapper.mapFloat64Vector(this);
+        writer.writeFloat16Vector(format, coordinates);
     }
 
     @Override
     protected long longBits(int i) {
-        return Double.doubleToLongBits(coordinates[i]);
+        return coordinates[i];
     }
 
     @Override
     public String nestedTypeName() {
-        return NESTED_TYPE_NAME;
+        return format.nestedTypeName();
     }
 
     @Override
@@ -115,8 +112,12 @@ public final class Float64Vector extends FloatingPointVector {
         return SHALLOW_SIZE + HeapEstimator.sizeOf(coordinates);
     }
 
+    public Float16Format format() {
+        return format;
+    }
+
     @Override
     public String toString() {
-        return format("%s%s", getTypeName(), Arrays.toString(coordinates));
+        return String.format("%s(%s)%s", getTypeName(), nestedTypeName(), Arrays.toString(coordinates));
     }
 }

@@ -19,5 +19,22 @@
  */
 package org.neo4j.values.storable;
 
-public abstract sealed class FloatingPointVector extends VectorValue
-        permits AbstractFloat16Vector, Float32Vector, Float64Vector {}
+import org.neo4j.values.ValueMapper;
+
+public final class Float16Vector extends AbstractFloat16Vector {
+    public static final String TYPE_NAME = "Float16Vector";
+
+    Float16Vector(short... coordinates) {
+        super(Float16Format.FLOAT16, coordinates);
+    }
+
+    @Override
+    public String getTypeName() {
+        return TYPE_NAME;
+    }
+
+    @Override
+    public <T> T map(ValueMapper<T> mapper) {
+        return mapper.mapFloat16Vector(this);
+    }
+}

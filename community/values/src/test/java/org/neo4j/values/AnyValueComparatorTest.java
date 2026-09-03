@@ -31,10 +31,13 @@ import static org.neo4j.values.Comparison.UNDEFINED;
 import static org.neo4j.values.storable.DateTimeValue.datetime;
 import static org.neo4j.values.storable.DateValue.date;
 import static org.neo4j.values.storable.DurationValue.duration;
+import static org.neo4j.values.storable.Float16Format.BFLOAT16;
+import static org.neo4j.values.storable.Float16Format.FLOAT16;
 import static org.neo4j.values.storable.LocalDateTimeValue.localDateTime;
 import static org.neo4j.values.storable.LocalTimeValue.localTime;
 import static org.neo4j.values.storable.TimeValue.time;
 import static org.neo4j.values.storable.Values.NO_VALUE;
+import static org.neo4j.values.storable.Values.float16Vector;
 import static org.neo4j.values.storable.Values.float32Vector;
 import static org.neo4j.values.storable.Values.float64Vector;
 import static org.neo4j.values.storable.Values.int16Vector;
@@ -185,6 +188,18 @@ class AnyValueComparatorTest {
         int64Vector(1, 2, 1),
         int64Vector(1, 3, 0),
         int64Vector(2, 0, 1),
+        float16Vector(FLOAT16, FLOAT16.negative(FLOAT16.maxValue())),
+        float16Vector(FLOAT16, FLOAT16.toFloat16(-0.0f)),
+        float16Vector(FLOAT16, FLOAT16.toFloat16(0.0f)),
+        float16Vector(FLOAT16, FLOAT16.minValue()),
+        float16Vector(FLOAT16, FLOAT16.toFloat16(1)),
+        float16Vector(FLOAT16, FLOAT16.maxValue()),
+        float16Vector(BFLOAT16, BFLOAT16.negative(BFLOAT16.maxValue())),
+        float16Vector(BFLOAT16, BFLOAT16.toFloat16(-0.0f)),
+        float16Vector(BFLOAT16, BFLOAT16.toFloat16(0.0f)),
+        float16Vector(BFLOAT16, BFLOAT16.minValue()),
+        float16Vector(BFLOAT16, BFLOAT16.toFloat16(1)),
+        float16Vector(BFLOAT16, BFLOAT16.maxValue()),
         float32Vector(-Float.MAX_VALUE),
         float32Vector(-Float.MIN_VALUE),
         float32Vector(-0.0f),

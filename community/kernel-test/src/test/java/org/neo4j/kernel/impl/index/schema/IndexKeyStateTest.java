@@ -93,6 +93,7 @@ import org.neo4j.string.UTF8;
 import org.neo4j.test.RandomSupport;
 import org.neo4j.test.extension.Inject;
 import org.neo4j.test.extension.RandomSupportExtension;
+import org.neo4j.values.storable.AbstractFloat16Vector;
 import org.neo4j.values.storable.ArrayValue;
 import org.neo4j.values.storable.ByteArray;
 import org.neo4j.values.storable.ByteValue;
@@ -943,7 +944,14 @@ abstract class IndexKeyStateTest<KEY extends GenericKey<KEY>> {
                 29;
             case GEOMETRY -> getGeometrySize(value);
             case TEXT -> getStringSize(value);
-            case INT8_VECTOR, INT16_VECTOR, INT32_VECTOR, INT64_VECTOR, FLOAT32_VECTOR, FLOAT64_VECTOR ->
+            case INT8_VECTOR,
+                    INT16_VECTOR,
+                    INT32_VECTOR,
+                    INT64_VECTOR,
+                    FLOAT16_VECTOR,
+                    BFLOAT16_VECTOR,
+                    FLOAT32_VECTOR,
+                    FLOAT64_VECTOR ->
                 // typeName: VectorKeyType
                 getVectorSize(value);
             default ->
@@ -1290,6 +1298,7 @@ abstract class IndexKeyStateTest<KEY extends GenericKey<KEY>> {
                     case Int16Vector i16v -> Types.VECTOR_INT16.elementSize * i16v.dimensions();
                     case Int32Vector i32v -> Types.VECTOR_INT32.elementSize * i32v.dimensions();
                     case Int64Vector i64v -> Types.VECTOR_INT64.elementSize * i64v.dimensions();
+                    case AbstractFloat16Vector f16v -> Types.VECTOR_FLOAT16.elementSize * f16v.dimensions();
                     case Float32Vector f32v -> Types.VECTOR_FLOAT32.elementSize * f32v.dimensions();
                     case Float64Vector f64v -> Types.VECTOR_FLOAT64.elementSize * f64v.dimensions();
                     default -> throw new IllegalArgumentException(value.toString());

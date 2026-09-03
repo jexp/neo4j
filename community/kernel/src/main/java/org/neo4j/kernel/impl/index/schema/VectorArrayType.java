@@ -21,12 +21,15 @@ package org.neo4j.kernel.impl.index.schema;
 
 import static org.neo4j.kernel.impl.index.schema.GenericKey.setCursorException;
 import static org.neo4j.kernel.impl.index.schema.Types.SIZE_ARRAY_LENGTH;
+import static org.neo4j.values.storable.VectorValue.vectorCoordinateType;
+import static org.neo4j.values.storable.VectorValue.vectorCoordinateTypeCode;
 
 import java.util.Arrays;
 import java.util.StringJoiner;
 import org.neo4j.graphdb.Vector;
 import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.io.pagecache.PageCursorUtil;
+import org.neo4j.values.storable.Float16Format;
 import org.neo4j.values.storable.ValueGroup;
 import org.neo4j.values.storable.ValueWriter;
 import org.neo4j.values.storable.VectorValue;
@@ -113,7 +116,7 @@ class VectorArrayType extends AbstractArrayType<VectorValue> {
     private static int byteLengthOf(GenericKey<?> key, int i) {
         long header = key.long0Array[i];
         int dimensions = dimensionsOf(header);
-        Vector.CoordinateType coordinateType = byteToCoordinateType(coordinateTypeOf(header));
+        Vector.CoordinateType coordinateType = vectorCoordinateType(coordinateTypeOf(header));
         return VectorValue.bytesPerDimension(coordinateType) * dimensions;
     }
 
@@ -136,55 +139,29 @@ class VectorArrayType extends AbstractArrayType<VectorValue> {
 
     static void write(GenericKey<?> key, int offset, Vector.CoordinateType coordinateType, int dimension, byte[] data) {
         key.long0Array[offset] = dimension;
-        key.long0Array[offset] |= (long) coordinateTypeToByte(coordinateType) << (Short.SIZE);
+        key.long0Array[offset] |= (long) vectorCoordinateTypeCode(coordinateType) << (Short.SIZE);
         key.byteArrayArray[offset] = data;
     }
 
-    private static byte coordinateTypeToByte(Vector.CoordinateType coordinateType) {
-        return (byte)
-                switch (coordinateType) {
-                    case INTEGER8 -> 0;
-                    case INTEGER16 -> 1;
-                    case INTEGER32 -> 2;
-                    case INTEGER64 -> 3;
-                    case FLOAT32 -> 4;
-                    case FLOAT64 -> 5;
-                };
-    }
-
-    /**
-     * Only for key state that is known to be valid, i.e. state that has been written from a {@link VectorValue} or
-     * read back successfully. Paths that can see state from an inconsistent read must instead use
-     * {@link #coordinateTypeOrNull(byte)} and must not throw, see {@link Type#readValue}.
-     */
-    private static Vector.CoordinateType byteToCoordinateType(byte coordinateType) {
-        Vector.CoordinateType type = coordinateTypeOrNull(coordinateType);
-        if (type == null) {
-            throw new IllegalArgumentException("Invalid coordinate type: " + coordinateType);
-        }
-        return type;
-    }
-
     private static Vector.CoordinateType coordinateTypeOrNull(byte coordinateType) {
-        return switch (coordinateType) {
-            case 0 -> Vector.CoordinateType.INTEGER8;
-            case 1 -> Vector.CoordinateType.INTEGER16;
-            case 2 -> Vector.CoordinateType.INTEGER32;
-            case 3 -> Vector.CoordinateType.INTEGER64;
-            case 4 -> Vector.CoordinateType.FLOAT32;
-            case 5 -> Vector.CoordinateType.FLOAT64;
-            default -> null;
-        };
+        return vectorCoordinateType(t -> {}, coordinateType);
     }
 
     private static class VectorArrayElementComparator implements ArrayElementComparator {
         @Override
         public int compare(GenericKey<?> o1, GenericKey<?> o2, int i) {
             // first compare coordinateType, then dimensions, then arrays themselves
+            // we can't compare the internal coordinate type ID since coordinate types may have arrived
+            // in the product out of order with the order defined by ValueGroup.
             byte coordinateTypeId = coordinateTypeOf(o1.long0Array[i]);
-            int coordinateTypeComparison = Byte.compare(coordinateTypeId, coordinateTypeOf(o2.long0Array[i]));
-            if (coordinateTypeComparison != 0) {
-                return coordinateTypeComparison;
+            byte o2CoordinateTypeId = coordinateTypeOf(o2.long0Array[i]);
+            if (coordinateTypeId != o2CoordinateTypeId) {
+                ValueGroup valueGroup1 = valueGroup(coordinateTypeId);
+                ValueGroup valueGroup2 = valueGroup(o2CoordinateTypeId);
+                if (valueGroup1 == null || valueGroup2 == null) {
+                    return Byte.compare(coordinateTypeId, o2CoordinateTypeId);
+                }
+                return valueGroup1.compareTo(valueGroup2);
             }
             int dimensionsComparison = Integer.compare(dimensionsOf(o1.long0Array[i]), dimensionsOf(o2.long0Array[i]));
             if (dimensionsComparison != 0) {
@@ -204,9 +181,21 @@ class VectorArrayType extends AbstractArrayType<VectorValue> {
                 case INTEGER16 -> VectorKeyType.Int16VectorKey.compareBytes(o1Bytes, o2Bytes, numBytes);
                 case INTEGER32 -> VectorKeyType.Int32VectorKey.compareBytes(o1Bytes, o2Bytes, numBytes);
                 case INTEGER64 -> VectorKeyType.Int64VectorKey.compareBytes(o1Bytes, o2Bytes, numBytes);
+                case FLOAT16 ->
+                    VectorKeyType.Float16VectorKey.compareBytes(Float16Format.FLOAT16, o1Bytes, o2Bytes, numBytes);
+                case BFLOAT16 ->
+                    VectorKeyType.Float16VectorKey.compareBytes(Float16Format.BFLOAT16, o1Bytes, o2Bytes, numBytes);
                 case FLOAT32 -> VectorKeyType.Float32VectorKey.compareBytes(o1Bytes, o2Bytes, numBytes);
                 case FLOAT64 -> VectorKeyType.Float64VectorKey.compareBytes(o1Bytes, o2Bytes, numBytes);
             };
+        }
+
+        private ValueGroup valueGroup(byte coordinateTypeId) {
+            Vector.CoordinateType coordinateType = vectorCoordinateType(t -> {}, coordinateTypeId);
+            if (coordinateType == null) {
+                return null;
+            }
+            return VectorKeyType.fromCoordinateType(coordinateType);
         }
     }
 
@@ -214,11 +203,15 @@ class VectorArrayType extends AbstractArrayType<VectorValue> {
         @Override
         public VectorValue from(GenericKey<?> k, int i) {
             int dimensions = dimensionsOf(k.long0Array[i]);
-            return switch (byteToCoordinateType(coordinateTypeOf(k.long0Array[i]))) {
+            return switch (vectorCoordinateType(coordinateTypeOf(k.long0Array[i]))) {
                 case INTEGER8 -> VectorKeyType.Int8VectorKey.asValue(dimensions, k.byteArrayArray[i]);
                 case INTEGER16 -> VectorKeyType.Int16VectorKey.asValue(dimensions, k.byteArrayArray[i]);
                 case INTEGER32 -> VectorKeyType.Int32VectorKey.asValue(dimensions, k.byteArrayArray[i]);
                 case INTEGER64 -> VectorKeyType.Int64VectorKey.asValue(dimensions, k.byteArrayArray[i]);
+                case FLOAT16 ->
+                    VectorKeyType.Float16VectorKey.asValue(dimensions, k.byteArrayArray[i], Float16Format.FLOAT16);
+                case BFLOAT16 ->
+                    VectorKeyType.Float16VectorKey.asValue(dimensions, k.byteArrayArray[i], Float16Format.BFLOAT16);
                 case FLOAT32 -> VectorKeyType.Float32VectorKey.asValue(dimensions, k.byteArrayArray[i]);
                 case FLOAT64 -> VectorKeyType.Float64VectorKey.asValue(dimensions, k.byteArrayArray[i]);
             };

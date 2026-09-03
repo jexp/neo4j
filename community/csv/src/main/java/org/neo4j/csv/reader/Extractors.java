@@ -49,7 +49,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Supplier;
 import org.neo4j.graphdb.spatial.Point;
+import org.neo4j.values.storable.AbstractFloat16Vector;
 import org.neo4j.values.storable.ArrayValue;
+import org.neo4j.values.storable.BFloat16Vector;
 import org.neo4j.values.storable.CSVHeaderInformation;
 import org.neo4j.values.storable.DateArray;
 import org.neo4j.values.storable.DateTimeArray;
@@ -57,6 +59,8 @@ import org.neo4j.values.storable.DateTimeValue;
 import org.neo4j.values.storable.DateValue;
 import org.neo4j.values.storable.DurationArray;
 import org.neo4j.values.storable.DurationValue;
+import org.neo4j.values.storable.Float16Format;
+import org.neo4j.values.storable.Float16Vector;
 import org.neo4j.values.storable.Float32Vector;
 import org.neo4j.values.storable.Float64Vector;
 import org.neo4j.values.storable.Int16Vector;
@@ -133,6 +137,8 @@ public final class Extractors {
     private final Int16VectorExtractor int16Vector;
     private final Int32VectorExtractor int32Vector;
     private final Int64VectorExtractor int64Vector;
+    private final Float16VectorExtractor float16Vector;
+    private final BFloat16VectorExtractor bfloat16Vector;
     private final Float32VectorExtractor float32Vector;
     private final Float64VectorExtractor float64Vector;
 
@@ -200,6 +206,8 @@ public final class Extractors {
         add(int16Vector = new Int16VectorExtractor(vectorDelimiter));
         add(int32Vector = new Int32VectorExtractor(vectorDelimiter));
         add(int64Vector = new Int64VectorExtractor(vectorDelimiter));
+        add(float16Vector = new Float16VectorExtractor(vectorDelimiter));
+        add(bfloat16Vector = new BFloat16VectorExtractor(vectorDelimiter));
         add(float32Vector = new Float32VectorExtractor(vectorDelimiter));
         add(float64Vector = new Float64VectorExtractor(vectorDelimiter));
     }
@@ -228,6 +236,8 @@ public final class Extractors {
                             case INTEGER16 -> instances.get(Int16VectorExtractor.NAME.toUpperCase(Locale.ROOT));
                             case INTEGER32 -> instances.get(Int32VectorExtractor.NAME.toUpperCase(Locale.ROOT));
                             case INTEGER64 -> instances.get(Int64VectorExtractor.NAME.toUpperCase(Locale.ROOT));
+                            case FLOAT16 -> instances.get(Float16VectorExtractor.NAME.toUpperCase(Locale.ROOT));
+                            case BFLOAT16 -> instances.get(BFloat16VectorExtractor.NAME.toUpperCase(Locale.ROOT));
                             case FLOAT32 -> instances.get(Float32VectorExtractor.NAME.toUpperCase(Locale.ROOT));
                             case FLOAT64 -> instances.get(Float64VectorExtractor.NAME.toUpperCase(Locale.ROOT));
                         };
@@ -384,6 +394,14 @@ public final class Extractors {
 
     public Extractor<Int64Vector> int64Vector() {
         return int64Vector;
+    }
+
+    public Extractor<Float16Vector> float16Vector() {
+        return float16Vector;
+    }
+
+    public Extractor<BFloat16Vector> bfloat16Vector() {
+        return bfloat16Vector;
     }
 
     public Extractor<Float32Vector> float32Vector() {
@@ -1038,6 +1056,85 @@ public final class Extractors {
         @Override
         protected Int64Vector convertListToArrayValue(long[] values) {
             return Values.int64Vector(values);
+        }
+    }
+
+    private abstract static class AbstractFloat16VectorExtractor<T extends AbstractFloat16Vector>
+            extends ArrayExtractor<short[], T> implements VectorExtractor<T> {
+        private final Float16Format format;
+
+        AbstractFloat16VectorExtractor(String name, char vectorDelimiter, Float16Format format) {
+            super(vectorDelimiter, name, null);
+            this.format = format;
+        }
+
+        @Override
+        public Extractor<T> getDimensionVerifyingExtractor(int expectedDimensions) {
+            return new DimensionVerifyingVectorExtractorWrapper<>(this, expectedDimensions);
+        }
+
+        @Override
+        protected T emptyElement() {
+            return null;
+        }
+
+        @Override
+        public boolean allowBracketsToBeStripped() {
+            return true;
+        }
+
+        @Override
+        protected short[] createInternalArray(int size) {
+            return new short[size];
+        }
+
+        @Override
+        public boolean isEmpty(Object value) {
+            return VectorExtractor.super.isEmpty(value);
+        }
+
+        @Override
+        protected void parseAndStoreElement(
+                char[] data,
+                int offset,
+                int charIndex,
+                int numberOfChars,
+                CSVHeaderInformation optionalData,
+                short[] dest,
+                int destIndex) {
+            dest[destIndex] =
+                    format.toFloat16(Float.parseFloat(String.valueOf(data, offset + charIndex, numberOfChars)));
+        }
+
+        @Override
+        protected T convertListToArrayValue(short[] values) {
+            return (T) Values.float16Vector(format, values);
+        }
+    }
+
+    private static final class Float16VectorExtractor extends AbstractFloat16VectorExtractor<Float16Vector> {
+        public static final String NAME = "Float16Vector";
+
+        Float16VectorExtractor(char vectorDelimiter) {
+            super(NAME, vectorDelimiter, Float16Format.FLOAT16);
+        }
+
+        @Override
+        public Class<?> extractedClass() {
+            return Float16Vector.class;
+        }
+    }
+
+    private static final class BFloat16VectorExtractor extends AbstractFloat16VectorExtractor<BFloat16Vector> {
+        public static final String NAME = "BFloat16Vector";
+
+        BFloat16VectorExtractor(char vectorDelimiter) {
+            super(NAME, vectorDelimiter, Float16Format.BFLOAT16);
+        }
+
+        @Override
+        public Class<?> extractedClass() {
+            return BFloat16Vector.class;
         }
     }
 

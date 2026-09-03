@@ -26,7 +26,6 @@ import org.neo4j.memory.HeapEstimator;
 import org.neo4j.values.ValueMapper;
 
 public final class Float32Vector extends FloatingPointVector {
-
     public static final String NESTED_TYPE_NAME = "FLOAT32";
 
     private static final long SHALLOW_SIZE = HeapEstimator.shallowSizeOfInstance(Float32Vector.class);

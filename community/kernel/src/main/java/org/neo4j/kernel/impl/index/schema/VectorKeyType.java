@@ -31,6 +31,8 @@ import java.util.Arrays;
 import java.util.StringJoiner;
 import org.neo4j.graphdb.Vector.CoordinateType;
 import org.neo4j.io.pagecache.PageCursor;
+import org.neo4j.values.storable.AbstractFloat16Vector;
+import org.neo4j.values.storable.Float16Format;
 import org.neo4j.values.storable.Float32Vector;
 import org.neo4j.values.storable.Float64Vector;
 import org.neo4j.values.storable.Int16Vector;
@@ -58,6 +60,7 @@ public abstract sealed class VectorKeyType extends Type
                 VectorKeyType.Int16VectorKey,
                 VectorKeyType.Int32VectorKey,
                 VectorKeyType.Int64VectorKey,
+                VectorKeyType.Float16VectorKey,
                 VectorKeyType.Float32VectorKey,
                 VectorKeyType.Float64VectorKey {
 
@@ -70,13 +73,15 @@ public abstract sealed class VectorKeyType extends Type
 
     abstract int arrayCompare(byte[] left, byte[] right, int numBytes);
 
-    private static ValueGroup fromCoordinateType(CoordinateType coordinateType) {
+    static ValueGroup fromCoordinateType(CoordinateType coordinateType) {
         /* Note: This ensures that we represent all CoordinateTypes. */
         return switch (coordinateType) {
             case INTEGER8 -> ValueGroup.INT8_VECTOR;
             case INTEGER16 -> ValueGroup.INT16_VECTOR;
             case INTEGER32 -> ValueGroup.INT32_VECTOR;
             case INTEGER64 -> ValueGroup.INT64_VECTOR;
+            case FLOAT16 -> ValueGroup.FLOAT16_VECTOR;
+            case BFLOAT16 -> ValueGroup.BFLOAT16_VECTOR;
             case FLOAT32 -> ValueGroup.FLOAT32_VECTOR;
             case FLOAT64 -> ValueGroup.FLOAT64_VECTOR;
         };
@@ -218,6 +223,60 @@ public abstract sealed class VectorKeyType extends Type
             long[] copy = new long[dimensions];
             bb.get(copy, 0, copy.length);
             return Values.int64Vector(copy);
+        }
+    }
+
+    static final class Float16VectorKey extends VectorKeyType {
+        private final Float16Format format;
+
+        Float16VectorKey(byte typeId, Float16Format format) {
+            super(format.coordinateType(), typeId, Short.BYTES);
+            this.format = format;
+        }
+
+        @Override
+        int arrayCompare(byte[] left, byte[] right, int numBytes) {
+            return compareBytes(format, left, right, numBytes);
+        }
+
+        static int compareBytes(Float16Format format, byte[] l, byte[] r, int numBytes) {
+            ShortBuffer lb = ByteBuffer.wrap(l, 0, numBytes).asShortBuffer();
+            ShortBuffer rb = ByteBuffer.wrap(r, 0, numBytes).asShortBuffer();
+
+            int lPos = lb.position();
+            int lRem = lb.limit() - lPos;
+            int rPos = rb.position();
+            int rRem = rb.limit() - rPos;
+            int length = Math.min(lRem, rRem);
+            if (length < 0) {
+                return -1;
+            }
+            for (int i = 0; i < length; i++) {
+                short lv = lb.get(lPos + i);
+                short rv = rb.get(rPos + i);
+                int comparison = format.compare(lv, rv);
+                if (comparison != 0) {
+                    return comparison;
+                }
+            }
+            return lRem - rRem;
+        }
+
+        void write(GenericKey<?> state, short[] values) {
+            ByteBuffer bb = prepareStateAndGetWriteBuffer(state, values.length);
+            bb.asShortBuffer().put(values);
+        }
+
+        @Override
+        public Value asValue(GenericKey<?> state) {
+            return asValue(dimension(state), state.byteArray, format);
+        }
+
+        static AbstractFloat16Vector asValue(int dimensions, byte[] data, Float16Format format) {
+            ShortBuffer bb = ByteBuffer.wrap(data).asShortBuffer();
+            short[] copy = new short[dimensions];
+            bb.get(copy, 0, copy.length);
+            return Values.float16Vector(format, copy);
         }
     }
 

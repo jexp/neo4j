@@ -20,6 +20,7 @@
 package org.neo4j.values.storable;
 
 import static org.junit.jupiter.params.provider.Arguments.of;
+import static org.neo4j.values.storable.Values.float16Vector;
 import static org.neo4j.values.storable.Values.float32Vector;
 import static org.neo4j.values.storable.Values.float64Vector;
 import static org.neo4j.values.storable.Values.int16Vector;
@@ -122,6 +123,18 @@ public class ValueEqualityTest {
                 of(shouldNotMatch(false, new boolean[] {false})),
                 of(shouldNotMatch(1, new int[] {1})),
                 of(shouldNotMatch("apa", new String[] {"apa"})),
+                of(shouldMatch(
+                        float16Vector(Float16Format.FLOAT16, (short) 1),
+                        float16Vector(Float16Format.FLOAT16, (short) 1))),
+                of(shouldNotMatch(
+                        float16Vector(Float16Format.FLOAT16, (short) 1),
+                        float16Vector(Float16Format.BFLOAT16, (short) 1))),
+                of(shouldNotMatch(
+                        float16Vector(Float16Format.FLOAT16, (short) 1),
+                        float16Vector(Float16Format.FLOAT16, (short) 2))),
+                of(shouldNotMatch(
+                        float16Vector(Float16Format.BFLOAT16, (short) 1),
+                        float16Vector(Float16Format.BFLOAT16, (short) 2))),
                 of(shouldMatch(float64Vector(1.0), float64Vector(1.0))),
                 of(shouldNotMatch(float64Vector(1.0), float32Vector(1.0f))),
                 of(shouldNotMatch(float32Vector(1.0f), float64Vector(1.0))),

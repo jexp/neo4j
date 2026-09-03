@@ -48,11 +48,13 @@ import org.neo4j.driver.types.Path;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.SequenceValue;
 import org.neo4j.values.ValueMapper;
+import org.neo4j.values.storable.BFloat16Vector;
 import org.neo4j.values.storable.BooleanValue;
 import org.neo4j.values.storable.ByteArray;
 import org.neo4j.values.storable.DateTimeValue;
 import org.neo4j.values.storable.DateValue;
 import org.neo4j.values.storable.DurationValue;
+import org.neo4j.values.storable.Float16Vector;
 import org.neo4j.values.storable.Float32Vector;
 import org.neo4j.values.storable.Float64Vector;
 import org.neo4j.values.storable.FloatingPointValue;
@@ -266,6 +268,16 @@ public class BoltMessageValueDecoder {
                     new org.neo4j.driver.internal.value.VectorValue(new InternalInt32Vector(toIntArray(integer32)));
                 case Int64Vector integer64 ->
                     new org.neo4j.driver.internal.value.VectorValue(new InternalInt64Vector(toLongArray(integer64)));
+                case Float16Vector float16Vector ->
+                    //                    new org.neo4j.driver.internal.value.VectorValue(
+                    //                            new InternalFloat16Vector(toFloatArray(float16Vector)));
+                    throw new UnsupportedOperationException(
+                            "The InternalFloat16Vector doesn't yet exist in the driver");
+                case BFloat16Vector float16Vector ->
+                    //                    new org.neo4j.driver.internal.value.VectorValue(
+                    //                            new InternalFloat16Vector(toFloatArray(float16Vector)));
+                    throw new UnsupportedOperationException(
+                            "The InternalBFloat16Vector doesn't yet exist in the driver");
                 case Float32Vector floatVector ->
                     new org.neo4j.driver.internal.value.VectorValue(
                             new InternalFloat32Vector(toFloatArray(floatVector)));

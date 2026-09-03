@@ -21,6 +21,7 @@ package org.neo4j.internal.schema.constraints;
 
 import java.util.Objects;
 import java.util.Set;
+import org.neo4j.values.storable.AbstractFloat16Vector;
 import org.neo4j.values.storable.ArrayValue;
 import org.neo4j.values.storable.BooleanArray;
 import org.neo4j.values.storable.BooleanValue;
@@ -80,6 +81,8 @@ public sealed interface TypeRepresentation permits ConstrainableType, SpecialTyp
         VECTOR_INT16_ORDER,
         VECTOR_INT32_ORDER,
         VECTOR_INT64_ORDER,
+        VECTOR_FLOAT16_ORDER,
+        VECTOR_BFLOAT16_ORDER,
         VECTOR_FLOAT32_ORDER,
         VECTOR_FLOAT64_ORDER,
         LIST_NOTHING_ORDER,
@@ -150,6 +153,8 @@ public sealed interface TypeRepresentation permits ConstrainableType, SpecialTyp
             case Int16Vector int16Vector -> VectorType.int16Vector(int16Vector.dimensions());
             case Int32Vector int32Vector -> VectorType.int32Vector(int32Vector.dimensions());
             case Int64Vector int64Vector -> VectorType.int64Vector(int64Vector.dimensions());
+            case AbstractFloat16Vector float16Vector ->
+                VectorType.float16Vector(float16Vector.format(), float16Vector.dimensions());
             case Float32Vector float32Vector -> VectorType.float32Vector(float32Vector.dimensions());
             case Float64Vector float64Vector -> VectorType.float64Vector(float64Vector.dimensions());
             case ArrayValue arrayValue when arrayValue.isEmpty() -> SpecialTypes.LIST_NOTHING;

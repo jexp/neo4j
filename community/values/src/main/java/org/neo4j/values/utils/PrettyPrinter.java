@@ -32,6 +32,7 @@ import java.util.UUID;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.AnyValueWriter;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
+import org.neo4j.values.storable.Float16Format;
 import org.neo4j.values.storable.Float32Vector;
 import org.neo4j.values.storable.Float64Vector;
 import org.neo4j.values.storable.Int16Vector;
@@ -114,8 +115,7 @@ public class PrettyPrinter implements AnyValueWriter<RuntimeException> {
     }
 
     @Override
-    public void writeNode(String elementId, long nodeId, TextArray labels, MapValue properties, boolean isDeleted)
-            throws RuntimeException {
+    public void writeNode(String elementId, long nodeId, TextArray labels, MapValue properties, boolean isDeleted) {
         append("(elementId=");
         append(elementId);
         String sep = " ";
@@ -150,8 +150,7 @@ public class PrettyPrinter implements AnyValueWriter<RuntimeException> {
             long endNodeId,
             TextValue type,
             MapValue properties,
-            boolean isDeleted)
-            throws RuntimeException {
+            boolean isDeleted) {
         append("-[elementId=");
         append(elementId);
         append(" :");
@@ -210,8 +209,7 @@ public class PrettyPrinter implements AnyValueWriter<RuntimeException> {
     }
 
     @Override
-    public void writePathReference(VirtualNodeValue[] nodes, VirtualRelationshipValue[] relationships)
-            throws RuntimeException {
+    public void writePathReference(VirtualNodeValue[] nodes, VirtualRelationshipValue[] relationships) {
         if (nodes.length == 0) {
             return;
         }
@@ -225,8 +223,7 @@ public class PrettyPrinter implements AnyValueWriter<RuntimeException> {
     }
 
     @Override
-    public void writePathReference(List<VirtualNodeValue> nodes, List<VirtualRelationshipValue> relationships)
-            throws RuntimeException {
+    public void writePathReference(List<VirtualNodeValue> nodes, List<VirtualRelationshipValue> relationships) {
         if (nodes.isEmpty()) {
             return;
         }
@@ -254,7 +251,7 @@ public class PrettyPrinter implements AnyValueWriter<RuntimeException> {
     }
 
     @Override
-    public void writePoint(CoordinateReferenceSystem crs, double[] coordinate) throws RuntimeException {
+    public void writePoint(CoordinateReferenceSystem crs, double[] coordinate) {
         append("{geometry: {type: \"Point\", coordinates: ");
         append(Arrays.toString(coordinate));
         append(", crs: {type: link, properties: {href: \"");
@@ -265,7 +262,7 @@ public class PrettyPrinter implements AnyValueWriter<RuntimeException> {
     }
 
     @Override
-    public void writeDuration(long months, long days, long seconds, int nanos) throws RuntimeException {
+    public void writeDuration(long months, long days, long seconds, int nanos) {
         append("{duration: {months: ");
         append(Long.toString(months));
         append(", days: ");
@@ -278,35 +275,35 @@ public class PrettyPrinter implements AnyValueWriter<RuntimeException> {
     }
 
     @Override
-    public void writeDate(LocalDate localDate) throws RuntimeException {
+    public void writeDate(LocalDate localDate) {
         append("{date: ");
         appendQuoted(localDate.toString());
         append("}");
     }
 
     @Override
-    public void writeLocalTime(LocalTime localTime) throws RuntimeException {
+    public void writeLocalTime(LocalTime localTime) {
         append("{localTime: ");
         appendQuoted(localTime.toString());
         append("}");
     }
 
     @Override
-    public void writeTime(OffsetTime offsetTime) throws RuntimeException {
+    public void writeTime(OffsetTime offsetTime) {
         append("{time: ");
         appendQuoted(offsetTime.toString());
         append("}");
     }
 
     @Override
-    public void writeLocalDateTime(LocalDateTime localDateTime) throws RuntimeException {
+    public void writeLocalDateTime(LocalDateTime localDateTime) {
         append("{localDateTime: ");
         appendQuoted(localDateTime.toString());
         append("}");
     }
 
     @Override
-    public void writeDateTime(ZonedDateTime zonedDateTime) throws RuntimeException {
+    public void writeDateTime(ZonedDateTime zonedDateTime) {
         append("{datetime: ");
         appendQuoted(zonedDateTime.toString());
         append("}");
@@ -372,37 +369,42 @@ public class PrettyPrinter implements AnyValueWriter<RuntimeException> {
     }
 
     @Override
-    public void writeInt8Vector(byte[] values) throws RuntimeException {
+    public void writeInt8Vector(byte[] values) {
         writeVector(Arrays.toString(values), values.length, Int8Vector.NESTED_TYPE_NAME);
     }
 
     @Override
-    public void writeInt16Vector(short[] values) throws RuntimeException {
+    public void writeInt16Vector(short[] values) {
         writeVector(Arrays.toString(values), values.length, Int16Vector.NESTED_TYPE_NAME);
     }
 
     @Override
-    public void writeInt32Vector(int[] values) throws RuntimeException {
+    public void writeInt32Vector(int[] values) {
         writeVector(Arrays.toString(values), values.length, Int32Vector.NESTED_TYPE_NAME);
     }
 
     @Override
-    public void writeInt64Vector(long[] values) throws RuntimeException {
+    public void writeInt64Vector(long[] values) {
         writeVector(Arrays.toString(values), values.length, Int64Vector.NESTED_TYPE_NAME);
     }
 
     @Override
-    public void writeFloat32Vector(float[] values) throws RuntimeException {
+    public void writeFloat16Vector(Float16Format format, short[] values) {
+        writeVector(Arrays.toString(format.toFloat32(values)), values.length, format.nestedTypeName());
+    }
+
+    @Override
+    public void writeFloat32Vector(float[] values) {
         writeVector(Arrays.toString(values), values.length, Float32Vector.NESTED_TYPE_NAME);
     }
 
     @Override
-    public void writeFloat64Vector(double[] values) throws RuntimeException {
+    public void writeFloat64Vector(double[] values) {
         writeVector(Arrays.toString(values), values.length, Float64Vector.NESTED_TYPE_NAME);
     }
 
     @Override
-    public void writeUUID(long msb, long lsb) throws RuntimeException {
+    public void writeUUID(long msb, long lsb) {
         append("{uid: ");
         append(new UUID(msb, lsb).toString());
         append("}");

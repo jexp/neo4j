@@ -28,6 +28,7 @@ import java.time.ZonedDateTime;
 import org.neo4j.bolt.negotiation.version.ProtocolVersion;
 import org.neo4j.bolt.protocol.io.pipeline.WriterContext;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
+import org.neo4j.values.storable.Float16Format;
 import org.neo4j.values.storable.TextArray;
 import org.neo4j.values.storable.TextValue;
 import org.neo4j.values.virtual.MapValue;
@@ -129,6 +130,10 @@ public interface VersionedValueWriter {
 
     default void writeVector(WriterContext ctx, long[] values) {
         ctx.fireVector(values);
+    }
+
+    default void writeFloatingPointVector(WriterContext ctx, Float16Format format, short[] values) {
+        ctx.fireFloatingPointVector(format, values);
     }
 
     default void writeVector(WriterContext ctx, float[] values) {

@@ -45,6 +45,7 @@ import org.neo4j.internal.helpers.collection.ReverseArrayIterator;
 import org.neo4j.values.AnyValueWriter;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
 import org.neo4j.values.storable.DurationValue;
+import org.neo4j.values.storable.Float16Format;
 import org.neo4j.values.storable.TextArray;
 import org.neo4j.values.storable.TextValue;
 import org.neo4j.values.storable.Values;
@@ -355,6 +356,11 @@ public abstract class BaseToObjectValueWriter<E extends Exception> implements An
     @Override
     public void writeInt64Vector(long[] values) {
         writeValue(Values.int64Vector(values));
+    }
+
+    @Override
+    public void writeFloat16Vector(Float16Format format, short[] values) {
+        writeValue(Values.float16Vector(format, values));
     }
 
     @Override

@@ -82,6 +82,7 @@ import org.neo4j.test.extension.RandomSupportExtension;
 import org.neo4j.test.extension.SkipOnSpd;
 import org.neo4j.test.tags.MultiVersionedTag;
 import org.neo4j.test.utils.TestDirectory;
+import org.neo4j.values.storable.Float16Format;
 import org.neo4j.values.storable.RandomValuesUtils;
 import org.neo4j.values.storable.VectorValue;
 
@@ -496,6 +497,22 @@ public class RangeIndexKeySizeValidationIT {
                 (random, i) -> {
                     int dim = Math.clamp(i, VectorValue.MIN_VECTOR_DIMENSIONS, VectorValue.MAX_VECTOR_DIMENSIONS);
                     return random.randomValues().nextInt64Vector(dim, dim);
+                },
+                true),
+        vectorFloat16(
+                Types.VECTOR_FLOAT16.elementSize,
+                4081,
+                (random, i) -> {
+                    int dim = Math.clamp(i, VectorValue.MIN_VECTOR_DIMENSIONS, VectorValue.MAX_VECTOR_DIMENSIONS);
+                    return random.randomValues().nextFloat16Vector(Float16Format.FLOAT16, dim, dim);
+                },
+                true),
+        vectorBFloat16(
+                Types.VECTOR_BFLOAT16.elementSize,
+                4081,
+                (random, i) -> {
+                    int dim = Math.clamp(i, VectorValue.MIN_VECTOR_DIMENSIONS, VectorValue.MAX_VECTOR_DIMENSIONS);
+                    return random.randomValues().nextFloat16Vector(Float16Format.BFLOAT16, dim, dim);
                 },
                 true),
         vectorFloat32(

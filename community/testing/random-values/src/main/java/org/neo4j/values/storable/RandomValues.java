@@ -358,6 +358,8 @@ public class RandomValues {
             case INT16_VECTOR -> nextInt16Vector();
             case INT32_VECTOR -> nextInt32Vector();
             case INT64_VECTOR -> nextInt64Vector();
+            case FLOAT16_VECTOR -> nextFloat16Vector(Float16Format.FLOAT16);
+            case BFLOAT16_VECTOR -> nextFloat16Vector(Float16Format.BFLOAT16);
             case FLOAT32_VECTOR -> nextFloat32Vector();
             case FLOAT64_VECTOR -> nextFloat64Vector();
             case VECTOR_ARRAY -> nextVectorArray();
@@ -408,6 +410,22 @@ public class RandomValues {
     public Int64Vector nextInt64Vector() {
         final int dimension = chooseDimension(Long.BYTES);
         return nextInt64Vector(dimension, dimension);
+    }
+
+    public AbstractFloat16Vector nextFloat16Vector(Float16Format format) {
+        final int dimension = chooseDimension(Short.BYTES);
+        return nextFloat16Vector(format, dimension, dimension);
+    }
+
+    public AbstractFloat16Vector nextFloat16Vector(Float16Format format, int minDim, int maxDim) {
+        assert MIN_VECTOR_DIMENSIONS <= minDim && minDim <= maxDim && maxDim <= MAX_VECTOR_DIMENSIONS
+                : "Require (%d,%d) in [%d, %d]".formatted(minDim, maxDim, MIN_VECTOR_DIMENSIONS, MAX_VECTOR_DIMENSIONS);
+        short[] coordinates = new short[intBetween(minDim, maxDim)];
+        for (int i = 0; i < coordinates.length; i++) {
+            short positiveValue = (short) intBetween(format.minValue(), format.maxValue());
+            coordinates[i] = nextBoolean() ? positiveValue : format.negative(positiveValue);
+        }
+        return Values.float16Vector(format, coordinates);
     }
 
     public Float32Vector nextFloat32Vector(int minDim, int maxDim) {
@@ -801,6 +819,8 @@ public class RandomValues {
             case INT16_VECTOR -> nextInt16Vector(minDim, maxDim);
             case INT32_VECTOR -> nextInt32Vector(minDim, maxDim);
             case INT64_VECTOR -> nextInt64Vector(minDim, maxDim);
+            case FLOAT16_VECTOR -> nextFloat16Vector(Float16Format.FLOAT16, minDim, maxDim);
+            case BFLOAT16_VECTOR -> nextFloat16Vector(Float16Format.BFLOAT16, minDim, maxDim);
             case FLOAT32_VECTOR -> nextFloat32Vector(minDim, maxDim);
             case FLOAT64_VECTOR -> nextFloat64Vector(minDim, maxDim);
             default -> throw new IllegalStateException("Unexpected vector type: " + type);

@@ -31,10 +31,10 @@ import org.neo4j.lock.ResourceLocker;
 import org.neo4j.storageengine.api.txstate.validation.TransactionConflictException;
 
 public class VersionValidation {
-    // This number divides the 64 bits of a long into 49 bits for the page id and 15 bits for the store id.
-    // 49 bits is enough to encode 2^49-1= 562949953421311 as the highest page id.
-    // 15 bits is enough to encode 2^15-1= 32767 as the highest allowed store id.
-    public static final short PAGE_ID_BITS = 49;
+    // This number divides the 64 bits of a long into 48 bits for the page id and 16 bits for the store id.
+    // 48 bits is enough to encode 2^48-1= 281474976710655 as the highest page id.
+    // 16 bits is enough to encode 2^16-1= 65535 as the highest allowed store id.
+    public static final short PAGE_ID_BITS = 48;
     private static final long MAX_PAGE_ID = (1L << PAGE_ID_BITS) - 1;
     private static final long MAX_STORE_ID = (1L << (Long.SIZE - PAGE_ID_BITS)) - 1;
 

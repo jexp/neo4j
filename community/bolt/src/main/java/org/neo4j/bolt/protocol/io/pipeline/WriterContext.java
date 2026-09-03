@@ -27,6 +27,7 @@ import java.time.OffsetTime;
 import java.time.ZonedDateTime;
 import org.neo4j.bolt.negotiation.version.ProtocolVersion;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
+import org.neo4j.values.storable.Float16Format;
 import org.neo4j.values.storable.TextArray;
 import org.neo4j.values.storable.TextValue;
 import org.neo4j.values.virtual.MapValue;
@@ -75,6 +76,8 @@ public interface WriterContext extends PipelineContext {
     void fireVector(int[] values);
 
     void fireVector(long[] values);
+
+    void fireFloatingPointVector(Float16Format format, short[] values);
 
     void fireVector(float[] values);
 

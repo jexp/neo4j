@@ -25,12 +25,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.neo4j.kernel.impl.index.schema.VectorKeyType.Float16VectorKey;
 import org.neo4j.kernel.impl.index.schema.VectorKeyType.Float32VectorKey;
 import org.neo4j.kernel.impl.index.schema.VectorKeyType.Float64VectorKey;
 import org.neo4j.kernel.impl.index.schema.VectorKeyType.Int16VectorKey;
 import org.neo4j.kernel.impl.index.schema.VectorKeyType.Int32VectorKey;
 import org.neo4j.kernel.impl.index.schema.VectorKeyType.Int64VectorKey;
 import org.neo4j.kernel.impl.index.schema.VectorKeyType.Int8VectorKey;
+import org.neo4j.values.storable.Float16Format;
 import org.neo4j.values.storable.ValueGroup;
 import org.neo4j.values.storable.ValueWriter;
 
@@ -68,6 +70,8 @@ class Types {
     static final UUIDType UUID = new UUIDType((byte) 26);
     static final UUIDArrayType UUID_ARRAY = new UUIDArrayType((byte) 27);
     static final VectorArrayType VECTOR_ARRAY = new VectorArrayType((byte) 28);
+    static final Float16VectorKey VECTOR_FLOAT16 = new Float16VectorKey((byte) 29, Float16Format.FLOAT16);
+    static final Float16VectorKey VECTOR_BFLOAT16 = new Float16VectorKey((byte) 30, Float16Format.BFLOAT16);
 
     /* Geometry constants are located in PointKeyUtil */
     public static final int SIZE_ZONED_DATE_TIME =
@@ -144,6 +148,8 @@ class Types {
         types.add(UUID);
         types.add(UUID_ARRAY);
         types.add(VECTOR_ARRAY);
+        types.add(VECTOR_FLOAT16);
+        types.add(VECTOR_BFLOAT16);
 
         // Assert order of typeId
         byte expectedTypeId = 0;

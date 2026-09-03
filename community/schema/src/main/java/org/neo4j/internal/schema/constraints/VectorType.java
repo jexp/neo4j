@@ -27,6 +27,7 @@ import org.eclipse.collections.api.map.ImmutableMap;
 import org.eclipse.collections.impl.map.mutable.ConcurrentHashMap;
 import org.neo4j.graphdb.Vector.CoordinateType;
 import org.neo4j.graphdb.schema.PropertyType;
+import org.neo4j.values.storable.Float16Format;
 import org.neo4j.values.storable.VectorValue;
 
 public final class VectorType implements ConstrainableType {
@@ -91,6 +92,10 @@ public final class VectorType implements ConstrainableType {
         return getInterned(CoordinateType.INTEGER64, dimension);
     }
 
+    public static VectorType float16Vector(Float16Format format, int dimension) {
+        return getInterned(format.coordinateType(), dimension);
+    }
+
     public static VectorType float32Vector(int dimension) {
         return getInterned(CoordinateType.FLOAT32, dimension);
     }
@@ -110,6 +115,8 @@ public final class VectorType implements ConstrainableType {
             case INTEGER16 -> Ordering.VECTOR_INT16_ORDER;
             case INTEGER32 -> Ordering.VECTOR_INT32_ORDER;
             case INTEGER64 -> Ordering.VECTOR_INT64_ORDER;
+            case FLOAT16 -> Ordering.VECTOR_FLOAT16_ORDER;
+            case BFLOAT16 -> Ordering.VECTOR_BFLOAT16_ORDER;
             case FLOAT32 -> Ordering.VECTOR_FLOAT32_ORDER;
             case FLOAT64 -> Ordering.VECTOR_FLOAT64_ORDER;
         };

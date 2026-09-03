@@ -20,11 +20,13 @@
 package org.neo4j.cypher.internal.procs
 
 import org.neo4j.cypher.internal.util.InputPosition
+import org.neo4j.cypher.internal.util.symbols.BFloat16Type
 import org.neo4j.cypher.internal.util.symbols.BooleanType
 import org.neo4j.cypher.internal.util.symbols.ClosedDynamicUnionType
 import org.neo4j.cypher.internal.util.symbols.CypherType
 import org.neo4j.cypher.internal.util.symbols.DateType
 import org.neo4j.cypher.internal.util.symbols.DurationType
+import org.neo4j.cypher.internal.util.symbols.Float16Type
 import org.neo4j.cypher.internal.util.symbols.Float32Type
 import org.neo4j.cypher.internal.util.symbols.FloatType
 import org.neo4j.cypher.internal.util.symbols.Integer16Type
@@ -148,6 +150,8 @@ object PropertyTypeMapper {
           case CoordinateType.INTEGER16 => Integer16Type(isNullable = false)(InputPosition.NONE)
           case CoordinateType.INTEGER32 => Integer32Type(isNullable = false)(InputPosition.NONE)
           case CoordinateType.INTEGER64 => IntegerType(isNullable = false)(InputPosition.NONE)
+          case CoordinateType.FLOAT16   => Float16Type(isNullable = false)(InputPosition.NONE)
+          case CoordinateType.BFLOAT16  => BFloat16Type(isNullable = false)(InputPosition.NONE)
           case CoordinateType.FLOAT32   => Float32Type(isNullable = false)(InputPosition.NONE)
           case CoordinateType.FLOAT64   => FloatType(isNullable = false)(InputPosition.NONE)
         }

@@ -39,6 +39,8 @@ import java.util.UUID;
 import org.eclipse.collections.api.map.primitive.ImmutableByteObjectMap;
 import org.eclipse.collections.impl.factory.primitive.ByteObjectMaps;
 import org.neo4j.values.AnyValue;
+import org.neo4j.values.storable.AbstractFloat16Vector;
+import org.neo4j.values.storable.BFloat16Vector;
 import org.neo4j.values.storable.BooleanArray;
 import org.neo4j.values.storable.BooleanValue;
 import org.neo4j.values.storable.ByteArray;
@@ -54,6 +56,8 @@ import org.neo4j.values.storable.DoubleArray;
 import org.neo4j.values.storable.DoubleValue;
 import org.neo4j.values.storable.DurationArray;
 import org.neo4j.values.storable.DurationValue;
+import org.neo4j.values.storable.Float16Format;
+import org.neo4j.values.storable.Float16Vector;
 import org.neo4j.values.storable.Float32Vector;
 import org.neo4j.values.storable.Float64Vector;
 import org.neo4j.values.storable.FloatArray;
@@ -150,7 +154,9 @@ public enum ValuesReader {
     VECTOR_FLOAT64((byte) 44, Float64Vector.class, ValuesReader::readFloat64Vector),
     UID((byte) 45, UUIDValue.class, ValuesReader::readUUID),
     UID_ARRAY((byte) 46, UUIDArray.class, ValuesReader::readUUIDArray),
-    VECTOR_ARRAY((byte) 47, VectorArray.class, ValuesReader::readVectorArray);
+    VECTOR_ARRAY((byte) 47, VectorArray.class, ValuesReader::readVectorArray),
+    VECTOR_FLOAT16((byte) 48, Float16Vector.class, ValuesReader::readFloat16Vector),
+    VECTOR_BFLOAT16((byte) 49, BFloat16Vector.class, ValuesReader::readBFloat16Vector);
 
     public static final ImmutableByteObjectMap<ValuesReader> BY_ID =
             ByteObjectMaps.immutable.from(List.of(ValuesReader.values()), ValuesReader::id, v -> v);
@@ -571,6 +577,23 @@ public enum ValuesReader {
         buffer.asLongBuffer().get(coordinates);
         buffer.position(buffer.position() + dimensions * Long.BYTES);
         return Values.int64Vector(coordinates);
+    }
+
+    private static AbstractFloat16Vector readFloat16Vector(ByteBuffer buffer, Float16Format format) {
+        var dimensions = buffer.getShort();
+        VectorValue.ensureValidDimensions(dimensions);
+        final short[] coordinates = new short[dimensions];
+        buffer.asShortBuffer().get(coordinates);
+        buffer.position(buffer.position() + dimensions * Short.BYTES);
+        return Values.float16Vector(format, coordinates);
+    }
+
+    private static Float16Vector readFloat16Vector(ByteBuffer buffer) {
+        return (Float16Vector) readFloat16Vector(buffer, Float16Format.FLOAT16);
+    }
+
+    private static BFloat16Vector readBFloat16Vector(ByteBuffer buffer) {
+        return (BFloat16Vector) readFloat16Vector(buffer, Float16Format.BFLOAT16);
     }
 
     private static Float32Vector readFloat32Vector(ByteBuffer buffer) {

@@ -21,6 +21,7 @@ package org.neo4j.values.utils;
 
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.storable.ArrayValue;
+import org.neo4j.values.storable.BFloat16Vector;
 import org.neo4j.values.storable.BooleanArray;
 import org.neo4j.values.storable.BooleanValue;
 import org.neo4j.values.storable.DateArray;
@@ -29,6 +30,8 @@ import org.neo4j.values.storable.DateTimeValue;
 import org.neo4j.values.storable.DateValue;
 import org.neo4j.values.storable.DurationArray;
 import org.neo4j.values.storable.DurationValue;
+import org.neo4j.values.storable.Float16Format;
+import org.neo4j.values.storable.Float16Vector;
 import org.neo4j.values.storable.Float32Vector;
 import org.neo4j.values.storable.Float64Vector;
 import org.neo4j.values.storable.FloatingPointArray;
@@ -128,6 +131,8 @@ public class ValueTypeNames {
             case INT16_VECTOR -> vectorOf(Int16Vector.NESTED_TYPE_NAME, value);
             case INT32_VECTOR -> vectorOf(Int32Vector.NESTED_TYPE_NAME, value);
             case INT64_VECTOR -> vectorOf("INTEGER", value);
+            case FLOAT16_VECTOR -> vectorOf(Float16Format.FLOAT16.nestedTypeName(), value);
+            case BFLOAT16_VECTOR -> vectorOf(Float16Format.BFLOAT16.nestedTypeName(), value);
             case FLOAT32_VECTOR -> vectorOf(Float32Vector.NESTED_TYPE_NAME, value);
             case FLOAT64_VECTOR -> vectorOf("FLOAT", value);
             case UUID -> UUIDValue.TYPE_NAME;
@@ -241,6 +246,12 @@ public class ValueTypeNames {
                     }
                 }
                 if (FloatingPointVector.class.isAssignableFrom(type)) {
+                    if (Float16Vector.class.isAssignableFrom(type)) {
+                        return ofRepresentation(ValueRepresentation.FLOAT16_VECTOR);
+                    }
+                    if (BFloat16Vector.class.isAssignableFrom(type)) {
+                        return ofRepresentation(ValueRepresentation.BFLOAT16_VECTOR);
+                    }
                     if (Float32Vector.class.isAssignableFrom(type)) {
                         return ofRepresentation(ValueRepresentation.FLOAT32_VECTOR);
                     }

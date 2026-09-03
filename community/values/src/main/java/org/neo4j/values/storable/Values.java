@@ -442,6 +442,16 @@ public final class Values {
         return new VectorArray(vectors);
     }
 
+    public static AbstractFloat16Vector float16Vector(Float16Format format, short... coordinates) {
+        VectorValue.ensureValidDimensions(coordinates.length);
+        VectorValue.ensureFiniteCoordinates(format, coordinates);
+        return uncheckedFloat16Vector(format, coordinates);
+    }
+
+    public static AbstractFloat16Vector uncheckedFloat16Vector(Float16Format format, short[] coordinates) {
+        return format.instantiateVectorValue(coordinates);
+    }
+
     public static UUIDValue uuidValue(long msb, long lsb) {
         return new UUIDValue(new UUID(msb, lsb));
     }

@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.neo4j.graphdb.Vector;
 import org.neo4j.graphdb.spatial.Point;
+import org.neo4j.values.storable.BFloat16Vector;
 import org.neo4j.values.storable.BooleanArray;
 import org.neo4j.values.storable.BooleanValue;
 import org.neo4j.values.storable.ByteArray;
@@ -46,6 +47,7 @@ import org.neo4j.values.storable.DoubleArray;
 import org.neo4j.values.storable.DoubleValue;
 import org.neo4j.values.storable.DurationArray;
 import org.neo4j.values.storable.DurationValue;
+import org.neo4j.values.storable.Float16Vector;
 import org.neo4j.values.storable.Float32Vector;
 import org.neo4j.values.storable.Float64Vector;
 import org.neo4j.values.storable.FloatArray;
@@ -270,6 +272,14 @@ public interface ValueMapper<Base> {
 
     default Base mapInt64Vector(Int64Vector value) {
         return mapIntegralVector(value);
+    }
+
+    default Base mapFloat16Vector(Float16Vector value) {
+        return mapFloatingPointVector(value);
+    }
+
+    default Base mapFloat16Vector(BFloat16Vector value) {
+        return mapFloatingPointVector(value);
     }
 
     default Base mapFloat32Vector(Float32Vector value) {

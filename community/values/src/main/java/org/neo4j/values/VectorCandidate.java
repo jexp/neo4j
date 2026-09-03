@@ -27,7 +27,6 @@ import org.neo4j.values.storable.NumberValue;
  * Represents a candidate that might or might not represent a valid vector.
  */
 public interface VectorCandidate {
-
     /**
      * @return the value at the given index as a float. Returns {@code Float.NaN} if the value is not a number (i.e. if this candidate is not valid).
      */
@@ -73,7 +72,6 @@ public interface VectorCandidate {
      * contents of the sequence.
      */
     record SequenceValueVectorCandidate(SequenceValue sequence) implements VectorCandidate {
-
         @Override
         public float floatValue(int index) {
             return sequence.value(index) instanceof NumberValue number ? number.floatValue() : Float.NaN;

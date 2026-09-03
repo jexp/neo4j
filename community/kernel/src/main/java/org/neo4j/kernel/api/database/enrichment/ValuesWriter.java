@@ -34,6 +34,7 @@ import org.neo4j.storageengine.api.enrichment.WriteEnrichmentChannel;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.AnyValueWriter;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
+import org.neo4j.values.storable.Float16Format;
 import org.neo4j.values.storable.TextArray;
 import org.neo4j.values.storable.TextValue;
 import org.neo4j.values.storable.TimeZones;
@@ -47,13 +48,13 @@ import org.neo4j.values.virtual.RelationshipValue;
 import org.neo4j.values.virtual.VirtualNodeValue;
 import org.neo4j.values.virtual.VirtualRelationshipValue;
 
-/**
- * @param channel the channel to write the {@link Value} objects out to.
- */
 public class ValuesWriter implements AnyValueWriter<RuntimeException> {
     private final WriteEnrichmentChannel channel;
     private ArrayType arrayType;
 
+    /**
+     * @param channel the channel to write the {@link Value} objects out to.
+     */
     public ValuesWriter(WriteEnrichmentChannel channel) {
         this.channel = channel;
     }
@@ -255,6 +256,21 @@ public class ValuesWriter implements AnyValueWriter<RuntimeException> {
         channel.putShort((short) values.length);
         for (var value : values) {
             channel.putLong(value);
+        }
+    }
+
+    @Override
+    public void writeFloat16Vector(Float16Format format, short[] values) throws RuntimeException {
+        VectorValue.ensureValidDimensions(values.length);
+        byte typeId =
+                switch (format) {
+                    case FLOAT16 -> ValuesReader.VECTOR_FLOAT16.id();
+                    case BFLOAT16 -> ValuesReader.VECTOR_BFLOAT16.id();
+                };
+        writeValueTypeIfArrayItem(typeId);
+        channel.putShort((short) values.length);
+        for (var value : values) {
+            channel.putShort(value);
         }
     }
 

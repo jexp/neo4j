@@ -69,6 +69,9 @@ public class RandomValuesUtils {
         if (kernelVersion.isLessThan(KernelVersion.VERSION_VECTOR_ARRAY_VALUE_INTRODUCED)) {
             builder = builder.disallowedTypes(ValueType.VECTOR_ARRAY);
         }
+        if (kernelVersion.isLessThan(KernelVersion.VERSION_FLOAT16_VECTOR_VALUE_INTRODUCED)) {
+            builder = builder.disallowedTypes(ValueType.FLOAT16_VECTOR, ValueType.BFLOAT16_VECTOR);
+        }
         return builder;
     }
 

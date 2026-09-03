@@ -29,6 +29,8 @@ package object symbols {
   val CTUUID: UUIDType = UUIDType(isNullable = true)(InputPosition.NONE)
   val CTNumber: NumberType = NumberType(isNullable = true)(InputPosition.NONE)
   val CTFloat: FloatType = FloatType(isNullable = true)(InputPosition.NONE)
+  val CTFloat16: Float16Type = Float16Type(isNullable = true)(InputPosition.NONE)
+  val CTBFloat16: BFloat16Type = BFloat16Type(isNullable = true)(InputPosition.NONE)
   val CTFloat32: Float32Type = Float32Type(isNullable = true)(InputPosition.NONE)
   val CTInteger: IntegerType = IntegerType(isNullable = true)(InputPosition.NONE)
   val CTInteger32: Integer32Type = Integer32Type(isNullable = true)(InputPosition.NONE)

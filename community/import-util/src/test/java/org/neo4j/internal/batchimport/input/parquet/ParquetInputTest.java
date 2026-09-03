@@ -109,6 +109,7 @@ import org.neo4j.values.storable.CoordinateReferenceSystem;
 import org.neo4j.values.storable.DateTimeValue;
 import org.neo4j.values.storable.DateValue;
 import org.neo4j.values.storable.DurationValue;
+import org.neo4j.values.storable.Float16Format;
 import org.neo4j.values.storable.LocalDateTimeValue;
 import org.neo4j.values.storable.LocalTimeValue;
 import org.neo4j.values.storable.TimeValue;
@@ -3856,6 +3857,16 @@ class ParquetInputTest {
                         "vector{coordinateType:short,dimensions:2}", "1;23", Values.int16Vector((short) 1, (short) 23)),
                 Arguments.of("vector{coordinateType:int,dimensions:2}", "1;23", Values.int32Vector(1, 23)),
                 Arguments.of("vector{coordinateType:long,dimensions:2}", "1;23", Values.int64Vector(1, 23)),
+                Arguments.of(
+                        "vector{coordinateType:float16,dimensions:2}",
+                        "1;23",
+                        Values.float16Vector(
+                                Float16Format.FLOAT16, Float16Format.FLOAT16.toFloat16(new float[] {1, 23}))),
+                Arguments.of(
+                        "vector{coordinateType:bfloat16,dimensions:2}",
+                        "1;23",
+                        Values.float16Vector(
+                                Float16Format.BFLOAT16, Float16Format.BFLOAT16.toFloat16(new float[] {1, 23}))),
                 Arguments.of("vector{coordinateType:float,dimensions:2}", "1;23", Values.float32Vector(1, 23)),
                 Arguments.of("vector{coordinateType:double,dimensions:2}", "1;23", Values.float64Vector(1, 23)));
     }

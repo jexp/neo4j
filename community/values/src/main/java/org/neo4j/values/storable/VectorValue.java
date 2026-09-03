@@ -19,6 +19,7 @@
  */
 package org.neo4j.values.storable;
 
+import org.apache.commons.lang3.function.ByteConsumer;
 import org.neo4j.exceptions.InvalidArgumentException;
 import org.neo4j.graphdb.Vector;
 import org.neo4j.hashing.HashFunction;
@@ -110,14 +111,67 @@ public abstract sealed class VectorValue extends HashMemoizingScalarValue
         }
     }
 
+    public static void ensureFiniteCoordinates(Float16Format format, short[] coordinates) {
+        for (short c : coordinates) {
+            if (!format.isFinite(c)) {
+                throw InvalidArgumentException.invalidVectorCoordinate(format.toFloat32(coordinates));
+            }
+        }
+    }
+
     public static int bytesPerDimension(Vector.CoordinateType coordinateType) {
         return switch (coordinateType) {
             case INTEGER8 -> Byte.BYTES;
             case INTEGER16 -> Short.BYTES;
             case INTEGER32 -> Integer.BYTES;
             case INTEGER64 -> Long.BYTES;
+            case FLOAT16, BFLOAT16 -> Short.BYTES;
             case FLOAT32 -> Float.BYTES;
             case FLOAT64 -> Double.BYTES;
         };
+    }
+
+    /**
+     * This is to not rely on {@link Enum#ordinal()} and making clear that
+     * we do not expect more than what can fit into a byte. And also we don't want this mapping to
+     * exist in {@link org.neo4j.graphdb.Vector.CoordinateType} itself because it's public API.
+     */
+    public static byte vectorCoordinateTypeCode(Vector.CoordinateType coordinateType) {
+        return switch (coordinateType) {
+            case INTEGER8 -> 0;
+            case INTEGER16 -> 1;
+            case INTEGER32 -> 2;
+            case INTEGER64 -> 3;
+            case FLOAT32 -> 4;
+            case FLOAT64 -> 5;
+            // FLOAT16 arrived later
+            case FLOAT16 -> 6;
+            case BFLOAT16 -> 7;
+        };
+    }
+
+    public static Vector.CoordinateType vectorCoordinateType(ByteConsumer errorConsumer, byte coordinateType) {
+        return switch (coordinateType) {
+            case 0 -> Vector.CoordinateType.INTEGER8;
+            case 1 -> Vector.CoordinateType.INTEGER16;
+            case 2 -> Vector.CoordinateType.INTEGER32;
+            case 3 -> Vector.CoordinateType.INTEGER64;
+            case 4 -> Vector.CoordinateType.FLOAT32;
+            case 5 -> Vector.CoordinateType.FLOAT64;
+            case 6 -> Vector.CoordinateType.FLOAT16;
+            case 7 -> Vector.CoordinateType.BFLOAT16;
+            default -> {
+                errorConsumer.accept(coordinateType);
+                yield null;
+            }
+        };
+    }
+
+    public static Vector.CoordinateType vectorCoordinateType(byte coordinateType) {
+        return vectorCoordinateType(
+                t -> {
+                    throw new IllegalStateException("Unknown vector coordinate type code: " + t);
+                },
+                coordinateType);
     }
 }

@@ -50,10 +50,12 @@ import org.neo4j.graphdb.Vector;
 import org.neo4j.internal.batchimport.input.Groups;
 import org.neo4j.internal.batchimport.input.InputException;
 import org.neo4j.internal.helpers.Numbers;
+import org.neo4j.values.storable.AbstractFloat16Vector;
 import org.neo4j.values.storable.ArrayValue;
 import org.neo4j.values.storable.DateTimeValue;
 import org.neo4j.values.storable.DateValue;
 import org.neo4j.values.storable.DurationValue;
+import org.neo4j.values.storable.Float16Format;
 import org.neo4j.values.storable.LocalDateTimeValue;
 import org.neo4j.values.storable.LocalTimeValue;
 import org.neo4j.values.storable.PointValue;
@@ -524,6 +526,10 @@ class ParquetDataInputChunk implements ParquetInputChunk {
                 }
                 yield Values.int64Vector(values);
             }
+            case Vector.CoordinateType.FLOAT16 ->
+                convertFloat16VectorType(parquetColumn, dimensions, parts, Float16Format.FLOAT16);
+            case Vector.CoordinateType.BFLOAT16 ->
+                convertFloat16VectorType(parquetColumn, dimensions, parts, Float16Format.BFLOAT16);
             case Vector.CoordinateType.FLOAT32 -> {
                 final var innerColumn = parquetColumn.withColumnType(ParquetColumnType.resolve("float"));
                 float[] values = new float[dimensions];
@@ -541,6 +547,17 @@ class ParquetDataInputChunk implements ParquetInputChunk {
                 yield Values.float64Vector(values);
             }
         };
+    }
+
+    private AbstractFloat16Vector convertFloat16VectorType(
+            ParquetColumn parquetColumn, int dimensions, List<?> parts, Float16Format format) {
+        final var innerColumn = parquetColumn.withColumnType(ParquetColumnType.resolve("float"));
+        short[] values = new short[dimensions];
+        for (int i = 0; i < dimensions; i++) {
+            float float32Value = (float) convertType(parts.get(i), innerColumn);
+            values[i] = format.toFloat16(float32Value);
+        }
+        return Values.float16Vector(format, values);
     }
 
     private Collection<String> readLabelsFromEntry(Object readDatum) {

@@ -158,6 +158,8 @@ class ExtremeValuesLibrary {
         values.addAll(Arrays.asList(EXTREME_INT16_VECTOR));
         values.addAll(Arrays.asList(EXTREME_INT32_VECTOR));
         values.addAll(Arrays.asList(EXTREME_INT64_VECTOR));
+        values.addAll(Arrays.asList(extremeFloat16Vector(Float16Format.FLOAT16)));
+        values.addAll(Arrays.asList(extremeFloat16Vector(Float16Format.BFLOAT16)));
         values.addAll(Arrays.asList(EXTREME_FLOAT32_VECTOR));
         values.addAll(Arrays.asList(EXTREME_FLOAT64_VECTOR));
         EXTREME_VECTOR_ARRAY = values.toArray(new Value[0]);
@@ -221,4 +223,16 @@ class ExtremeValuesLibrary {
         Values.uuidArray(new UUID[] {new UUID(Long.MIN_VALUE, Long.MIN_VALUE)}),
         Values.uuidArray(new UUID[] {new UUID(Long.MAX_VALUE, Long.MAX_VALUE)})
     };
+
+    static Value[] extremeFloat16Vector(Float16Format format) {
+        return new Value[] {
+            Values.float16Vector(format, (short) 0),
+            Values.float16Vector(format, new short[MAX_VECTOR_DIMENSIONS]),
+            Values.float16Vector(format, format.minValue(), format.maxValue()),
+            Values.float16Vector(format, ArrayUtil.filled(MAX_VECTOR_DIMENSIONS, format.minValue())),
+            Values.float16Vector(format, ArrayUtil.filled(MAX_VECTOR_DIMENSIONS, format.maxValue())),
+            Values.float16Vector(format, ArrayUtil.filled(MAX_VECTOR_DIMENSIONS, format.negative(format.maxValue()))),
+            Values.float16Vector(format, ArrayUtil.filled(MAX_VECTOR_DIMENSIONS, format.negative(format.minValue()))),
+        };
+    }
 }

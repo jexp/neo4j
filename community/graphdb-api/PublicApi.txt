@@ -349,6 +349,8 @@ org.neo4j.graphdb.TransactionTerminatedException::TransactionTerminatedException
 org.neo4j.graphdb.TransactionTerminatedException::status() org.neo4j.kernel.api.exceptions.Status public
 org.neo4j.graphdb.Vector public abstract interface
 org.neo4j.graphdb.Vector.CoordinateType public static final enum extends java.lang.Enum<org.neo4j.graphdb.Vector.CoordinateType>
+org.neo4j.graphdb.Vector.CoordinateType::BFLOAT16 org.neo4j.graphdb.Vector.CoordinateType public static final
+org.neo4j.graphdb.Vector.CoordinateType::FLOAT16 org.neo4j.graphdb.Vector.CoordinateType public static final
 org.neo4j.graphdb.Vector.CoordinateType::FLOAT32 org.neo4j.graphdb.Vector.CoordinateType public static final
 org.neo4j.graphdb.Vector.CoordinateType::FLOAT64 org.neo4j.graphdb.Vector.CoordinateType public static final
 org.neo4j.graphdb.Vector.CoordinateType::INTEGER16 org.neo4j.graphdb.Vector.CoordinateType public static final

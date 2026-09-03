@@ -166,6 +166,11 @@ public abstract class ThrowingValueWriter<E extends Exception> implements ValueW
     }
 
     @Override
+    public void writeFloat16Vector(Float16Format format, short[] values) throws E {
+        throw exception("writeFloat16Vector");
+    }
+
+    @Override
     public void writeFloat32Vector(float[] values) throws E {
         throw exception("writeFloat32Vector");
     }

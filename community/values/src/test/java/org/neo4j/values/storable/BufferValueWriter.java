@@ -204,6 +204,11 @@ public class BufferValueWriter implements ValueWriter<RuntimeException> {
     }
 
     @Override
+    public void writeFloat16Vector(Float16Format format, short[] values) throws RuntimeException {
+        buffer.add(Values.float16Vector(format, values));
+    }
+
+    @Override
     public void writeFloat32Vector(float[] values) throws RuntimeException {
         buffer.add(Values.float32Vector(values));
     }

@@ -382,6 +382,28 @@ public enum ValueRepresentation {
             return coerceVectorArrayMismatch(this, other);
         }
     },
+    FLOAT16_VECTOR(ValueGroup.FLOAT16_VECTOR, true) {
+        @Override
+        public ArrayValue arrayOf(SequenceValue values) {
+            return Values.vectorArray(values);
+        }
+
+        @Override
+        ValueRepresentation coerceMismatch(ValueRepresentation other) {
+            return coerceVectorArrayMismatch(this, other);
+        }
+    },
+    BFLOAT16_VECTOR(ValueGroup.BFLOAT16_VECTOR, true) {
+        @Override
+        public ArrayValue arrayOf(SequenceValue values) {
+            return Values.vectorArray(values);
+        }
+
+        @Override
+        ValueRepresentation coerceMismatch(ValueRepresentation other) {
+            return coerceVectorArrayMismatch(this, other);
+        }
+    },
     FLOAT32_VECTOR(ValueGroup.FLOAT32_VECTOR, true) {
         @Override
         public ArrayValue arrayOf(SequenceValue values) {

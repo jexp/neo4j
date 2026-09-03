@@ -107,6 +107,8 @@ public interface ValueWriter<E extends Exception> {
 
     void writeInt64Vector(long[] values) throws E;
 
+    void writeFloat16Vector(Float16Format format, short[] values) throws E;
+
     void writeFloat32Vector(float[] values) throws E;
 
     void writeFloat64Vector(double[] values) throws E;
@@ -187,6 +189,9 @@ public interface ValueWriter<E extends Exception> {
 
         @Override
         public void writeDateTime(ZonedDateTime zonedDateTime) throws E {}
+
+        @Override
+        public void writeFloat16Vector(Float16Format format, short[] values) throws E {}
 
         @Override
         public void writeFloat32Vector(float[] values) throws E {}

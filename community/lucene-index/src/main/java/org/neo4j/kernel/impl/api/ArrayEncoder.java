@@ -30,6 +30,7 @@ import org.neo4j.values.storable.CoordinateReferenceSystem;
 import org.neo4j.values.storable.DateTimeValue;
 import org.neo4j.values.storable.DateValue;
 import org.neo4j.values.storable.DurationValue;
+import org.neo4j.values.storable.Float16Format;
 import org.neo4j.values.storable.LocalDateTimeValue;
 import org.neo4j.values.storable.LocalTimeValue;
 import org.neo4j.values.storable.TimeValue;
@@ -192,6 +193,11 @@ public final class ArrayEncoder {
 
         @Override
         public void writeInt64Vector(long[] values) throws RuntimeException {
+            throw new UnsupportedOperationException("vector arrays are not supported");
+        }
+
+        @Override
+        public void writeFloat16Vector(Float16Format format, short[] values) throws RuntimeException {
             throw new UnsupportedOperationException("vector arrays are not supported");
         }
 

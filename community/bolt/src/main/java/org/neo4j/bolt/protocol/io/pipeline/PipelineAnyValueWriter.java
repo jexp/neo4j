@@ -28,6 +28,7 @@ import org.neo4j.bolt.negotiation.version.ProtocolVersion;
 import org.neo4j.packstream.io.PackstreamBuf;
 import org.neo4j.packstream.io.value.PackstreamValueWriter;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
+import org.neo4j.values.storable.Float16Format;
 import org.neo4j.values.storable.TextArray;
 import org.neo4j.values.storable.TextValue;
 import org.neo4j.values.virtual.MapValue;
@@ -128,6 +129,11 @@ public class PipelineAnyValueWriter extends PackstreamValueWriter {
     @Override
     public void writeInt64Vector(long[] values) {
         this.context.writeVector(values);
+    }
+
+    @Override
+    public void writeFloat16Vector(Float16Format format, short[] values) {
+        this.context.writeFloatingPointVector(format, values);
     }
 
     @Override

@@ -312,6 +312,10 @@ public class RandomSupport {
         randoms = RandomValues.create(random, config);
     }
 
+    public RandomValues.Configuration configuration() {
+        return config;
+    }
+
     public long seed() {
         return seed;
     }

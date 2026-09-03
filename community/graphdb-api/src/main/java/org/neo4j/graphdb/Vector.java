@@ -54,6 +54,8 @@ public interface Vector {
      *  <li>INTEGER16: A coordinate type corresponding to a <code>short</code>.</li>
      *  <li>INTEGER32: A coordinate type corresponding to an <code>int</code>.</li>
      *  <li>INTEGER64: A coordinate type corresponding to a <code>long</code>.</li>
+     *  <li>FLOAT16: A coordinate type corresponding to a <code>float16 (2-byte float)</code>.</li>
+     *  <li>BFLOAT16: A coordinate type corresponding to a <code>brainfloat16 (2-byte float)</code>.</li>
      *  <li>FLOAT32: A coordinate type corresponding to a <code>float</code>.</li>
      *  <li>FLOAT64: A coordinate type corresponding to a <code>double</code>.</li>
      * </ul>
@@ -63,6 +65,8 @@ public interface Vector {
         INTEGER16("INTEGER16 NOT NULL"),
         INTEGER32("INTEGER32 NOT NULL"),
         INTEGER64("INTEGER NOT NULL"),
+        FLOAT16("FLOAT16 NOT NULL"),
+        BFLOAT16("BFLOAT16 NOT NULL"),
         FLOAT32("FLOAT32 NOT NULL"),
         FLOAT64("FLOAT NOT NULL");
 

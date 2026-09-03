@@ -84,6 +84,8 @@ public interface VectorExtractor<T> extends Extractor<T> {
                         case "short" -> Vector.CoordinateType.INTEGER16;
                         case "int" -> Vector.CoordinateType.INTEGER32;
                         case "long" -> Vector.CoordinateType.INTEGER64;
+                        case "float16" -> Vector.CoordinateType.FLOAT16;
+                        case "bfloat16" -> Vector.CoordinateType.BFLOAT16;
                         case "float" -> Vector.CoordinateType.FLOAT32;
                         case "double" -> Vector.CoordinateType.FLOAT64;
                         default ->

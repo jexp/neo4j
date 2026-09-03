@@ -54,6 +54,7 @@ import org.neo4j.kernel.impl.store.record.RelationshipTypeTokenRecord;
 import org.neo4j.kernel.impl.store.record.SchemaRecord;
 import org.neo4j.string.UTF8;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
+import org.neo4j.values.storable.Float16Format;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.ValueWriter;
 
@@ -453,6 +454,11 @@ class LogCommandSerializationV5_0 extends LogCommandSerializationV4_3_D3 {
 
             @Override
             public void writeInt64Vector(long[] values) throws IOException {
+                throw new IOException("Vector is not a supported schema map value type.");
+            }
+
+            @Override
+            public void writeFloat16Vector(Float16Format format, short[] values) throws IOException {
                 throw new IOException("Vector is not a supported schema map value type.");
             }
 

@@ -37,6 +37,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Stream;
+import org.apache.commons.lang3.StringUtils;
+import org.assertj.core.data.Percentage;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -45,18 +47,19 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.neo4j.graphdb.Vector;
 import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.values.storable.BFloat16Vector;
 import org.neo4j.values.storable.CSVHeaderInformation;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
 import org.neo4j.values.storable.DateTimeValue;
 import org.neo4j.values.storable.DateValue;
 import org.neo4j.values.storable.DurationValue;
+import org.neo4j.values.storable.Float16Vector;
 import org.neo4j.values.storable.LocalDateTimeValue;
 import org.neo4j.values.storable.LocalTimeValue;
 import org.neo4j.values.storable.TimeValue;
 import org.neo4j.values.storable.Values;
 
 class ExtractorsTest {
-
     @Test
     void shouldFailExtractingLongArrayWhereAnyValueIsEmpty() {
         // GIVEN
@@ -191,7 +194,10 @@ class ExtractorsTest {
                 Arguments.of(
                         Map.of("coordinateType", "byte", "dimensions", "3", "ignoredKey", "foo"),
                         Vector.CoordinateType.INTEGER8,
-                        3));
+                        3),
+                Arguments.of(Map.of("coordinateType", "float16", "dimensions", "5"), Vector.CoordinateType.FLOAT16, 5),
+                Arguments.of(
+                        Map.of("coordinateTYPE", "Bfloat16", "dimensions", "6"), Vector.CoordinateType.BFLOAT16, 6));
     }
 
     @ParameterizedTest
@@ -386,6 +392,34 @@ class ExtractorsTest {
 
         // then
         assertThat(value).isEqualTo(expected);
+    }
+
+    @Test
+    void shouldExtractFloat16Vector() {
+        // GIVEN
+        Extractors extractors = new Extractors();
+        float[] expected = new float[] {1.2f, 3.4f, 5.6f};
+        String data = StringUtils.join(expected, ';');
+
+        // THEN
+        Float16Vector vector = extractors.float16Vector().extract(data.toCharArray(), 0, data.length(), false);
+        for (int i = 0; i < vector.dimensions(); i++) {
+            assertThat(vector.floatValue(i)).isCloseTo(expected[i], Percentage.withPercentage(1));
+        }
+    }
+
+    @Test
+    void shouldExtractBFloat16Vector() {
+        // GIVEN
+        Extractors extractors = new Extractors();
+        float[] expected = new float[] {1.2f, 3.4f, 5.6f};
+        String data = StringUtils.join(expected, ';');
+
+        // THEN
+        BFloat16Vector vector = extractors.bfloat16Vector().extract(data.toCharArray(), 0, data.length(), false);
+        for (int i = 0; i < vector.dimensions(); i++) {
+            assertThat(vector.floatValue(i)).isCloseTo(expected[i], Percentage.withPercentage(1));
+        }
     }
 
     private static void assertExtractedValue(

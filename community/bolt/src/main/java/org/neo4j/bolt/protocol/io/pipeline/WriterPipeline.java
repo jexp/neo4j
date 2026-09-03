@@ -33,6 +33,7 @@ import org.neo4j.bolt.protocol.io.writer.VersionedValueWriter;
 import org.neo4j.packstream.io.PackstreamBuf;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
+import org.neo4j.values.storable.Float16Format;
 import org.neo4j.values.storable.TextArray;
 import org.neo4j.values.storable.TextValue;
 import org.neo4j.values.virtual.MapValue;
@@ -340,6 +341,11 @@ public class WriterPipeline {
         }
 
         @Override
+        public void writeFloatingPointVector(Float16Format format, short[] values) {
+            this.write(writer -> writer.writeFloatingPointVector(this, format, values));
+        }
+
+        @Override
         public void writeVector(float[] values) {
             this.write(writer -> writer.writeVector(this, values));
         }
@@ -460,6 +466,11 @@ public class WriterPipeline {
         @Override
         public void fireVector(long[] values) {
             this.fire("long_vector", writer -> writer.writeVector(this, values));
+        }
+
+        @Override
+        public void fireFloatingPointVector(Float16Format format, short[] values) {
+            this.fire("float16_vector", writer -> writer.writeFloatingPointVector(this, format, values));
         }
 
         @Override

@@ -34,6 +34,7 @@ import org.neo4j.gis.spatial.index.curves.SpaceFillingCurve;
 import org.neo4j.graphdb.Vector;
 import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.string.UTF8;
+import org.neo4j.values.storable.Float16Format;
 import org.neo4j.values.storable.PrimitiveArrayWriting;
 import org.neo4j.values.storable.TextValue;
 import org.neo4j.values.storable.TimeZones;
@@ -507,9 +508,7 @@ public abstract class GenericKey<KEY extends GenericKey<KEY>> extends NativeInde
         } else {
             byte[] data = new byte[values.length * Short.BYTES];
             ShortBuffer buffer = ByteBuffer.wrap(data).asShortBuffer();
-            for (short value : values) {
-                buffer.put(value);
-            }
+            buffer.put(values);
             VectorArrayType.write(this, currentArrayOffset++, Vector.CoordinateType.INTEGER16, values.length, data);
         }
     }
@@ -522,9 +521,7 @@ public abstract class GenericKey<KEY extends GenericKey<KEY>> extends NativeInde
         } else {
             byte[] data = new byte[values.length * Integer.BYTES];
             IntBuffer buffer = ByteBuffer.wrap(data).asIntBuffer();
-            for (int value : values) {
-                buffer.put(value);
-            }
+            buffer.put(values);
             VectorArrayType.write(this, currentArrayOffset++, Vector.CoordinateType.INTEGER32, values.length, data);
         }
     }
@@ -537,10 +534,26 @@ public abstract class GenericKey<KEY extends GenericKey<KEY>> extends NativeInde
         } else {
             byte[] data = new byte[values.length * Long.BYTES];
             LongBuffer buffer = ByteBuffer.wrap(data).asLongBuffer();
-            for (long value : values) {
-                buffer.put(value);
-            }
+            buffer.put(values);
             VectorArrayType.write(this, currentArrayOffset++, Vector.CoordinateType.INTEGER64, values.length, data);
+        }
+    }
+
+    @Override
+    public void writeFloat16Vector(Float16Format format, short[] values) throws RuntimeException {
+        if (!isArray) {
+            var type =
+                    switch (format) {
+                        case FLOAT16 -> Types.VECTOR_FLOAT16;
+                        case BFLOAT16 -> Types.VECTOR_BFLOAT16;
+                    };
+            setType(type);
+            type.write(this, values);
+        } else {
+            byte[] data = new byte[values.length * Short.BYTES];
+            ShortBuffer buffer = ByteBuffer.wrap(data).asShortBuffer();
+            buffer.put(values);
+            VectorArrayType.write(this, currentArrayOffset++, format.coordinateType(), values.length, data);
         }
     }
 
@@ -552,9 +565,7 @@ public abstract class GenericKey<KEY extends GenericKey<KEY>> extends NativeInde
         } else {
             byte[] data = new byte[values.length * Float.BYTES];
             FloatBuffer buffer = ByteBuffer.wrap(data).asFloatBuffer();
-            for (float value : values) {
-                buffer.put(value);
-            }
+            buffer.put(values);
             VectorArrayType.write(this, currentArrayOffset++, Vector.CoordinateType.FLOAT32, values.length, data);
         }
     }
@@ -567,9 +578,7 @@ public abstract class GenericKey<KEY extends GenericKey<KEY>> extends NativeInde
         } else {
             byte[] data = new byte[values.length * Double.BYTES];
             DoubleBuffer buffer = ByteBuffer.wrap(data).asDoubleBuffer();
-            for (double value : values) {
-                buffer.put(value);
-            }
+            buffer.put(values);
             VectorArrayType.write(this, currentArrayOffset++, Vector.CoordinateType.FLOAT64, values.length, data);
         }
     }
