@@ -21,11 +21,10 @@ package org.neo4j.batchimport.api.input;
 
 import static java.lang.String.format;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Map;
 import java.util.TreeMap;
+import org.neo4j.batchimport.api.input.ResumableStateData.ResumableStateDataBuilder;
 import org.neo4j.common.EntityType;
 
 /**
@@ -106,7 +105,7 @@ public interface Collector extends AutoCloseable, ResumableState {
      * Must not be called concurrently with any of the collect* methods that collect bad data from the input.
      */
     @Override
-    void checkpoint(DataOutputStream outputStream) throws IOException;
+    void checkpoint(ResumableStateDataBuilder resumableStateDataBuilder) throws IOException;
 
     /**
      * {@inheritDoc}
@@ -114,7 +113,7 @@ public interface Collector extends AutoCloseable, ResumableState {
      * Must not be called after any collect* method has been called.
      */
     @Override
-    void resumeFromCheckpoint(DataInputStream inputStream) throws IOException;
+    void resumeFromCheckpoint(ResumableStateData resumableStateData) throws IOException;
 
     /**
      * {@inheritDoc}
@@ -312,10 +311,10 @@ public interface Collector extends AutoCloseable, ResumableState {
         }
 
         @Override
-        public void checkpoint(DataOutputStream outputStream) {}
+        public void checkpoint(ResumableStateDataBuilder resumableStateDataBuilder) {}
 
         @Override
-        public void resumeFromCheckpoint(DataInputStream inputStream) {}
+        public void resumeFromCheckpoint(ResumableStateData resumableStateData) {}
 
         @Override
         public void resumeFromStart() {}
@@ -442,10 +441,10 @@ public interface Collector extends AutoCloseable, ResumableState {
         }
 
         @Override
-        public void checkpoint(DataOutputStream outputStream) {}
+        public void checkpoint(ResumableStateDataBuilder resumableStateDataBuilder) {}
 
         @Override
-        public void resumeFromCheckpoint(DataInputStream inputStream) {}
+        public void resumeFromCheckpoint(ResumableStateData resumableStateData) {}
 
         @Override
         public void resumeFromStart() {}
@@ -529,10 +528,10 @@ public interface Collector extends AutoCloseable, ResumableState {
         public void close() {}
 
         @Override
-        public void checkpoint(DataOutputStream outputStream) {}
+        public void checkpoint(ResumableStateDataBuilder resumableStateDataBuilder) {}
 
         @Override
-        public void resumeFromCheckpoint(DataInputStream inputStream) {}
+        public void resumeFromCheckpoint(ResumableStateData resumableStateData) {}
 
         @Override
         public void resumeFromStart() {}

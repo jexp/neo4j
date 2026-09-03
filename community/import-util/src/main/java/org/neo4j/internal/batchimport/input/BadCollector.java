@@ -21,8 +21,6 @@ package org.neo4j.internal.batchimport.input;
 
 import static java.lang.String.format;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
@@ -32,6 +30,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 import org.neo4j.batchimport.api.input.Collector;
 import org.neo4j.batchimport.api.input.Group;
+import org.neo4j.batchimport.api.input.ResumableStateData;
+import org.neo4j.batchimport.api.input.ResumableStateData.ResumableStateDataBuilder;
 import org.neo4j.common.EntityType;
 import org.neo4j.util.VisibleForTesting;
 import org.neo4j.util.concurrent.AsyncEvent;
@@ -394,14 +394,14 @@ public final class BadCollector implements Collector {
     }
 
     @Override
-    public void checkpoint(DataOutputStream outputStream) throws IOException {
+    public void checkpoint(ResumableStateDataBuilder resumableStateDataBuilder) throws IOException {
         waitForQueueToBeDrained();
         // Make the drained entries durable
         long position = problemHandler.checkpoint();
         // Write the number of bad entries to the checkpoint ...
-        outputStream.writeLong(badEntries.get());
+        resumableStateDataBuilder.setBadCollectedEntriesCount(badEntries.get());
         // ... along with how far the reported entries reach, so a resume can discard whatever comes after
-        outputStream.writeLong(position);
+        resumableStateDataBuilder.setProblemHandlerPosition(position);
     }
 
     private void waitForQueueToBeDrained() throws IOException {
@@ -423,11 +423,11 @@ public final class BadCollector implements Collector {
     }
 
     @Override
-    public void resumeFromCheckpoint(DataInputStream inputStream) throws IOException {
+    public void resumeFromCheckpoint(ResumableStateData resumableStateData) throws IOException {
         // Read the number of bad entries from the checkpoint
-        badEntries.set(inputStream.readLong());
+        badEntries.set(resumableStateData.badCollectedEntriesCount());
         // Drop the entries reported after the checkpoint, they get reported again as the input is revisited
-        problemHandler.resumeFromCheckpoint(inputStream.readLong());
+        problemHandler.resumeFromCheckpoint(resumableStateData.problemHandlerPosition());
     }
 
     @Override

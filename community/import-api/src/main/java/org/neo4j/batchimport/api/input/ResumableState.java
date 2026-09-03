@@ -19,26 +19,25 @@
  */
 package org.neo4j.batchimport.api.input;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
+import org.neo4j.batchimport.api.input.ResumableStateData.ResumableStateDataBuilder;
 
 public interface ResumableState {
 
     /**
-     * Checkpoints the state, writing whatever it has to the given output stream. On return, everything
+     * Checkpoints the state, writing whatever it has to the builder. On return, everything
      * has been made durable in the underlying resource, to the extent that the resource supports it.
      */
-    void checkpoint(DataOutputStream outputStream) throws IOException;
+    void checkpoint(ResumableStateDataBuilder resumableStateDataBuilder) throws IOException;
 
     /**
-     * Restores the state previously written by {@link #checkpoint(DataOutputStream)}.
+     * Restores the state previously written by {@link #checkpoint(ResumableStateDataBuilder)}.
      */
-    void resumeFromCheckpoint(DataInputStream inputStream) throws IOException;
+    void resumeFromCheckpoint(ResumableStateData resumableStateData) throws IOException;
 
     /**
      * Restores the state from before anything was checkpointed, discarding whatever an earlier attempt that never
-     * reached a {@link #checkpoint(DataOutputStream) checkpoint} did.
+     * reached a {@link #checkpoint(ResumableStateDataBuilder) checkpoint} did.
      */
     void resumeFromStart() throws IOException;
 }

@@ -76,6 +76,7 @@ import org.neo4j.batchimport.api.UnsupportedFormatException;
 import org.neo4j.batchimport.api.input.ApplicationMode;
 import org.neo4j.batchimport.api.input.Collector;
 import org.neo4j.batchimport.api.input.Group;
+import org.neo4j.batchimport.api.input.ResumableStateData;
 import org.neo4j.cli.CommandFailedException;
 import org.neo4j.cloud.storage.StoragePath;
 import org.neo4j.cloud.storage.StoragePathAttributes;
@@ -1292,26 +1293,31 @@ class ImportContextTest {
     @Test
     void checkpointIsReadBackOnResume() throws IOException {
         Path baseDir;
+        ResumableStateData resumableStateData = new ResumableStateData((byte) 1, 2, 3);
         try (var importContext = ImportContext.create(fs, DB, null, config, null, List.of(), false, true, false)) {
             baseDir = importContext.baseDir();
-            importContext.writeCheckpoint(checkpointOf(42));
+            importContext.writeCheckpoint(resumableStateData);
         }
 
         try (var importContext = ImportContext.create(fs, DB, baseDir, config, null, List.of(), false, true, false);
                 var checkpoint = importContext.lastCheckpoint()) {
             assertThat(checkpoint).isNotNull();
-            assertThat(checkpoint.readLong()).isEqualTo(42);
+            ResumableStateData readBackResumableStateData = ResumableStateData.fromInputStream(checkpoint);
+            assertThat(readBackResumableStateData).isEqualTo(resumableStateData);
         }
     }
 
     @Test
     void checkpointReplacesThePreviousOne() throws IOException {
+        ResumableStateData resumableStateData1 = new ResumableStateData((byte) 1, 2, 3);
+        ResumableStateData resumableStateData2 = new ResumableStateData((byte) 4, 5, 6);
         try (var importContext = ImportContext.create(fs, DB, null, config, null, List.of(), false, true, false)) {
-            importContext.writeCheckpoint(checkpointOf(42));
-            importContext.writeCheckpoint(checkpointOf(43));
+            importContext.writeCheckpoint(resumableStateData1);
+            importContext.writeCheckpoint(resumableStateData2);
 
             try (var checkpoint = importContext.lastCheckpoint()) {
-                assertThat(checkpoint.readLong()).isEqualTo(43);
+                ResumableStateData readBackResumableStateData = ResumableStateData.fromInputStream(checkpoint);
+                assertThat(readBackResumableStateData).isEqualTo(resumableStateData2);
                 assertThat(checkpoint.read())
                         .as("no leftovers of the replaced checkpoint")
                         .isEqualTo(-1);
@@ -1321,6 +1327,9 @@ class ImportContextTest {
 
     @Test
     void checkpointOfThePreviousAttemptSurvivesAFailedReplacement() throws IOException {
+        ResumableStateData resumableStateData1 = new ResumableStateData((byte) 1, 2, 3);
+        ResumableStateData resumableStateData2 = new ResumableStateData((byte) 4, 5, 6);
+
         // when the replacement never gets written out in full
         var failing = new DelegatingFileSystemAbstraction(fs) {
             @Override
@@ -1340,19 +1349,20 @@ class ImportContextTest {
         Path baseDir;
         try (var importContext = ImportContext.create(fs, DB, null, config, null, List.of(), false, true, false)) {
             baseDir = importContext.baseDir();
-            importContext.writeCheckpoint(checkpointOf(42));
+            importContext.writeCheckpoint(resumableStateData1);
         }
 
         try (var importContext =
                 ImportContext.create(failing, DB, baseDir, config, null, List.of(), false, true, false)) {
             assertThatExceptionOfType(IOException.class)
-                    .isThrownBy(() -> importContext.writeCheckpoint(checkpointOf(43)));
+                    .isThrownBy(() -> importContext.writeCheckpoint(resumableStateData2));
         }
 
         // then the checkpoint of the attempt being resumed is still the one on record
         try (var importContext = ImportContext.create(fs, DB, baseDir, config, null, List.of(), false, true, false);
                 var checkpoint = importContext.lastCheckpoint()) {
-            assertThat(checkpoint.readLong()).isEqualTo(42);
+            ResumableStateData readBackResumableStateData = ResumableStateData.fromInputStream(checkpoint);
+            assertThat(readBackResumableStateData).isEqualTo(resumableStateData1);
         }
     }
 
@@ -1401,10 +1411,6 @@ class ImportContextTest {
         }
         // then what the attempt being resumed was invoked with is still on record
         assertThat(ImportContext.readCliArgs(fs, baseDir)).contains(args);
-    }
-
-    private static byte[] checkpointOf(long content) {
-        return ByteBuffer.allocate(Long.BYTES).putLong(content).array();
     }
 
     /**

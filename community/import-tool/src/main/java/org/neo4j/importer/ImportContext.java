@@ -79,6 +79,7 @@ import org.neo4j.batchimport.api.DetailedProgressReport;
 import org.neo4j.batchimport.api.Monitor;
 import org.neo4j.batchimport.api.ResumableStateWriter;
 import org.neo4j.batchimport.api.UnsupportedFormatException;
+import org.neo4j.batchimport.api.input.ResumableStateData;
 import org.neo4j.cli.CommandFailedException;
 import org.neo4j.cli.ExitCode;
 import org.neo4j.commandline.dbms.CannotWriteException;
@@ -493,9 +494,9 @@ public class ImportContext extends Monitor.Delegate implements InternalLogProvid
     }
 
     @Override
-    public void writeCheckpoint(byte[] checkpoint) throws IOException {
+    public void writeCheckpoint(ResumableStateData resumableStateData) throws IOException {
         fs.mkdirs(baseDir());
-        writeToTempFileAndReplaceAtomically(baseDir(), CHECKPOINT_FILE_NAME, checkpoint);
+        writeToTempFileAndReplaceAtomically(baseDir(), CHECKPOINT_FILE_NAME, resumableStateData.asByteArray());
     }
 
     @Override

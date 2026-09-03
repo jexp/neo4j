@@ -21,6 +21,7 @@ package org.neo4j.batchimport.api;
 
 import java.io.DataInputStream;
 import java.io.IOException;
+import org.neo4j.batchimport.api.input.ResumableStateData;
 
 /**
  * Exposes methods to write the state of a resumable import to disk.
@@ -42,7 +43,7 @@ public interface ResumableStateWriter {
     /**
      * Replaces the checkpoint {@link #lastCheckpoint()} returns with the given one, atomically.
      */
-    void writeCheckpoint(byte[] checkpoint) throws IOException;
+    void writeCheckpoint(ResumableStateData resumableStateData) throws IOException;
 
     /**
      * Returns a {@link DataInputStream} to read the most recently written checkpoint from. The caller must
@@ -66,7 +67,7 @@ public interface ResumableStateWriter {
         }
 
         @Override
-        public void writeCheckpoint(byte[] checkpoint) throws IOException {
+        public void writeCheckpoint(ResumableStateData resumableStateData) {
             // no-op
         }
 

@@ -29,10 +29,7 @@ import static org.neo4j.io.fs.DefaultFileSystemAbstraction.APPEND_OPTIONS;
 import static org.neo4j.io.fs.DefaultFileSystemAbstraction.TRUNCATE_OPTIONS;
 import static org.neo4j.test.OtherThreadExecutor.command;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
@@ -50,6 +47,8 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.neo4j.batchimport.api.input.Collector;
 import org.neo4j.batchimport.api.input.Group;
+import org.neo4j.batchimport.api.input.ResumableStateData;
+import org.neo4j.batchimport.api.input.ResumableStateData.ResumableStateDataBuilder;
 import org.neo4j.io.fs.DelegatingStoreChannel;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.fs.StoreChannel;
@@ -199,20 +198,20 @@ class BadCollectorTest {
         Path report = Path.of("checkpointed-report.json.log").toAbsolutePath();
 
         // when
-        var checkpoint = new ByteArrayOutputStream();
+        var resumableStateDataBuilder = new ResumableStateDataBuilder();
         try (var badCollector = collectorReportingTo(fs.open(report, TRUNCATE_OPTIONS))) {
             for (int i = 0; i < count; i++) {
                 badCollector.collectDuplicateNode(i, i, group, "source", 8L + i);
             }
-            badCollector.checkpoint(new DataOutputStream(checkpoint));
+            badCollector.checkpoint(resumableStateDataBuilder);
         }
 
         // then
-        try (var reader = new DataInputStream(new ByteArrayInputStream(checkpoint.toByteArray()))) {
-            assertThat(reader.readLong()).as("bad entries").isEqualTo(count);
-            assertThat(reader.readLong()).as("report position").isEqualTo(fs.getFileSize(report));
-            assertThat(reader.available()).isZero();
-        }
+        var checkpoint = resumableStateDataBuilder.build();
+        assertThat(checkpoint.badCollectedEntriesCount())
+                .as("bad entries count")
+                .isEqualTo(count);
+        assertThat(checkpoint.problemHandlerPosition()).as("report position").isEqualTo(fs.getFileSize(report));
     }
 
     @Test
@@ -263,8 +262,8 @@ class BadCollectorTest {
                 badCollector.collectDuplicateNode(1, 1, group, "source", 8L);
 
                 // when
-                Future<Object> checkpoint = t2.executeDontWait(
-                        command(() -> badCollector.checkpoint(new DataOutputStream(nullOutputStream()))));
+                Future<Object> checkpoint =
+                        t2.executeDontWait(command(() -> badCollector.checkpoint(new ResumableStateDataBuilder())));
                 t2.waitUntilWaiting(waitDetails -> waitDetails.isAt(BadCollector.class, "checkpoint"));
                 monitor.unblock();
 
@@ -287,7 +286,7 @@ class BadCollectorTest {
             }
 
             // when
-            badCollector.checkpoint(new DataOutputStream(nullOutputStream()));
+            badCollector.checkpoint(new ResumableStateDataBuilder());
 
             // then everything reported so far is in the report file, durably so
             SoftAssertions.assertSoftly(softly -> {
@@ -306,12 +305,12 @@ class BadCollectorTest {
         // given a report checkpointed after 5 entries, with 3 more reported before the crash
         int checkpointed = 5;
         Path report = Path.of("resumed-report.json.log").toAbsolutePath();
-        var checkpoint = new ByteArrayOutputStream();
+        var resumableStateDataBuilder = new ResumableStateDataBuilder();
         try (var badCollector = collectorReportingTo(fs.open(report, TRUNCATE_OPTIONS))) {
             for (int i = 0; i < checkpointed; i++) {
                 badCollector.collectDuplicateNode(i, i, group, "source", 8L + i);
             }
-            badCollector.checkpoint(new DataOutputStream(checkpoint));
+            badCollector.checkpoint(resumableStateDataBuilder);
             for (int i = checkpointed; i < checkpointed + 3; i++) {
                 badCollector.collectDuplicateNode(i, i, group, "source", 8L + checkpointed + i);
             }
@@ -320,7 +319,7 @@ class BadCollectorTest {
 
         // when resuming from that checkpoint
         try (var badCollector = collectorReportingTo(fs.open(report, APPEND_OPTIONS))) {
-            badCollector.resumeFromCheckpoint(new DataInputStream(new ByteArrayInputStream(checkpoint.toByteArray())));
+            badCollector.resumeFromCheckpoint(resumableStateDataBuilder.build());
 
             // then the entries reported after it are gone, and the count matches what the report holds
             assertThat(contents(report)).hasLineCount(checkpointed).endsWith("\n");
@@ -328,7 +327,7 @@ class BadCollectorTest {
 
             // and re-reporting them as the input is revisited appends rather than overwrites
             badCollector.collectDuplicateNode(checkpointed, checkpointed, group, "source", 8L + checkpointed);
-            badCollector.checkpoint(new DataOutputStream(nullOutputStream()));
+            badCollector.checkpoint(new ResumableStateDataBuilder());
             assertThat(contents(report)).hasLineCount(checkpointed + 1);
         }
     }
@@ -344,7 +343,7 @@ class BadCollectorTest {
 
             // when/then
             assertThatExceptionOfType(IOException.class)
-                    .isThrownBy(() -> badCollector.checkpoint(new DataOutputStream(nullOutputStream())))
+                    .isThrownBy(() -> badCollector.checkpoint(new ResumableStateDataBuilder()))
                     .withMessageContaining("left unreported")
                     .withCause(failure);
         }
@@ -361,7 +360,7 @@ class BadCollectorTest {
             }
             // when/then a checkpoint cannot report entries as durable when none of them reached the report
             assertThatExceptionOfType(IOException.class)
-                    .isThrownBy(() -> badCollector.checkpoint(new DataOutputStream(nullOutputStream())));
+                    .isThrownBy(() -> badCollector.checkpoint(new ResumableStateDataBuilder()));
         }
         assertThat(fs.getFileSize(report)).isZero();
     }
@@ -410,15 +409,15 @@ class BadCollectorTest {
         return BadCollector.create(ProblemReporters.jsonOutputProblemHandler(channel), tolerance, COLLECT_ALL, false);
     }
 
-    private DataInputStream checkpointAfterCollecting(Path report, int count, long tolerance) throws IOException {
-        var checkpoint = new ByteArrayOutputStream();
+    private ResumableStateData checkpointAfterCollecting(Path report, int count, long tolerance) throws IOException {
+        var resumableStateDataBuilder = new ResumableStateDataBuilder();
         try (var badCollector = collectorReportingTo(fs.open(report, TRUNCATE_OPTIONS), tolerance)) {
             for (int i = 0; i < count; i++) {
                 badCollector.collectDuplicateNode(i, i, group, "source", 8L + i);
             }
-            badCollector.checkpoint(new DataOutputStream(checkpoint));
+            badCollector.checkpoint(resumableStateDataBuilder);
         }
-        return new DataInputStream(new ByteArrayInputStream(checkpoint.toByteArray()));
+        return resumableStateDataBuilder.build();
     }
 
     private String contents(Path report) throws IOException {
