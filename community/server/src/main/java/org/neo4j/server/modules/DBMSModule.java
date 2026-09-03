@@ -32,6 +32,7 @@ import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.logging.InternalLogProvider;
 import org.neo4j.server.config.AuthConfigProvider;
 import org.neo4j.server.configuration.ServerSettings;
+import org.neo4j.server.queryapi.versioning.QueryVersionService;
 import org.neo4j.server.rest.discovery.DiscoverableURIs;
 import org.neo4j.server.rest.discovery.DiscoveryService;
 import org.neo4j.server.rest.web.AccessiblePathFilter;
@@ -49,18 +50,21 @@ public class DBMSModule implements ServerModule {
     private final Supplier<DiscoverableURIs> discoverableURIs;
     private final InternalLogProvider logProvider;
     private final AuthConfigProvider authConfigProvider;
+    private final QueryVersionService queryVersionService;
 
     public DBMSModule(
             WebServer webServer,
             Config config,
             Supplier<DiscoverableURIs> discoverableURIs,
             InternalLogProvider logProvider,
-            AuthConfigProvider authConfigProvider) {
+            AuthConfigProvider authConfigProvider,
+            QueryVersionService queryVersionService) {
         this.webServer = webServer;
         this.config = config;
         this.discoverableURIs = discoverableURIs;
         this.logProvider = logProvider;
         this.authConfigProvider = authConfigProvider;
+        this.queryVersionService = queryVersionService;
     }
 
     @Override
@@ -70,7 +74,8 @@ public class DBMSModule implements ServerModule {
                 ROOT_PATH,
                 List.of(
                         injectable(DiscoverableURIs.class, discoverableURIs.get()),
-                        injectable(AuthConfigProvider.class, authConfigProvider)));
+                        injectable(AuthConfigProvider.class, authConfigProvider),
+                        injectable(QueryVersionService.class, queryVersionService)));
 
         webServer.addJAXRSClasses(jaxRsClasses(), ROOT_PATH, null);
 

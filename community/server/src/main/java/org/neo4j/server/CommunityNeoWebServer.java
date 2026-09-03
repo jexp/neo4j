@@ -19,8 +19,6 @@
  */
 package org.neo4j.server;
 
-import static org.neo4j.server.rest.discovery.CommunityDiscoverableURIs.communityDiscoverableURIs;
-
 import java.util.ArrayList;
 import java.util.function.Supplier;
 import org.neo4j.bolt.tx.TransactionManager;
@@ -36,6 +34,7 @@ import org.neo4j.monitoring.Monitors;
 import org.neo4j.server.config.AuthConfigProvider;
 import org.neo4j.server.configuration.ConfigurableServerModules;
 import org.neo4j.server.configuration.ServerSettings;
+import org.neo4j.server.http.cypher.CypherResource;
 import org.neo4j.server.modules.AuthorizationModule;
 import org.neo4j.server.modules.ClacksModule;
 import org.neo4j.server.modules.DBMSModule;
@@ -44,6 +43,8 @@ import org.neo4j.server.modules.QueryModule;
 import org.neo4j.server.modules.ServerModule;
 import org.neo4j.server.modules.ThirdPartyJAXRSModule;
 import org.neo4j.server.modules.TransactionModule;
+import org.neo4j.server.queryapi.QueryResource;
+import org.neo4j.server.queryapi.versioning.QueryVersionService;
 import org.neo4j.server.rest.discovery.DiscoverableURIs;
 import org.neo4j.server.web.JettyWebServer;
 import org.neo4j.server.web.WebServer;
@@ -73,16 +74,22 @@ public class CommunityNeoWebServer extends AbstractNeoWebServer {
     }
 
     @Override
-    protected Iterable<ServerModule> createServerModules() {
+    protected final Iterable<ServerModule> createServerModules() {
         var config = getConfig();
         var enabledModules = config.get(ServerSettings.http_enabled_modules);
         var serverModules = new ArrayList<ServerModule>();
         if (!enabledModules.isEmpty()) {
-            serverModules.add(createDBMSModule());
+            var clientRoutingDomainChecker =
+                    getGlobalDependencies().resolveDependency(ClientRoutingDomainChecker.class);
+            var discoverableURIsBuilder = new DiscoverableURIs.Builder(clientRoutingDomainChecker);
+            var queryVersionServiceBuilder = new QueryVersionService.Builder();
 
             if (enabledModules.contains(ConfigurableServerModules.TRANSACTIONAL_ENDPOINTS)) {
+                discoverableURIsBuilder.addEndpoint(
+                        CypherResource.NAME, CypherResource.absoluteDatabaseTransactionPath(config));
                 serverModules.add(new TransactionModule(webServer, config, clock));
             }
+
             if (enabledModules.contains(ConfigurableServerModules.UNMANAGED_EXTENSIONS)) {
                 serverModules.add(new ThirdPartyJAXRSModule(webServer, config, userLogProvider));
             }
@@ -92,11 +99,30 @@ public class CommunityNeoWebServer extends AbstractNeoWebServer {
                         config.get(ServerSettings.browser_matching_pattern).getFirst();
                 serverModules.add(new Neo4jBrowserModule(webServer, webDir, browserGlob));
             }
+
             if (enabledModules.contains(ConfigurableServerModules.QUERY_API_ENDPOINTS)) {
+                discoverableURIsBuilder.addEndpoint(
+                        QueryResource.NAME_V2, QueryResource.absoluteDatabaseTransactionPathV2(config));
+                discoverableURIsBuilder.addEndpoint(
+                        QueryResource.NAME, QueryResource.absoluteDatabaseTransactionPath(config));
+                queryVersionServiceBuilder.withVersion(QueryResource.VERSION);
+
                 serverModules.add(new QueryModule(webServer, config, metricsMonitor));
             }
 
+            for (var extended : extendModules(discoverableURIsBuilder)) {
+                serverModules.add(extended);
+            }
+
             serverModules.add(createAuthorizationModule());
+
+            serverModules.addFirst(createDBMSModule(
+                    // defer the creation of bolt endpoint since the bolt ports are only
+                    // available after the service starts
+                    () -> discoverableURIsBuilder
+                            .addBoltEndpoint(config, connectorPortRegister)
+                            .build(),
+                    queryVersionServiceBuilder.build()));
         }
 
         if (config.get(ServerSettings.clacks_enabled)) {
@@ -104,6 +130,10 @@ public class CommunityNeoWebServer extends AbstractNeoWebServer {
         }
 
         return serverModules;
+    }
+
+    protected Iterable<ServerModule> extendModules(DiscoverableURIs.Builder discoverableURIs) {
+        return new ArrayList<>();
     }
 
     @Override
@@ -115,14 +145,17 @@ public class CommunityNeoWebServer extends AbstractNeoWebServer {
         return webServer;
     }
 
-    protected DBMSModule createDBMSModule() {
-        var globalDependencies = getGlobalDependencies();
-        var clientRoutingDomainChecker = globalDependencies.resolveDependency(ClientRoutingDomainChecker.class);
+    protected final DBMSModule createDBMSModule(
+            Supplier<DiscoverableURIs> discoverableURIsSupplier, QueryVersionService queryVersionService) {
         // Bolt port isn't available until runtime, so defer loading until then
-        Supplier<DiscoverableURIs> discoverableURIs =
-                () -> communityDiscoverableURIs(getConfig(), connectorPortRegister, clientRoutingDomainChecker);
         var authConfigProvider = getGlobalDependencies().resolveDependency(AuthConfigProvider.class);
-        return new DBMSModule(webServer, getConfig(), discoverableURIs, userLogProvider, authConfigProvider);
+        return new DBMSModule(
+                webServer,
+                getConfig(),
+                discoverableURIsSupplier,
+                userLogProvider,
+                authConfigProvider,
+                queryVersionService);
     }
 
     protected AuthorizationModule createAuthorizationModule() {

@@ -32,7 +32,9 @@ import org.neo4j.configuration.Config;
 import org.neo4j.server.NeoWebServer;
 import org.neo4j.server.config.AuthConfigProvider;
 import org.neo4j.server.configuration.ServerSettings;
+import org.neo4j.server.queryapi.versioning.QueryVersionService;
 import org.neo4j.server.rest.repr.DiscoveryRepresentation;
+import org.neo4j.server.rest.repr.QueryApiVersionRepresentation;
 
 /**
  * Used to discover the rest of the server URIs through a HTTP GET request to the server root (/).
@@ -43,14 +45,16 @@ public class DiscoveryService {
     private final DiscoverableURIs uris;
     private final ServerVersionAndEdition serverInfo;
     private final AuthConfigProvider authConfigProvider;
+    private final QueryVersionService queryVersionService;
 
     // Your IDE might tell you to make this less visible than public. Don't. JAX-RS demands is to be public.
     public DiscoveryService(
             @Context Config config,
             @Context DiscoverableURIs uris,
             @Context NeoWebServer neoWebServer,
-            @Context AuthConfigProvider authConfigProvider) {
-        this(config, uris, new ServerVersionAndEdition(neoWebServer), authConfigProvider);
+            @Context AuthConfigProvider authConfigProvider,
+            @Context QueryVersionService queryVersionService) {
+        this(config, uris, new ServerVersionAndEdition(neoWebServer), authConfigProvider, queryVersionService);
     }
 
     // Used in internal unit test to avoid providing a neo server
@@ -58,11 +62,13 @@ public class DiscoveryService {
             Config config,
             DiscoverableURIs uris,
             ServerVersionAndEdition serverInfo,
-            AuthConfigProvider authConfigProvider) {
+            AuthConfigProvider authConfigProvider,
+            QueryVersionService queryVersionService) {
         this.config = config;
         this.uris = uris;
         this.serverInfo = serverInfo;
         this.authConfigProvider = authConfigProvider;
+        this.queryVersionService = queryVersionService;
     }
 
     @GET
@@ -75,9 +81,13 @@ public class DiscoveryService {
         if (v == null) {
             responseBuilder = Response.serverError().status(Response.Status.NOT_ACCEPTABLE);
         } else if (v.getMediaType() == MediaType.APPLICATION_JSON_TYPE) {
+
             responseBuilder = Response.ok()
                     .entity(new DiscoveryRepresentation(
-                            uris.update(uriInfo.getBaseUri()), serverInfo, authConfigProvider.getRepresentation()))
+                            uris.update(uriInfo.getBaseUri()),
+                            serverInfo,
+                            authConfigProvider.getRepresentation(),
+                            QueryApiVersionRepresentation.fromVersions(queryVersionService.getVersions())))
                     .variant(v);
         } else {
             responseBuilder = Response.seeOther(uriInfo.getBaseUri().resolve(config.get(ServerSettings.browser_path)))

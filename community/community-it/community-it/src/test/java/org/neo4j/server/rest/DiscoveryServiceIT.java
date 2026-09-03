@@ -38,9 +38,11 @@ import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.List;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 import org.neo4j.server.rest.domain.JsonHelper;
 import org.neo4j.server.rest.domain.JsonParseException;
@@ -129,6 +131,25 @@ public class DiscoveryServiceIT extends AbstractRestFunctionalTestBase {
         var serverEditionKey = "neo4j_edition";
         assertTrue(responseBodyMap.containsKey(serverEditionKey));
         assertThat(responseBodyMap).containsEntry(serverEditionKey, "community");
+
+        var queryKey = "query";
+        assertTrue(responseBodyMap.containsKey(queryKey));
+        assertNotNull(responseBodyMap.get(queryKey));
+
+        var queryApiKey = "query_api";
+        assertTrue(responseBodyMap.containsKey(queryApiKey));
+        var queryApiAddress = responseBodyMap.get(queryApiKey);
+        assertThat(queryApiAddress)
+                .isEqualTo(container().getBaseUri() + "db/{databaseName}/query/v{queryApiMajorVersion}");
+
+        var queryApiVersionKey = "query_api_versions";
+        assertTrue(responseBodyMap.containsKey(queryApiVersionKey));
+        var queryApiVersions = responseBodyMap.get(queryApiVersionKey);
+        assertThat(queryApiVersions)
+                .isInstanceOf(List.class)
+                .asInstanceOf(InstanceOfAssertFactories.LIST)
+                .hasSize(1)
+                .contains("2.0");
     }
 
     @Test

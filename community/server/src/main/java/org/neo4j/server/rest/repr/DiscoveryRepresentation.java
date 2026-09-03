@@ -27,6 +27,7 @@ public class DiscoveryRepresentation extends MappingRepresentation {
     private final DiscoverableURIs uris;
     private final ServerVersionAndEdition serverInfo;
     private final MappingRepresentation authConfigRepr;
+    private final QueryApiVersionRepresentation queryApiVersion;
 
     /**
      * @param uris URIs that we want to make publicly discoverable.
@@ -34,11 +35,15 @@ public class DiscoveryRepresentation extends MappingRepresentation {
      * @param authConfigRepr authentication configuration of the server.
      */
     public DiscoveryRepresentation(
-            DiscoverableURIs uris, ServerVersionAndEdition serverInfo, MappingRepresentation authConfigRepr) {
+            DiscoverableURIs uris,
+            ServerVersionAndEdition serverInfo,
+            MappingRepresentation authConfigRepr,
+            QueryApiVersionRepresentation queryApiVersion) {
         super(DISCOVERY_REPRESENTATION_TYPE);
         this.uris = uris;
         this.serverInfo = serverInfo;
         this.authConfigRepr = authConfigRepr;
+        this.queryApiVersion = queryApiVersion;
     }
 
     @Override
@@ -46,5 +51,6 @@ public class DiscoveryRepresentation extends MappingRepresentation {
         uris.forEach(serializer::putString);
         serverInfo.forEach(serializer::putString);
         authConfigRepr.serialize(serializer);
+        queryApiVersion.serialize(serializer);
     }
 }

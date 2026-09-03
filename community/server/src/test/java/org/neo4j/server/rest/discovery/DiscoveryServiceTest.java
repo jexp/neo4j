@@ -24,7 +24,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.neo4j.server.rest.discovery.CommunityDiscoverableURIs.communityDiscoverableURIs;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -52,7 +51,11 @@ import org.neo4j.configuration.connectors.ConnectorType;
 import org.neo4j.configuration.helpers.SocketAddress;
 import org.neo4j.internal.helpers.HostnamePort;
 import org.neo4j.server.config.AuthConfigProvider;
+import org.neo4j.server.configuration.ConfigurableServerModules;
 import org.neo4j.server.configuration.ServerSettings;
+import org.neo4j.server.http.cypher.CypherResource;
+import org.neo4j.server.queryapi.QueryResource;
+import org.neo4j.server.queryapi.versioning.QueryVersionService;
 import org.neo4j.server.rest.repr.CommunityAuthConfigProvider;
 import org.neo4j.server.rest.repr.Representation;
 import org.neo4j.server.rest.repr.RepresentationBasedMessageBodyWriter;
@@ -238,11 +241,31 @@ public class DiscoveryServiceTest {
 
     private DiscoveryService testDiscoveryService() {
         Config config = mockConfig();
+
         return new DiscoveryService(
                 config,
-                communityDiscoverableURIs(config, portRegistry, null),
+                discoverableURIs(config, portRegistry),
                 mock(ServerVersionAndEdition.class),
-                new CommunityAuthConfigProvider());
+                new CommunityAuthConfigProvider(),
+                new QueryVersionService.Builder()
+                        .withVersion(QueryResource.VERSION)
+                        .build());
+    }
+
+    private DiscoverableURIs discoverableURIs(Config config, ConnectorPortRegister portRegister) {
+        var builder = new DiscoverableURIs.Builder(null);
+        if (config.get(ServerSettings.http_enabled_modules)
+                .contains(ConfigurableServerModules.TRANSACTIONAL_ENDPOINTS)) {
+            builder = builder.addEndpoint(CypherResource.NAME, CypherResource.absoluteDatabaseTransactionPath(config));
+        }
+        if (config.get(ServerSettings.http_enabled_modules).contains(ConfigurableServerModules.QUERY_API_ENDPOINTS)) {
+            builder =
+                    builder.addEndpoint(QueryResource.NAME_V2, QueryResource.absoluteDatabaseTransactionPathV2(config));
+            builder = builder.addEndpoint(QueryResource.NAME, QueryResource.absoluteDatabaseTransactionPath(config));
+        }
+        builder.addBoltEndpoint(config, portRegister);
+
+        return builder.build();
     }
 
     @ParameterizedTest(name = "{0}")
@@ -333,7 +356,7 @@ public class DiscoveryServiceTest {
         when(request.selectVariant(anyList()))
                 .thenReturn(Variant.mediaTypes(MediaType.APPLICATION_JSON_TYPE)
                         .build()
-                        .get(0));
+                        .getFirst());
         Response response = testDiscoveryService().get(request, uriInfo(this.baseUri));
         String json = getJsonString(response);
         assertThat(json).doesNotContain("\"management\"");
@@ -355,9 +378,12 @@ public class DiscoveryServiceTest {
         baseUri = "http://www.example.com:5435";
         DiscoveryService ds = new DiscoveryService(
                 config,
-                communityDiscoverableURIs(config, null, null),
+                discoverableURIs(config, portRegistry),
                 mock(ServerVersionAndEdition.class),
-                mock(AuthConfigProvider.class));
+                mock(AuthConfigProvider.class),
+                new QueryVersionService.Builder()
+                        .withVersion(QueryResource.VERSION)
+                        .build());
 
         var request = mock(Request.class);
         when(request.selectVariant(anyList()))

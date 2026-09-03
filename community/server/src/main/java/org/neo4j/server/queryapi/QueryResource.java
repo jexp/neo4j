@@ -38,8 +38,9 @@ import org.neo4j.server.queryapi.metrics.QueryAPIMetricsMonitor;
 import org.neo4j.server.queryapi.request.AccessMode;
 import org.neo4j.server.queryapi.request.QueryRequest;
 import org.neo4j.server.queryapi.request.QueryTxRequest;
+import org.neo4j.server.queryapi.versioning.QueryVersion;
 
-@Path(QueryResource.ROOT_PATH)
+@Path(QueryResource.ROOT_PATH_V2)
 @Produces({
     QueryMimeTypes.PLAIN_JSON,
     QueryMimeTypes.TYPED_JSON,
@@ -59,11 +60,20 @@ import org.neo4j.server.queryapi.request.QueryTxRequest;
     QueryMimeTypes.TYPED_JSON_V1x2,
 })
 public class QueryResource {
+    public static final QueryVersion VERSION = new QueryVersion(2, 0);
+    // Legacy Discovery Address
+    public static final String NAME_V2 = "query";
 
-    public static final String NAME = "query";
     private static final String DB_PATH_PARAM_NAME = "databaseName";
+    private static final String VERSION_PATH_PARAM_NAME = "queryApiMajorVersion";
+
+    public static final String ROOT_PATH_V2 = "/{" + DB_PATH_PARAM_NAME + "}/query/v2";
+    // Discovery Address
+    public static final String NAME = "query_api";
+
+    public static final String ROOT_PATH = "/{" + DB_PATH_PARAM_NAME + "}/query/v{" + VERSION_PATH_PARAM_NAME + "}";
+
     private static final String TX_ID_PATH_PARAM_NAME = "txId";
-    public static final String ROOT_PATH = "/{" + DB_PATH_PARAM_NAME + "}/query/v2";
     private final QueryAPIMetricsMonitor monitor;
     private final QueryController queryController;
 
@@ -132,6 +142,10 @@ public class QueryResource {
             @Context HttpServletRequest rawRequest,
             @Context HttpHeaders headers) {
         return queryController.rollbackTransaction(txId, rawRequest, databaseName);
+    }
+
+    public static String absoluteDatabaseTransactionPathV2(Config config) {
+        return config.get(ServerSettings.db_api_path).getPath() + ROOT_PATH_V2;
     }
 
     public static String absoluteDatabaseTransactionPath(Config config) {
