@@ -512,7 +512,8 @@ object RegularCypherSteps {
        >
        >Plan:
        >$planDesc
-       >""".stripMargin('>')
+       >""".stripMargin('>'),
+    originalError(failure.cause)
   )
 
   def unexpectedSuccess(results: QueryResults, conf: TestConf, planDesc: String): Unit = fail(

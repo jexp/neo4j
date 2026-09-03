@@ -405,6 +405,8 @@ final class CompositeExecutorPool @Inject() (override val conf: TestConf) extend
       s"CREATE ALIAS $Constituent FOR DATABASE $DataDatabase AT 'neo4j://localhost:$boltPort' " +
         s"USER neo4j PASSWORD 'neo4j' DRIVER { ssl_enforced: false }"
     )
+    // Local counterpart of the self-remote alias above (see LocalConstituent) — routes via asLocal, not asRemote.
+    system.executeTransactionally(s"CREATE ALIAS $LocalConstituent FOR DATABASE $DataDatabase")
   }
 }
 
@@ -412,8 +414,12 @@ object CompositeExecutorPool {
   val DataDatabase = "data"
   val CompositeDatabase = "comp"
 
-  /** The constituent alias every generated query targets via `USE`. */
+  /** The (self-remote) constituent alias the stitched/separate generators target via `USE`. */
   val Constituent = s"$CompositeDatabase.$DataDatabase"
+
+  /** A local constituent alias (no remote `AT`): `USE` against it runs on the fabric leader (asLocal -> fabricFinalize)
+   *  rather than being shipped remote like [[Constituent]]. Targeted by the composite-local generator. */
+  val LocalConstituent = s"$CompositeDatabase.localdata"
 
   private val KeystoreResource = "keystore_11_0_5.pkcs12"
   private val KeystorePassword = "test24"

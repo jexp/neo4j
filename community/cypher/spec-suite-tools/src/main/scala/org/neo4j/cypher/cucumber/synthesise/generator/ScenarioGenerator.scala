@@ -68,10 +68,15 @@ import org.neo4j.cypher.internal.ast.AdministrationCommand
 import org.neo4j.cypher.internal.ast.CommandClause
 import org.neo4j.cypher.internal.ast.SchemaCommand
 import org.neo4j.cypher.internal.ast.Statement
+import org.neo4j.cypher.internal.ast.UnaliasedReturnItem
+import org.neo4j.cypher.internal.ast.UnresolvedCall
 import org.neo4j.cypher.internal.ast.UpdateClause
 import org.neo4j.cypher.internal.config.CypherConfiguration
+import org.neo4j.cypher.internal.expressions.SubqueryExpression
+import org.neo4j.cypher.internal.expressions.Variable
 import org.neo4j.cypher.internal.parser.AstParserFactory
 import org.neo4j.cypher.internal.util.ASTNode
+import org.neo4j.cypher.internal.util.Foldable.SkipChildren
 import org.neo4j.cypher.internal.util.Neo4jCypherExceptionFactory
 import org.neo4j.kernel.api.QueryLanguage
 
@@ -96,10 +101,13 @@ trait ScenarioGenerator extends ScenarioRenderer {
   def name: String
   def args: CucumberSalad.Ingredients
 
+  protected def excludedTags: Seq[String] =
+    Seq("@fails", s"@fails:$name", "@ignore", "@ignore:generator", s"@ignore:generator:$name")
+
   def filter: Filter = Filter(args.parser, Seq.empty)
     .scenario(isCompatible(args.targetConf))
-    .scenario(excludeTags("@fails", s"@fails:$name", "@ignore", "@ignore:generator", s"@ignore:generator:$name"))
-    .scenario(s => !s.tags.exists(_.startsWith("@conf:")))
+    .scenario(excludeTags(excludedTags: _*))
+    .scenario(Filter.isNotConfScoped)
 
   def generateScenarios(filteredScenarios: View[RecordedScenario]): IterableOnce[GeneratedScenario]
   private def filteredScenarios: View[RecordedScenario] = args.source.view.filter(filter.build)
@@ -178,6 +186,13 @@ object Filter {
     scenario => !expectations.fails(scenario.tags) && !expectations.ignore(scenario.tags)
   }
 
+  def isNotIgnored(conf: TestConf): ScenarioFilter = {
+    val expectations = new DynamicExpectations(conf)
+    scenario => !expectations.ignore(scenario.tags)
+  }
+
+  val isNotConfScoped: ScenarioFilter = s => !s.tags.exists(_.startsWith("@conf:"))
+
   def steps[T <: RecordedStep](scenario: RecordedScenario)(implicit ct: ClassTag[T]): Seq[T] =
     scenario.steps.collect { case step if ct.runtimeClass.isAssignableFrom(step.getClass) => step.asInstanceOf[T] }
 
@@ -190,6 +205,17 @@ object Filter {
     case _: SchemaCommand | _: AdministrationCommand | _: CommandClause => true
   }
   def isReadQuery(query: ParsedQuery): Boolean = isNotCommand(query) && doNotContainAst[UpdateClause](query)
+
+  def returnsAreSubqueryLegal(query: ParsedQuery): Boolean =
+    !query.ast.folder.treeFold(false) {
+      case _: SubqueryExpression                                        => acc => SkipChildren(acc)
+      case UnaliasedReturnItem(expr, _) if !expr.isInstanceOf[Variable] => _ => SkipChildren(true)
+    }
+
+  def isNotStandaloneCall(query: ParsedQuery): Boolean =
+    !query.ast.folder.treeExists { case uc: UnresolvedCall => uc.isStandalone }
+
+  def dropTrailingSemicolon(cypher: String): String = cypher.replaceAll(";\\s*$", "")
 }
 
 trait ScenarioRenderer {
@@ -268,8 +294,11 @@ trait ScenarioRenderer {
         case Exact           => ""
       }
       render(s"Then the result should be$orderString$precisionString:", expected)
-    case AssertResults(_, Result.ParallelOverride(_, _)) => ??? // TODO
-    case AssertApproxResults(_, _)                       => ??? // TODO
+    // Not renderable to Gherkin; generators must filter these out (see the composite/pagination filters).
+    case AssertResults(_, Result.ParallelOverride(_, _)) =>
+      throw new UnsupportedOperationException("ParallelOverride result assertion")
+    case AssertApproxResults(_, _) =>
+      throw new UnsupportedOperationException("approximate result assertion")
     case AssertGqlWarning(ExpectedGqlNotification(table, _)) =>
       render(s"Then notifications should be raised:", table)
     case AssertGqlError(ExpectedGqlError(table, _)) =>

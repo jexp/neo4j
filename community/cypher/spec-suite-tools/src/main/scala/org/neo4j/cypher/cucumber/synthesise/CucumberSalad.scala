@@ -23,7 +23,10 @@ import org.neo4j.cypher.cucumber.glue.regular.TestConf
 import org.neo4j.cypher.cucumber.synthesise.generator.AddIndex
 import org.neo4j.cypher.cucumber.synthesise.generator.CachingParser
 import org.neo4j.cypher.cucumber.synthesise.generator.CombineUncommitted
-import org.neo4j.cypher.cucumber.synthesise.generator.CompositeWrap
+import org.neo4j.cypher.cucumber.synthesise.generator.CompositeLocal
+import org.neo4j.cypher.cucumber.synthesise.generator.CompositeSeparate
+import org.neo4j.cypher.cucumber.synthesise.generator.CompositeSeparateImporting
+import org.neo4j.cypher.cucumber.synthesise.generator.CompositeStitched
 import org.neo4j.cypher.cucumber.synthesise.generator.Namespacing
 import org.neo4j.cypher.cucumber.synthesise.generator.ObfuscateExplain
 import org.neo4j.cypher.cucumber.synthesise.generator.Paginate
@@ -50,8 +53,17 @@ object CucumberSalad {
   /** Create pagination queries (SKIP + LIMIT) based on existing scenarios. */
   def pagination(args: Ingredients): ScenarioGenerator = new Paginate(args)
 
-  /** Wrap queries with `USE comp.data` so they run through a composite database's remote fragment. */
-  def compositeWrap(args: Ingredients): ScenarioGenerator = new CompositeWrap(args)
+  /** Run queries against a composite database's remote constituent, stitched — see [[CompositeStitched]]. */
+  def compositeStitched(args: Ingredients): ScenarioGenerator = new CompositeStitched(args)
+
+  /** Run queries against a composite database's *local* constituent — see [[CompositeLocal]]. */
+  def compositeLocal(args: Ingredients): ScenarioGenerator = new CompositeLocal(args)
+
+  /** Run queries against a composite database's remote constituent, separate — see [[CompositeSeparate]]. */
+  def compositeSeparate(args: Ingredients): ScenarioGenerator = new CompositeSeparate(args)
+
+  /** Separate, but carrying an import into the subquery — see [[CompositeSeparateImporting]]. */
+  def compositeSeparateImporting(args: Ingredients): ScenarioGenerator = new CompositeSeparateImporting(args)
 
   /** Wrap the query under test so every variable also lives in a second scope, stressing the Namespacer. */
   def namespacing(args: Ingredients): ScenarioGenerator = new Namespacing(args)

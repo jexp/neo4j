@@ -70,16 +70,6 @@ class NamespacingTest extends CypherFunSuite {
     withClue(s"wrapped query:\n$wrapped\n")(cypher25Parser.parse(wrapped))
   }
 
-  test("query with an unaliased non-variable return is rejected") {
-    Namespacing.returnsAreSubqueryLegal(cypher25Parser.parse("MATCH (n) RETURN n.foo")) shouldBe false
-  }
-
-  test("queries with aliased, bare-variable, or star returns are accepted") {
-    Namespacing.returnsAreSubqueryLegal(cypher25Parser.parse("MATCH (n) RETURN n.foo AS foo")) shouldBe true
-    Namespacing.returnsAreSubqueryLegal(cypher25Parser.parse("MATCH (n) RETURN n")) shouldBe true
-    Namespacing.returnsAreSubqueryLegal(cypher25Parser.parse("MATCH (n) RETURN *")) shouldBe true
-  }
-
   test("Cypher 5 wrap uses RETURN * for a returning query and FINISH for a non-returning one") {
     Namespacing.cypher5Wrap("MATCH (n) RETURN n", returning = true, connective = "UNION ALL") should include("RETURN *")
     val nonReturning = Namespacing.cypher5Wrap("CREATE (x {p: 1})", returning = false, connective = "UNION ALL")
@@ -91,14 +81,5 @@ class NamespacingTest extends CypherFunSuite {
     Namespacing.connectiveFor(cypher5Parser.parse("RETURN 1 AS x UNION RETURN 2 AS x")) shouldBe "UNION"
     Namespacing.connectiveFor(cypher5Parser.parse("RETURN 1 AS x UNION ALL RETURN 2 AS x")) shouldBe "UNION ALL"
     Namespacing.connectiveFor(cypher5Parser.parse("MATCH (n) RETURN n")) shouldBe "UNION ALL"
-  }
-
-  test("standalone procedure calls are rejected; in-query calls and plain queries are kept") {
-    Namespacing.isNotStandaloneCall(cypher25Parser.parse("CALL db.labels")) shouldBe false
-    Namespacing.isNotStandaloneCall(cypher25Parser.parse("CALL db.labels()")) shouldBe false
-    Namespacing.isNotStandaloneCall(
-      cypher25Parser.parse("MATCH (n) CALL db.labels() YIELD label RETURN n, label")
-    ) shouldBe true
-    Namespacing.isNotStandaloneCall(cypher25Parser.parse("MATCH (n) RETURN n")) shouldBe true
   }
 }

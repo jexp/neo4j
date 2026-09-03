@@ -22,7 +22,7 @@ package org.neo4j.cypher.cucumber.synthesise.generator
 import org.neo4j.cypher.internal.CypherVersion
 import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
-class CompositeWrapTest extends CypherFunSuite {
+class CompositeStitchedTest extends CypherFunSuite {
 
   private val parser = new CachingParser(CypherVersion.Cypher25)
   private val usePrefix = "USE comp.data\n"
@@ -31,7 +31,7 @@ class CompositeWrapTest extends CypherFunSuite {
   // top-level leaf for plain/UNION; one enclosing `USE ... { ... }` for WHEN/NEXT/braces), and the result must
   // remain valid, parseable Cypher (semantic/fabric validity is exercised by the composite feature-test run).
   private def assertRoutes(query: String, expectedUses: Int): Unit = {
-    val result = CompositeWrap.route(parser, usePrefix, query)
+    val result = CompositeUse.route(parser, usePrefix, query)
     withClue(s"wrapped query:\n$result\n") {
       assert(
         result.split("USE comp.data", -1).length - 1 == expectedUses,

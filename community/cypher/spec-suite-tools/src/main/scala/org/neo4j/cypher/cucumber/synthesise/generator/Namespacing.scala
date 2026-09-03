@@ -32,21 +32,16 @@ import org.neo4j.cypher.cucumber.synthesise.glue.scenario.ExecuteControl
 import org.neo4j.cypher.cucumber.synthesise.glue.scenario.ExecuteControlInOpenTx
 import org.neo4j.cypher.cucumber.synthesise.glue.scenario.ExecuteInOpenTx
 import org.neo4j.cypher.cucumber.synthesise.glue.scenario.RecordedScenario
-import org.neo4j.cypher.cucumber.synthesise.glue.scenario.TestExecution
 import org.neo4j.cypher.internal.CypherVersion
 import org.neo4j.cypher.internal.ast.Query
 import org.neo4j.cypher.internal.ast.SubqueryCall.InTransactionsParameters
-import org.neo4j.cypher.internal.ast.UnaliasedReturnItem
 import org.neo4j.cypher.internal.ast.UnionDistinct
-import org.neo4j.cypher.internal.ast.UnresolvedCall
 import org.neo4j.cypher.internal.ast.UseGraph
-import org.neo4j.cypher.internal.expressions.Variable
 
 import java.nio.file.Paths
 import java.util.concurrent.atomic.AtomicLong
 
 import scala.collection.View
-import scala.util.Try
 
 /**
  * Wraps the query under test so every variable of the original query `Q` also lives in a second, independent scope,
@@ -69,10 +64,10 @@ class Namespacing(val args: CucumberSalad.Ingredients) extends ScenarioGenerator
   private val leadingCypherOptions = "(?is)^(\\s*CYPHER\\s+(?:\\d+\\b\\s*)?(?:[a-zA-Z_.]+\\s*=\\s*\\S+\\s*)*)(.*)$".r
   private val leadingExplainOrProfile = "(?is)^(\\s*(?:explain|profile)\\b\\s*)(.*)$".r
 
-  private def wrap(cypher: String): String = cypher match {
+  private def wrap(cypher: String): String = Filter.dropTrailingSemicolon(cypher) match {
     case leadingCypherOptions(prefix, rest)     => prefix + wrap(rest)
     case leadingExplainOrProfile(keyword, rest) => keyword + wrapStatement(rest)
-    case _                                      => wrapStatement(cypher)
+    case stripped                               => wrapStatement(stripped)
   }
 
   private def wrapStatement(cypher: String): String = {
@@ -85,16 +80,14 @@ class Namespacing(val args: CucumberSalad.Ingredients) extends ScenarioGenerator
   }
 
   override def filter: Filter = super.filter
-    .allQueriesParse
     .steps[AssertGqlError](_.isEmpty)
     .steps[AssertApproxResults](_.isEmpty)
     .steps[AssertResults](_.forall(r => !r.assertion.isInstanceOf[Result.ParallelOverride]))
     .testQueries(qs => qs.nonEmpty && qs.forall(isNotCommand))
-    .testQueries(_.forall(Namespacing.returnsAreSubqueryLegal))
-    .testQueries(_.forall(Namespacing.isNotStandaloneCall))
+    .testQueries(_.forall(Filter.returnsAreSubqueryLegal))
+    .testQueries(_.forall(Filter.isNotStandaloneCall))
     .testQueries(_.forall(doNotContainAst[UseGraph]))
     .queries[Execute](_.forall(doNotContainAst[InTransactionsParameters]))
-    .scenario(s => Try(Filter.steps[TestExecution](s).foreach(e => args.parser.parse(wrap(e.cypher)))).isSuccess)
 
   override def generateScenarios(filteredScenarios: View[RecordedScenario]): IterableOnce[GeneratedScenario] =
     filteredScenarios.map(generateScenario)
@@ -118,26 +111,6 @@ class Namespacing(val args: CucumberSalad.Ingredients) extends ScenarioGenerator
 }
 
 object Namespacing {
-
-  /**
-   * In a subquery, a RETURN item must be aliased (`expr AS name`) or a bare variable (`RETURN n`); `RETURN *` is
-   * fine, but an unaliased expression like `RETURN n.foo` is illegal. A valid standalone `Q` can only have such
-   * unaliased-expression items at the top level (nested subqueries would already be invalid), so rejecting ANY
-   * unaliased-non-variable return item is correct and safe once `Q` is embedded inside `CALL () { Q }`.
-   */
-  def returnsAreSubqueryLegal(query: ParsedQuery): Boolean =
-    !query.ast.folder.treeExists {
-      case UnaliasedReturnItem(expr, _) => !expr.isInstanceOf[Variable]
-    }
-
-  /**
-   * A standalone procedure call (`CALL db.labels`, or `CALL proc()` without YIELD) relies on top-level-only leniencies
-   * and becomes illegal once embedded inside `CALL () { Q }` / a UNION branch, so it must be filtered out.
-   */
-  def isNotStandaloneCall(query: ParsedQuery): Boolean =
-    !query.ast.folder.treeExists {
-      case uc: UnresolvedCall => uc.isStandalone
-    }
 
   /**
    * The connective for the appended gated copy must match Q's own top-level union kind: Cypher forbids mixing UNION and
