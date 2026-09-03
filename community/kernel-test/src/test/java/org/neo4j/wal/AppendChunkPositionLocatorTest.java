@@ -26,6 +26,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.neo4j.storageengine.AppendIndexProvider.UNKNOWN_APPEND_INDEX;
 import static org.neo4j.storageengine.api.TransactionIdStore.BASE_TX_CHECKSUM;
+import static org.neo4j.storageengine.api.TransactionIdStore.UNKNOWN_CONSENSUS_INDEX;
 import static org.neo4j.storageengine.api.TransactionIdStore.UNKNOWN_TX_SEQUENCE_NUMBER;
 import static org.neo4j.test.LatestVersions.LATEST_KERNEL_VERSION;
 import static org.neo4j.test.LatestVersions.LATEST_LOG_FORMAT;
@@ -63,7 +64,15 @@ class AppendChunkPositionLocatorTest {
             UNKNOWN_TX_SEQUENCE_NUMBER,
             encodeLogIndex(42));
     private static final LogEntryRollback ROLLBACK = new LogEntryRollback(
-            LATEST_KERNEL_VERSION, 0, APPEND_INDEX, 2, 17, 7896, UNKNOWN_TX_SEQUENCE_NUMBER, UNKNOWN_APPEND_INDEX);
+            LATEST_KERNEL_VERSION,
+            0,
+            APPEND_INDEX,
+            2,
+            17,
+            7896,
+            UNKNOWN_TX_SEQUENCE_NUMBER,
+            UNKNOWN_APPEND_INDEX,
+            UNKNOWN_CONSENSUS_INDEX);
 
     private static final LogEntryCommand COMMAND = new LogEntryCommand(new TestCommand());
     private static final LogEntryCommit COMMIT =

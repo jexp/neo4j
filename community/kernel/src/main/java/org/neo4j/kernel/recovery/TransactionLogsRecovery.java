@@ -452,7 +452,8 @@ public class TransactionLogsRecovery extends LifecycleAdapter {
                             partialLastTransactionChunk.lastSeenChunkId(),
                             time,
                             UNKNOWN_TX_SEQUENCE_NUMBER,
-                            partialLastTransactionChunk.lastSeenAppendIndex());
+                            partialLastTransactionChunk.lastSeenAppendIndex(),
+                            UNKNOWN_CONSENSUS_INDEX);
                     if (i == (notCompletedTransactions.length - 1)) {
                         lastBatchInfo = new CommittedCommandBatchRepresentation.BatchInformation(
                                 notCompletedTransaction,

@@ -135,7 +135,8 @@ public class TransactionLogWriter implements LogWriter {
                     chunkId,
                     batch.getTimeCommitted(),
                     UNKNOWN_TX_SEQUENCE_NUMBER,
-                    previousBatchAppendIndex);
+                    previousBatchAppendIndex,
+                    batch.consensusIndex());
         }
 
         writer.writeBatchStart(

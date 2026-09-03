@@ -80,7 +80,8 @@ public final class LogEntryFactory {
             long chunkId,
             long timeWritten,
             long transactionSequenceNumber,
-            long lastBatchAppendIndex) {
+            long lastBatchAppendIndex,
+            long consensusIndex) {
         return new LogEntryRollback(
                 kernelVersion,
                 transactionId,
@@ -89,7 +90,8 @@ public final class LogEntryFactory {
                 timeWritten,
                 0,
                 transactionSequenceNumber,
-                lastBatchAppendIndex);
+                lastBatchAppendIndex,
+                consensusIndex);
     }
 
     public static LogEntry newChunkStartEntry(

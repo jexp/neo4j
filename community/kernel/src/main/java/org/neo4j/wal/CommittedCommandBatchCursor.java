@@ -91,7 +91,8 @@ public class CommittedCommandBatchCursor implements CommandBatchCursor {
                     rollback.getChecksum(),
                     previousChecksum,
                     rollback.getTransactionSequenceNumber(),
-                    rollback.getLastBatchAppendIndex());
+                    rollback.getLastBatchAppendIndex(),
+                    rollback.getConsensusIndex());
         } else if (entry instanceof LogEntryStart || entry instanceof LogEntryChunkStart) {
             LogEntry startEntry = entry;
             LogEntry endEntry;
