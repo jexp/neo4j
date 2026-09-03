@@ -19,11 +19,8 @@
  */
 package org.neo4j.io.pagecache.impl.muninn;
 
-import static org.neo4j.io.pagecache.context.TransactionIdSnapshot.isNotVisible;
-
 import java.io.IOException;
 import org.neo4j.io.pagecache.context.CursorContext;
-import org.neo4j.io.pagecache.context.VersionContext;
 import org.neo4j.io.pagecache.impl.muninn.swapper.PageSwapper;
 import org.neo4j.io.pagecache.tracing.PinEvent;
 
@@ -88,22 +85,13 @@ final class MuninnReadPageCursor extends MuninnPageCursor {
             long pagePointer = pointer;
             version = getLongAt(pagePointer, littleEndian);
             versionContext.observedChainHead(version);
-            if (shouldLoadSnapshot(version, versionContext, cursorContext.includeCurrentTransaction())) {
+            if (cursorContext.isNotVisibleVersion(version)) {
                 versionContext.markHeadInvisible();
                 if (chainFollow) {
                     versionStorage.loadReadSnapshot(this, versionContext, pinEvent);
                 }
             }
         }
-    }
-
-    private static boolean shouldLoadSnapshot(
-            long pageVersion, VersionContext versionContext, boolean includeCurrentTransaction) {
-        if (versionContext.initializedForWrite() && pageVersion == versionContext.committingTransactionId()) {
-            return !includeCurrentTransaction;
-        }
-        return pageVersion > versionContext.highestClosed()
-                || isNotVisible(versionContext.notVisibleTransactionIds(), pageVersion);
     }
 
     @Override

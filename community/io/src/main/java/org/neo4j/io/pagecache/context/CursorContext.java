@@ -78,6 +78,17 @@ public class CursorContext implements AutoCloseable {
         return includeCurrentTransaction;
     }
 
+    /**
+     * @return true if version is invisible to this context
+     */
+    public boolean isNotVisibleVersion(long version) {
+        if (versionContext.initializedForWrite() && version == versionContext.committingTransactionId()) {
+            return !includeCurrentTransaction;
+        }
+        return version > versionContext.highestClosed()
+                || TransactionIdSnapshot.isNotVisible(versionContext.notVisibleTransactionIds(), version);
+    }
+
     @Override
     public void close() {
         cursorTracer.close();
