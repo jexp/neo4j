@@ -41,6 +41,8 @@ import org.neo4j.logging.InternalLog;
 import org.neo4j.logging.InternalLogProvider;
 
 public class SslPolicy {
+    private static final List<String> DISABLED_CIPHERS = List.of("_CBC_", "_DH_", "_ECDH_");
+
     /* cryptographic objects */
     private final PrivateKey privateKey;
     private final X509Certificate[] keyCertChain;
@@ -105,10 +107,9 @@ public class SslPolicy {
                 var engine = context.newEngine(alloc);
                 var enabledCiphers = engine.getEnabledCipherSuites();
 
-                var filteredCiphers = Arrays.stream(enabledCiphers)
-                        .filter(cipher -> !cipher.contains("_CBC_"))
+                ciphers = Arrays.stream(enabledCiphers)
+                        .filter(cipher -> !DISABLED_CIPHERS.contains(cipher))
                         .toList();
-                ciphers = filteredCiphers;
             } catch (SSLException e) {
                 log.warn("Exception interrogating default enabled cipher suites", e);
             }
