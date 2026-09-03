@@ -42,16 +42,30 @@ public class ReadOnlyTransactionStore implements LogicalTransactionStore {
             Monitors monitors,
             CommandReaderFactory commandReaderFactory)
             throws IOException {
+        this(fs, fromDatabaseLayout, config, monitors, commandReaderFactory, false);
+    }
+
+    public ReadOnlyTransactionStore(
+            FileSystemAbstraction fs,
+            DatabaseLayout fromDatabaseLayout,
+            Config config,
+            Monitors monitors,
+            CommandReaderFactory commandReaderFactory,
+            boolean failOnUnsupportedLogVersion)
+            throws IOException {
         TransactionMetadataCache transactionMetadataCache = new TransactionMetadataCache();
-        LogFiles logFiles = LogFilesBuilder.readableBuilder(
+        LogFilesBuilder logFilesBuilder = LogFilesBuilder.readableBuilder(
                         fromDatabaseLayout,
                         fs,
                         KernelVersionProvider.THROWING_PROVIDER,
                         LogFormatVersionProvider.THROWING_PROVIDER)
                 .withCommandReaderFactory(commandReaderFactory)
                 .withConfig(config)
-                .withInitializeProviders()
-                .build();
+                .withInitializeProviders();
+        if (failOnUnsupportedLogVersion) {
+            logFilesBuilder = logFilesBuilder.withFailOnUnsupportedLogVersion();
+        }
+        LogFiles logFiles = logFilesBuilder.build();
         physicalStore = new PhysicalLogicalTransactionStore(
                 logFiles,
                 transactionMetadataCache,

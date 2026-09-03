@@ -110,6 +110,7 @@ public class LogFilesBuilder {
     private int bufferSizeBytes;
     private boolean readOnlyLogs;
     private boolean noInit;
+    private boolean failOnUnsupportedLogVersion;
     private boolean turnOffPreallocation;
     private LogPosition tailReadingMaxPosition = LogPosition.UNSPECIFIED;
     private RecoveryOutcome recoveryOutcome = RecoveryOutcome.EMPTY_OUTCOME;
@@ -290,6 +291,11 @@ public class LogFilesBuilder {
         return this;
     }
 
+    public LogFilesBuilder withFailOnUnsupportedLogVersion() {
+        this.failOnUnsupportedLogVersion = true;
+        return this;
+    }
+
     public LogFilesBuilder withInitializeProviders() {
         this.noInit = false;
         return this;
@@ -377,6 +383,7 @@ public class LogFilesBuilder {
                 memoryTracker,
                 monitors,
                 config.get(fail_on_corrupted_log_files),
+                failOnUnsupportedLogVersion,
                 health,
                 emptyLogskernelVersionProvider,
                 emptyLogsLogFormatProvider,

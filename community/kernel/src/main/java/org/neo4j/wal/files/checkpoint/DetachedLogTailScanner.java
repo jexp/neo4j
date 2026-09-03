@@ -92,6 +92,7 @@ public class DetachedLogTailScanner {
     private final MemoryTracker memoryTracker;
     private final CheckpointFile checkpointFile;
     private final boolean failOnCorruptedLogFiles;
+    private final boolean failOnUnsupportedLogVersion;
     private final FileSystemAbstraction fileSystem;
     private final KernelVersionProvider fallbackKernelVersionProvider;
     private final BinarySupportedKernelVersions binarySupportedKernelVersions;
@@ -114,6 +115,7 @@ public class DetachedLogTailScanner {
         this.checkpointFile = checkpointFile;
         this.fileSystem = context.fileSystem();
         this.failOnCorruptedLogFiles = context.failOnCorruptedLogFiles();
+        this.failOnUnsupportedLogVersion = context.failOnUnsupportedLogVersion();
         this.fallbackKernelVersionProvider = context.emptyDbKernelVersionProvider();
         this.fallbackLogFormatVersionProvider = context.emptyDbLogFormatVersionProvider();
         this.fallbackLogTermProvider = context.logTermProvider();
@@ -199,7 +201,8 @@ public class DetachedLogTailScanner {
                         checkpoint.appendIndex(),
                         transactionLogPosition,
                         memoryTracker,
-                        maxPosition));
+                        maxPosition,
+                        failOnUnsupportedLogVersion));
     }
 
     private PostCheckpointInfo getPostCheckpointInfo(
@@ -255,7 +258,8 @@ public class DetachedLogTailScanner {
                         UNKNOWN_APPEND_INDEX,
                         startPosition,
                         memoryTracker,
-                        maxPosition),
+                        maxPosition,
+                        failOnUnsupportedLogVersion),
                 storeId);
     }
 

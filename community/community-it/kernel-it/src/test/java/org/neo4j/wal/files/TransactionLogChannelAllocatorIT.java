@@ -279,6 +279,7 @@ class TransactionLogChannelAllocatorIT {
                 INSTANCE,
                 new Monitors(),
                 true,
+                false,
                 new DatabaseHealth(HealthEventGenerator.NO_OP, NullLog.getInstance()),
                 LatestVersions.LATEST_KERNEL_VERSION_PROVIDER,
                 LATEST_LOG_FORMAT_PROVIDER,

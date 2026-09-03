@@ -53,6 +53,7 @@ public record TransactionLogFilesContext(
         MemoryTracker memoryTracker,
         Monitors monitors,
         boolean failOnCorruptedLogFiles,
+        boolean failOnUnsupportedLogVersion,
         DatabaseHealth databaseHealth,
         KernelVersionProvider emptyDbKernelVersionProvider,
         LogFormatVersionProvider emptyDbLogFormatVersionProvider,

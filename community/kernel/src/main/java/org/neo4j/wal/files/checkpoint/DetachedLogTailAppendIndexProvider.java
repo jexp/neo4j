@@ -53,6 +53,7 @@ public class DetachedLogTailAppendIndexProvider implements LastAppendBatchInfoPr
     private final CommandReaderFactory commandReaderFactory;
     private final MemoryTracker memoryTracker;
     private final LogPosition maxPosition;
+    private final boolean failOnUnsupportedLogVersion;
 
     public DetachedLogTailAppendIndexProvider(
             CommandReaderFactory commandReaderFactory,
@@ -62,7 +63,8 @@ public class DetachedLogTailAppendIndexProvider implements LastAppendBatchInfoPr
             long startingAppendIndex,
             LogPosition logPosition,
             MemoryTracker memoryTracker,
-            LogPosition maxPosition) {
+            LogPosition maxPosition,
+            boolean failOnUnsupportedLogVersion) {
         this.logFile = logFile;
         this.kernelVersion = kernelVersion;
         this.startingAppendIndex = startingAppendIndex;
@@ -77,6 +79,7 @@ public class DetachedLogTailAppendIndexProvider implements LastAppendBatchInfoPr
         this.commandReaderFactory = commandReaderFactory;
         this.memoryTracker = memoryTracker;
         this.maxPosition = maxPosition;
+        this.failOnUnsupportedLogVersion = failOnUnsupportedLogVersion;
     }
 
     @Override
@@ -161,7 +164,12 @@ public class DetachedLogTailAppendIndexProvider implements LastAppendBatchInfoPr
                                 return new AppendBatchInfo(appendIndex, postLogPosition);
                             }
                         }
-                    } catch (IOException | IllegalStateException | UnsupportedLogVersionException e) {
+                    } catch (UnsupportedLogVersionException e) {
+                        if (failOnUnsupportedLogVersion) {
+                            throw e;
+                        }
+                        return new AppendBatchInfo(appendIndex, postLogPosition);
+                    } catch (IOException | IllegalStateException e) {
                         // error on reading log file returning last known existing
                         return new AppendBatchInfo(appendIndex, postLogPosition);
                     }
@@ -169,6 +177,8 @@ public class DetachedLogTailAppendIndexProvider implements LastAppendBatchInfoPr
                 currentFileVersion--;
             }
             return new AppendBatchInfo(appendIndex, postLogPosition);
+        } catch (UnsupportedLogVersionException e) {
+            throw e;
         } catch (Throwable t) {
             throw new RuntimeException("Unable to retrieve last append index", t);
         }
