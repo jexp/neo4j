@@ -1349,7 +1349,7 @@ case object AdministrationCommandPlanBuilder extends Phase[PlannerContext, BaseS
                   DropDatabaseAction
                 ))
                   .map(plans.AssertNotShardedDatabase(_, dbName, "CREATE OR REPLACE DATABASE", "delete"))
-                  .map(plans.EnsureDatabaseSafeToDelete(_, dbName, Restrict))
+                  .map(plans.EnsureDatabaseSafeToDelete(_, dbName, Restrict, "CREATE OR REPLACE DATABASE"))
                   .map(plans.DropDatabase(_, dbName, DestroyData, forceComposite = false, Restrict))
               case IfExistsDoNothing =>
                 Some(canCreateCheck)
@@ -1380,7 +1380,7 @@ case object AdministrationCommandPlanBuilder extends Phase[PlannerContext, BaseS
                   DropDatabaseAction
                 ))
                   .map(plans.AssertNotShardedDatabase(_, dbName, "CREATE OR REPLACE DATABASE", "delete"))
-                  .map(plans.EnsureDatabaseSafeToDelete(_, dbName, Restrict))
+                  .map(plans.EnsureDatabaseSafeToDelete(_, dbName, Restrict, "CREATE OR REPLACE DATABASE"))
                   .map(plans.DropDatabase(_, dbName, DestroyData, forceComposite = false, Restrict))
               case IfExistsDoNothing =>
                 Some(canCreateCheck)
@@ -1419,7 +1419,7 @@ case object AdministrationCommandPlanBuilder extends Phase[PlannerContext, BaseS
                   DropDatabaseAction
                 ))
                   .map(plans.AssertNotShardedDatabase(_, dbName, "CREATE OR REPLACE REPLICA DATABASE", "delete"))
-                  .map(plans.EnsureDatabaseSafeToDelete(_, dbName, Restrict))
+                  .map(plans.EnsureDatabaseSafeToDelete(_, dbName, Restrict, "CREATE OR REPLACE REPLICA DATABASE"))
                   .map(plans.DropDatabase(_, dbName, DestroyData, forceComposite = false, Restrict))
               case IfExistsDoNothing =>
                 Some(canCreateCheck)
@@ -1462,7 +1462,7 @@ case object AdministrationCommandPlanBuilder extends Phase[PlannerContext, BaseS
                     "CREATE OR REPLACE COMPOSITE DATABASE",
                     "delete"
                   ))
-                  .map(plans.EnsureDatabaseSafeToDelete(_, dbName, Restrict))
+                  .map(plans.EnsureDatabaseSafeToDelete(_, dbName, Restrict, "CREATE OR REPLACE COMPOSITE DATABASE"))
                   .map(plans.DropDatabase(_, dbName, DestroyData, forceComposite = false, Restrict))
               case IfExistsDoNothing =>
                 Some(canCreateCheck)
@@ -1514,7 +1514,7 @@ case object AdministrationCommandPlanBuilder extends Phase[PlannerContext, BaseS
             )
           else assertAllowed
         )
-          .map(plans.EnsureDatabaseSafeToDelete(_, dbName, aliasAction))
+          .map(plans.EnsureDatabaseSafeToDelete(_, dbName, aliasAction, "DROP DATABASE"))
           .map(plans.EnsureValidNonSystemDatabase(_, "DROP DATABASE", dbName, "delete"))
           .map(plans.AssertNotInvalidActionOnShard(_, dbName, "DROP DATABASE", "delete"))
           .map(plans.DropDatabase(_, dbName, additionalAction, composite, aliasAction))

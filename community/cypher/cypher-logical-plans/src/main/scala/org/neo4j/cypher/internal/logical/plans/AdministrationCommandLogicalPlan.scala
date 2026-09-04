@@ -770,7 +770,8 @@ case class EnsureValidNonSystemDatabase(
 case class EnsureDatabaseSafeToDelete(
   source: AdministrationCommandLogicalPlan,
   databaseName: DatabaseName,
-  aliasAction: DropDatabaseAliasAction
+  aliasAction: DropDatabaseAliasAction,
+  action: String
 )(implicit idGen: IdGen)
     extends DatabaseAdministrationLogicalPlan(Some(source))
 
