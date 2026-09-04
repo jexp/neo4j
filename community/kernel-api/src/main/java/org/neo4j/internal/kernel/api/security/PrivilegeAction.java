@@ -92,6 +92,7 @@ public enum PrivilegeAction {
     SHOW_SECRETS,
 
     SHOW_USER,
+    SHOW_USER_CREDENTIALS,
     CREATE_USER,
     RENAME_USER,
     SET_USER_STATUS,
@@ -254,18 +255,8 @@ public enum PrivilegeAction {
         @Override
         public boolean satisfies(PrivilegeAction action) {
             return switch (action) {
-                case CREATE_USER, RENAME_USER, DROP_USER -> true;
-                default -> ALTER_USER.satisfies(action) || SHOW_USER_CREDENTIALS.satisfies(action) || this == action;
-            };
-        }
-    },
-
-    SHOW_USER_CREDENTIALS {
-        @Override
-        public boolean satisfies(PrivilegeAction action) {
-            return switch (action) {
-                case SHOW_USER -> true;
-                default -> this == action;
+                case CREATE_USER, RENAME_USER, DROP_USER, SHOW_USER, SHOW_USER_CREDENTIALS -> true;
+                default -> ALTER_USER.satisfies(action) || this == action;
             };
         }
     },
