@@ -2447,20 +2447,21 @@ public final class CypherFunctions {
             AnyValue entity, AnyValue[] dynamicTypes, RelationshipScanCursor relCursor, QueryContext queryContext)
             throws IllegalTokenNameException {
         assert entity != NO_VALUE : "NO_VALUE checks need to happen outside this call";
+        boolean anyMatch = false;
         if (entity instanceof VirtualRelationshipValue relationship) {
             for (var typ : dynamicTypes) {
                 if (typ instanceof TextValue textValue) {
                     if (hasType(relationship, textValue, relCursor, queryContext)) {
-                        return true;
+                        anyMatch = true;
                     }
                 } else if (typ instanceof SequenceValue typeSeq) {
                     for (var t : typeSeq) {
                         if (t instanceof TextValue textValue) {
                             if (hasType(relationship, textValue, relCursor, queryContext)) {
-                                return true;
+                                anyMatch = true;
                             }
                         } else {
-                            throw CypherTypeException.expectedStringOrListOfStringsNotNull(
+                            throw CypherTypeException.expectedStringNotNull(
                                     "Expected relationship type to be a string or list of strings.",
                                     t == NO_VALUE ? "NULL" : t.prettyPrint(),
                                     CypherTypeValueMapper.valueType(t));
@@ -2478,7 +2479,7 @@ public final class CypherFunctions {
                     entity.toString(), entity.prettyPrint(), CypherTypeValueMapper.valueType(entity));
         }
 
-        return false;
+        return anyMatch;
     }
 
     public static AnyValue nodes(AnyValue in) {

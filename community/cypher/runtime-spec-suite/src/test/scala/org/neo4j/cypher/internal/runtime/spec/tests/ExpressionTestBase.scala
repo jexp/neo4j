@@ -1289,6 +1289,20 @@ abstract class ExpressionTestBase[CONTEXT <: RuntimeContext](edition: Edition[CO
     an[IllegalTokenNameException] shouldBe thrownBy(theDynamicType(Array("", "\u0000")))
     an[IllegalTokenNameException] shouldBe thrownBy(theDynamicType(Array("C", "\u0000")))
     an[IllegalTokenNameException] shouldBe thrownBy(theDynamicType(Array("", "C")))
+    // a match on an earlier element must not skip validation of later elements
+    the[CypherTypeException] thrownBy theDynamicType(
+      Array[Any]("R", 1)
+    ) should have message "Expected relationship type to be a string or list of strings."
+    the[CypherTypeException] thrownBy theDynamicType(
+      Array[Any]("R", null)
+    ) should have message "Expected relationship type to be a string or list of strings."
+    an[IllegalTokenNameException] shouldBe thrownBy(theDynamicType(Array("R", "\u0000")))
+    an[IllegalTokenNameException] shouldBe thrownBy(theDynamicType(Array("R", "")))
+    // valid lists still match regardless of element order
+    execute(logicalQuery, runtime, inputValues(Array(rel, Array("R", "S")))) should
+      beColumns("r").withRows(singleColumn(Seq(rel)))
+    execute(logicalQuery, runtime, inputValues(Array(rel, Array("S", "R")))) should
+      beColumns("r").withRows(singleColumn(Seq(rel)))
   }
 
   test("should get type of relationship") {
