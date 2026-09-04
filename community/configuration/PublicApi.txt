@@ -228,6 +228,7 @@ org.neo4j.configuration.connectors.BoltConnector::discovery_broadcast_jitter org
 org.neo4j.configuration.connectors.BoltConnector::discovery_listen_port org.neo4j.graphdb.config.Setting<java.lang.Integer> public static final
 org.neo4j.configuration.connectors.BoltConnector::enable_discovery org.neo4j.graphdb.config.Setting<java.lang.Boolean> public static final
 org.neo4j.configuration.connectors.BoltConnector::enable_error_accounting org.neo4j.graphdb.config.Setting<java.lang.Boolean> public static final
+org.neo4j.configuration.connectors.BoltConnector::enable_object_messages_local_connector org.neo4j.graphdb.config.Setting<java.lang.Boolean> public static final
 org.neo4j.configuration.connectors.BoltConnector::enable_unix_socket org.neo4j.graphdb.config.Setting<java.lang.Boolean> public static final
 org.neo4j.configuration.connectors.BoltConnector::enable_unix_socket_auth org.neo4j.graphdb.config.Setting<java.lang.Boolean> public static final
 org.neo4j.configuration.connectors.BoltConnector::enabled org.neo4j.graphdb.config.Setting<java.lang.Boolean> public static final

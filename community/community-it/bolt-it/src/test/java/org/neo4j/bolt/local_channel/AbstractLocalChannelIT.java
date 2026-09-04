@@ -37,7 +37,7 @@ import org.neo4j.boltmessages.response.FailureMessage;
 import org.neo4j.boltmessages.response.RecordMessage;
 import org.neo4j.boltmessages.response.ResponseMessage;
 import org.neo4j.boltmessages.response.SuccessMessage;
-import org.neo4j.configuration.connectors.BoltConnectorInternalSettings;
+import org.neo4j.configuration.connectors.BoltConnector;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.storable.LongValue;
 import org.neo4j.values.storable.StringValue;
@@ -195,6 +195,6 @@ abstract class AbstractLocalChannelIT {
 
     @SettingsFunction
     protected static void customizeSettings(SettingBuilder settings) {
-        settings.set(BoltConnectorInternalSettings.enable_object_messages_local_connector, true);
+        settings.set(BoltConnector.enable_object_messages_local_connector, true);
     }
 }

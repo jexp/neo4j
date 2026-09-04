@@ -40,6 +40,7 @@ import org.neo4j.bolt.tx.TransactionManager;
 import org.neo4j.collection.Dependencies;
 import org.neo4j.configuration.Config;
 import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.configuration.connectors.BoltConnector;
 import org.neo4j.configuration.connectors.BoltConnectorInternalSettings;
 import org.neo4j.configuration.connectors.ConnectorPortRegister;
 import org.neo4j.configuration.connectors.ConnectorType;
@@ -204,7 +205,7 @@ public abstract class AbstractNeoWebServer extends LifecycleAdapter implements N
                 availableController = this.queryController;
                 if (availableController == null) {
                     QueryApiBoltConnectionProviderFactory.setUseJavaObjects(
-                            config.get(BoltConnectorInternalSettings.enable_object_messages_local_connector));
+                            config.get(BoltConnector.enable_object_messages_local_connector));
                     QueryApiBoltConnectionProviderFactory.setPreconfiguredProtocolVersion(config.get(
                             BoltConnectorInternalSettings.enable_object_messages_protocol_version_local_connector));
                     driverFactory = new LocalChannelDriverFactory(

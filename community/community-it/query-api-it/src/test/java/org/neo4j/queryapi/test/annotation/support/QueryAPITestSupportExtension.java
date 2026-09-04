@@ -83,7 +83,7 @@ public class QueryAPITestSupportExtension
                             BoltConnectorInternalSettings.local_channel_address,
                             context.getDisplayName() + transportType.name())
                     .setConfig(
-                            BoltConnectorInternalSettings.enable_object_messages_local_connector,
+                            BoltConnector.enable_object_messages_local_connector,
                             transportType == BoltTransportType.LOCAL_CHANNEL_POJO)
                     .setConfig(GraphDatabaseSettings.auth_enabled, annotation.authEnabled())
                     .setConfig(BoltConnector.enabled, true)

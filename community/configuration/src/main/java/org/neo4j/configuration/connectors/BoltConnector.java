@@ -157,6 +157,11 @@ public final class BoltConnector implements SettingsDeclaration {
                     "server.bolt.thread_pool_keep_alive", DURATION, ofMinutes(5))
             .build();
 
+    @Description("Enabled of disabled object messages on local bolt connector .")
+    public static final Setting<Boolean> enable_object_messages_local_connector = newBuilder(
+                    "dbms.bolt.local_connector.object_transport_enabled", BOOL, false)
+            .build();
+
     @Description(
             "Enables accounting-based reporting of benign errors within the Bolt stack. When enabled, benign errors are reported only when such events occur with unusual frequency. When disabled, all benign network errors are reported.")
     public static final Setting<Boolean> enable_error_accounting = newBuilder(

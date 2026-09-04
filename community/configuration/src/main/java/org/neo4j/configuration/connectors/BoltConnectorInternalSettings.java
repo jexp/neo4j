@@ -286,11 +286,6 @@ public final class BoltConnectorInternalSettings implements SettingsDeclaration 
             newBuilder("internal.dbms.bolt.local_enabled", BOOL, true).build();
 
     @Internal
-    @Description("Enabled of disabled object messages on local bolt connector .")
-    public static final Setting<Boolean> enable_object_messages_local_connector =
-            newBuilder("internal.dbms.bolt.local_object_enabled", BOOL, false).build();
-
-    @Internal
     @Description("Define protocol version of object messages on local bolt connector .")
     public static final Setting<ConfiguredProtocolVersion> enable_object_messages_protocol_version_local_connector =
             newBuilder(

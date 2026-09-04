@@ -398,6 +398,9 @@ public final class SettingMigrators {
                         "unsupported.dbms.bolt.inbound_message_throttle.low_watermark",
                         "internal.dbms.bolt.inbound_message_throttle.low_watermark"),
                 new Mapping(
+                        "internal.dbms.bolt.local_object_enabled",
+                        "dbms.bolt.local_connector.object_transport_enabled"),
+                new Mapping(
                         "unsupported.dbms.bolt.netty_message_merge_cumulator",
                         "internal.dbms.bolt.netty_message_merge_cumulator"),
                 new Mapping(

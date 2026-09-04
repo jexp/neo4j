@@ -840,8 +840,7 @@ public class BoltServer extends LifecycleAdapter {
             ThreadAccountant threadAccountant) {
         var config = LocalConnectorConfiguration.factory()
                 .fromConfig(this.config)
-                .enableJavaObjectMessages(
-                        this.config.get(BoltConnectorInternalSettings.enable_object_messages_local_connector));
+                .enableJavaObjectMessages(this.config.get(BoltConnector.enable_object_messages_local_connector));
 
         Optional.ofNullable(this.config.get(
                         BoltConnectorInternalSettings.enable_object_messages_protocol_version_local_connector))
