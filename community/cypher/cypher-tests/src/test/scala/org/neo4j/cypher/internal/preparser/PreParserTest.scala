@@ -677,4 +677,37 @@ class PreParserTest extends CommunityCypherTestSuite {
       }
     }
   }
+
+  test("dynamically changing the planner version invalidates already pre-parser-cached queries") {
+    // Picked dynamically (rather than hardcoding e.g. v2026_04) so this test keeps working once today's
+    // non-default version is retired and a newer one takes its place.
+    val otherOption = CypherPlannerVersionOption.supportedValues
+      .diff(Seq(
+        CypherPlannerVersionOption.experimental,
+        CypherPlannerVersionOption.next,
+        CypherPlannerVersionOption.default
+      ))
+      .diff(CypherPlannerVersionOption.retired.toSeq)
+      .head
+    val otherJavaVersion = GraphDatabaseInternalSettings.CypherPlannerVersion.values()
+      .find(v => OptionReader.canonical(v.toString) == otherOption.name)
+      .get
+
+    val config = Config.defaults()
+    val cachingPreParser = new CachingPreParser(
+      CypherConfiguration.fromConfig(config),
+      new LFUCache[PreParsedQuery.CacheKey, PreParsedQuery](TestExecutorCaffeineCacheFactory, 10)
+    )
+
+    def resolvedPlannerVersion(): CypherPlannerVersionOption =
+      cachingPreParser
+        .preParseQuery("RETURN 42", devNullLogger, CypherVersion.Legacy.legacyVersion())
+        .options.queryOptions.plannerVersionOption
+
+    resolvedPlannerVersion() shouldEqual CypherPlannerVersionOption.default
+
+    config.setDynamic(GraphDatabaseInternalSettings.cypher_planner_version, otherJavaVersion, "Test")
+
+    resolvedPlannerVersion() shouldEqual otherOption
+  }
 }

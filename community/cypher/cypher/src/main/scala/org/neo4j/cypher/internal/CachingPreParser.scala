@@ -23,6 +23,7 @@ import org.antlr.v4.runtime.BailErrorStrategy
 import org.antlr.v4.runtime.CommonTokenStream
 import org.antlr.v4.runtime.InputMismatchException
 import org.antlr.v4.runtime.misc.ParseCancellationException
+import org.neo4j.configuration.GraphDatabaseInternalSettings
 import org.neo4j.cypher.internal.PreParser.queryOptions
 import org.neo4j.cypher.internal.cache.CypherQueryCaches.CacheStrategy
 import org.neo4j.cypher.internal.cache.LFUCache
@@ -79,6 +80,14 @@ class CachingPreParser(
   configuration: CypherConfiguration,
   preParserCache: LFUCache[PreParsedQuery.CacheKey, PreParsedQuery]
 ) extends PreParser(configuration) {
+
+  // The cache key is the raw query text alone, so a query already resolved and cached under the old
+  // planner version would otherwise keep returning that stale resolution forever, even though
+  // CypherConfiguration.plannerVersion itself re-reads the live config value on every call.
+  configuration.config.addListener[GraphDatabaseInternalSettings.CypherPlannerVersion](
+    GraphDatabaseInternalSettings.cypher_planner_version,
+    (_, _) => clearCache()
+  )
 
   /**
    * Clear the pre-parser query cache.

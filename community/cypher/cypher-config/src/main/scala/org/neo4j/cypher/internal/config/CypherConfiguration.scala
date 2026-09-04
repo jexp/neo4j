@@ -136,7 +136,7 @@ class CypherConfiguration private (val config: Config) {
   val planVarExpandInto: CypherPlanVarExpandInto =
     CypherPlanVarExpandInto.fromConfig(config)
 
-  val plannerVersion: CypherPlannerVersionOption =
+  def plannerVersion: CypherPlannerVersionOption =
     CypherPlannerVersionOption.fromConfig(config)
 
   val errorIfShortestPathFallbackUsedAtRuntime: Boolean =

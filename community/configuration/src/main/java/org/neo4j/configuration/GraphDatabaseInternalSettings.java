@@ -292,6 +292,7 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
             + "pre-parser option, which takes precedence over this setting.")
     public static final Setting<CypherPlannerVersion> cypher_planner_version = newBuilder(
                     "internal.cypher.planner_version", ofEnum(CypherPlannerVersion.class), CypherPlannerVersion.LATEST)
+            .dynamic()
             .build();
 
     public enum PlanVarExpandInto {

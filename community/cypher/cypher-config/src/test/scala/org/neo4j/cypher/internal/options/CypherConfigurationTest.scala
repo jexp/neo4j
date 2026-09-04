@@ -69,4 +69,29 @@ class CypherConfigurationTest extends CypherFunSuite {
 
     features shouldBe Set("semanticTestFeature1", "semanticTestFeature2")
   }
+
+  test("plannerVersion reflects a dynamic config update without recreating CypherConfiguration") {
+    // Picked dynamically (rather than hardcoding e.g. v2026_04) so this test keeps working once today's
+    // non-default version is retired and a newer one takes its place.
+    val otherOption = CypherPlannerVersionOption.supportedValues
+      .diff(Seq(
+        CypherPlannerVersionOption.experimental,
+        CypherPlannerVersionOption.next,
+        CypherPlannerVersionOption.default
+      ))
+      .diff(CypherPlannerVersionOption.retired.toSeq)
+      .head
+    val otherJavaVersion = GraphDatabaseInternalSettings.CypherPlannerVersion.values()
+      .find(v => OptionReader.canonical(v.toString) == otherOption.name)
+      .get
+
+    val config = Config.defaults()
+    val cypherConfiguration = CypherConfiguration.fromConfig(config)
+
+    cypherConfiguration.plannerVersion shouldBe CypherPlannerVersionOption.default
+
+    config.setDynamic(GraphDatabaseInternalSettings.cypher_planner_version, otherJavaVersion, "Test")
+
+    cypherConfiguration.plannerVersion shouldBe otherOption
+  }
 }
