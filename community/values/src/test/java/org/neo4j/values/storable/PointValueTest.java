@@ -38,9 +38,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.neo4j.exceptions.InvalidArgumentException;
+import org.neo4j.exceptions.InvalidSpatialArgumentException;
 import org.neo4j.gqlstatus.ErrorGqlStatusObjectAssertions;
 import org.neo4j.gqlstatus.GqlStatusInfoCodes;
+import org.neo4j.values.AnyValue;
 import org.neo4j.values.Comparison;
+import org.neo4j.values.virtual.VirtualValues;
 
 class PointValueTest {
     long seed;
@@ -423,6 +426,64 @@ class PointValueTest {
                         "error: data exception - invalid argument. Invalid argument: cannot process 'two'.");
     }
 
+    @Test
+    final void shouldNotBeAbleToParsePointsWithSridOutsideIntRange() {
+        // 4326 + 2^32 must not wrap to a valid CRS code
+        assertUnsupportedCrs("{x: 12, y: 56, srid: 4294971622}", "4294971622");
+        // 4979 + 2^32
+        assertUnsupportedCrs("{x: 12, y: 56, z: 1, srid: 4294972275}", "4294972275");
+        // 2726 + 2^32 must report the typed value, not the wrapped 2726
+        assertUnsupportedCrs("{x: 1, y: 2, srid: 4294970022}", "4294970022");
+        // 2^32 - 1 used to wrap onto the internal "unset" marker and silently default the CRS
+        assertUnsupportedCrs("{x: 1, y: 2, srid: 4294967295}", "4294967295");
+        // 2^31, the first value outside int range
+        assertUnsupportedCrs("{x: 1, y: 2, srid: 2147483648}", "2147483648");
+        // 2^31 - 1 stays in range and errors through the normal lookup, proving no wrap at the boundary
+        assertUnsupportedCrs("{x: 1, y: 2, srid: 2147483647}", "2147483647");
+    }
+
+    @Test
+    final void shouldNotBeAbleToParsePointsWithNegativeSrid() {
+        // -1 is the internal marker for "no SRID specified" and must not be user-assignable
+        assertUnsupportedCrs("{x: 1, y: 2, srid: -1}", "-1");
+        // CARTESIAN (7203) * -1
+        assertUnsupportedCrs("{x: 1, y: 2, srid: -7203}", "-7203");
+        // 2^31 * -1
+        assertUnsupportedCrs("{x: 1, y: 2, srid: -2147483648}", "-2147483648");
+        // 2^32 * -1
+        assertUnsupportedCrs("{x: 1, y: 2, srid: -4294967296}", "-4294967296");
+    }
+
+    @Test
+    final void shouldNotWrapSridFromMapInput() {
+        // Cypher literals and parameters beyond int range reach PointValue.fromMap as IntegralValues
+        assertFromMapFailsWithUnsupportedCrs(Values.longValue(4294971622L), "4294971622");
+        assertFromMapFailsWithUnsupportedCrs(Values.longValue(4294967295L), "4294967295");
+        assertFromMapFailsWithUnsupportedCrs(Values.intValue(-1), "-1");
+
+        assertThat(PointValue.fromMap(VirtualValues.map(
+                        new String[] {"x", "y", "srid"},
+                        new AnyValue[] {Values.doubleValue(1.0), Values.doubleValue(2.0), Values.longValue(4326L)})))
+                .isEqualTo(pointValue(WGS_84, 1.0, 2.0));
+    }
+
+    @Test
+    final void shouldBeAbleToParsePointWithSridFromHeaderInformation() {
+        // the canonical CSV scenario: the header declares the SRID, the data cell omits it
+        assertThat(PointValue.parse("{x: 1, y: 2}", PointValue.parseHeaderInformation("{srid: 4326}")))
+                .isEqualTo(pointValue(WGS_84, 1.0, 2.0));
+
+        // data fields override header fields
+        assertThat(PointValue.parse("{x: 1, y: 2, srid: 7203}", PointValue.parseHeaderInformation("{srid: 4326}")))
+                .isEqualTo(pointValue(CARTESIAN, 1.0, 2.0));
+
+        // a typed -1 in the data is an error, not a fallback to the header
+        ErrorGqlStatusObjectAssertions.assertThatThrownBy(() ->
+                        PointValue.parse("{x: 1, y: 2, srid: -1}", PointValue.parseHeaderInformation("{srid: 4326}")))
+                .isInstanceOf(InvalidSpatialArgumentException.class)
+                .hasMessage("Unknown coordinate reference system: code=-1");
+    }
+
     final double randomFiniteDouble() {
         final var bytes = new byte[Double.BYTES];
         double value;
@@ -505,5 +566,24 @@ class PointValueTest {
 
     private static AbstractThrowableAssert<?, ? extends Throwable> assertCannotParse(String text) {
         return assertThatThrownBy(() -> PointValue.parse(text)).isInstanceOf(InvalidArgumentException.class);
+    }
+
+    private static void assertUnsupportedCrs(String text, String code) {
+        ErrorGqlStatusObjectAssertions.assertThatThrownBy(() -> PointValue.parse(text))
+                .isInstanceOf(InvalidSpatialArgumentException.class)
+                .hasMessage("Unknown coordinate reference system: code=" + code)
+                .hasGqlStatus(GqlStatusInfoCodes.STATUS_22000)
+                .gqlCause()
+                .hasGqlStatus(GqlStatusInfoCodes.STATUS_22N21)
+                .hasStatusDescription("error: data exception - unsupported coordinate reference system. "
+                        + "Unsupported coordinate reference system (CRS): code=" + code + ".");
+    }
+
+    private static void assertFromMapFailsWithUnsupportedCrs(AnyValue srid, String code) {
+        ErrorGqlStatusObjectAssertions.assertThatThrownBy(() -> PointValue.fromMap(VirtualValues.map(
+                        new String[] {"x", "y", "srid"},
+                        new AnyValue[] {Values.doubleValue(1.0), Values.doubleValue(2.0), srid})))
+                .isInstanceOf(InvalidSpatialArgumentException.class)
+                .hasMessage("Unknown coordinate reference system: code=" + code);
     }
 }

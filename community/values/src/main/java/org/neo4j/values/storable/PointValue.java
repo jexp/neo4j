@@ -475,7 +475,7 @@ public class PointValue extends HashMemoizingScalarValue implements Point, Compa
                     if (srid != -1) {
                         throw InvalidArgumentException.duplicateFieldNotAllowed(key);
                     }
-                    assignIntegral(key, value, i -> srid = i);
+                    assignSrid(value);
                 }
 
                 default -> {}
@@ -520,16 +520,23 @@ public class PointValue extends HashMemoizingScalarValue implements Point, Compa
             }
         }
 
-        private static void assignIntegral(String key, Object value, Consumer<Integer> assigner) {
+        private void assignSrid(Object value) {
+            long sridValue;
             if (value instanceof String s) {
-                assigner.accept(assertConvertible(() -> Integer.parseInt(s), s));
+                sridValue = assertConvertible(() -> Long.parseLong(s), s);
             } else if (value instanceof IntegralValue) {
-                assigner.accept((int) ((IntegralValue) value).longValue());
+                sridValue = ((IntegralValue) value).longValue();
             } else {
                 String prettyVal = value instanceof Value v ? v.prettyPrint() : String.valueOf(value);
                 throw InvalidArgumentException.cannotAssignPointField(
-                        String.valueOf(value), key, prettyVal, List.of("INTEGER"));
+                        String.valueOf(value), "srid", prettyVal, List.of("INTEGER"));
             }
+            // The CRS catalog only holds codes far below 2^31, so anything outside int range cannot be a
+            // valid code; -1 is the internal marker for "no SRID specified" and must not be user-assignable.
+            if (sridValue == -1 || sridValue > Integer.MAX_VALUE || sridValue < Integer.MIN_VALUE) {
+                throw InvalidSpatialArgumentException.invalidCoordinateSystem(sridValue);
+            }
+            srid = (int) sridValue;
         }
 
         private static <T extends Number> T assertConvertible(Supplier<T> func, String input) {

@@ -75,6 +75,10 @@ public class InvalidSpatialArgumentException extends InvalidArgumentException {
         return invalidCoordinateSystem("code=" + crs);
     }
 
+    public static InvalidSpatialArgumentException invalidCoordinateSystem(long crs) {
+        return invalidCoordinateSystem("code=" + crs);
+    }
+
     public static InvalidSpatialArgumentException invalidCoordinateSystem(String crs) {
         var gql = GqlHelper.getGql22000_22N21(crs);
         return new InvalidSpatialArgumentException(gql, "Unknown coordinate reference system: " + crs);
