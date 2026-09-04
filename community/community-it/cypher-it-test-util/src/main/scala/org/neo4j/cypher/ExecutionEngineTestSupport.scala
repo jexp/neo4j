@@ -50,6 +50,7 @@ import org.neo4j.kernel.impl.query.TransactionalContext
 import org.neo4j.kernel.impl.util.ValueUtils
 import org.neo4j.logging.InternalLogProvider
 import org.neo4j.logging.NullLogProvider
+import org.neo4j.storageengine.api.txstate.validation.TransactionConflictException
 
 import java.util.concurrent.TimeUnit
 
@@ -323,7 +324,7 @@ case class ExecutableQuery(
     try {
       block
     } catch {
-      case _: DeadlockDetectedException =>
+      case _: DeadlockDetectedException | _: TransactionConflictException =>
         retry(block)
     }
   }
