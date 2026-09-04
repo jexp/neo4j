@@ -21,6 +21,8 @@ package org.neo4j.kernel.impl.newapi;
 
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.neo4j.graphdb.Label.label;
 import static org.neo4j.graphdb.RelationshipType.withName;
 import static org.neo4j.internal.kernel.api.InternalIndexState.ONLINE;
@@ -300,6 +302,38 @@ public abstract class DefaultPooledCursorsTestBase<G extends KernelAPIReadTestSu
                 cursors.allocateRelationshipValueIndexCursor(NULL_CONTEXT, EmptyMemoryTracker.INSTANCE);
         assertThat(c1).isSameAs(c2);
         c2.close();
+    }
+
+    @Test
+    void shouldReportAllLeakedCursorKindsByName() throws Exception {
+        KernelTransaction tx = beginTransaction();
+        // Allocate two cursors of different kinds and never return them to the pool.
+        tx.cursors().allocateNodeCursor(NULL_CONTEXT);
+        tx.cursors().allocatePropertyCursor(NULL_CONTEXT, EmptyMemoryTracker.INSTANCE);
+
+        IllegalStateException leaked = null;
+        try {
+            tx.commit();
+        } catch (IllegalStateException e) {
+            leaked = e;
+        }
+        assertThat(leaked)
+                .as("leaked cursors should make commit throw an IllegalStateException")
+                .isNotNull()
+                .hasMessageContaining("node (index 0)")
+                .hasMessageContaining("property (index 6)")
+                .hasMessageContaining("track_cursor_close");
+    }
+
+    @Test
+    void shouldAcceptLeakedCursorReturnedAfterPoolRelease() throws Exception {
+        KernelTransaction tx = beginTransaction();
+        NodeCursor cursor = tx.cursors().allocateNodeCursor(NULL_CONTEXT);
+
+        // The leaked cursor makes commit throw, but it is still outstanding and
+        // must be accepted when finally returned to the pool.
+        assertThatThrownBy(tx::commit).isInstanceOf(IllegalStateException.class);
+        assertThatCode(cursor::close).doesNotThrowAnyException();
     }
 
     private static int[] array(int... elements) {

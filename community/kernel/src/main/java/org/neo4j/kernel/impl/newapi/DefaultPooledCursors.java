@@ -55,6 +55,24 @@ public class DefaultPooledCursors extends DefaultCursors implements CursorFactor
     private static final int RELATIONSHIP_TYPE_INDEX = 12;
     private static final int FULL_RELATIONSHIP_TYPE_INDEX = 13;
 
+    // Must stay aligned with the slot constants above: CURSOR_KINDS[i] names the cursor type at index i.
+    private static final String[] CURSOR_KINDS = {
+        "node",
+        "full access node",
+        "relationship scan",
+        "full access relationship scan",
+        "relationship traversal",
+        "full access relationship traversal",
+        "property",
+        "full access property",
+        "node value index",
+        "node label index",
+        "full access node label index",
+        "relationship value index",
+        "relationship type index",
+        "full access relationship type index",
+    };
+
     private final StorageReader storageReader;
     private final StoreCursors storeCursors;
     private final StorageEngineIndexingBehaviour indexingBehaviour;
@@ -138,7 +156,8 @@ public class DefaultPooledCursors extends DefaultCursors implements CursorFactor
         }
         cursor.removeTracer();
         if (numNonReturnedCursors[trackingIndex] == 0) {
-            throw new IllegalStateException("Returned too many cursors to the pool, index:" + trackingIndex);
+            throw new IllegalStateException(
+                    "Returned too many cursors to the pool, kind:" + CURSOR_KINDS[trackingIndex]);
         }
         numNonReturnedCursors[trackingIndex]--;
         return cursor;
@@ -535,12 +554,26 @@ public class DefaultPooledCursors extends DefaultCursors implements CursorFactor
         relationshipTypeIndexCursor = null;
         fullAccessRelationshipTypeIndexCursor = null;
 
+        var leaked = new StringBuilder();
+        // Leaked counts are kept: they track cursors still outstanding, which may yet be returned after this
+        // throws. The throw marks the owning transaction as failed cleanup, so it is disposed rather than reused.
         for (int i = 0; i < numNonReturnedCursors.length; i++) {
             int numNonReturned = numNonReturnedCursors[i];
             if (numNonReturned != 0) {
-                throw new IllegalStateException("Not all allocated cursors were returned, index:" + i);
+                if (!leaked.isEmpty()) {
+                    leaked.append("; ");
+                }
+                leaked.append(CURSOR_KINDS[i])
+                        .append(" (index ")
+                        .append(i)
+                        .append("): ")
+                        .append(numNonReturned);
             }
-            numNonReturnedCursors[i] = 0;
+        }
+        if (!leaked.isEmpty()) {
+            throw new IllegalStateException("Not all allocated cursors were returned: " + leaked
+                    + ". Enable internal.dbms.debug.track_cursor_close and internal.dbms.debug.trace_cursors"
+                    + " to capture the allocating stack trace of the leaked cursor.");
         }
     }
 
