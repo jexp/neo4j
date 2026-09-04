@@ -136,6 +136,7 @@ import org.neo4j.internal.schema.SchemaDescriptors;
 import org.neo4j.internal.schema.SchemaNameUtil;
 import org.neo4j.internal.schema.SettingsAccessor.IndexConfigAccessor;
 import org.neo4j.internal.schema.constraints.ConstraintDescriptorFactory;
+import org.neo4j.internal.schema.constraints.DefaultValue;
 import org.neo4j.internal.schema.constraints.IndexBackedConstraintDescriptor;
 import org.neo4j.internal.schema.constraints.KeyConstraintDescriptor;
 import org.neo4j.internal.schema.constraints.NodeLabelExistenceConstraintDescriptor;
@@ -2751,7 +2752,11 @@ public class Operations implements Write, SchemaWrite, Upgrade {
 
     @Override
     public ConstraintDescriptor propertyTypeConstraintCreate(
-            SchemaDescriptor schema, String name, PropertyTypeSet propertyType, boolean isDependent)
+            SchemaDescriptor schema,
+            String name,
+            PropertyTypeSet propertyType,
+            DefaultValue defaultValue,
+            boolean isDependent)
             throws KernelException {
         ensureCursors();
         if (schema.getPropertyIds().length != 1) {
@@ -2759,9 +2764,22 @@ public class Operations implements Write, SchemaWrite, Upgrade {
         }
         assertSupportedInVersion(
                 KernelVersion.VERSION_TYPE_CONSTRAINTS_INTRODUCED, "Creating a property type constraint");
+        if (defaultValue != null) {
+            assertSupportedInVersion(
+                    KernelVersion.VERSION_TYPE_CONSTRAINT_DEFAULT_VALUE_INTRODUCED,
+                    "Having default value on a property type constraint");
+            Value exampleValue = defaultValue.value();
+            if (TypeRepresentation.disallows(propertyType, exampleValue)) {
+                TypeConstraintDescriptor wouldBeConstraint = ConstraintDescriptorFactory.typeForSchema(
+                                schema, propertyType, isDependent)
+                        .withDefaultValue(defaultValue);
+                throw CreateConstraintFailureException.constraintCreationFailed(
+                        wouldBeConstraint, token, "Default value doesn't match " + propertyType);
+            }
+        }
 
         ConstraintDescriptor constraint =
-                lockAndValidatePropertyTypeConstraint(schema, name, propertyType, isDependent);
+                lockAndValidatePropertyTypeConstraint(schema, name, propertyType, defaultValue, isDependent);
 
         TypeConstraintDescriptor descriptor = constraint.asPropertyTypeConstraint();
 
@@ -2948,10 +2966,13 @@ public class Operations implements Write, SchemaWrite, Upgrade {
     }
 
     private ConstraintDescriptor lockAndValidatePropertyTypeConstraint(
-            SchemaDescriptor descriptor, String name, PropertyTypeSet propertyType, boolean isDependent)
+            SchemaDescriptor descriptor,
+            String name,
+            PropertyTypeSet propertyType,
+            DefaultValue defaultValue,
+            boolean isDependent)
             throws KernelException {
-
-        TypeRepresentation.validate(propertyType);
+        TypeRepresentation.validate(propertyType, defaultValue);
 
         boolean isUnion = TypeRepresentation.isUnion(propertyType);
         boolean hasListType = TypeRepresentation.hasListTypes(propertyType);
@@ -2973,7 +2994,10 @@ public class Operations implements Write, SchemaWrite, Upgrade {
         }
 
         return lockAndValidateNonIndexPropertyConstraint(
-                descriptor, desc -> ConstraintDescriptorFactory.typeForSchema(desc, propertyType, isDependent), name);
+                descriptor,
+                desc -> ConstraintDescriptorFactory.typeForSchema(desc, propertyType, isDependent)
+                        .withDefaultValue(defaultValue),
+                name);
     }
 
     private ConstraintDescriptor lockAndValidateNonIndexPropertyConstraint(

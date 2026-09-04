@@ -246,6 +246,7 @@ object ConstraintCommandPlanner {
         label.name,
         prop.head.propertyKey.name,
         PropertyTypeMapper.asPropertyTypeSet(propertyType),
+        null,
         false,
         false
       ))
@@ -270,6 +271,7 @@ object ConstraintCommandPlanner {
         relType.name,
         prop.head.propertyKey.name,
         PropertyTypeMapper.asPropertyTypeSet(propertyType),
+        null,
         false,
         false
       ))

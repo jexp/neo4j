@@ -40,7 +40,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
-import org.neo4j.common.EntityType;
 import org.neo4j.exceptions.KernelException;
 import org.neo4j.internal.kernel.api.InternalIndexState;
 import org.neo4j.internal.kernel.api.SchemaRead;
@@ -1641,6 +1640,7 @@ public abstract class SchemaReadWriteTestBase<G extends KernelAPIWriteTestSuppor
                             entityType.createSchemaDescriptor(entityToken, prop1),
                             null,
                             PropertyTypeSet.of(SchemaValueType.BOOLEAN),
+                            null,
                             false);
             transaction.commit();
         }
@@ -1667,6 +1667,7 @@ public abstract class SchemaReadWriteTestBase<G extends KernelAPIWriteTestSuppor
                             entityType.createSchemaDescriptor(entityToken, prop1),
                             null,
                             PropertyTypeSet.of(SchemaValueType.BOOLEAN),
+                            null,
                             false);
             transaction.commit();
         }
@@ -1698,6 +1699,7 @@ public abstract class SchemaReadWriteTestBase<G extends KernelAPIWriteTestSuppor
                             entityType.createSchemaDescriptor(entityToken, prop1),
                             "existing constraint",
                             PropertyTypeSet.of(SchemaValueType.BOOLEAN),
+                            null,
                             false);
             transaction.commit();
         }
@@ -1710,6 +1712,7 @@ public abstract class SchemaReadWriteTestBase<G extends KernelAPIWriteTestSuppor
                             entityType.createSchemaDescriptor(entityToken, prop2),
                             "new constraint",
                             PropertyTypeSet.of(SchemaValueType.BOOLEAN),
+                            null,
                             false);
             SchemaRead schemaRead = transaction.schemaRead();
             assertTrue(schemaRead.constraintExists(existing));
@@ -1735,6 +1738,7 @@ public abstract class SchemaReadWriteTestBase<G extends KernelAPIWriteTestSuppor
                             entityType.createSchemaDescriptor(entityToken, prop1),
                             "constraint name",
                             PropertyTypeSet.of(SchemaValueType.BOOLEAN),
+                            null,
                             false);
             transaction.commit();
         }

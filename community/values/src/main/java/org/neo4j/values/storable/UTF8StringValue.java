@@ -644,8 +644,11 @@ public final class UTF8StringValue extends StringValue {
         return ValueRepresentation.UTF8_TEXT;
     }
 
+    /**
+     * @return a copy of the relevant range of the underlying byte array.
+     */
     public byte[] bytes() {
-        return bytes;
+        return Arrays.copyOfRange(bytes, offset, offset + byteLength);
     }
 
     private static int codePoint(byte[] bytes, byte currentByte, int i, int bytesNeeded) {

@@ -347,6 +347,7 @@ class SchemaCommandConverter(config: Config) {
             entityName,
             singleProperty(properties),
             PropertyTypeMapper.asPropertyTypeSet(propType),
+            null,
             false,
             ifNotExists(ifExistsDo)
           )
@@ -361,6 +362,7 @@ class SchemaCommandConverter(config: Config) {
             entityName,
             singleProperty(properties),
             PropertyTypeMapper.asPropertyTypeSet(propType),
+            null,
             false,
             ifNotExists(ifExistsDo)
           )

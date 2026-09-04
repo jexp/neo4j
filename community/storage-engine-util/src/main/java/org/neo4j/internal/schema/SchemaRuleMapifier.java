@@ -31,16 +31,17 @@ import org.neo4j.common.EntityType;
 import org.neo4j.internal.kernel.api.exceptions.schema.MalformedSchemaRuleException;
 import org.neo4j.internal.schema.constraints.ConstrainableType;
 import org.neo4j.internal.schema.constraints.ConstraintDescriptorFactory;
+import org.neo4j.internal.schema.constraints.DefaultValue;
 import org.neo4j.internal.schema.constraints.IndexBackedConstraintDescriptor;
 import org.neo4j.internal.schema.constraints.NodeLabelExistenceConstraintDescriptor;
 import org.neo4j.internal.schema.constraints.PropertyTypeSet;
 import org.neo4j.internal.schema.constraints.RelationshipEndpointLabelConstraintDescriptor;
 import org.neo4j.internal.schema.constraints.TypeConstraintDescriptor;
 import org.neo4j.internal.schema.constraints.TypeRepresentation;
-import org.neo4j.string.UTF8;
 import org.neo4j.util.VisibleForTesting;
-import org.neo4j.values.storable.ByteArray;
+import org.neo4j.values.ValueGenerators;
 import org.neo4j.values.storable.IntArray;
+import org.neo4j.values.storable.IntValue;
 import org.neo4j.values.storable.LongValue;
 import org.neo4j.values.storable.StringArray;
 import org.neo4j.values.storable.TextValue;
@@ -79,6 +80,10 @@ public class SchemaRuleMapifier {
     private static final String PROP_INDEX_TYPE = PROP_SCHEMA_RULE_PREFIX + "indexType";
     private static final String PROP_CONSTRAINT_ALLOWED_TYPES = PROP_SCHEMA_RULE_PREFIX + "propertyType";
     private static final String PROP_INDEX_CONFIG_PREFIX = PROP_SCHEMA_RULE_PREFIX + "IndexConfig.";
+    private static final String PROP_CONSTRAINT_DEFAULT_VALUE_CONSTANT =
+            PROP_SCHEMA_RULE_PREFIX + "defaultValueConstant";
+    private static final String PROP_CONSTRAINT_DEFAULT_VALUE_GENERATOR =
+            PROP_SCHEMA_RULE_PREFIX + "defaultValueGenerator";
 
     /**
      * Remove the {@link #PROP_SCHEMA_RULE_PREFIX} from a property name if it is prefixed
@@ -214,6 +219,18 @@ public class SchemaRuleMapifier {
                     typeArray[i++] = constraintType.serialize();
                 }
                 putStringArrayProperty(map, PROP_CONSTRAINT_ALLOWED_TYPES, typeArray);
+
+                Optional<DefaultValue> defaultValue = typeConstraintDescriptor.defaultValue();
+                if (defaultValue.isPresent()) {
+                    if (defaultValue.get() instanceof DefaultValue.Constant constant) {
+                        map.put(PROP_CONSTRAINT_DEFAULT_VALUE_CONSTANT, constant.value());
+                    } else if (defaultValue.get() instanceof DefaultValue.Generator generator) {
+                        putIntProperty(map, PROP_CONSTRAINT_DEFAULT_VALUE_GENERATOR, generator.generatorId());
+                    } else {
+                        throw new UnsupportedOperationException(
+                                "Unsupported default value generator: " + defaultValue.get());
+                    }
+                }
             }
             case RELATIONSHIP_ENDPOINT_LABEL -> {
                 RelationshipEndpointLabelConstraintDescriptor relationshipEndpointLabelConstraintDescriptor =
@@ -278,7 +295,6 @@ public class SchemaRuleMapifier {
         Value value = map.get(property);
         return switch (value) {
             case TextValue textValue -> textValue.stringValue();
-            case ByteArray byteArray -> UTF8.decode(byteArray.asObject());
             case null, default ->
                 throw MalformedSchemaRuleException.propertyTypeMismatch(property, value, TextValue.class);
         };
@@ -295,6 +311,10 @@ public class SchemaRuleMapifier {
 
     private static void putLongProperty(Map<String, Value> map, String property, long value) {
         map.put(property, Values.longValue(value));
+    }
+
+    private static void putIntProperty(Map<String, Value> map, String property, int value) {
+        map.put(property, Values.intValue(value));
     }
 
     private static void putIntArrayProperty(Map<String, Value> map, String property, int[] value) {
@@ -399,11 +419,14 @@ public class SchemaRuleMapifier {
                 yield constraint;
             }
 
-            case PROPERTY_TYPE ->
-                ConstraintDescriptorFactory.typeForSchema(
+            case PROPERTY_TYPE -> {
+                TypeConstraintDescriptor constraint = ConstraintDescriptorFactory.typeForSchema(
                         schema,
                         getAllowedTypes(getStringArray(PROP_CONSTRAINT_ALLOWED_TYPES, props)),
                         graphTypeDependence == GraphTypeDependence.DEPENDENT);
+                constraint = constraint.withDefaultValue(getDefaultValue(props));
+                yield constraint;
+            }
 
             case RELATIONSHIP_ENDPOINT_LABEL ->
                 ConstraintDescriptorFactory.relationshipEndpointLabelForSchema(
@@ -416,6 +439,19 @@ public class SchemaRuleMapifier {
                         schema.asNodeLabelExistenceSchemaDescriptor(),
                         (int) getLong(PROP_SCHEMA_NODE_LABEL_EXISTENCE_REQUIRED_LABEL_ID, props));
         };
+    }
+
+    private static DefaultValue getDefaultValue(Map<String, Value> props) {
+        Value constant = props.get(PROP_CONSTRAINT_DEFAULT_VALUE_CONSTANT);
+        if (constant != null) {
+            return new DefaultValue.Constant(constant);
+        }
+        Value generatorIdValue = props.get(PROP_CONSTRAINT_DEFAULT_VALUE_GENERATOR);
+        if (generatorIdValue != null) {
+            int generatorId = ((IntValue) generatorIdValue).intValue();
+            return new DefaultValue.Generator(ValueGenerators.byId(generatorId));
+        }
+        return null;
     }
 
     private static SchemaDescriptor buildSchemaDescriptor(Map<String, Value> props)

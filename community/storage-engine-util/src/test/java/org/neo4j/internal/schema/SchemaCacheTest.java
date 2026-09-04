@@ -55,9 +55,14 @@ import org.neo4j.internal.helpers.collection.Iterables;
 import org.neo4j.internal.helpers.collection.Iterators;
 import org.neo4j.internal.schema.IndexQuery.IndexQueryType;
 import org.neo4j.internal.schema.constraints.ConstraintDescriptorFactory;
+import org.neo4j.internal.schema.constraints.DefaultValue;
+import org.neo4j.internal.schema.constraints.PropertyTypeSet;
+import org.neo4j.internal.schema.constraints.SchemaValueType;
+import org.neo4j.internal.schema.constraints.TypeConstraintDescriptor;
 import org.neo4j.storageengine.api.StandardConstraintRuleAccessor;
 import org.neo4j.test.Race;
 import org.neo4j.util.Preconditions;
+import org.neo4j.values.ValueGenerators;
 import org.neo4j.values.storable.ValueCategory;
 
 class SchemaCacheTest {
@@ -81,6 +86,19 @@ class SchemaCacheTest {
                     forSemanticSearch(RELATIONSHIP, new int[] {3, 5}, new int[] {8}))
             .withName("index_14")
             .materialise(14);
+    private final TypeConstraintDescriptor typeConstraint = ConstraintDescriptorFactory.typeForSchema(
+                    SchemaDescriptors.forLabel(1, 1), PropertyTypeSet.of(SchemaValueType.STRING), false)
+            .withId(15);
+    private final TypeConstraintDescriptor typeConstraintWithDefaultValueNode =
+            ConstraintDescriptorFactory.typeForSchema(
+                            SchemaDescriptors.forLabel(2, 2), PropertyTypeSet.of(SchemaValueType.UUID), true)
+                    .withDefaultValue(new DefaultValue.Generator(ValueGenerators.uuid))
+                    .withId(16);
+    private final TypeConstraintDescriptor typeConstraintWithDefaultValueRel =
+            ConstraintDescriptorFactory.typeForSchema(
+                            SchemaDescriptors.forRelType(2, 2), PropertyTypeSet.of(SchemaValueType.UUID), true)
+                    .withDefaultValue(new DefaultValue.Generator(ValueGenerators.uuid))
+                    .withId(17);
 
     @Test
     void shouldConstructSchemaCache() {
@@ -1085,6 +1103,90 @@ class SchemaCacheTest {
         // then
         assertThat(cache.indexForName("I")).isEqualTo(index);
         assertThat(cache.constraintForName("C")).isNull();
+    }
+
+    @Test
+    void shouldProvideTypeConstraintsWithDefaultValue() {
+        // given
+        var cache = newSchemaCache();
+        assertThat(cache.hasAnyTypeConstraintWithDefaultValue(NODE)).isFalse();
+        assertThat(cache.hasAnyTypeConstraintWithDefaultValue(RELATIONSHIP)).isFalse();
+
+        // when/then
+        cache.addSchemaRule(typeConstraint);
+        assertThat(cache.hasAnyTypeConstraintWithDefaultValue(NODE)).isFalse();
+        assertThat(cache.hasAnyTypeConstraintWithDefaultValue(RELATIONSHIP)).isFalse();
+
+        // when/then
+        cache.addSchemaRule(typeConstraintWithDefaultValueNode);
+        assertThat(cache.typeConstraintsWithDefaultValue(
+                        typeConstraintWithDefaultValueNode.schema().getLabelId(), NODE))
+                .hasSameElementsAs(List.of(typeConstraintWithDefaultValueNode));
+        assertThat(cache.hasAnyTypeConstraintWithDefaultValue(RELATIONSHIP)).isFalse();
+
+        // when/then
+        cache.addSchemaRule(typeConstraintWithDefaultValueRel);
+        assertThat(cache.typeConstraintsWithDefaultValue(
+                        typeConstraintWithDefaultValueNode.schema().getLabelId(), NODE))
+                .hasSameElementsAs(List.of(typeConstraintWithDefaultValueNode));
+        assertThat(cache.typeConstraintsWithDefaultValue(
+                        typeConstraintWithDefaultValueRel.schema().getRelTypeId(), RELATIONSHIP))
+                .hasSameElementsAs(List.of(typeConstraintWithDefaultValueRel));
+    }
+
+    @Test
+    void shouldRemoveTypeConstraintWithDefaultValueFromCache() {
+        // given
+        var cache = newSchemaCache();
+        cache.addSchemaRule(typeConstraintWithDefaultValueNode);
+        cache.addSchemaRule(typeConstraintWithDefaultValueRel);
+        assertThat(cache.typeConstraintsWithDefaultValue(
+                        typeConstraintWithDefaultValueNode.schema().getLabelId(), NODE))
+                .hasSameElementsAs(List.of(typeConstraintWithDefaultValueNode));
+        assertThat(cache.typeConstraintsWithDefaultValue(
+                        typeConstraintWithDefaultValueRel.schema().getRelTypeId(), RELATIONSHIP))
+                .hasSameElementsAs(List.of(typeConstraintWithDefaultValueRel));
+
+        // when/then
+        cache.removeSchemaRule(typeConstraintWithDefaultValueNode);
+        assertThat(cache.hasAnyTypeConstraintWithDefaultValue(NODE)).isFalse();
+        assertThat(cache.typeConstraintsWithDefaultValue(
+                        typeConstraintWithDefaultValueRel.schema().getRelTypeId(), RELATIONSHIP))
+                .hasSameElementsAs(List.of(typeConstraintWithDefaultValueRel));
+
+        // when/then
+        cache.removeSchemaRule(typeConstraintWithDefaultValueRel);
+        assertThat(cache.hasAnyTypeConstraintWithDefaultValue(NODE)).isFalse();
+        assertThat(cache.hasAnyTypeConstraintWithDefaultValue(RELATIONSHIP)).isFalse();
+    }
+
+    @Test
+    void shouldSnapshotTypeConstraintsWithDefaultValues() {
+        // given
+        var cache = newSchemaCache();
+        cache.addSchemaRule(typeConstraintWithDefaultValueNode);
+        cache.addSchemaRule(typeConstraintWithDefaultValueRel);
+        SchemaCache snapshot = cache.snapshot();
+        assertThat(snapshot.typeConstraintsWithDefaultValue(
+                        typeConstraintWithDefaultValueNode.schema().getLabelId(), NODE))
+                .hasSameElementsAs(List.of(typeConstraintWithDefaultValueNode));
+        assertThat(snapshot.typeConstraintsWithDefaultValue(
+                        typeConstraintWithDefaultValueRel.schema().getRelTypeId(), RELATIONSHIP))
+                .hasSameElementsAs(List.of(typeConstraintWithDefaultValueRel));
+
+        // when
+        cache.removeSchemaRule(typeConstraintWithDefaultValueNode);
+        cache.removeSchemaRule(typeConstraintWithDefaultValueRel);
+        assertThat(cache.hasAnyTypeConstraintWithDefaultValue(NODE)).isFalse();
+        assertThat(cache.hasAnyTypeConstraintWithDefaultValue(RELATIONSHIP)).isFalse();
+
+        // then
+        assertThat(snapshot.typeConstraintsWithDefaultValue(
+                        typeConstraintWithDefaultValueNode.schema().getLabelId(), NODE))
+                .hasSameElementsAs(List.of(typeConstraintWithDefaultValueNode));
+        assertThat(snapshot.typeConstraintsWithDefaultValue(
+                        typeConstraintWithDefaultValueRel.schema().getRelTypeId(), RELATIONSHIP))
+                .hasSameElementsAs(List.of(typeConstraintWithDefaultValueRel));
     }
 
     // HELPERS

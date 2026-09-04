@@ -1024,7 +1024,13 @@ public abstract class SchemaCommandReaderTest {
                     REQUIRE c.prop IS :: STRING
                     """,
                         new NodePropertyType(
-                                null, "LabelName", "prop", PropertyTypeSet.of(SchemaValueType.STRING), false, false)),
+                                null,
+                                "LabelName",
+                                "prop",
+                                PropertyTypeSet.of(SchemaValueType.STRING),
+                                null,
+                                false,
+                                false)),
                 arguments(
                         """
                     CREATE CONSTRAINT testing
@@ -1036,6 +1042,7 @@ public abstract class SchemaCommandReaderTest {
                                 "LabelName",
                                 "prop",
                                 PropertyTypeSet.of(SchemaValueType.STRING),
+                                null,
                                 false,
                                 false)),
                 arguments(
@@ -1049,6 +1056,7 @@ public abstract class SchemaCommandReaderTest {
                                 "LabelName",
                                 "prop",
                                 PropertyTypeSet.of(SchemaValueType.INTEGER),
+                                null,
                                 false,
                                 true)),
                 arguments(
@@ -1062,6 +1070,7 @@ public abstract class SchemaCommandReaderTest {
                                 "LabelName",
                                 "prop",
                                 PropertyTypeSet.of(VectorType.int8Vector(128)),
+                                null,
                                 false,
                                 true)),
                 arguments(
@@ -1075,6 +1084,7 @@ public abstract class SchemaCommandReaderTest {
                                 "LabelName",
                                 "prop",
                                 PropertyTypeSet.of(VectorType.int8Vector(128)),
+                                null,
                                 false,
                                 true)),
                 arguments(
@@ -1088,6 +1098,7 @@ public abstract class SchemaCommandReaderTest {
                                 "LabelName",
                                 "prop",
                                 PropertyTypeSet.of(VectorType.int16Vector(128)),
+                                null,
                                 false,
                                 true)),
                 arguments(
@@ -1101,6 +1112,7 @@ public abstract class SchemaCommandReaderTest {
                                 "LabelName",
                                 "prop",
                                 PropertyTypeSet.of(VectorType.int32Vector(128)),
+                                null,
                                 false,
                                 true)),
                 arguments(
@@ -1114,6 +1126,7 @@ public abstract class SchemaCommandReaderTest {
                                 "LabelName",
                                 "prop",
                                 PropertyTypeSet.of(VectorType.int64Vector(128)),
+                                null,
                                 false,
                                 true)),
                 arguments(
@@ -1127,6 +1140,7 @@ public abstract class SchemaCommandReaderTest {
                                 "LabelName",
                                 "prop",
                                 PropertyTypeSet.of(VectorType.float32Vector(128)),
+                                null,
                                 false,
                                 true)),
                 arguments(
@@ -1140,6 +1154,7 @@ public abstract class SchemaCommandReaderTest {
                                 "LabelName",
                                 "prop",
                                 PropertyTypeSet.of(VectorType.float64Vector(128)),
+                                null,
                                 false,
                                 true)),
                 arguments("""
@@ -1228,7 +1243,13 @@ public abstract class SchemaCommandReaderTest {
                     REQUIRE c.prop IS :: STRING
                     """,
                         new RelationshipPropertyType(
-                                null, "RelName", "prop", PropertyTypeSet.of(SchemaValueType.STRING), false, false)),
+                                null,
+                                "RelName",
+                                "prop",
+                                PropertyTypeSet.of(SchemaValueType.STRING),
+                                null,
+                                false,
+                                false)),
                 arguments(
                         """
                     CREATE CONSTRAINT testing
@@ -1240,6 +1261,7 @@ public abstract class SchemaCommandReaderTest {
                                 "RelName",
                                 "prop",
                                 PropertyTypeSet.of(SchemaValueType.STRING),
+                                null,
                                 false,
                                 false)),
                 arguments(
@@ -1253,6 +1275,7 @@ public abstract class SchemaCommandReaderTest {
                                 "RelName",
                                 "prop",
                                 PropertyTypeSet.of(SchemaValueType.INTEGER),
+                                null,
                                 false,
                                 true)),
                 arguments("""

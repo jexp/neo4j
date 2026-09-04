@@ -30,6 +30,7 @@ import org.neo4j.internal.schema.ConstraintDescriptor;
 import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.internal.schema.SchemaDescriptor;
 import org.neo4j.internal.schema.constraints.IndexBackedConstraintDescriptor;
+import org.neo4j.internal.schema.constraints.TypeConstraintDescriptor;
 import org.neo4j.io.pagecache.context.CursorContext;
 import org.neo4j.memory.MemoryTracker;
 import org.neo4j.storageengine.api.cursor.StoreCursors;
@@ -72,6 +73,10 @@ public interface StorageReader extends AutoCloseable, StorageSchemaReader {
             int[] propertyKeyIds,
             boolean propertyKeyListIsComplete,
             EntityType entityType);
+
+    boolean hasAnyTypeConstraintWithDefaultValue(EntityType entityType);
+
+    Collection<TypeConstraintDescriptor> typeConstraintsWithDefaultValue(int entityTokenId, EntityType entityType);
 
     boolean hasRelatedSchema(int[] tokens, int propertyKey, EntityType entityType);
 

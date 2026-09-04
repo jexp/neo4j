@@ -270,6 +270,7 @@ class UpdateCountingQueryContextTest extends InterpretedRuntimeTestSuite {
       "label",
       "prop",
       PropertyTypeSet.of(SchemaValueType.INTEGER),
+      null,
       false,
       false
     ))
@@ -283,6 +284,7 @@ class UpdateCountingQueryContextTest extends InterpretedRuntimeTestSuite {
       "label",
       "prop",
       PropertyTypeSet.of(SchemaValueType.INTEGER),
+      null,
       false,
       false
     ))
@@ -332,6 +334,7 @@ class UpdateCountingQueryContextTest extends InterpretedRuntimeTestSuite {
       "rel",
       "prop",
       PropertyTypeSet.of(SchemaValueType.INTEGER),
+      null,
       false,
       false
     ))
@@ -345,6 +348,7 @@ class UpdateCountingQueryContextTest extends InterpretedRuntimeTestSuite {
       "rel",
       "prop",
       PropertyTypeSet.of(SchemaValueType.INTEGER),
+      null,
       false,
       false
     ))

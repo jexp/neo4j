@@ -24,6 +24,7 @@ import org.neo4j.graphdb.schema.ConstraintDefinition;
 import org.neo4j.graphdb.schema.IndexType;
 import org.neo4j.graphdb.schema.PropertyType;
 import org.neo4j.internal.schema.IndexConfig;
+import org.neo4j.internal.schema.constraints.DefaultValue;
 import org.neo4j.internal.schema.constraints.PropertyTypeSet;
 import org.neo4j.internal.schema.constraints.SchemaValueType;
 import org.neo4j.internal.schema.constraints.TypeRepresentation;
@@ -51,11 +52,11 @@ abstract class AbstractConstraintCreator {
         actions.assertInOpenTransaction();
     }
 
-    protected PropertyTypeSet validatePropertyTypes(PropertyType[] propertyType) {
+    protected PropertyTypeSet validatePropertyTypes(PropertyType[] propertyType, DefaultValue defaultValue) {
         var internalTypes =
                 Arrays.stream(propertyType).map(SchemaValueType::fromPublicApi).toList();
         var out = PropertyTypeSet.of(internalTypes);
-        TypeRepresentation.validate(out);
+        TypeRepresentation.validate(out, defaultValue);
         return out;
     }
 }

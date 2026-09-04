@@ -19,10 +19,10 @@
  */
 package org.neo4j.internal.schema.constraints;
 
+import java.util.Optional;
 import org.neo4j.internal.schema.ConstraintDescriptor;
 
 public interface TypeConstraintDescriptor extends ConstraintDescriptor {
-
     @Override
     TypeConstraintDescriptor withId(long id);
 
@@ -30,7 +30,20 @@ public interface TypeConstraintDescriptor extends ConstraintDescriptor {
     TypeConstraintDescriptor withName(String name);
 
     /**
+     * Produce a copy of this constraint descriptor, that has the given {@link DefaultValue}.
+     * @param defaultValue the {@link DefaultValue} of the new returned constraint descriptor.
+     * @return a modified copy of this constraint descriptor.
+     */
+    TypeConstraintDescriptor withDefaultValue(DefaultValue defaultValue);
+
+    /**
      * Returns the types allowed for values of properties.
      */
     PropertyTypeSet propertyType();
+
+    /**
+     * @return an optional {@link DefaultValue} to use as default value of property for entities affected by
+     * this constraint.
+     */
+    Optional<DefaultValue> defaultValue();
 }

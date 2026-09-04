@@ -182,6 +182,7 @@ final class NodeLabelExistenceConstraintDescriptorImplementation extends Constra
                 null,
                 tokenNameLookup.labelGetName(requiredLabelId),
                 null,
+                null,
                 mask);
     }
 

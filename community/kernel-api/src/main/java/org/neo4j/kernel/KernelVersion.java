@@ -133,6 +133,7 @@ public enum KernelVersion {
     public static final KernelVersion VERSION_CHECKPOINT_POWER_OF_2_IN_ENVELOPES = V2026_08;
     public static final KernelVersion VERSION_VECTOR_ARRAY_VALUE_INTRODUCED = GLORIOUS_FUTURE;
     public static final KernelVersion VERSION_VECTOR_BINARY_DEFAULT = V2026_08;
+    public static final KernelVersion VERSION_TYPE_CONSTRAINT_DEFAULT_VALUE_INTRODUCED = GLORIOUS_FUTURE;
 
     // Keep updated each time there is an new schema rule added
     // related to IntegrityValidator

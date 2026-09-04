@@ -190,6 +190,7 @@ final class RelationshipEndpointLabelConstraintDescriptorImplementation extends 
                 null,
                 tokenNameLookup.labelGetName(endpointLabelId),
                 endpointType,
+                null,
                 mask);
     }
 

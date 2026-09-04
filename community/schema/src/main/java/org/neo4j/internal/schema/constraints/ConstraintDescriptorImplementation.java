@@ -124,7 +124,7 @@ public class ConstraintDescriptorImplementation extends ConstraintDescriptorAdap
 
     private String userDescription(TokenNameLookup tokenNameLookup, Mask mask) {
         return SchemaUserDescription.forConstraint(
-                tokenNameLookup, id, name, type, schema(), ownedIndex, null, null, null, mask);
+                tokenNameLookup, id, name, type, schema(), ownedIndex, null, null, null, null, mask);
     }
 
     @Override

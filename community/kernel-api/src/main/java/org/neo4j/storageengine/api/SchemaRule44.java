@@ -101,6 +101,7 @@ public interface SchemaRule44 {
                     null,
                     null,
                     null,
+                    null,
                     Mask.NO);
         }
 

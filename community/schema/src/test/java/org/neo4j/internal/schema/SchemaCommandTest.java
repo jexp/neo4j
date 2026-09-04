@@ -47,6 +47,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.neo4j.common.EntityType;
+import org.neo4j.graphdb.schema.PropertyType;
 import org.neo4j.internal.schema.SchemaCommand.ConstraintCommand;
 import org.neo4j.internal.schema.SchemaCommand.ConstraintCommand.Create.NodeExistence;
 import org.neo4j.internal.schema.SchemaCommand.ConstraintCommand.Create.NodeKey;
@@ -69,6 +70,7 @@ import org.neo4j.internal.schema.SchemaCommand.IndexCommand.Create.RelationshipP
 import org.neo4j.internal.schema.SchemaCommand.IndexCommand.Create.RelationshipRange;
 import org.neo4j.internal.schema.SchemaCommand.IndexCommand.Create.RelationshipText;
 import org.neo4j.internal.schema.SchemaCommand.IndexCommand.Create.RelationshipVector;
+import org.neo4j.internal.schema.constraints.DefaultValue;
 import org.neo4j.internal.schema.constraints.ExistenceConstraintDescriptor;
 import org.neo4j.internal.schema.constraints.KeyConstraintDescriptor;
 import org.neo4j.internal.schema.constraints.PropertyTypeSet;
@@ -156,7 +158,8 @@ class SchemaCommandTest {
         PropertyTypeSet.of(SchemaValueType.LIST_DURATION),
         PropertyTypeSet.of(SchemaValueType.LIST_POINT),
         PropertyTypeSet.of(SchemaValueType.INTEGER, SchemaValueType.FLOAT),
-        PropertyTypeSet.of(SchemaValueType.INTEGER, SchemaValueType.FLOAT, SchemaValueType.STRING)
+        PropertyTypeSet.of(SchemaValueType.INTEGER, SchemaValueType.FLOAT, SchemaValueType.STRING),
+        PropertyTypeSet.empty()
     };
 
     @Inject
@@ -681,31 +684,34 @@ class SchemaCommandTest {
         String label = random.among(LABELS);
         String property = random.among(PROPERTIES);
         PropertyTypeSet propertyTypes = random.among(PROPERTY_TYPES);
+        DefaultValue defaultValue = randomDefaultValue(propertyTypes);
 
-        assertThat(new NodePropertyType(name, label, property, propertyTypes, false, IF_NOT_EXISTS)
+        assertThat(new NodePropertyType(name, label, property, propertyTypes, defaultValue, false, IF_NOT_EXISTS)
                         .toPrototype(tokenHolders))
                 .satisfies(prototype -> {
                     ConstraintDescriptor constraint = prototype.descriptor();
                     assertThat(constraint).isInstanceOf(TypeConstraintDescriptor.class);
                     assertConstraintName(constraint.getName(), name);
                     assertThat(constraint.graphTypeDependence()).isEqualTo(GraphTypeDependence.INDEPENDENT);
-                    assertThat(((TypeConstraintDescriptor) constraint).propertyType())
-                            .isEqualTo(propertyTypes);
+                    TypeConstraintDescriptor typeConstraint = constraint.asPropertyTypeConstraint();
+                    assertThat(typeConstraint.propertyType()).isEqualTo(propertyTypes);
+                    assertThat(typeConstraint.defaultValue().orElse(null)).isEqualTo(defaultValue);
                     assertSchema(constraint.schema(), EntityType.NODE, List.of(label), List.of(property));
 
                     assertThat(prototype.backingIndex())
                             .as("should have no backing index")
                             .isNull();
                 });
-        assertThat(new NodePropertyType(name, label, property, propertyTypes, true, IF_NOT_EXISTS)
+        assertThat(new NodePropertyType(name, label, property, propertyTypes, defaultValue, true, IF_NOT_EXISTS)
                         .toPrototype(tokenHolders))
                 .satisfies(prototype -> {
                     ConstraintDescriptor constraint = prototype.descriptor();
                     assertThat(constraint).isInstanceOf(TypeConstraintDescriptor.class);
                     assertConstraintName(constraint.getName(), name);
                     assertThat(constraint.graphTypeDependence()).isEqualTo(GraphTypeDependence.DEPENDENT);
-                    assertThat(((TypeConstraintDescriptor) constraint).propertyType())
-                            .isEqualTo(propertyTypes);
+                    TypeConstraintDescriptor typeConstraint = constraint.asPropertyTypeConstraint();
+                    assertThat(typeConstraint.propertyType()).isEqualTo(propertyTypes);
+                    assertThat(typeConstraint.defaultValue().orElse(null)).isEqualTo(defaultValue);
                     assertSchema(constraint.schema(), EntityType.NODE, List.of(label), List.of(property));
 
                     assertThat(prototype.backingIndex())
@@ -720,31 +726,34 @@ class SchemaCommandTest {
         String type = random.among(TYPES);
         String property = random.among(PROPERTIES);
         PropertyTypeSet propertyTypes = random.among(PROPERTY_TYPES);
+        DefaultValue defaultValue = randomDefaultValue(propertyTypes);
 
-        assertThat(new RelationshipPropertyType(name, type, property, propertyTypes, false, IF_NOT_EXISTS)
+        assertThat(new RelationshipPropertyType(name, type, property, propertyTypes, defaultValue, false, IF_NOT_EXISTS)
                         .toPrototype(tokenHolders))
                 .satisfies(prototype -> {
                     ConstraintDescriptor constraint = prototype.descriptor();
                     assertThat(constraint).isInstanceOf(TypeConstraintDescriptor.class);
                     assertConstraintName(constraint.getName(), name);
                     assertThat(constraint.graphTypeDependence()).isEqualTo(GraphTypeDependence.INDEPENDENT);
-                    assertThat(((TypeConstraintDescriptor) constraint).propertyType())
-                            .isEqualTo(propertyTypes);
+                    TypeConstraintDescriptor typeConstraint = constraint.asPropertyTypeConstraint();
+                    assertThat(typeConstraint.propertyType()).isEqualTo(propertyTypes);
+                    assertThat(typeConstraint.defaultValue().orElse(null)).isEqualTo(defaultValue);
                     assertSchema(constraint.schema(), EntityType.RELATIONSHIP, List.of(type), List.of(property));
 
                     assertThat(prototype.backingIndex())
                             .as("should have no backing index")
                             .isNull();
                 });
-        assertThat(new RelationshipPropertyType(name, type, property, propertyTypes, true, IF_NOT_EXISTS)
+        assertThat(new RelationshipPropertyType(name, type, property, propertyTypes, defaultValue, true, IF_NOT_EXISTS)
                         .toPrototype(tokenHolders))
                 .satisfies(prototype -> {
                     ConstraintDescriptor constraint = prototype.descriptor();
                     assertThat(constraint).isInstanceOf(TypeConstraintDescriptor.class);
                     assertConstraintName(constraint.getName(), name);
                     assertThat(constraint.graphTypeDependence()).isEqualTo(GraphTypeDependence.DEPENDENT);
-                    assertThat(((TypeConstraintDescriptor) constraint).propertyType())
-                            .isEqualTo(propertyTypes);
+                    TypeConstraintDescriptor typeConstraint = constraint.asPropertyTypeConstraint();
+                    assertThat(typeConstraint.propertyType()).isEqualTo(propertyTypes);
+                    assertThat(typeConstraint.defaultValue().orElse(null)).isEqualTo(defaultValue);
                     assertSchema(constraint.schema(), EntityType.RELATIONSHIP, List.of(type), List.of(property));
 
                     assertThat(prototype.backingIndex())
@@ -860,6 +869,7 @@ class SchemaCommandTest {
                         track(LABELS, labels, random),
                         track(PROPERTIES, properties, random),
                         random.among(PROPERTY_TYPES),
+                        null,
                         false,
                         IF_NOT_EXISTS),
                 new RelationshipPropertyType(
@@ -867,12 +877,23 @@ class SchemaCommandTest {
                         track(TYPES, relationships, random),
                         track(PROPERTIES, properties, random),
                         random.among(PROPERTY_TYPES),
+                        null,
                         false,
                         IF_NOT_EXISTS));
         SchemaTokens tokens = SchemaTokens.collect(indexes, constraints);
         assertThat(tokens.labels()).containsAll(labels);
         assertThat(tokens.relationships()).containsAll(relationships);
         assertThat(tokens.properties()).containsAll(properties);
+    }
+
+    private DefaultValue randomDefaultValue(PropertyTypeSet propertyTypes) {
+        if (random.nextBoolean()) {
+            PropertyType compatiblePropertyType = propertyTypes.size() > 0
+                    ? random.among(propertyTypes.values()).toPublicApi()
+                    : random.among(PropertyType.values());
+            return new DefaultValue.Constant(random.nextValue(random.compatibleValueType(compatiblePropertyType)));
+        }
+        return null;
     }
 
     private static String track(String[] options, MutableSet<String> tokens, RandomSupport random) {

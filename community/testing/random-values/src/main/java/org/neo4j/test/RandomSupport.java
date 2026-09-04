@@ -23,10 +23,15 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 import org.eclipse.collections.api.RichIterable;
@@ -35,10 +40,14 @@ import org.eclipse.collections.api.set.primitive.LongSet;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.junit.jupiter.api.TestMethodOrder;
+import org.neo4j.graphdb.schema.PropertyType;
+import org.neo4j.util.Preconditions;
 import org.neo4j.values.storable.ArrayValue;
 import org.neo4j.values.storable.RandomValues;
 import org.neo4j.values.storable.TextValue;
 import org.neo4j.values.storable.Value;
+import org.neo4j.values.storable.ValueCategory;
+import org.neo4j.values.storable.ValueGroup;
 import org.neo4j.values.storable.ValueType;
 
 /**
@@ -316,6 +325,18 @@ public class RandomSupport {
         return config;
     }
 
+    /**
+     * Creates a fork of the underlying {@link RandomValues} instance with the given configuration.
+     * The forked (returned) instance will share the same underlying {@link Random} instance.
+     * This is a way to temporarily change the configuration for generating specific values w/o changing
+     * the configuration as a whole.
+     * @param config the overridden configuration.
+     * @return a forked {@link RandomValues} instance with the given configuration.
+     */
+    public RandomValues fork(RandomValues.Configuration config) {
+        return RandomValues.create(random, config);
+    }
+
     public long seed() {
         return seed;
     }
@@ -331,6 +352,76 @@ public class RandomSupport {
     public void setSeed(long seed) {
         this.seed = seed;
         reset();
+    }
+
+    /**
+     * @return a set of compatible {@link ValueType value types} for the given
+     * {@link PropertyType public API property types}
+     */
+    public Set<ValueType> compatibleValueTypes(PropertyType... propertyTypes) {
+        Set<ValueType> candidates = new HashSet<>();
+        for (PropertyType propertyType : propertyTypes) {
+            List<ValueType> typeCandidates =
+                    switch (propertyType) {
+                        case BOOLEAN -> valueTypeMatchingValueGroup(ValueGroup.BOOLEAN);
+                        case STRING -> valueTypeMatchingValueGroup(ValueGroup.TEXT);
+                        case UUID -> valueTypeMatchingValueGroup(ValueGroup.UUID);
+                        case INTEGER -> List.of(ValueType.BYTE, ValueType.SHORT, ValueType.INT, ValueType.LONG);
+                        case FLOAT -> List.of(ValueType.FLOAT, ValueType.DOUBLE);
+                        case DATE -> valueTypeMatchingValueGroup(ValueGroup.DATE);
+                        case LOCAL_TIME -> valueTypeMatchingValueGroup(ValueGroup.LOCAL_TIME);
+                        case ZONED_TIME -> valueTypeMatchingValueGroup(ValueGroup.ZONED_TIME);
+                        case LOCAL_DATETIME -> valueTypeMatchingValueGroup(ValueGroup.LOCAL_DATE_TIME);
+                        case ZONED_DATETIME -> valueTypeMatchingValueGroup(ValueGroup.ZONED_DATE_TIME);
+                        case DURATION -> valueTypeMatchingValueGroup(ValueGroup.DURATION);
+                        case POINT -> valueTypeMatchingValueGroup(ValueGroup.GEOMETRY);
+                        case VECTOR -> valueTypeMatchingValueGroup(g -> g.category() == ValueCategory.VECTOR);
+                        case LIST_BOOLEAN_NOT_NULL -> List.of(ValueType.BOOLEAN_ARRAY);
+                        case LIST_STRING_NOT_NULL -> valueTypeMatchingValueGroup(ValueGroup.TEXT_ARRAY);
+                        case LIST_UUID_NOT_NULL -> valueTypeMatchingValueGroup(ValueGroup.UUID_ARRAY);
+                        case LIST_INTEGER_NOT_NULL ->
+                            List.of(
+                                    ValueType.BYTE_ARRAY,
+                                    ValueType.SHORT_ARRAY,
+                                    ValueType.INT_ARRAY,
+                                    ValueType.LONG_ARRAY);
+                        case LIST_FLOAT_NOT_NULL -> List.of(ValueType.FLOAT_ARRAY, ValueType.DOUBLE_ARRAY);
+                        case LIST_DATE_NOT_NULL -> valueTypeMatchingValueGroup(ValueGroup.DATE_ARRAY);
+                        case LIST_LOCAL_TIME_NOT_NULL -> valueTypeMatchingValueGroup(ValueGroup.LOCAL_TIME_ARRAY);
+                        case LIST_ZONED_TIME_NOT_NULL -> valueTypeMatchingValueGroup(ValueGroup.ZONED_TIME_ARRAY);
+                        case LIST_LOCAL_DATETIME_NOT_NULL ->
+                            valueTypeMatchingValueGroup(ValueGroup.LOCAL_DATE_TIME_ARRAY);
+                        case LIST_ZONED_DATETIME_NOT_NULL ->
+                            valueTypeMatchingValueGroup(ValueGroup.ZONED_DATE_TIME_ARRAY);
+                        case LIST_DURATION_NOT_NULL -> valueTypeMatchingValueGroup(ValueGroup.DURATION_ARRAY);
+                        case LIST_POINT_NOT_NULL -> valueTypeMatchingValueGroup(ValueGroup.GEOMETRY_ARRAY);
+                        case LIST_VECTOR_NOT_NULL -> valueTypeMatchingValueGroup(ValueGroup.VECTOR_ARRAY);
+                    };
+            candidates.addAll(typeCandidates);
+        }
+        return candidates.stream()
+                .filter(configuration().allowedTypes()::contains)
+                .collect(Collectors.toSet());
+    }
+
+    /**
+     * @return a random compatible {@link ValueType} for the given {@link PropertyType public API property types}
+     */
+    public ValueType compatibleValueType(PropertyType... propertyTypes) {
+        Set<ValueType> allowedCandidates = compatibleValueTypes(propertyTypes);
+        Preconditions.checkState(
+                !allowedCandidates.isEmpty(), "No allowed types for %s", Arrays.toString(propertyTypes));
+        return among(allowedCandidates.toArray(new ValueType[0]));
+    }
+
+    private List<ValueType> valueTypeMatchingValueGroup(ValueGroup valueGroup) {
+        return valueTypeMatchingValueGroup(g -> g == valueGroup);
+    }
+
+    private List<ValueType> valueTypeMatchingValueGroup(Predicate<ValueGroup> filter) {
+        return Arrays.stream(ValueType.ALL_TYPES)
+                .filter(t -> filter.test(t.valueGroup))
+                .toList();
     }
 
     @Retention(RetentionPolicy.RUNTIME)

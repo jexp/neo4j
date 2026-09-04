@@ -2458,6 +2458,7 @@ class SchemaCommandConverterTest extends CommunityCypherTestSuite {
               label.name,
               "name",
               PropertyTypeSet.of(SchemaValueType.STRING),
+              null,
               false,
               false
             )
@@ -2485,6 +2486,7 @@ class SchemaCommandConverterTest extends CommunityCypherTestSuite {
               relType.name,
               "name",
               PropertyTypeSet.of(SchemaValueType.STRING),
+              null,
               false,
               false
             )
@@ -2525,6 +2527,7 @@ class SchemaCommandConverterTest extends CommunityCypherTestSuite {
               label.name,
               "name",
               PropertyTypeSet.of(SchemaValueType.STRING),
+              null,
               false,
               true
             )
@@ -2552,6 +2555,7 @@ class SchemaCommandConverterTest extends CommunityCypherTestSuite {
               relType.name,
               "name",
               PropertyTypeSet.of(SchemaValueType.STRING),
+              null,
               false,
               true
             )

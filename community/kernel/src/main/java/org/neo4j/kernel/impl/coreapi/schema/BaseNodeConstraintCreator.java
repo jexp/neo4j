@@ -69,7 +69,7 @@ public class BaseNodeConstraintCreator extends AbstractConstraintCreator impleme
 
     @Override
     public ConstraintCreator assertPropertyHasType(String propertyKey, PropertyType... propertyType) {
-        PropertyTypeSet propertyTypeSet = validatePropertyTypes(propertyType);
+        PropertyTypeSet propertyTypeSet = validatePropertyTypes(propertyType, null);
         return new NodePropertyTypeConstraintCreator(
                 actions, name, label, propertyKey, indexType, indexConfig, propertyTypeSet);
     }
@@ -77,7 +77,7 @@ public class BaseNodeConstraintCreator extends AbstractConstraintCreator impleme
     @VisibleForTesting
     public ConstraintCreator assertPropertyHasType(String propertyKey, ConstrainableType... propertyTypes) {
         PropertyTypeSet propertyTypeSet = PropertyTypeSet.of(propertyTypes);
-        TypeRepresentation.validate(propertyTypeSet);
+        TypeRepresentation.validate(propertyTypeSet, null);
         return new NodePropertyTypeConstraintCreator(
                 actions, name, label, propertyKey, indexType, indexConfig, propertyTypeSet);
     }

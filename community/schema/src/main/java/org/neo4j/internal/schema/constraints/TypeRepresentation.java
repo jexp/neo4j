@@ -184,6 +184,9 @@ public sealed interface TypeRepresentation permits ConstrainableType, SpecialTyp
      * @return True if the inferred type of value does not belong to the set.
      */
     static boolean disallows(PropertyTypeSet set, Value value) {
+        if (set.size() == 0) {
+            return false;
+        }
         Objects.requireNonNull(set);
         return !set.contains(infer(value));
     }
@@ -220,10 +223,8 @@ public sealed interface TypeRepresentation permits ConstrainableType, SpecialTyp
      * @param set {@link PropertyTypeSet}
      * @throws IllegalArgumentException if the set violates the business rules.
      */
-    static void validate(PropertyTypeSet set) {
-        int size = set.size();
-
-        if (size == 0) {
+    static void validate(PropertyTypeSet set, DefaultValue defaultValue) {
+        if (set.size() == 0 && defaultValue == null) {
             throw new IllegalArgumentException("Unable to create property type constraint because the provided union '"
                     + set.userDescription() + "' is not legal: Must specify at least one property type.");
         }

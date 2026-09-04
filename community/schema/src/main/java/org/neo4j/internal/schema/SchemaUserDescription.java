@@ -24,6 +24,7 @@ import static org.neo4j.common.EntityType.RELATIONSHIP;
 import java.util.StringJoiner;
 import org.neo4j.common.EntityType;
 import org.neo4j.common.TokenNameLookup;
+import org.neo4j.internal.schema.constraints.DefaultValue;
 import org.neo4j.internal.schema.constraints.PropertyTypeSet;
 import org.neo4j.string.Mask;
 import org.neo4j.token.api.TokenIdPrettyPrinter;
@@ -99,6 +100,7 @@ public final class SchemaUserDescription {
             PropertyTypeSet propertyType,
             String enforcedLabel,
             EndpointType endpointType,
+            DefaultValue defaultValue,
             Mask mask) {
         StringJoiner joiner = new StringJoiner(", ", "Constraint( ", " )");
         maybeAddId(id, joiner);
@@ -110,7 +112,14 @@ public final class SchemaUserDescription {
         }
         maybeAddAllowedPropertyTypes(propertyType, joiner);
         maybeAddEnforcedLabel(enforcedLabel, joiner);
+        maybeAddDefaultValue(defaultValue, joiner);
         return joiner.toString();
+    }
+
+    private static void maybeAddDefaultValue(DefaultValue defaultValue, StringJoiner joiner) {
+        if (defaultValue != null) {
+            joiner.add("defaultValue=" + defaultValue);
+        }
     }
 
     private static void maybeAddId(long id, StringJoiner joiner) {

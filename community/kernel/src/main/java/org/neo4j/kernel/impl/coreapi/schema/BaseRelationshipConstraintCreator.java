@@ -71,7 +71,7 @@ public class BaseRelationshipConstraintCreator extends AbstractConstraintCreator
 
     @Override
     public ConstraintCreator assertPropertyHasType(String propertyKey, PropertyType... propertyType) {
-        PropertyTypeSet propertyTypeSet = validatePropertyTypes(propertyType);
+        PropertyTypeSet propertyTypeSet = validatePropertyTypes(propertyType, null);
         return new RelationshipPropertyTypeConstraintCreator(
                 actions, name, type, propertyKey, indexType, indexConfig, propertyTypeSet);
     }
@@ -79,7 +79,7 @@ public class BaseRelationshipConstraintCreator extends AbstractConstraintCreator
     @VisibleForTesting
     public ConstraintCreator assertPropertyHasType(String propertyKey, ConstrainableType... propertyTypes) {
         var propertyTypeSet = PropertyTypeSet.of(Arrays.asList(propertyTypes));
-        TypeRepresentation.validate(propertyTypeSet);
+        TypeRepresentation.validate(propertyTypeSet, null);
         return new RelationshipPropertyTypeConstraintCreator(
                 actions, name, type, propertyKey, indexType, indexConfig, propertyTypeSet);
     }

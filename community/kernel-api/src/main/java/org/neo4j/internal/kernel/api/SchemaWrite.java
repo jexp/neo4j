@@ -33,6 +33,7 @@ import org.neo4j.internal.schema.NodeLabelExistenceSchemaDescriptor;
 import org.neo4j.internal.schema.RelationTypeSchemaDescriptor;
 import org.neo4j.internal.schema.RelationshipEndpointLabelSchemaDescriptor;
 import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.constraints.DefaultValue;
 import org.neo4j.internal.schema.constraints.PropertyTypeSet;
 
 /**
@@ -104,7 +105,7 @@ public interface SchemaWrite {
     ConstraintDescriptor uniquePropertyConstraintCreate(IndexPrototype prototype) throws KernelException;
 
     /**
-     * Create node/relationship key constraint based on the given uniqueness index prototype.
+     * Create a node/relationship key constraint based on the given uniqueness index prototype.
      * The given index prototype will be used for creating the uniqueness index backing the constraint.
      *
      * @param prototype the index prototype for which to create a node/relationship key constraint.
@@ -114,7 +115,7 @@ public interface SchemaWrite {
     ConstraintDescriptor keyConstraintCreate(IndexPrototype prototype) throws KernelException;
 
     /**
-     * Create node property existence constraint
+     * Create a node property existence constraint
      *
      * @param schema descriptor of the constraint
      * @param isDependent graph type dependence
@@ -123,7 +124,7 @@ public interface SchemaWrite {
             LabelSchemaDescriptor schema, String name, boolean isDependent) throws KernelException;
 
     /**
-     * Create relationship property existence constraint
+     * Create a relationship property existence constraint
      *
      * @param schema descriptor of the constraint
      * @param isDependent graph type dependence
@@ -132,17 +133,23 @@ public interface SchemaWrite {
             RelationTypeSchemaDescriptor schema, String name, boolean isDependent) throws KernelException;
 
     /**
-     * Create property type constraint
+     * Create a property type constraint
      *
      * @param schema descriptor of the constraint
      * @param name the name the created constraint should have, or null
      * @param propertyType the allowed property types
-     * @param isDependent  graph type dependence
+     * @param defaultValue the default value to assign to unassigned properties matching this constraint,
+     * or {@code null} if no default value should be assigned.
+     * @param isDependent graph type dependence
      * @return the created constraint.
      * @throws KernelException if the constraint cannot be created for some reason.
      */
     ConstraintDescriptor propertyTypeConstraintCreate(
-            SchemaDescriptor schema, String name, PropertyTypeSet propertyType, boolean isDependent)
+            SchemaDescriptor schema,
+            String name,
+            PropertyTypeSet propertyType,
+            DefaultValue defaultValue,
+            boolean isDependent)
             throws KernelException;
 
     /**
@@ -153,7 +160,7 @@ public interface SchemaWrite {
      * @param endpointLabelId the token id for the Label that the endpoint will be required to have
      * @param endpointType the {@link EndpointType} of the node which we are constraining on
      * @return the created constraint
-     * @throws KernelException
+     * @throws KernelException if the constraint cannot be created for some reason.
      */
     ConstraintDescriptor relationshipEndpointLabelConstraintCreate(
             RelationshipEndpointLabelSchemaDescriptor schema,

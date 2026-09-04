@@ -161,8 +161,6 @@ class TypeRepresentationTest {
 
     private static Stream<Arguments> illegalCombinations() {
         return Stream.of(
-                Arguments.of(PropertyTypeSet.of(), Values.of(1L)),
-                Arguments.of(PropertyTypeSet.of(), Values.of("HELLO")),
                 Arguments.of(PropertyTypeSet.of(SchemaValueType.STRING), Values.of(1L)),
                 Arguments.of(
                         PropertyTypeSet.of(SchemaValueType.LIST_BOOLEAN, SchemaValueType.LIST_INTEGER),
@@ -176,6 +174,8 @@ class TypeRepresentationTest {
 
     private static Stream<Arguments> legalCombinations() {
         return Stream.of(
+                Arguments.of(PropertyTypeSet.of(), Values.of(1L)),
+                Arguments.of(PropertyTypeSet.of(), Values.of("HELLO")),
                 Arguments.of(PropertyTypeSet.of(SchemaValueType.STRING), Values.of("Hello")),
                 Arguments.of(PropertyTypeSet.of(SchemaValueType.INTEGER, SchemaValueType.FLOAT), Values.of(1.0f)),
                 Arguments.of(PropertyTypeSet.of(SchemaValueType.INTEGER, SchemaValueType.FLOAT), Values.NO_VALUE),

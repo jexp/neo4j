@@ -27,6 +27,7 @@ import static org.neo4j.internal.schema.GraphTypeDependence.INDEPENDENT;
 import static org.neo4j.internal.schema.SchemaUserDescription.TOKEN_ID_NAME_LOOKUP;
 
 import java.util.Objects;
+import java.util.Optional;
 import org.neo4j.common.TokenNameLookup;
 import org.neo4j.internal.schema.ConstraintDescriptor;
 import org.neo4j.internal.schema.ConstraintType;
@@ -46,13 +47,14 @@ public class TypeConstraintDescriptorImplementation extends ConstraintDescriptor
     private final SchemaDescriptor schema;
     private final String name;
     private final PropertyTypeSet propertyType;
+    private final DefaultValue defaultValue;
 
     static TypeConstraintDescriptor makePropertyTypeConstraint(
             SchemaDescriptor schema, PropertyTypeSet propertyType, boolean isDependent) {
         Preconditions.checkState(
                 propertyType != null, "Property types should be supplied for property type constraints");
         return new TypeConstraintDescriptorImplementation(
-                isDependent ? DEPENDENT : INDEPENDENT, schema, NO_ID, null, propertyType);
+                isDependent ? DEPENDENT : INDEPENDENT, schema, NO_ID, null, propertyType, null);
     }
 
     private TypeConstraintDescriptorImplementation(
@@ -60,12 +62,14 @@ public class TypeConstraintDescriptorImplementation extends ConstraintDescriptor
             SchemaDescriptor schema,
             long id,
             String name,
-            PropertyTypeSet propertyType) {
+            PropertyTypeSet propertyType,
+            DefaultValue defaultValue) {
         super(id);
         this.graphTypeDependence = dependence;
         this.schema = schema;
         this.name = name;
         this.propertyType = propertyType;
+        this.defaultValue = defaultValue;
     }
 
     @Override
@@ -110,7 +114,8 @@ public class TypeConstraintDescriptorImplementation extends ConstraintDescriptor
 
     @Override
     public TypeConstraintDescriptor withId(long id) {
-        return new TypeConstraintDescriptorImplementation(graphTypeDependence, schema, id, name, propertyType);
+        return new TypeConstraintDescriptorImplementation(
+                graphTypeDependence, schema, id, name, propertyType, defaultValue);
     }
 
     @Override
@@ -119,12 +124,19 @@ public class TypeConstraintDescriptorImplementation extends ConstraintDescriptor
             return this;
         }
         name = SchemaNameUtil.sanitiseName(name);
-        return new TypeConstraintDescriptorImplementation(graphTypeDependence, schema, id, name, propertyType);
+        return new TypeConstraintDescriptorImplementation(
+                graphTypeDependence, schema, id, name, propertyType, defaultValue);
     }
 
     @Override
     public IndexBackedConstraintDescriptor withOwnedIndexId(long id) {
         throw new IllegalStateException("ConstraintDescriptor missing IndexType when connected to index");
+    }
+
+    @Override
+    public TypeConstraintDescriptor withDefaultValue(DefaultValue defaultValue) {
+        return new TypeConstraintDescriptorImplementation(
+                graphTypeDependence, schema, id, name, propertyType, defaultValue);
     }
 
     @Override
@@ -172,8 +184,18 @@ public class TypeConstraintDescriptorImplementation extends ConstraintDescriptor
             return false;
         }
 
-        return !that.enforcesPropertyType()
-                || this.propertyType.equals(that.asPropertyTypeConstraint().propertyType());
+        TypeConstraintDescriptor other = that.asPropertyTypeConstraint();
+        if (!this.propertyType.equals(other.propertyType())) {
+            return false;
+        }
+
+        boolean thisHasDefaultValue = this.defaultValue != null;
+        boolean thatHasDefaultValue = other.defaultValue().isPresent();
+        if (thisHasDefaultValue != thatHasDefaultValue) {
+            return false;
+        }
+        return !thisHasDefaultValue
+                || this.defaultValue.equals(other.defaultValue().get());
     }
 
     @Override
@@ -194,7 +216,7 @@ public class TypeConstraintDescriptorImplementation extends ConstraintDescriptor
 
     @Override
     public final int hashCode() {
-        return Objects.hash(PROPERTY_TYPE, graphTypeDependence, schema, name);
+        return Objects.hash(PROPERTY_TYPE, graphTypeDependence, schema, name, propertyType, defaultValue);
     }
 
     /**
@@ -208,6 +230,11 @@ public class TypeConstraintDescriptorImplementation extends ConstraintDescriptor
 
     private String userDescription(TokenNameLookup tokenNameLookup, Mask mask) {
         return SchemaUserDescription.forConstraint(
-                tokenNameLookup, id, name, PROPERTY_TYPE, schema(), null, propertyType, null, null, mask);
+                tokenNameLookup, id, name, PROPERTY_TYPE, schema(), null, propertyType, null, null, defaultValue, mask);
+    }
+
+    @Override
+    public Optional<DefaultValue> defaultValue() {
+        return Optional.ofNullable(defaultValue);
     }
 }

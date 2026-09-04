@@ -55,6 +55,7 @@ import org.neo4j.internal.schema.IndexType;
 import org.neo4j.internal.schema.SchemaDescriptor;
 import org.neo4j.internal.schema.SchemaNameUtil;
 import org.neo4j.internal.schema.constraints.IndexBackedConstraintDescriptor;
+import org.neo4j.internal.schema.constraints.TypeConstraintDescriptor;
 import org.neo4j.io.pagecache.context.CursorContext;
 import org.neo4j.memory.MemoryTracker;
 import org.neo4j.storageengine.api.cursor.StoreCursors;
@@ -237,6 +238,17 @@ public class StubStorageCursors implements StorageReader {
 
     @Override
     public Iterator<ConstraintDescriptor> constraintsGetAll() {
+        throw new UnsupportedOperationException("Not implemented yet");
+    }
+
+    @Override
+    public boolean hasAnyTypeConstraintWithDefaultValue(EntityType entityType) {
+        throw new UnsupportedOperationException("Not implemented yet");
+    }
+
+    @Override
+    public Collection<TypeConstraintDescriptor> typeConstraintsWithDefaultValue(
+            int entityTokenId, EntityType entityType) {
         throw new UnsupportedOperationException("Not implemented yet");
     }
 

@@ -908,7 +908,7 @@ public class SchemaImpl implements Schema {
                 int[] propertyKeyId = getOrCreatePropertyKeyIds(tokenWrite, propertyKey);
                 LabelSchemaDescriptor schema = forLabel(labelId, propertyKeyId);
                 ConstraintDescriptor constraint =
-                        transaction.schemaWrite().propertyTypeConstraintCreate(schema, name, allowedTypes, false);
+                        transaction.schemaWrite().propertyTypeConstraintCreate(schema, name, allowedTypes, null, false);
                 return new NodePropertyTypeConstraintDefinition(this, constraint, label, propertyKey);
             });
         }
@@ -922,7 +922,7 @@ public class SchemaImpl implements Schema {
                 int[] propertyKeyId = getOrCreatePropertyKeyIds(tokenWrite, propertyKey);
                 RelationTypeSchemaDescriptor schema = forRelType(typeId, propertyKeyId);
                 ConstraintDescriptor constraint =
-                        transaction.schemaWrite().propertyTypeConstraintCreate(schema, name, allowedTypes, false);
+                        transaction.schemaWrite().propertyTypeConstraintCreate(schema, name, allowedTypes, null, false);
                 return new RelationshipPropertyTypeConstraintDefinition(this, constraint, type, propertyKey);
             });
         }

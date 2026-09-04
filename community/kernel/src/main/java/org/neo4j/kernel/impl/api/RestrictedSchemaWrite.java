@@ -37,6 +37,7 @@ import org.neo4j.internal.schema.NodeLabelExistenceSchemaDescriptor;
 import org.neo4j.internal.schema.RelationTypeSchemaDescriptor;
 import org.neo4j.internal.schema.RelationshipEndpointLabelSchemaDescriptor;
 import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.constraints.DefaultValue;
 import org.neo4j.internal.schema.constraints.PropertyTypeSet;
 
 public class RestrictedSchemaWrite implements SchemaWrite {
@@ -114,10 +115,14 @@ public class RestrictedSchemaWrite implements SchemaWrite {
 
     @Override
     public ConstraintDescriptor propertyTypeConstraintCreate(
-            SchemaDescriptor schema, String name, PropertyTypeSet propertyType, boolean isDependent)
+            SchemaDescriptor schema,
+            String name,
+            PropertyTypeSet propertyType,
+            DefaultValue defaultValue,
+            boolean isDependent)
             throws KernelException {
         securityAuthorizationHandler.assertSchemaWrites(securityContext, PrivilegeAction.CREATE_CONSTRAINT);
-        return inner.propertyTypeConstraintCreate(schema, name, propertyType, isDependent);
+        return inner.propertyTypeConstraintCreate(schema, name, propertyType, defaultValue, isDependent);
     }
 
     @Override

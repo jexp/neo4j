@@ -188,6 +188,6 @@ public class ExistenceConstraintDescriptorImplementation extends ConstraintDescr
 
     private String userDescription(TokenNameLookup tokenNameLookup, Mask mask) {
         return SchemaUserDescription.forConstraint(
-                tokenNameLookup, id, name, EXISTS, schema(), null, null, null, null, mask);
+                tokenNameLookup, id, name, EXISTS, schema(), null, null, null, null, null, mask);
     }
 }

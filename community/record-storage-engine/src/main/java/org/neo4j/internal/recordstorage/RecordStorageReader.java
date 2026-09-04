@@ -39,6 +39,7 @@ import org.neo4j.internal.schema.SchemaCache;
 import org.neo4j.internal.schema.SchemaDescriptor;
 import org.neo4j.internal.schema.StorageSchemaReaderSnapshot;
 import org.neo4j.internal.schema.constraints.IndexBackedConstraintDescriptor;
+import org.neo4j.internal.schema.constraints.TypeConstraintDescriptor;
 import org.neo4j.io.pagecache.context.CursorContext;
 import org.neo4j.kernel.impl.store.NeoStores;
 import org.neo4j.kernel.impl.store.NodeStore;
@@ -173,6 +174,17 @@ public class RecordStorageReader implements StorageReader {
             EntityType entityType) {
         return schemaCache.getUniquenessConstraintsRelatedTo(
                 changedLabels, unchangedLabels, propertyKeyIds, propertyKeyListIsComplete, entityType);
+    }
+
+    @Override
+    public boolean hasAnyTypeConstraintWithDefaultValue(EntityType entityType) {
+        return schemaCache.hasAnyTypeConstraintWithDefaultValue(entityType);
+    }
+
+    @Override
+    public Collection<TypeConstraintDescriptor> typeConstraintsWithDefaultValue(
+            int entityTokenId, EntityType entityType) {
+        return schemaCache.typeConstraintsWithDefaultValue(entityTokenId, entityType);
     }
 
     @Override

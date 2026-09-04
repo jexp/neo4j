@@ -37,6 +37,7 @@ import org.neo4j.internal.schema.IndexType;
 import org.neo4j.internal.schema.SchemaDescriptor;
 import org.neo4j.internal.schema.SchemaRule;
 import org.neo4j.internal.schema.constraints.PropertyTypeSet;
+import org.neo4j.internal.schema.constraints.TypeConstraintDescriptor;
 import org.neo4j.internal.schema.constraints.TypeRepresentation;
 import org.neo4j.kernel.KernelVersion;
 import org.neo4j.kernel.api.exceptions.Status;
@@ -108,8 +109,8 @@ class IntegrityValidator {
                             schemaType, constraint, kernelVersion, VERSION_TYPE_CONSTRAINTS_INTRODUCED);
                 }
 
-                PropertyTypeSet propertyType =
-                        constraint.asPropertyTypeConstraint().propertyType();
+                TypeConstraintDescriptor typeConstraint = constraint.asPropertyTypeConstraint();
+                PropertyTypeSet propertyType = typeConstraint.propertyType();
                 if ((TypeRepresentation.isUnion(propertyType) || TypeRepresentation.hasListTypes(propertyType))
                         && kernelVersion.isLessThan(VERSION_UNIONS_AND_LIST_TYPE_CONSTRAINTS_INTRODUCED)) {
                     throw upgradeNeededForSchemaRule(
@@ -119,6 +120,14 @@ class IntegrityValidator {
                         && kernelVersion.isLessThan(VERSION_VECTOR_TYPE_INTRODUCED)) {
                     throw upgradeNeededForSchemaRule(
                             schemaType, constraint, kernelVersion, VERSION_VECTOR_TYPE_INTRODUCED);
+                }
+
+                if (typeConstraint.defaultValue().isPresent()) {
+                    // TODO temporarily disabled in this storage engine until decision is final
+                    throw TransactionFailureException.internalError(
+                            Status.Data.DataUnsupportedByStoreFormat,
+                            "Unsupported constraint",
+                            "Default value on type constraint unsupported by this storage engine");
                 }
             }
 

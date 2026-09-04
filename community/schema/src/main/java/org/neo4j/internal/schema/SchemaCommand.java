@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Set;
 import org.neo4j.common.EntityType;
 import org.neo4j.internal.schema.constraints.ConstraintDescriptorFactory;
+import org.neo4j.internal.schema.constraints.DefaultValue;
 import org.neo4j.internal.schema.constraints.PropertyTypeSet;
 import org.neo4j.token.TokenHolders;
 
@@ -544,6 +545,7 @@ public sealed interface SchemaCommand extends Serializable {
                     String label,
                     String property,
                     PropertyTypeSet propertyTypes,
+                    DefaultValue defaultValue,
                     boolean isDependent,
                     boolean ifNotExists)
                     implements Create {
@@ -568,7 +570,8 @@ public sealed interface SchemaCommand extends Serializable {
                             tokenHolders.labelForName(label), tokenHolders.propertyForName(property));
                     ConstraintDescriptor constraintDescriptor = withName(
                             name,
-                            ConstraintDescriptorFactory.typeForSchema(schema, propertyTypes, isDependent),
+                            ConstraintDescriptorFactory.typeForSchema(schema, propertyTypes, isDependent)
+                                    .withDefaultValue(defaultValue),
                             tokenHolders);
                     return new ConstraintPrototype(constraintDescriptor);
                 }
@@ -691,6 +694,7 @@ public sealed interface SchemaCommand extends Serializable {
                     String type,
                     String property,
                     PropertyTypeSet propertyTypes,
+                    DefaultValue defaultValue,
                     boolean isDependent,
                     boolean ifNotExists)
                     implements Create {
@@ -715,7 +719,8 @@ public sealed interface SchemaCommand extends Serializable {
                             tokenHolders.relationshipForName(type), tokenHolders.propertyForName(property));
                     ConstraintDescriptor constraintDescriptor = withName(
                             name,
-                            ConstraintDescriptorFactory.typeForSchema(schema, propertyTypes, isDependent),
+                            ConstraintDescriptorFactory.typeForSchema(schema, propertyTypes, isDependent)
+                                    .withDefaultValue(defaultValue),
                             tokenHolders);
                     return new ConstraintPrototype(constraintDescriptor);
                 }

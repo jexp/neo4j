@@ -495,6 +495,7 @@ sealed class TransactionBoundQueryContext(
           SchemaDescriptors.forLabel(getOrCreateLabelId(c.label()), getOrCreatePropertyKeyId(c.property())),
           c.name(),
           c.propertyTypes(),
+          null,
           c.isDependent()
         )
       case c: ConstraintCommand.Create.RelationshipPropertyType =>
@@ -502,6 +503,7 @@ sealed class TransactionBoundQueryContext(
           SchemaDescriptors.forRelType(getOrCreateRelTypeId(c.`type`()), getOrCreatePropertyKeyId(c.property())),
           c.name(),
           c.propertyTypes(),
+          null,
           c.isDependent()
         )
       case c: ConstraintCommand.Create.NodeLabelExistence =>
