@@ -90,8 +90,8 @@ abstract class VectorSearchPlanningIntegrationTestBase extends CypherPlannerTest
       .addRelationshipVectorIndex("contributed", Seq("CONTRIBUTED"), "embedding")
       .addRelationshipVectorIndex("actsOrContributedInScript", Seq("ACTS_IN", "CONTRIBUTED"), "script")
 
-  protected val moviePlotsProperties = Seq("plot", "imdbRating", "releaseYear")
-  protected val actsInScriptProperties = Seq("script", "workingDays")
+  protected val moviePlotsProperties: Seq[String] = Seq("plot", "imdbRating", "releaseYear")
+  protected val actsInScriptProperties: Seq[String] = Seq("script", "workingDays")
 
   test("plan node vector index search") {
     val planner = plannerBuilder().build()
@@ -1801,11 +1801,10 @@ abstract class VectorSearchPlanningIntegrationTestBase extends CypherPlannerTest
       planner.planBuilder()
         .produceResults("`r.plot`")
         .projection("r.plot AS `r.plot`")
+        .filter("`  r@0` = r", "r:CONTRIBUTED")
         .apply()
-        .|.projectEndpoints("(`  UNNAMED2`)-[r:CONTRIBUTED]->(`  UNNAMED3`)", startInScope = true, endInScope = true)
-        .|.filter("`  r@0` = r", "r:CONTRIBUTED")
         .|.relationshipVectorIndexSearch(
-          pattern = "(`  UNNAMED2`)-[`  r@0`]->(`  UNNAMED3`)",
+          pattern = "()-[`  r@0`]->()",
           typeNames = Seq("ACTS_IN"),
           properties = actsInScriptProperties,
           indexName = "actsInScript",

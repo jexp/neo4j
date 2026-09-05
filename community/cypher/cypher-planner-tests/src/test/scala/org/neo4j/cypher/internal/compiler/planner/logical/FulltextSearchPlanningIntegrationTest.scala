@@ -36,12 +36,13 @@ import org.neo4j.cypher.internal.logical.plans.Expand.ExpandAll
 import org.neo4j.cypher.internal.logical.plans.IndexOrderNone
 import org.neo4j.cypher.internal.logical.plans.NodeByLabelScan
 import org.neo4j.cypher.internal.logical.plans.NodeFulltextIndexSearch
+import org.neo4j.cypher.internal.logical.plans.Selection
 import org.neo4j.cypher.internal.util.UpperBound
 import org.neo4j.exceptions.IndexSearchException
 import org.neo4j.exceptions.InvalidArgumentException
 
 class FulltextSearchPlanningIntegrationTest
-    extends FulltextWithComplexPatternPlanningIntegrationTestBase
+    extends FulltextSearchPlanningIntegrationTestBase
 
 class FulltextWithComplexPatternPlanningIntegrationTest
     extends FulltextWithComplexPatternPlanningIntegrationTestBase
@@ -281,11 +282,11 @@ abstract class FulltextWithComplexPatternPlanningIntegrationTestBase
     val (plan, costComparisonCandidates) = planner.planAndRecordCostComparisonCandidates(CypherVersion.Cypher25, query)
 
     plan.stripProduceResults shouldEqual planner.subPlanBuilder()
-      .projection("cacheN[movie.plot] AS plot", "cacheN[director.name] AS name")
+      .projection("movie.plot AS plot", "cacheN[director.name] AS name")
+      .filter("`  movie@0` = movie")
       .apply()
-      .|.cacheProperties("cacheNFromStore[movie.plot]")
       .|.nodeFulltextIndexSearch(
-        node = "movie",
+        node = "  movie@0",
         labelNames = Seq("Movie"),
         properties = moviePlotsProperties,
         indexName = "moviePlots",
@@ -406,10 +407,11 @@ abstract class FulltextWithComplexPatternPlanningIntegrationTestBase
       .projection("cacheN[movie.plot] AS plot")
       .cartesianProduct()
       .|.nodeByLabelScan("m", "Person")
+      .cacheProperties("cacheNFromStore[movie.plot]")
+      .filter("`  movie@0` = movie")
       .apply()
-      .|.cacheProperties("cacheNFromStore[movie.plot]")
       .|.nodeFulltextIndexSearch(
-        node = "movie",
+        node = "  movie@0",
         labelNames = Seq("Movie"),
         properties = moviePlotsProperties,
         indexName = "moviePlots",
@@ -463,6 +465,7 @@ abstract class FulltextSearchPlanningIntegrationTestBase extends CypherPlannerTe
 
   protected val moviePlotsProperties: Seq[String] = Seq("title", "plot")
   protected val actsInScriptProperties: Seq[String] = Seq("script", "notes")
+  protected val actsOrContributedInScriptProperties: Seq[String] = Seq("script")
 
   test(
     "plan node fulltext index search with a literal query string"
@@ -734,7 +737,7 @@ abstract class FulltextSearchPlanningIntegrationTestBase extends CypherPlannerTe
         .relationshipFulltextIndexSearch(
           pattern = "()-[r]->()",
           typeNames = Seq("ACTS_IN", "CONTRIBUTED"),
-          properties = Seq("script"),
+          properties = actsOrContributedInScriptProperties,
           indexName = "actsOrContributedInScript",
           queryString = "'thrilling chase'",
           limit = "10"
@@ -918,7 +921,7 @@ abstract class FulltextSearchPlanningIntegrationTestBase extends CypherPlannerTe
         .relationshipFulltextIndexSearch(
           pattern = "()-[r]->()",
           typeNames = Seq("ACTS_IN", "CONTRIBUTED"),
-          properties = Seq("script"),
+          properties = actsOrContributedInScriptProperties,
           indexName = "actsOrContributedInScript",
           queryString = "'thrilling chase'",
           limit = "10"
@@ -947,7 +950,7 @@ abstract class FulltextSearchPlanningIntegrationTestBase extends CypherPlannerTe
         .relationshipFulltextIndexSearch(
           pattern = "()-[r]->()",
           typeNames = Seq("ACTS_IN", "CONTRIBUTED"),
-          properties = Seq("script"),
+          properties = actsOrContributedInScriptProperties,
           indexName = "actsOrContributedInScript",
           queryString = "'thrilling chase'",
           limit = "10"
@@ -1111,6 +1114,129 @@ abstract class FulltextSearchPlanningIntegrationTestBase extends CypherPlannerTe
         case _                        =>
       }
     }
+  }
+
+  test("plan node fulltext index search with a previously bound node variable") {
+    val planner = plannerBuilder()
+      .enableDeduplicateNames(false)
+      .build()
+
+    val query =
+      """MATCH (movie:Movie)
+        |WITH movie
+        |SKIP 0
+        |MATCH (movie)
+        |  SEARCH movie IN (
+        |    FULLTEXT INDEX moviePlots
+        |    FOR 'magic genie'
+        |    LIMIT 10
+        |  )
+        |RETURN movie.plot""".stripMargin
+
+    val planState = planner.planState(CypherVersion.Cypher25, query)
+
+    planState.logicalPlan shouldEqual
+      planner.planBuilder()
+        .produceResults("`movie.plot`")
+        .projection("movie.plot AS `movie.plot`")
+        .filter(equals(v"  movie@0", v"movie"), assertIsNode("movie"))
+        .apply()
+        .|.nodeFulltextIndexSearch(
+          node = "  movie@0",
+          labelNames = Seq("Movie"),
+          properties = moviePlotsProperties,
+          indexName = "moviePlots",
+          queryString = "'magic genie'",
+          limit = "10",
+          argumentIds = Set("movie")
+        )
+        .skip(0)
+        .nodeByLabelScan("movie", "Movie")
+        .build()
+
+    val selections = planState.logicalPlan.folder.findAllByClass[Selection]
+    selections should not be empty
+    selections.foreach { s =>
+      withClue(s"labelAndRelTypeInfos should be defined for Selection with id ${s.id}:") {
+        planState.planningAttributes.labelAndRelTypeInfos.get(s.id).get.labelInfo.get(v"movie") should contain(
+          Set(labelName("Movie"))
+        )
+      }
+    }
+  }
+
+  test("plan relationship fulltext index search with a previously bound relationship and a hidden type selection") {
+    val planner = plannerBuilder()
+      .enableDeduplicateNames(false)
+      .build()
+
+    val query =
+      """MATCH ()-[r:ACTS_IN]->()
+        |WITH r
+        |MATCH ()-[r:ACTS_IN]->()
+        |  SEARCH r IN (
+        |    FULLTEXT INDEX actsOrContributedInScript
+        |    FOR 'thrilling chase'
+        |    LIMIT 10
+        |  )
+        |RETURN r.script""".stripMargin
+
+    val plan = planner.plan(CypherVersion.Cypher25, query)
+
+    plan shouldEqual
+      planner.planBuilder()
+        .produceResults("`r.script`")
+        .projection("r.script AS `r.script`")
+        .filter("`  r@0` = r", "r:ACTS_IN")
+        .apply()
+        .|.relationshipFulltextIndexSearch(
+          pattern = "()-[`  r@0`]->()",
+          typeNames = Seq("ACTS_IN", "CONTRIBUTED"),
+          properties = actsOrContributedInScriptProperties,
+          indexName = "actsOrContributedInScript",
+          queryString = "'thrilling chase'",
+          limit = "10",
+          argumentIds = Set("  UNNAMED0", "  UNNAMED1", "r")
+        )
+        .relationshipTypeScan("(`  UNNAMED0`)-[r:ACTS_IN]->(`  UNNAMED1`)")
+        .build()
+  }
+
+  test("plan relationship fulltext index search with a previously bound relationship and no hidden type selection") {
+    val planner = plannerBuilder()
+      .enableDeduplicateNames(false)
+      .build()
+
+    val query =
+      """MATCH ()-[r:ACTS_IN]->()
+        |WITH r
+        |MATCH ()-[r:ACTS_IN]->()
+        |  SEARCH r IN (
+        |    FULLTEXT INDEX actsInScript
+        |    FOR 'thrilling chase'
+        |    LIMIT 10
+        |  )
+        |RETURN r.script""".stripMargin
+
+    val plan = planner.plan(CypherVersion.Cypher25, query)
+
+    plan shouldEqual
+      planner.planBuilder()
+        .produceResults("`r.script`")
+        .projection("r.script AS `r.script`")
+        .filter("`  r@0` = r")
+        .apply()
+        .|.relationshipFulltextIndexSearch(
+          pattern = "()-[`  r@0`]->()",
+          typeNames = Seq("ACTS_IN"),
+          properties = actsInScriptProperties,
+          indexName = "actsInScript",
+          queryString = "'thrilling chase'",
+          limit = "10",
+          argumentIds = Set("  UNNAMED0", "  UNNAMED1", "r")
+        )
+        .relationshipTypeScan("(`  UNNAMED0`)-[r:ACTS_IN]->(`  UNNAMED1`)")
+        .build()
   }
 
   test("plan fulltext index search with OPTIONAL MATCH and DISTINCT score") {

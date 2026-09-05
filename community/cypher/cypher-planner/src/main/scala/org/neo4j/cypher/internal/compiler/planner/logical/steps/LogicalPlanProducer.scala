@@ -2201,7 +2201,6 @@ case class LogicalPlanProducer(
     planLeafFilteredOnPreBoundVariable(
       resultVariable,
       argumentIds,
-      solved,
       context,
       createNodeVectorIndexSearchPlan
     )
@@ -2279,7 +2278,12 @@ case class LogicalPlanProducer(
       solver.rewriteLeafPlan(annotatedFulltextSearchPlan)
     }
 
-    createNodeFulltextIndexSearchPlan(resultVariable)
+    planLeafFilteredOnPreBoundVariable(
+      resultVariable,
+      argumentIds,
+      context,
+      createNodeFulltextIndexSearchPlan
+    )
   }
 
   def planRelationshipVectorIndexSearch(
@@ -2312,7 +2316,7 @@ case class LogicalPlanProducer(
         .addArgumentIds(argumentIds)
         .pipe { qg =>
           if (selectionsFromUnsolvedTypes.isEmpty) {
-            // We have solved all types, lets add the pattern relationship to the query graph
+            // We have solved all types, let's add the pattern relationship to the query graph
             qg.addPatternRelationship(patternRelationship)
           } else {
             // Let the hidden selection handle the solved pattern relationship to the query graph
@@ -2385,7 +2389,6 @@ case class LogicalPlanProducer(
     planLeafFilteredOnPreBoundVariable(
       patternRelationship.variable,
       argumentIds,
-      solved,
       context,
       createRelationshipVectorIndexSearchPlan
     )
@@ -2394,7 +2397,6 @@ case class LogicalPlanProducer(
   private def planLeafFilteredOnPreBoundVariable(
     variable: LogicalVariable,
     argumentIds: Set[LogicalVariable],
-    solved: SinglePlannerQuery,
     context: LogicalPlanningContext,
     createLeaf: LogicalVariable => LogicalPlan
   ): LogicalPlan =
@@ -2406,11 +2408,11 @@ case class LogicalPlanProducer(
       val leaf = createLeaf(renamedVariable)
       val selection = Selection(Seq(Equals(renamedVariable, variable)(InputPosition.NONE)), leaf)(idGen)
       annotateSelection(
-        selection,
-        solved,
-        ProvidedOrder.Left,
-        CachedProperties.empty,
-        context
+        selection = selection,
+        solved = solveds.get(leaf.id).asSinglePlannerQuery,
+        providedOrderPropagationRule = ProvidedOrder.Left,
+        cachedProperties = CachedProperties.empty,
+        context = context
       )
     } else {
       createLeaf(variable)
@@ -2447,7 +2449,7 @@ case class LogicalPlanProducer(
         .addArgumentIds(argumentIds)
         .pipe { qg =>
           if (selectionsFromUnsolvedTypes.isEmpty) {
-            // We have solved all types, lets add the pattern relationship to the query graph
+            // We have solved all types, let's add the pattern relationship to the query graph
             qg.addPatternRelationship(patternRelationship)
           } else {
             // Let the hidden selection handle the solved pattern relationship to the query graph
@@ -2518,7 +2520,12 @@ case class LogicalPlanProducer(
       planHiddenSelectionIfNeeded(rewritten, selectionsFromUnsolvedTypes, context, patternRelationship)
     }
 
-    createRelationshipFulltextIndexSearchPlan(patternRelationship.variable)
+    planLeafFilteredOnPreBoundVariable(
+      patternRelationship.variable,
+      argumentIds,
+      context,
+      createRelationshipFulltextIndexSearchPlan
+    )
   }
 
   private def selectionsFromTypesUnsolvedByIndex(

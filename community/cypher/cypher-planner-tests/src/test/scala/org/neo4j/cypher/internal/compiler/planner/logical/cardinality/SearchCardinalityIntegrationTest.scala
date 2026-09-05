@@ -20,6 +20,7 @@
 package org.neo4j.cypher.internal.compiler.planner.logical.cardinality
 
 import org.neo4j.cypher.internal.CypherVersion
+import org.neo4j.cypher.internal.ast.semantics.SemanticFeature.FulltextSearch
 import org.neo4j.cypher.internal.ast.semantics.SemanticFeature.VectorSearchWithComplexPattern
 import org.neo4j.cypher.internal.compiler.CypherPlannerTestSuite
 import org.neo4j.cypher.internal.compiler.planner.LogicalPlanningAttributesTestSupport
@@ -40,6 +41,7 @@ class SearchCardinalityIntegrationTest extends CypherPlannerTestSuite with Cardi
   private val planner =
     plannerBuilder()
       .addSemanticFeature(VectorSearchWithComplexPattern)
+      .addSemanticFeature(FulltextSearch)
       .setAllNodesCardinality(allNodes)
       .setAllRelationshipsCardinality(allRels)
       .setLabelCardinality("Movie", `(:Movie)`)
@@ -52,6 +54,9 @@ class SearchCardinalityIntegrationTest extends CypherPlannerTestSuite with Cardi
       .addNodeVectorIndex("movieOrBookPlots", Seq("Movie", "Book"), "plot", Seq("imdbRating", "releaseYear"))
       .addRelationshipVectorIndex("actsInScript", Seq("ACTED_IN"), "script", Seq("workingDays"))
       .addRelationshipVectorIndex("actsInOrDirectsScript", Seq("ACTED_IN", "DIRECTED"), "script", Seq("workingDays"))
+      .addNodeFulltextIndex("moviePlotsText", Seq("Movie"), Seq("plot", "tagline"))
+      .addNodeFulltextIndex("movieOrBookPlotsText", Seq("Movie", "Book"), Seq("plot"))
+      .addRelationshipFulltextIndex("actsInScriptText", Seq("ACTED_IN"), Seq("script"))
 
   test(
     "Node vector index SEARCH should produce cardinality estimate equal to the limit of the SEARCH when the limit is less than the cardinality of the index pattern"
@@ -542,5 +547,147 @@ class SearchCardinalityIntegrationTest extends CypherPlannerTestSuite with Cardi
 
       planState should haveSamePlanAndCardinalitiesAsBuilder(expected)
     })
+  }
+
+  test(
+    "Node fulltext index SEARCH should produce cardinality estimate equal to the limit of the SEARCH when the limit is less than the cardinality of the index pattern"
+  ) {
+    Seq(1, 10, 20, `(:Movie)`.toInt - 1).foreach(limit =>
+      queryShouldHaveCardinality(
+        planner
+          .build(),
+        CypherVersion.Cypher25,
+        s"""MATCH (n:Movie)
+           |SEARCH n IN (
+           |  FULLTEXT INDEX moviePlotsText
+           |  FOR 'magic genie'
+           |  LIMIT $limit
+           |)
+           |""".stripMargin,
+        limit // `(:Movie)` * (limit / `(:Movie)`)
+      )
+    )
+  }
+
+  test(
+    "Node fulltext index SEARCH should produce cardinality estimate equal to the cardinality of the index pattern when the limit of the SEARCH is larger"
+  ) {
+    val ipc = `(:Movie)`.toInt // Index Pattern Cardinality
+    Seq(ipc, ipc + 1, ipc + 10, ipc + 3000).foreach(limit =>
+      queryShouldHaveCardinality(
+        planner
+          .build(),
+        CypherVersion.Cypher25,
+        s"""MATCH (n:Movie)
+           |SEARCH n IN (
+           |  FULLTEXT INDEX moviePlotsText
+           |  FOR 'magic genie'
+           |  LIMIT $limit
+           |)
+           |""".stripMargin,
+        `(:Movie)`
+      )
+    )
+  }
+
+  test(
+    "Node fulltext index SEARCH cardinality is DEFAULT (DEFAULT_LIMIT_ROW_COUNT) when limit is parameter and index cardinality > DEFAULT"
+  ) {
+    queryShouldHaveCardinality(
+      planner
+        .build(),
+      CypherVersion.Cypher25,
+      """MATCH (n:Movie)
+        |SEARCH n IN (
+        |  FULLTEXT INDEX moviePlotsText
+        |  FOR 'magic genie'
+        |  LIMIT $limit
+        |)
+        |""".stripMargin,
+      PlannerDefaults.DEFAULT_LIMIT_ROW_COUNT // `(:Movie)` * Math.min(PlannerDefaults.DEFAULT_LIMIT_ROW_COUNT / `(:Movie)`, 1)
+    )
+  }
+
+  test(
+    "Node fulltext index SEARCH selectivity, when the label of the index was not specified on the bound variable in the MATCH"
+  ) {
+    Seq(1, 10, 20, 300, 5000).foreach(limit =>
+      queryShouldHaveCardinality(
+        planner
+          .build(),
+        CypherVersion.Cypher25,
+        s"""MATCH (n)
+           |SEARCH n IN (
+           |  FULLTEXT INDEX moviePlotsText
+           |  FOR 'magic genie'
+           |  LIMIT $limit
+           |)
+           |""".stripMargin,
+        // The SEARCH implies the label `Movie` on node `n`
+        Math.min(limit, `(:Movie)`)
+      )
+    )
+  }
+
+  test(
+    "Relationship fulltext index SEARCH selectivity, when the type on relationship variable is not specified"
+  ) {
+    Seq(1, 10, 20, 300, 5000).foreach(limit =>
+      queryShouldHaveCardinality(
+        planner
+          .build(),
+        CypherVersion.Cypher25,
+        s"""MATCH ()-[r]->()
+           |SEARCH r IN (
+           |  FULLTEXT INDEX actsInScriptText
+           |  FOR 'magic genie'
+           |  LIMIT $limit
+           |)
+           |""".stripMargin,
+        Math.min(limit, `()-[:ACTED_IN]->()`)
+      )
+    )
+  }
+
+  test(
+    "Relationship fulltext index SEARCH selectivity, when the type on relationship variable is specified"
+  ) {
+    Seq(1, 10, 20, 300, 5000).foreach(limit =>
+      queryShouldHaveCardinality(
+        planner
+          .build(),
+        CypherVersion.Cypher25,
+        s"""MATCH ()-[r:ACTED_IN]->()
+           |SEARCH r IN (
+           |  FULLTEXT INDEX actsInScriptText
+           |  FOR 'magic genie'
+           |  LIMIT $limit
+           |)
+           |""".stripMargin,
+        Math.min(limit, `()-[:ACTED_IN]->()`)
+      )
+    )
+  }
+
+  test("Node fulltext index SEARCH with multiple disjunctive labels") {
+    val `(:Movie|Book)` = IndependenceCombiner.orTogetherSelectivities(Seq(
+      Selectivity(`(:Movie)` / allNodes),
+      Selectivity(`(:Book)` / allNodes)
+    )).get.factor * allNodes
+    Seq(1, 10, 20, 100, 150, 200, 300, 5000).foreach(limit =>
+      queryShouldHaveCardinality(
+        planner
+          .build(),
+        CypherVersion.Cypher25,
+        s"""MATCH (n)
+           |SEARCH n IN (
+           |  FULLTEXT INDEX movieOrBookPlotsText
+           |  FOR 'magic genie'
+           |  LIMIT $limit
+           |)
+           |""".stripMargin,
+        Math.min(limit, `(:Movie|Book)`)
+      )
+    )
   }
 }
