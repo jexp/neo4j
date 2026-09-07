@@ -169,6 +169,7 @@ public enum Group {
     CATCHUP_CLIENT("CatchupClient"),
     CATCHUP_SERVER("CatchupServer"),
     STORE_COPY_CLIENT("StoreCopyClient"),
+    STORE_DOWNLOADER("StoreDownloader"),
     STORE_COPY_SNAPSHOT("StoreCopySnapshot"),
     THROUGHPUT_MONITOR("ThroughputMonitor"),
     PANIC_SERVICE("PanicService"),
