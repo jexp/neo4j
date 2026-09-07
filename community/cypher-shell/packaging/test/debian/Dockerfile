@@ -1,4 +1,4 @@
-FROM debian:bullseye
+FROM debian:trixie
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Retry transient apt fetch failures (e.g. connection reset from deb.debian.org)
