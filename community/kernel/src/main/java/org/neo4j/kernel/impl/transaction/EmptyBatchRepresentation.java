@@ -55,7 +55,7 @@ public record EmptyBatchRepresentation(KernelVersion kernelVersion, long appendI
 
     @Override
     public long timeWritten() {
-        return -1;
+        return 0;
     }
 
     @Override
