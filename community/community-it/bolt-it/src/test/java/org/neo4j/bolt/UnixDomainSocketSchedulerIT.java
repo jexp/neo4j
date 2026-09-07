@@ -86,7 +86,7 @@ public class UnixDomainSocketSchedulerIT {
     @SettingsFunction
     static void customizeSettings(SettingBuilder settings) {
         settings.set(BoltConnector.thread_pool_min_size, 0)
-                .set(BoltConnector.thread_pool_max_size, 1)
+                .set(BoltConnector.thread_pool_max_size, 2)
                 .set(BoltConnector.unix_socket_use_dedicated_thread_pool, true)
                 .set(BoltConnector.unix_socket_dedicated_thread_pool_min_size, 0)
                 .set(BoltConnector.unix_socket_dedicated_thread_pool_max_size, 2);
@@ -100,13 +100,15 @@ public class UnixDomainSocketSchedulerIT {
     @ExcludeTransport(TransportType.UNIX)
     void shouldProvideDedicatedPoolForUnixDomainSocket(
             BoltWire wire,
-            @Authenticated BoltTestConnection standardConnection,
+            @Authenticated BoltTestConnection standardConnection1,
+            @Authenticated BoltTestConnection standardConnection2,
             @Authenticated @UseTransport(TransportType.UNIX) ConnectionProvider unixConnectionProvider)
             throws Exception {
-        // saturate the primary thread pool with a simple streaming job and ensure that it is actually
+        // saturate the primary thread pool with simple streaming jobs and ensure that it is actually
         // busy
-        enterStreaming(wire, standardConnection);
-        ServerUtil.awaitPrimaryThreadPoolSaturation(boltServer(), 1);
+        enterStreaming(wire, standardConnection1);
+        enterStreaming(wire, standardConnection2);
+        ServerUtil.awaitPrimaryThreadPoolSaturation(boltServer(), 2);
 
         // create a new UNIX domain socket connection and ensure that it is still responsive regardless
         // of the primary pool being fully in use
@@ -116,7 +118,8 @@ public class UnixDomainSocketSchedulerIT {
             BoltConnectionAssertions.assertThat(unixConnection).receivesSuccess();
         }
 
-        exitStreaming(wire, standardConnection);
+        exitStreaming(wire, standardConnection1);
+        exitStreaming(wire, standardConnection2);
         ServerUtil.awaitPrimaryThreadPoolSaturation(boltServer(), 0);
     }
 
