@@ -1197,7 +1197,7 @@ sealed trait AuthRules extends SemanticAnalysisTooling {
   protected def checkAbacOidcUserAttributeFunction(functionInvocation: FunctionInvocationLike): SemanticCheck = {
     val name = functionInvocation.functionName.fullName
     val args = functionInvocation.callArguments
-    if (name == "abac.oidc.user_attribute") {
+    if (name.toLowerCase == "abac.oidc.user_attribute") {
       lazy val argHeadOption = args.headOption
         .flatMap {
           case _: Parameter             => None // cannot evaluate parameter so this will pass semantic check

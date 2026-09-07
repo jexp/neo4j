@@ -332,6 +332,21 @@ class AdministrationCommandResolvedFunctionSemanticAnalysisTest extends CypherFu
       ).errors)
   }
 
+  test("CREATE AUTH RULE authRule SET CONDITION ABAC.OIDC.USER_ATTRIBUTE('country', 'city') = 'SE_MALMÖ'") {
+    // the function is registered case-insensitively, so the argument checks must apply to any spelling
+    val upperCase = resolved(
+      "ABAC.OIDC.USER_ATTRIBUTE",
+      Some(signature("abac.oidc.user_attribute", builtIn = true)),
+      pos1,
+      listOf(literalString("country"), literalString("city"))
+    )
+    val errors = createAuthRuleWith(upperCase).semanticCheck.run(state, context).errors
+    errors.size shouldBe 1
+    errors.head.msg should startWith(
+      "Function call does not provide the required number of arguments: expected 1 got 2."
+    )
+  }
+
   test("CREATE AUTH RULE authRule SET CONDITION abac.oidc.user_attribute(1) = 'SE_MALMÖ'") {
     createAuthRuleWith(abac(literalInt(1, pos1))).semanticCheck.run(state, context).errors shouldBe SemanticCheckResult
       .error(
