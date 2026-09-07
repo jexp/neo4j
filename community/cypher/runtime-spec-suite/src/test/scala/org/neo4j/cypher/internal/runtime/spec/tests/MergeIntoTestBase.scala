@@ -740,6 +740,35 @@ abstract class MergeIntoTestBase[CONTEXT <: RuntimeContext](
     )
   }
 
+  test("mergeInto should report creation statistics while profiling") {
+    assume(supportFastExpandInto())
+
+    // given
+    givenGraph {
+      circleGraph(sizeHint, relType = "NEXT", outDegree = 1, labels = Seq("Honey"))
+    }
+
+    // when
+    val logicalQuery = new LogicalQueryBuilder(this)
+      .produceResults("x", "y", "r")
+      .mergeInto(
+        "(x)-[r:NEW]->(y)",
+        onMatch = Seq("p1" -> "true", "p2" -> "42"),
+        onCreate = Seq("p1" -> "false", "p2" -> "'forty-two'")
+      )
+      .expandAll("(x)-->(y)")
+      .allNodeScan("x")
+      .build(readOnly = false)
+
+    val runtimeResult = profile(logicalQuery, runtime)
+
+    // then
+    runtimeResult should beColumns("x", "y", "r").withRows(rowCount(sizeHint)).withStatistics(
+      relationshipsCreated = sizeHint,
+      propertiesSet = 2 * sizeHint
+    )
+  }
+
   test("should profile dbHits with mergeInto on match") {
     assume(supportFastExpandInto())
     // given

@@ -275,6 +275,43 @@ abstract class MergeUniqueNodeTestBase[CONTEXT <: RuntimeContext](
     )
   }
 
+  test("mergeUnique should report creation statistics while profiling") {
+    givenGraph {
+      uniqueNodeIndex(IndexType.RANGE, "Honey", "prop")
+      nodeGraph(5, "Milk")
+      nodePropertyGraph(
+        sizeHint,
+        {
+          case i => Map("prop" -> i)
+        },
+        "Honey"
+      )
+    }
+    // when
+    val logicalQuery = new LogicalQueryBuilder(this)
+      .produceResults("x")
+      .filter("true")
+      .mergeUniqueNode(
+        "x",
+        "Honey",
+        Seq("prop" -> s"$sizeHint"),
+        onMatch = Seq("p1" -> "true", "p2" -> "42"),
+        onCreate = Seq("p1" -> "false", "p2" -> "'forty-two'")
+      )
+      .build(readOnly = false)
+
+    val runtimeResult = profile(logicalQuery, runtime)
+    consume(runtimeResult)
+
+    // then
+    val newNode = Iterators.single(tx.findNodes(Label.label("Honey"), "prop", sizeHint))
+    runtimeResult should beColumns("x").withSingleRow(newNode).withStatistics(
+      nodesCreated = 1,
+      labelsAdded = 1,
+      propertiesSet = 3
+    )
+  }
+
   test("profile dbhits on match") {
     givenGraph {
       uniqueNodeIndex(IndexType.RANGE, "Honey", "prop")

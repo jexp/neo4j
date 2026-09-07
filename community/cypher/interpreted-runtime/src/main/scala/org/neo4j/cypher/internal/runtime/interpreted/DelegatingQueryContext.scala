@@ -178,6 +178,14 @@ abstract class DelegatingQueryContext(val inner: QueryContext) extends QueryCont
     )
   }
 
+  override def onMutation(
+    nodesCreated: Int,
+    relationshipsCreated: Int,
+    labelsCreated: Int,
+    propertiesCreated: Int
+  ): Unit =
+    inner.onMutation(nodesCreated, relationshipsCreated, labelsCreated, propertiesCreated)
+
   override def getOrCreateRelTypeId(relTypeName: String): Int = singleDbHit(inner.getOrCreateRelTypeId(relTypeName))
 
   override def getLabelsForNode(node: Long, nodeCursor: NodeCursor): ListValue =

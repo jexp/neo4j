@@ -31,9 +31,12 @@ import org.neo4j.cypher.internal.runtime.NodeOperations
 import org.neo4j.cypher.internal.runtime.QueryContext
 import org.neo4j.cypher.internal.runtime.QueryStatistics
 import org.neo4j.cypher.internal.runtime.RelationshipOperations
+import org.neo4j.cypher.internal.runtime.interpreted.profiler.Counter
+import org.neo4j.cypher.internal.runtime.interpreted.profiler.ProfilingPipeQueryContext
 import org.neo4j.graphdb.Node
 import org.neo4j.graphdb.Relationship
 import org.neo4j.internal.schema.EndpointType
+import org.neo4j.internal.schema.IndexDescriptor
 import org.neo4j.internal.schema.IndexPrototype
 import org.neo4j.internal.schema.SchemaCommand.ConstraintCommand.Create
 import org.neo4j.internal.schema.SchemaDescriptors
@@ -42,6 +45,8 @@ import org.neo4j.internal.schema.constraints.SchemaValueType
 import org.neo4j.values.storable.Values
 
 import java.util
+
+import scala.collection.mutable
 
 class UpdateCountingQueryContextTest extends InterpretedRuntimeTestSuite {
 
@@ -384,5 +389,23 @@ class UpdateCountingQueryContextTest extends InterpretedRuntimeTestSuite {
     context.dropNamedConstraint("name", allowDependent = true)
 
     context.getStatistics should equal(QueryStatistics(constraintsRemoved = 1))
+  }
+
+  test("onMutation counts created nodes, relationships, labels and properties") {
+    context.onMutation(1, 2, 3, 4)
+
+    context.getStatistics should equal(
+      QueryStatistics(nodesCreated = 1, relationshipsCreated = 2, labelsAdded = 3, propertiesSet = 4)
+    )
+  }
+
+  test("onMutation is forwarded through a profiling context to the counting context") {
+    val profiling = new ProfilingPipeQueryContext(context, Counter(), mutable.Map.empty[IndexDescriptor, Int])
+
+    profiling.onMutation(1, 2, 3, 4)
+
+    context.getStatistics should equal(
+      QueryStatistics(nodesCreated = 1, relationshipsCreated = 2, labelsAdded = 3, propertiesSet = 4)
+    )
   }
 }
