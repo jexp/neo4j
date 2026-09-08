@@ -29,17 +29,16 @@ import org.neo4j.cypher.internal.expressions.Parameter
 import org.neo4j.cypher.internal.expressions.SensitiveParameter
 import org.neo4j.cypher.internal.expressions.SensitiveStringLiteral
 import org.neo4j.cypher.internal.expressions.Variable
-import org.neo4j.cypher.internal.util.InputPosition
 
 import java.nio.charset.StandardCharsets.UTF_8
 
 abstract class UserAdministrationCommandParserTestBase extends AdministrationAndSchemaCommandParserTestBase {
   protected val userString = "user"
   protected val varUser: Variable = varFor(userString)
-  protected val password: InputPosition => SensitiveStringLiteral = pw("password")
-  protected val passwordNew: InputPosition => SensitiveStringLiteral = pw("new")
-  protected val passwordCurrent: InputPosition => SensitiveStringLiteral = pw("current")
-  protected val passwordEmpty: InputPosition => SensitiveStringLiteral = pw("")
+  protected val password: SensitiveStringLiteral = pw("password")
+  protected val passwordNew: SensitiveStringLiteral = pw("new")
+  protected val passwordCurrent: SensitiveStringLiteral = pw("current")
+  protected val passwordEmpty: SensitiveStringLiteral = pw("")
   protected val paramPassword: Parameter = pwParam("password")
   protected val paramPasswordNew: Parameter = pwParam("newPassword")
   protected val paramPasswordCurrent: Parameter = pwParam("currentPassword")

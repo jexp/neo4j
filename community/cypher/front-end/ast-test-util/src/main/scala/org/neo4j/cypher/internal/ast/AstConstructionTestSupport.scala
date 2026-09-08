@@ -209,11 +209,6 @@ import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
 import scala.language.implicitConversions
 
-trait AstConstructionTestSupportWithPosConversion {
-  self: AstConstructionTestSupport =>
-  implicit def withPos[T](expr: InputPosition => T): T = expr(pos)
-}
-
 trait AstConstructionTestSupport {
   protected val pos: InputPosition.Range = InputPosition.NONE
   protected val defaultPos: InputPosition = InputPosition(0, 1, 1)

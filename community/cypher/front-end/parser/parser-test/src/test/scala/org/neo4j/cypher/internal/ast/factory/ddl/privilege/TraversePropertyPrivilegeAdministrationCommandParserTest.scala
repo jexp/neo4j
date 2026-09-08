@@ -17,7 +17,6 @@
 package org.neo4j.cypher.internal.ast.factory.ddl.privilege
 
 import org.neo4j.cypher.internal.ast.AllGraphsScope
-import org.neo4j.cypher.internal.ast.AstConstructionTestSupportWithPosConversion
 import org.neo4j.cypher.internal.ast.Element
 import org.neo4j.cypher.internal.ast.ExistsExpression
 import org.neo4j.cypher.internal.ast.GraphPrivilege
@@ -59,7 +58,7 @@ import org.scalacheck.Shrink
 
 class TraversePropertyPrivilegeAdministrationCommandParserTest
     extends PropertyPrivilegeAdministrationCommandParserTestBase
-    with CypherScalaCheckDrivenPropertyChecks with AstConstructionTestSupportWithPosConversion {
+    with CypherScalaCheckDrivenPropertyChecks {
   implicit def noShrink[T]: Shrink[T] = Shrink.shrinkAny
 
   override protected def ignorePrettifier: Boolean = true
@@ -88,9 +87,9 @@ class TraversePropertyPrivilegeAdministrationCommandParserTest
             Seq(labelQualifierA),
             Some(varFor("a")),
             Equals(
-              Property(varFor("a"), PropertyKeyName("prop2")(_))(_),
+              Property(varFor("a"), PropertyKeyName("prop2")(pos))(pos),
               literal(1)
-            )(_),
+            )(pos),
             Node
           )),
           Seq(literalRole),
@@ -271,8 +270,8 @@ class TraversePropertyPrivilegeAdministrationCommandParserTest
             GraphPrivilege(TraverseAction, graphScope)(pos),
             List(PatternQualifier(
               Seq(
-                if (elementType == Node) LabelQualifier("A B")(_)
-                else RelationshipQualifier("A B")(_)
+                if (elementType == Node) LabelQualifier("A B")(pos)
+                else RelationshipQualifier("A B")(pos)
               ),
               variable,
               propertyRuleAst,
@@ -317,8 +316,8 @@ class TraversePropertyPrivilegeAdministrationCommandParserTest
               GraphPrivilege(TraverseAction, graphScope)(pos),
               List(PatternQualifier(
                 Seq(
-                  if (elementType == Node) LabelQualifier(":A")(_)
-                  else RelationshipQualifier(":A")(_)
+                  if (elementType == Node) LabelQualifier(":A")(pos)
+                  else RelationshipQualifier(":A")(pos)
                 ),
                 variable,
                 propertyRuleAst,
@@ -426,7 +425,7 @@ class TraversePropertyPrivilegeAdministrationCommandParserTest
         s"$verb$immutableString TRAVERSE ON $graphKeyword `f:oo` $patternKeyword $propertyRule $preposition role" should
           parseTo[Statements](
             func(
-              GraphPrivilege(TraverseAction, NamedGraphsScope(Seq(namespacedName("f:oo"))) _)(pos),
+              GraphPrivilege(TraverseAction, NamedGraphsScope(Seq(namespacedName("f:oo")))(pos))(pos),
               patternQualifier,
               Seq(literalRole),
               immutable
@@ -453,7 +452,7 @@ class TraversePropertyPrivilegeAdministrationCommandParserTest
           _.toAst(statementToStatements(grantGraphPrivilege(
             GraphPrivilege(TraverseAction, AllGraphsScope()(pos))(pos),
             List(PatternQualifier(
-              Seq(LabelAllQualifier() _),
+              Seq(LabelAllQualifier()(pos)),
               Some(varFor("n")),
               equals(prop(varFor("n"), "prop1"), literalInt(1)),
               Node
@@ -472,7 +471,7 @@ class TraversePropertyPrivilegeAdministrationCommandParserTest
       grantGraphPrivilege(
         GraphPrivilege(TraverseAction, AllGraphsScope()(pos))(pos),
         List(PatternQualifier(
-          Seq(LabelAllQualifier() _),
+          Seq(LabelAllQualifier()(pos)),
           Some(varFor("a")),
           equals(prop(varFor("b"), "prop1"), literalInt(1)),
           Node
@@ -486,7 +485,7 @@ class TraversePropertyPrivilegeAdministrationCommandParserTest
       grantGraphPrivilege(
         GraphPrivilege(TraverseAction, AllGraphsScope()(pos))(pos),
         List(PatternQualifier(
-          Seq(RelationshipAllQualifier() _),
+          Seq(RelationshipAllQualifier()(pos)),
           Some(varFor("a")),
           equals(prop(varFor("b"), "prop1"), literalInt(1)),
           Relationship
@@ -504,7 +503,7 @@ class TraversePropertyPrivilegeAdministrationCommandParserTest
       grantGraphPrivilege(
         GraphPrivilege(TraverseAction, AllGraphsScope()(pos))(pos),
         List(PatternQualifier(
-          Seq(LabelAllQualifier() _),
+          Seq(LabelAllQualifier()(pos)),
           Some(varFor("n")),
           equals(
             literalInt(1),
@@ -524,7 +523,7 @@ class TraversePropertyPrivilegeAdministrationCommandParserTest
       grantGraphPrivilege(
         GraphPrivilege(TraverseAction, AllGraphsScope()(pos))(pos),
         List(PatternQualifier(
-          Seq(LabelAllQualifier() _),
+          Seq(LabelAllQualifier()(pos)),
           Some(varFor("n")),
           equals(
             literalInt(1),
@@ -544,7 +543,7 @@ class TraversePropertyPrivilegeAdministrationCommandParserTest
       grantGraphPrivilege(
         GraphPrivilege(TraverseAction, AllGraphsScope()(pos))(pos),
         List(PatternQualifier(
-          Seq(RelationshipAllQualifier() _),
+          Seq(RelationshipAllQualifier()(pos)),
           Some(varFor("n")),
           equals(
             literalInt(1),
@@ -564,7 +563,7 @@ class TraversePropertyPrivilegeAdministrationCommandParserTest
       grantGraphPrivilege(
         GraphPrivilege(TraverseAction, AllGraphsScope()(pos))(pos),
         List(PatternQualifier(
-          Seq(RelationshipAllQualifier() _),
+          Seq(RelationshipAllQualifier()(pos)),
           Some(varFor("n")),
           equals(
             literalInt(1),
@@ -588,7 +587,7 @@ class TraversePropertyPrivilegeAdministrationCommandParserTest
       grantGraphPrivilege(
         GraphPrivilege(TraverseAction, AllGraphsScope()(pos))(pos),
         List(PatternQualifier(
-          Seq(LabelQualifier("A") _),
+          Seq(LabelQualifier("A")(pos)),
           Some(varFor("n")),
           ExistsExpression(
             SingleQuery(

@@ -17,7 +17,6 @@
 package org.neo4j.cypher.internal.ast.factory.ddl
 
 import org.neo4j.cypher.internal.ast
-import org.neo4j.cypher.internal.ast.AstConstructionTestSupportWithPosConversion
 import org.neo4j.cypher.internal.ast.CommaSeparatedNames
 import org.neo4j.cypher.internal.ast.CommandClauseNames
 import org.neo4j.cypher.internal.ast.ExpressionNames
@@ -32,8 +31,7 @@ import org.neo4j.gqlstatus.GqlStatusInfoCodes
 import scala.util.Random
 
 /* Tests for combining listing and terminating commands */
-class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase
-    with AstConstructionTestSupportWithPosConversion {
+class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase {
 
   private type CommandClauseWithNames =
     (
@@ -1808,7 +1806,7 @@ class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase
             )
           ))
         ))
-      ),
+      )(pos),
       terminateTx(
         ExpressionNames(literalString("id")),
         None,
@@ -1841,7 +1839,7 @@ class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase
             )
           ))
         ))
-      ),
+      )(pos),
       showSetting(
         NoNames,
         None,
@@ -1874,7 +1872,7 @@ class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase
             )
           ))
         ))
-      ),
+      )(pos),
       showFunction(
         ast.AllFunctions,
         None,
@@ -1908,7 +1906,7 @@ class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase
             )
           ))
         ))
-      ),
+      )(pos),
       showProcedure(
         None,
         None,
@@ -1941,7 +1939,7 @@ class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase
             )
           ))
         ))
-      ),
+      )(pos),
       showIndex(
         ast.AllIndexes,
         None,
@@ -1974,7 +1972,7 @@ class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase
             )
           ))
         ))
-      ),
+      )(pos),
       showConstraint(
         ast.AllConstraints,
         None,
@@ -2007,7 +2005,7 @@ class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase
             )
           ))
         ))
-      ),
+      )(pos),
       returnAll
     )
   }
@@ -2058,7 +2056,7 @@ class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase
             )
           ))
         ))
-      ),
+      )(pos),
       terminateTx(
         ExpressionNames(literalString("id")),
         None,
@@ -2091,7 +2089,7 @@ class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase
             )
           ))
         ))
-      ),
+      )(pos),
       showSetting(
         NoNames,
         None,
@@ -2124,7 +2122,7 @@ class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase
             )
           ))
         ))
-      ),
+      )(pos),
       showFunction(
         ast.AllFunctions,
         None,
@@ -2158,7 +2156,7 @@ class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase
             )
           ))
         ))
-      ),
+      )(pos),
       showProcedure(
         None,
         None,
@@ -2191,7 +2189,7 @@ class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase
             )
           ))
         ))
-      ),
+      )(pos),
       showIndex(
         ast.AllIndexes,
         None,
@@ -2224,7 +2222,7 @@ class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase
             )
           ))
         ))
-      ),
+      )(pos),
       showConstraint(
         ast.AllConstraints,
         None,
@@ -2257,7 +2255,7 @@ class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase
             )
           ))
         ))
-      ),
+      )(pos),
       showCurrentGraphType(
         asGraph = false,
         None,
@@ -2290,7 +2288,7 @@ class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase
             )
           ))
         ))
-      ),
+      )(pos),
       showDatabase(
         ast.HomeDatabaseScope()(pos),
         None,
@@ -2323,7 +2321,7 @@ class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase
             )
           ))
         ))
-      ),
+      )(pos),
       returnAll
     )
   }
@@ -2367,21 +2365,21 @@ class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       terminateTx(
         ExpressionNames(literalString("id")),
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showSetting(
         NoNames,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showFunction(
         ast.AllFunctions,
         None,
@@ -2389,49 +2387,49 @@ class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showProcedure(
         None,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showIndex(
         ast.AllIndexes,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showConstraint(
         ast.AllConstraints,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showTx(
         NoNames,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       terminateTx(
         ExpressionNames(literalString("id")),
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showSetting(
         NoNames,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showFunction(
         ast.AllFunctions,
         None,
@@ -2439,49 +2437,49 @@ class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showProcedure(
         None,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showIndex(
         ast.AllIndexes,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showConstraint(
         ast.AllConstraints,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showTx(
         NoNames,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       terminateTx(
         ExpressionNames(literalString("id")),
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showSetting(
         NoNames,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showFunction(
         ast.AllFunctions,
         None,
@@ -2489,49 +2487,49 @@ class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showProcedure(
         None,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showIndex(
         ast.AllIndexes,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showConstraint(
         ast.AllConstraints,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showTx(
         NoNames,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       terminateTx(
         ExpressionNames(literalString("id")),
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showSetting(
         NoNames,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showFunction(
         ast.AllFunctions,
         None,
@@ -2539,28 +2537,28 @@ class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showProcedure(
         None,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showIndex(
         ast.AllIndexes,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showConstraint(
         ast.AllConstraints,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       returnAll
     )
   }
@@ -2612,21 +2610,21 @@ class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       terminateTx(
         ExpressionNames(literalString("id")),
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showSetting(
         NoNames,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showFunction(
         ast.AllFunctions,
         None,
@@ -2634,63 +2632,63 @@ class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showProcedure(
         None,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showIndex(
         ast.AllIndexes,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showConstraint(
         ast.AllConstraints,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showCurrentGraphType(
         asGraph = false,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showDatabase(
         ast.AllDatabasesScope()(pos),
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showTx(
         NoNames,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       terminateTx(
         ExpressionNames(literalString("id")),
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showSetting(
         NoNames,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showFunction(
         ast.AllFunctions,
         None,
@@ -2698,63 +2696,63 @@ class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showProcedure(
         None,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showIndex(
         ast.AllIndexes,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showConstraint(
         ast.AllConstraints,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showCurrentGraphType(
         asGraph = false,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showDatabase(
         ast.AllDatabasesScope()(pos),
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showTx(
         NoNames,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       terminateTx(
         ExpressionNames(literalString("id")),
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showSetting(
         NoNames,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showFunction(
         ast.AllFunctions,
         None,
@@ -2762,63 +2760,63 @@ class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showProcedure(
         None,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showIndex(
         ast.AllIndexes,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showConstraint(
         ast.AllConstraints,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showCurrentGraphType(
         asGraph = false,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showDatabase(
         ast.AllDatabasesScope()(pos),
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showTx(
         NoNames,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       terminateTx(
         ExpressionNames(literalString("id")),
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showSetting(
         NoNames,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showFunction(
         ast.AllFunctions,
         None,
@@ -2826,42 +2824,42 @@ class CombineMultipleCommandsParserTest extends CombineCommandsParserTestBase
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showProcedure(
         None,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showIndex(
         ast.AllIndexes,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showConstraint(
         ast.AllConstraints,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showCurrentGraphType(
         asGraph = false,
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       showDatabase(
         ast.AllDatabasesScope()(pos),
         None,
         yieldAll = false,
         List(commandResultItem("a")),
         Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-      ),
+      )(pos),
       returnAll
     )
   }

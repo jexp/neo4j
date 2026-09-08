@@ -17,7 +17,6 @@
 package org.neo4j.cypher.internal.ast.factory.ddl
 
 import org.neo4j.cypher.internal.ast
-import org.neo4j.cypher.internal.ast.AstConstructionTestSupportWithPosConversion
 import org.neo4j.cypher.internal.ast.prettifier.Prettifier.maybeImmutable
 import org.neo4j.cypher.internal.ast.test.util.AstParsing.Cypher5
 import org.neo4j.cypher.internal.ast.test.util.AstParsingTestBase
@@ -37,8 +36,7 @@ import java.nio.charset.StandardCharsets
 
 import scala.language.implicitConversions
 
-class AdministrationAndSchemaCommandParserTestBase extends AstParsingTestBase
-    with AstConstructionTestSupportWithPosConversion {
+class AdministrationAndSchemaCommandParserTestBase extends AstParsingTestBase {
 
   protected def assertAst(
     expected: ast.Statement,
@@ -112,15 +110,15 @@ class AdministrationAndSchemaCommandParserTestBase extends AstParsingTestBase
   val paramRole1: Expression = stringParam("role1")
   val paramRole2: Expression = stringParam("role2")
   val accessVar: Variable = varFor(accessString)
-  val labelQualifierA: InputPosition => ast.LabelQualifier = ast.LabelQualifier("A")(_)
-  val labelQualifierB: InputPosition => ast.LabelQualifier = ast.LabelQualifier("B")(_)
-  val relQualifierA: InputPosition => ast.RelationshipQualifier = ast.RelationshipQualifier("A")(_)
-  val relQualifierB: InputPosition => ast.RelationshipQualifier = ast.RelationshipQualifier("B")(_)
-  val elemQualifierA: InputPosition => ast.ElementQualifier = ast.ElementQualifier("A")(_)
-  val elemQualifierB: InputPosition => ast.ElementQualifier = ast.ElementQualifier("B")(_)
-  val graphScopeFoo: InputPosition => ast.NamedGraphsScope = ast.NamedGraphsScope(Seq(literalFoo))(_)
-  val graphScopeParamFoo: InputPosition => ast.NamedGraphsScope = ast.NamedGraphsScope(Seq(namespacedParamFoo))(_)
-  val graphScopeFooBaz: InputPosition => ast.NamedGraphsScope = ast.NamedGraphsScope(Seq(literalFoo, literal("baz")))(_)
+  val labelQualifierA: ast.LabelQualifier = ast.LabelQualifier("A")(pos)
+  val labelQualifierB: ast.LabelQualifier = ast.LabelQualifier("B")(pos)
+  val relQualifierA: ast.RelationshipQualifier = ast.RelationshipQualifier("A")(pos)
+  val relQualifierB: ast.RelationshipQualifier = ast.RelationshipQualifier("B")(pos)
+  val elemQualifierA: ast.ElementQualifier = ast.ElementQualifier("A")(pos)
+  val elemQualifierB: ast.ElementQualifier = ast.ElementQualifier("B")(pos)
+  val graphScopeFoo: ast.NamedGraphsScope = ast.NamedGraphsScope(Seq(literalFoo))(pos)
+  val graphScopeParamFoo: ast.NamedGraphsScope = ast.NamedGraphsScope(Seq(namespacedParamFoo))(pos)
+  val graphScopeFooBaz: ast.NamedGraphsScope = ast.NamedGraphsScope(Seq(literalFoo, literal("baz")))(pos)
 
   def literal[T](name: String)(implicit convertor: String => T): T = convertor(name)
 
@@ -134,17 +132,16 @@ class AdministrationAndSchemaCommandParserTestBase extends AstParsingTestBase
   } else {
     // Cypher 25 never sets an explicit namespace in the AST,
     // namespace is inferred from what is available in the DBMS
-    ast.NamespacedName(List(nameParts.mkString(".")), None)(_)
+    ast.NamespacedName(List(nameParts.mkString(".")), None)(pos)
   }
 
   def namespacedName(nameParts: String*): ast.NamespacedName =
-    if (nameParts.size == 1) ast.NamespacedName(nameParts.head)(_)
-    else ast.NamespacedName(nameParts.tail.toList, Some(nameParts.head))(_)
+    if (nameParts.size == 1) ast.NamespacedName(nameParts.head)(pos)
+    else ast.NamespacedName(nameParts.tail.toList, Some(nameParts.head))(pos)
 
   def toUtf8Bytes(pw: String): Array[Byte] = pw.getBytes(StandardCharsets.UTF_8)
 
-  def pw(password: String): InputPosition => SensitiveStringLiteral =
-    p => SensitiveStringLiteral(toUtf8Bytes(password))(p.withInputLength(0))
+  def pw(password: String): SensitiveStringLiteral = SensitiveStringLiteral(toUtf8Bytes(password))(pos)
 
   def pwParam(name: String): Parameter = parameter(name, CTString)
 

@@ -17,7 +17,6 @@
 package org.neo4j.cypher.internal.rewriting
 
 import org.neo4j.cypher.internal.CypherVersion
-import org.neo4j.cypher.internal.ast.AstConstructionTestSupportWithPosConversion
 import org.neo4j.cypher.internal.ast.ShowAliases
 import org.neo4j.cypher.internal.ast.ShowAuthRules
 import org.neo4j.cypher.internal.ast.ShowColumn
@@ -36,7 +35,7 @@ import org.neo4j.cypher.internal.rewriting.rewriters.anonymizeQuery
 import org.neo4j.cypher.internal.util.Rewriter
 import org.neo4j.cypher.internal.util.bottomUp
 
-class AnonymizeQueryTest extends AnonymizerTestBase with AstConstructionTestSupportWithPosConversion {
+class AnonymizeQueryTest extends AnonymizerTestBase {
 
   val anonymizer: Anonymizer = new Anonymizer {
     override def label(name: String): String = "x" + name
@@ -425,7 +424,7 @@ class AnonymizeQueryTest extends AnonymizerTestBase with AstConstructionTestSupp
       "SHOW CURRENT USER YIELD home",
       "SHOW CURRENT USER YIELD Xhome",
       additionalExpectedAstUpdates = _ match {
-        case s: ShowCurrentUser => s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))
+        case s: ShowCurrentUser => s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))(pos)
         case s                  => s
       }
     )
@@ -433,7 +432,7 @@ class AnonymizeQueryTest extends AnonymizerTestBase with AstConstructionTestSupp
       "SHOW USERS WHERE user IN ['user1', $userParam]",
       "SHOW USERS WHERE Xuser IN ['string[user1]', $XuserParam]",
       additionalExpectedAstUpdates = _ match {
-        case s: ShowUsers => s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))
+        case s: ShowUsers => s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))(pos)
         case s            => s
       }
     )
@@ -472,7 +471,7 @@ class AnonymizeQueryTest extends AnonymizerTestBase with AstConstructionTestSupp
       "SHOW ROLES YIELD role, immutable WHERE role = 'wanted' RETURN immutable",
       "SHOW ROLES YIELD Xrole, Ximmutable WHERE Xrole = 'string[wanted]' RETURN Ximmutable",
       additionalExpectedAstUpdates = _ match {
-        case s: ShowRoles => s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))
+        case s: ShowRoles => s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))(pos)
         case s            => s
       }
     )
@@ -518,7 +517,7 @@ class AnonymizeQueryTest extends AnonymizerTestBase with AstConstructionTestSupp
       "SHOW AUTH RULES YIELD name",
       "SHOW AUTH RULES YIELD Xname",
       additionalExpectedAstUpdates = _ match {
-        case s: ShowAuthRules => s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))
+        case s: ShowAuthRules => s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))(pos)
         case s                => s
       }
     )
@@ -549,7 +548,7 @@ class AnonymizeQueryTest extends AnonymizerTestBase with AstConstructionTestSupp
       "SHOW ROLE role PRIVILEGES",
       "SHOW ROLE `string[role]` PRIVILEGES",
       additionalExpectedAstUpdates = _ match {
-        case s: ShowPrivileges => s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))
+        case s: ShowPrivileges => s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))(pos)
         case s                 => s
       }
     )
@@ -558,7 +557,7 @@ class AnonymizeQueryTest extends AnonymizerTestBase with AstConstructionTestSupp
       "SHOW USER `string[user]` PRIVILEGES AS COMMANDS WHERE Xcommand CONTAINS 'string[GRANT]'",
       additionalExpectedAstUpdates = _ match {
         case s: ShowPrivilegeCommands =>
-          s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))
+          s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))(pos)
         case s => s
       }
     )
@@ -567,7 +566,7 @@ class AnonymizeQueryTest extends AnonymizerTestBase with AstConstructionTestSupp
       "SHOW SUPPORTED PRIVILEGES YIELD Xaction, Xdescription ORDER BY Xaction SKIP 1 LIMIT 2",
       additionalExpectedAstUpdates = _ match {
         case s: ShowSupportedPrivilegeCommand =>
-          s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))
+          s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))(pos)
         case s => s
       }
     )
@@ -610,7 +609,7 @@ class AnonymizeQueryTest extends AnonymizerTestBase with AstConstructionTestSupp
       additionalExpectedAstUpdates = _ match {
         case s: ShowServers => s.copy(
             defaultColumns = s.defaultColumns.copy(columns = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))
-          )
+          )(pos)
         case s => s
       }
     )
@@ -692,7 +691,7 @@ class AnonymizeQueryTest extends AnonymizerTestBase with AstConstructionTestSupp
       additionalExpectedAstUpdates = _ match {
         case s: ShowAliases => s.copy(
             defaultColumns = s.defaultColumns.copy(columns = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))
-          )
+          )(pos)
         case s => s
       }
     )

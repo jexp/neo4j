@@ -142,7 +142,7 @@ class IndexCommandsParserTest extends AdministrationAndSchemaCommandParserTestBa
               ast.IfExistsThrowError,
               ast.NoOptions,
               true
-            ).withGraph(Some(use(List("neo4j"), !fromCypher5))),
+            )(pos).withGraph(Some(use(List("neo4j"), !fromCypher5))),
           comparePosition = false
         )
       }
@@ -511,7 +511,7 @@ class IndexCommandsParserTest extends AdministrationAndSchemaCommandParserTestBa
               ast.IfExistsThrowError,
               ast.NoOptions,
               false
-            ).withGraph(Some(use(List("neo4j"), !fromCypher5))),
+            )(pos).withGraph(Some(use(List("neo4j"), !fromCypher5))),
           comparePosition = false
         )
       }
@@ -963,7 +963,7 @@ class IndexCommandsParserTest extends AdministrationAndSchemaCommandParserTestBa
       test(s"USE neo4j CREATE LOOKUP INDEX FOR $pattern ON EACH $function") {
         assertAstVersionBased(
           fromCypher5 =>
-            createIndex(None, posN2(testName), ast.IfExistsThrowError, ast.NoOptions)
+            createIndex(None, posN2(testName), ast.IfExistsThrowError, ast.NoOptions)(pos)
               .withGraph(Some(use(List("neo4j"), !fromCypher5))),
           comparePosition = false
         )
@@ -1119,7 +1119,7 @@ class IndexCommandsParserTest extends AdministrationAndSchemaCommandParserTestBa
               posN2(testName),
               ast.IfExistsThrowError,
               ast.NoOptions
-            ).withGraph(Some(use(List("neo4j"), !fromCypher5))),
+            )(pos).withGraph(Some(use(List("neo4j"), !fromCypher5))),
           comparePosition = false
         )
       }
@@ -1481,7 +1481,7 @@ class IndexCommandsParserTest extends AdministrationAndSchemaCommandParserTestBa
               posN2(testName),
               ast.IfExistsThrowError,
               ast.NoOptions
-            ).withGraph(
+            )(pos).withGraph(
               Some(use(List("neo4j"), !fromCypher5))
             ),
           comparePosition = false
@@ -1822,7 +1822,7 @@ class IndexCommandsParserTest extends AdministrationAndSchemaCommandParserTestBa
               posN2(testName),
               ast.IfExistsThrowError,
               ast.NoOptions
-            ).withGraph(
+            )(pos).withGraph(
               Some(use(List("neo4j"), !fromCypher5))
             ),
           comparePosition = false
@@ -2169,7 +2169,7 @@ class IndexCommandsParserTest extends AdministrationAndSchemaCommandParserTestBa
               posN2(testName),
               ast.IfExistsThrowError,
               ast.NoOptions
-            ).withGraph(
+            )(pos).withGraph(
               Some(use(List("neo4j"), !fromCypher5))
             ),
           comparePosition = false,

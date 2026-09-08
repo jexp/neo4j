@@ -17,15 +17,13 @@
 package org.neo4j.cypher.internal.ast.factory.ddl
 
 import org.neo4j.cypher.internal.ast
-import org.neo4j.cypher.internal.ast.AstConstructionTestSupportWithPosConversion
 import org.neo4j.cypher.internal.ast.ExpressionNames
 import org.neo4j.cypher.internal.ast.NoNames
 import org.neo4j.cypher.internal.ast.test.util.AstParsing.Cypher5
 import org.neo4j.cypher.internal.expressions.SemanticDirection
 
 /* Tests for combining listing and terminating commands with regular Cypher, administration commands and schema commands */
-class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTestBase
-    with AstConstructionTestSupportWithPosConversion {
+class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTestBase {
 
   Seq(
     ("MATCH (n) RETURN n", Seq(match_(nodePat(Some("n"))), return_(variableReturnItem("n")))),
@@ -248,7 +246,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
           )
         case _ =>
           val expected: List[ast.Clause] = maybeUseClause.toList ++ List(
-            clause(None, false, List.empty, None),
+            clause(None, false, List.empty, None)(pos),
             withAll(),
             match_(nodePat(Some("n"))),
             return_(variableReturnItem("n"))
@@ -265,7 +263,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
           else _.withSyntaxErrorContaining("Invalid input 'WITH': expected 'ORDER BY'")
         case _ =>
           val expected: List[ast.Clause] = maybeUseClause.toList ++ List(
-            clause(None, true, List.empty, Some(withFromYield(returnAllItems))),
+            clause(None, true, List.empty, Some(withFromYield(returnAllItems)))(pos),
             withAll(),
             match_(nodePat(Some("n"))),
             return_(variableReturnItem("n"))
@@ -296,7 +294,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
               true,
               List.empty,
               Some(withFromYield(returnAllItems))
-            ),
+            )(pos),
             returnAll
           )
           _.toAstPositioned(ast.Statements(Seq(singleQuery(expected: _*))))
@@ -325,7 +323,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
           )
         case _ =>
           val expected: List[ast.Clause] = maybeUseClause.toList ++ List(
-            clause(None, false, List.empty, None),
+            clause(None, false, List.empty, None)(pos),
             with_(returnItem(varFor("name"), "name"), returnItem(varFor("type"), "type")),
             returnAll
           )
@@ -354,7 +352,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
               false,
               List(commandResultItem("name")),
               Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("name"))))
-            ),
+            )(pos),
             return_(aliasedReturnItem(varFor("name"), "numIndexes"))
           )
           _.toAstPositioned(ast.Statements(Seq(singleQuery(expected: _*))))
@@ -382,7 +380,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
           )
         case _ =>
           val expected: List[ast.Clause] = maybeUseClause.toList ++ List(
-            clause(None, false, List.empty, None),
+            clause(None, false, List.empty, None)(pos),
             return_(aliasedReturnItem(varFor("name"), "numIndexes"))
           )
           _.toAstPositioned(ast.Statements(Seq(singleQuery(expected: _*))))
@@ -410,7 +408,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
           )
         case _ =>
           val expected: List[ast.Clause] = maybeUseClause.toList ++ List(
-            clause(None, false, List.empty, None),
+            clause(None, false, List.empty, None)(pos),
             with_(aliasedReturnItem(literalInt(1), "c")),
             return_(aliasedReturnItem(varFor("name"), "numIndexes"))
           )
@@ -439,7 +437,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
           )
         case _ =>
           val expected: List[ast.Clause] = maybeUseClause.toList ++ List(
-            clause(None, false, List.empty, None),
+            clause(None, false, List.empty, None)(pos),
             with_(aliasedReturnItem(literalInt(1), "c"))
           )
           _.toAstPositioned(ast.Statements(Seq(singleQuery(expected: _*))))
@@ -463,7 +461,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
               false,
               List(commandResultItem("a")),
               Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-            ),
+            )(pos),
             with_(variableReturnItem("a")),
             return_(variableReturnItem("a"))
           )
@@ -492,7 +490,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
           )
         case _ =>
           val expected: List[ast.Clause] = maybeUseClause.toList ++ List(
-            clause(None, false, List.empty, None),
+            clause(None, false, List.empty, None)(pos),
             unwind(varFor("as"), varFor("a")),
             return_(variableReturnItem("a"))
           )
@@ -517,7 +515,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
               false,
               List(commandResultItem("as")),
               Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("as"))))
-            ),
+            )(pos),
             unwind(varFor("as"), varFor("a")),
             return_(variableReturnItem("a"))
           )
@@ -555,13 +553,13 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
               false,
               List.empty,
               None
-            ),
+            )(pos),
             return_(variableReturnItem("n"))
           )
           _.toAstPositioned(ast.Statements(Seq(singleQuery(expected: _*))))
         case _ =>
           val expected: List[ast.Clause] = maybeUseClause.toList ++ List(
-            clause(NoNames, None, false, List.empty, None),
+            clause(NoNames, None, false, List.empty, None)(pos),
             withAll(),
             match_(nodePat(Some("n"))),
             return_(variableReturnItem("n"))
@@ -588,13 +586,13 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
               false,
               List.empty,
               None
-            ),
+            )(pos),
             return_(variableReturnItem("n"))
           )
           _.toAstPositioned(ast.Statements(Seq(singleQuery(expected: _*))))
         case _ =>
           val expected: List[ast.Clause] = maybeUseClause.toList ++ List(
-            clause(NoNames, None, true, List.empty, Some(withFromYield(returnAllItems))),
+            clause(NoNames, None, true, List.empty, Some(withFromYield(returnAllItems)))(pos),
             withAll(),
             match_(nodePat(Some("n"))),
             return_(variableReturnItem("n"))
@@ -622,7 +620,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
         case _ =>
           val expected: List[ast.Clause] = maybeUseClause.toList ++ List(
             unwind(function("range", literalInt(1), literalInt(10)), varFor("b")),
-            clause(NoNames, None, true, List.empty, Some(withFromYield(returnAllItems))),
+            clause(NoNames, None, true, List.empty, Some(withFromYield(returnAllItems)))(pos),
             returnAll
           )
           _.toAstPositioned(ast.Statements(Seq(singleQuery(expected: _*))))
@@ -646,7 +644,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
           )
         case _ =>
           val expected: List[ast.Clause] = maybeUseClause.toList ++ List(
-            clause(NoNames, None, false, List.empty, None),
+            clause(NoNames, None, false, List.empty, None)(pos),
             with_(returnItem(varFor("name"), "name"), returnItem(varFor("type"), "type")),
             returnAll
           )
@@ -682,7 +680,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
               false,
               List(commandResultItem("name")),
               Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("name"))))
-            ),
+            )(pos),
             return_(aliasedReturnItem(varFor("name"), "numIndexes"))
           )
           _.toAstPositioned(ast.Statements(Seq(singleQuery(expected: _*))))
@@ -706,7 +704,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
           )
         case _ =>
           val expected: List[ast.Clause] = maybeUseClause.toList ++ List(
-            clause(NoNames, None, false, List.empty, None),
+            clause(NoNames, None, false, List.empty, None)(pos),
             return_(aliasedReturnItem(varFor("name"), "numIndexes"))
           )
           _.toAstPositioned(ast.Statements(Seq(singleQuery(expected: _*))))
@@ -730,7 +728,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
           )
         case _ =>
           val expected: List[ast.Clause] = maybeUseClause.toList ++ List(
-            clause(NoNames, None, false, List.empty, None),
+            clause(NoNames, None, false, List.empty, None)(pos),
             with_(aliasedReturnItem(literalInt(1), "c")),
             return_(aliasedReturnItem(varFor("name"), "numIndexes"))
           )
@@ -755,7 +753,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
           )
         case _ =>
           val expected: List[ast.Clause] = maybeUseClause.toList ++ List(
-            clause(NoNames, None, false, List.empty, None),
+            clause(NoNames, None, false, List.empty, None)(pos),
             with_(aliasedReturnItem(literalInt(1), "c"))
           )
           _.toAstPositioned(ast.Statements(Seq(singleQuery(expected: _*))))
@@ -788,7 +786,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
               false,
               List(commandResultItem("a")),
               Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-            ),
+            )(pos),
             with_(variableReturnItem("a")),
             return_(variableReturnItem("a"))
           )
@@ -813,7 +811,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
           )
         case _ =>
           val expected: List[ast.Clause] = maybeUseClause.toList ++ List(
-            clause(NoNames, None, false, List.empty, None),
+            clause(NoNames, None, false, List.empty, None)(pos),
             unwind(varFor("as"), varFor("a")),
             return_(variableReturnItem("a"))
           )
@@ -847,7 +845,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
               false,
               List(commandResultItem("as")),
               Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("as"))))
-            ),
+            )(pos),
             unwind(varFor("as"), varFor("a")),
             return_(variableReturnItem("a"))
           )
@@ -873,7 +871,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
           )
         case _ =>
           val expected: List[ast.Clause] = maybeUseClause.toList ++ List(
-            clause(ast.AllDatabasesScope()(pos), None, false, List.empty, None),
+            clause(ast.AllDatabasesScope()(pos), None, false, List.empty, None)(pos),
             withAll(),
             match_(nodePat(Some("n"))),
             return_(variableReturnItem("n"))
@@ -890,7 +888,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
           )
         case _ =>
           val expected: List[ast.Clause] = maybeUseClause.toList ++ List(
-            clause(ast.AllDatabasesScope()(pos), None, true, List.empty, Some(withFromYield(returnAllItems))),
+            clause(ast.AllDatabasesScope()(pos), None, true, List.empty, Some(withFromYield(returnAllItems)))(pos),
             withAll(),
             match_(nodePat(Some("n"))),
             return_(variableReturnItem("n"))
@@ -911,7 +909,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
         case _ =>
           val expected: List[ast.Clause] = maybeUseClause.toList ++ List(
             unwind(function("range", literalInt(1), literalInt(10)), varFor("b")),
-            clause(ast.AllDatabasesScope()(pos), None, true, List.empty, Some(withFromYield(returnAllItems))),
+            clause(ast.AllDatabasesScope()(pos), None, true, List.empty, Some(withFromYield(returnAllItems)))(pos),
             returnAll
           )
           _.toAstPositioned(ast.Statements(Seq(singleQuery(expected: _*))))
@@ -926,7 +924,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
           )
         case _ =>
           val expected: List[ast.Clause] = maybeUseClause.toList ++ List(
-            clause(ast.AllDatabasesScope()(pos), None, false, List.empty, None),
+            clause(ast.AllDatabasesScope()(pos), None, false, List.empty, None)(pos),
             with_(returnItem(varFor("name"), "name"), returnItem(varFor("type"), "type")),
             returnAll
           )
@@ -951,7 +949,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
               false,
               List(commandResultItem("name")),
               Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("name"))))
-            ),
+            )(pos),
             return_(aliasedReturnItem(varFor("name"), "numIndexes"))
           )
           _.toAstPositioned(ast.Statements(Seq(singleQuery(expected: _*))))
@@ -966,7 +964,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
           )
         case _ =>
           val expected: List[ast.Clause] = maybeUseClause.toList ++ List(
-            clause(ast.AllDatabasesScope()(pos), None, false, List.empty, None),
+            clause(ast.AllDatabasesScope()(pos), None, false, List.empty, None)(pos),
             return_(aliasedReturnItem(varFor("name"), "numIndexes"))
           )
           _.toAstPositioned(ast.Statements(Seq(singleQuery(expected: _*))))
@@ -981,7 +979,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
           )
         case _ =>
           val expected: List[ast.Clause] = maybeUseClause.toList ++ List(
-            clause(ast.AllDatabasesScope()(pos), None, false, List.empty, None),
+            clause(ast.AllDatabasesScope()(pos), None, false, List.empty, None)(pos),
             with_(aliasedReturnItem(literalInt(1), "c")),
             return_(aliasedReturnItem(varFor("name"), "numIndexes"))
           )
@@ -997,7 +995,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
           )
         case _ =>
           val expected: List[ast.Clause] = maybeUseClause.toList ++ List(
-            clause(ast.AllDatabasesScope()(pos), None, false, List.empty, None),
+            clause(ast.AllDatabasesScope()(pos), None, false, List.empty, None)(pos),
             with_(aliasedReturnItem(literalInt(1), "c"))
           )
           _.toAstPositioned(ast.Statements(Seq(singleQuery(expected: _*))))
@@ -1018,7 +1016,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
               false,
               List(commandResultItem("a")),
               Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("a"))))
-            ),
+            )(pos),
             with_(variableReturnItem("a")),
             return_(variableReturnItem("a"))
           )
@@ -1034,7 +1032,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
           )
         case _ =>
           val expected: List[ast.Clause] = maybeUseClause.toList ++ List(
-            clause(ast.AllDatabasesScope()(pos), None, false, List.empty, None),
+            clause(ast.AllDatabasesScope()(pos), None, false, List.empty, None)(pos),
             unwind(varFor("as"), varFor("a")),
             return_(variableReturnItem("a"))
           )
@@ -1056,7 +1054,7 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
               false,
               List(commandResultItem("as")),
               Some(withFromYield(returnAllItems.withDefaultOrderOnColumns(List("as"))))
-            ),
+            )(pos),
             unwind(varFor("as"), varFor("a")),
             return_(variableReturnItem("a"))
           )
@@ -1431,14 +1429,14 @@ class CombineCommandsAndRegularCypherParserTest extends CombineCommandsParserTes
     parsesIn[ast.Statements] {
       case Cypher5 => _.withMessageStart("Invalid input 'UNION'")
       case _ => _.toAstPositioned(ast.Statements(Seq(unionDistinct(
-          singleQuery(showTxClause, return_(variableReturnItem("a"))),
-          singleQuery(terminateTxClause, return_(variableReturnItem("a"))),
-          singleQuery(showSettingsClause, return_(variableReturnItem("a"))),
-          singleQuery(showFunctionsClause, return_(variableReturnItem("a"))),
-          singleQuery(showProceduresClause, return_(variableReturnItem("a"))),
-          singleQuery(showIndexesClause, return_(variableReturnItem("a"))),
-          singleQuery(showConstraintsClause, return_(variableReturnItem("a"))),
-          singleQuery(showCurrentGraphTypeClause, return_(variableReturnItem("a")))
+          singleQuery(showTxClause(pos), return_(variableReturnItem("a"))),
+          singleQuery(terminateTxClause(pos), return_(variableReturnItem("a"))),
+          singleQuery(showSettingsClause(pos), return_(variableReturnItem("a"))),
+          singleQuery(showFunctionsClause(pos), return_(variableReturnItem("a"))),
+          singleQuery(showProceduresClause(pos), return_(variableReturnItem("a"))),
+          singleQuery(showIndexesClause(pos), return_(variableReturnItem("a"))),
+          singleQuery(showConstraintsClause(pos), return_(variableReturnItem("a"))),
+          singleQuery(showCurrentGraphTypeClause(pos), return_(variableReturnItem("a")))
         ))))
     }
   }

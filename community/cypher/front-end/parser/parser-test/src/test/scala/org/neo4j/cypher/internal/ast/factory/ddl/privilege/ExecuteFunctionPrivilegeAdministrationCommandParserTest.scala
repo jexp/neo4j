@@ -22,7 +22,6 @@ import org.neo4j.cypher.internal.ast.FunctionQualifier
 import org.neo4j.cypher.internal.ast.Statements
 import org.neo4j.cypher.internal.ast.factory.ddl.AdministrationAndSchemaCommandParserTestBase
 import org.neo4j.cypher.internal.ast.prettifier.Prettifier.maybeImmutable
-import org.neo4j.cypher.internal.util.InputPosition
 
 class ExecuteFunctionPrivilegeAdministrationCommandParserTest extends AdministrationAndSchemaCommandParserTestBase {
 
@@ -286,5 +285,5 @@ class ExecuteFunctionPrivilegeAdministrationCommandParserTest extends Administra
       }
   }
 
-  private def functionQualifier(glob: String): InputPosition => FunctionQualifier = FunctionQualifier(glob)(_)
+  private def functionQualifier(glob: String): FunctionQualifier = FunctionQualifier(glob)(pos)
 }

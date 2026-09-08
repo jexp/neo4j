@@ -20,7 +20,6 @@ import org.neo4j.cypher.internal.ast.ActionResourceBase
 import org.neo4j.cypher.internal.ast.AllGraphsScope
 import org.neo4j.cypher.internal.ast.AllPropertyResource
 import org.neo4j.cypher.internal.ast.AstConstructionTestSupport.VariableStringInterpolator
-import org.neo4j.cypher.internal.ast.AstConstructionTestSupportWithPosConversion
 import org.neo4j.cypher.internal.ast.Element
 import org.neo4j.cypher.internal.ast.ExistsExpression
 import org.neo4j.cypher.internal.ast.GraphAction
@@ -67,7 +66,7 @@ import org.scalactic.anyvals.PosInt
 
 class ReadMatchPropertyPrivilegeAdministrationCommandParserTest
     extends PropertyPrivilegeAdministrationCommandParserTestBase
-    with CypherScalaCheckDrivenPropertyChecks with AstConstructionTestSupportWithPosConversion {
+    with CypherScalaCheckDrivenPropertyChecks {
   implicit def noShrink[T]: Shrink[T] = Shrink.shrinkAny
 
   override protected def ignorePrettifier: Boolean = true
@@ -111,9 +110,9 @@ class ReadMatchPropertyPrivilegeAdministrationCommandParserTest
               Seq(labelQualifierA),
               Some(varFor("a")),
               Equals(
-                Property(varFor("a"), PropertyKeyName("prop2")(_))(_),
+                Property(varFor("a"), PropertyKeyName("prop2")(pos))(pos),
                 literal(1)
-              )(_),
+              )(pos),
               Node
             )),
             Seq(literalRole),
@@ -140,30 +139,30 @@ class ReadMatchPropertyPrivilegeAdministrationCommandParserTest
             // Nodes
             (None, s"($expressionString)", Seq(LabelAllQualifier()(pos)), Node),
             (Some(v"n"), s"(n $expressionString)", Seq(LabelAllQualifier()(pos)), Node),
-            (None, s"(:A $expressionString)", Seq(labelQualifierA(pos)), Node),
-            (Some(v"n"), s"(n:A $expressionString)", Seq(labelQualifierA(pos)), Node),
+            (None, s"(:A $expressionString)", Seq(labelQualifierA), Node),
+            (Some(v"n"), s"(n:A $expressionString)", Seq(labelQualifierA), Node),
             (None, s"(:`A B` $expressionString)", Seq(LabelQualifier("A B")(pos)), Node),
             (Some(v"n"), s"(n:`A B` $expressionString)", Seq(LabelQualifier("A B")(pos)), Node),
             (None, s"(:`:A` $expressionString)", Seq(LabelQualifier(":A")(pos)), Node),
             (Some(v"n"), s"(n:`:A` $expressionString)", Seq(LabelQualifier(":A")(pos)), Node),
-            (None, s"(:A|B $expressionString)", Seq(labelQualifierA(pos), labelQualifierB(pos)), Node),
-            (Some(v"n"), s"(n:A|B $expressionString)", Seq(labelQualifierA(pos), labelQualifierB(pos)), Node),
+            (None, s"(:A|B $expressionString)", Seq(labelQualifierA, labelQualifierB), Node),
+            (Some(v"n"), s"(n:A|B $expressionString)", Seq(labelQualifierA, labelQualifierB), Node),
 
             // Relationships
             (None, s"()-[$expressionString]-()", Seq(RelationshipAllQualifier()(pos)), Relationship),
             (Some(v"n"), s"()-[n $expressionString]-()", Seq(RelationshipAllQualifier()(pos)), Relationship),
-            (None, s"()-[:A $expressionString]-()", Seq(relQualifierA(pos)), Relationship),
-            (Some(v"n"), s"()-[n:A $expressionString]-()", Seq(relQualifierA(pos)), Relationship),
+            (None, s"()-[:A $expressionString]-()", Seq(relQualifierA), Relationship),
+            (Some(v"n"), s"()-[n:A $expressionString]-()", Seq(relQualifierA), Relationship),
             (None, s"()-[:`A B` $expressionString]-()", Seq(RelationshipQualifier("A B")(pos)), Relationship),
             (Some(v"n"), s"()-[n:`A B` $expressionString]-()", Seq(RelationshipQualifier("A B")(pos)), Relationship),
             (None, s"()-[:`:A` $expressionString]-()", Seq(RelationshipQualifier(":A")(pos)), Relationship),
             (Some(v"n"), s"()-[n:`:A` $expressionString]-()", Seq(RelationshipQualifier(":A")(pos)), Relationship),
-            (None, s"()-[:A|B $expressionString]-()", Seq(relQualifierA(pos), relQualifierB(pos)), Relationship),
-            (Some(v"n"), s"()-[n:A|B $expressionString]-()", Seq(relQualifierA(pos), relQualifierB(pos)), Relationship),
+            (None, s"()-[:A|B $expressionString]-()", Seq(relQualifierA, relQualifierB), Relationship),
+            (Some(v"n"), s"()-[n:A|B $expressionString]-()", Seq(relQualifierA, relQualifierB), Relationship),
             // Directional relationships is valid when parsing but does not add any extra information
             (None, s"()<-[$expressionString]-()", Seq(RelationshipAllQualifier()(pos)), Relationship),
             (Some(v"n"), s"()-[n $expressionString]->()", Seq(RelationshipAllQualifier()(pos)), Relationship),
-            (None, s"()<-[:A $expressionString]->()", Seq(relQualifierA(pos)), Relationship)
+            (None, s"()<-[:A $expressionString]->()", Seq(relQualifierA), Relationship)
           )
         case _: BooleanExpression => Iterator(
             // Nodes
@@ -173,14 +172,14 @@ class ReadMatchPropertyPrivilegeAdministrationCommandParserTest
             (Some(v"WHERE"), s"(WHERE WHERE $expressionString)", Seq(LabelAllQualifier()(pos)), Node),
             // Missing variable is valid when parsing. Fail in semantic check
             (None, s"() WHERE $expressionString", Seq(LabelAllQualifier()(pos)), Node),
-            (Some(v"n"), s"(n:A) WHERE $expressionString", Seq(labelQualifierA(pos)), Node),
-            (Some(v"n"), s"(n:A WHERE $expressionString)", Seq(labelQualifierA(pos)), Node),
+            (Some(v"n"), s"(n:A) WHERE $expressionString", Seq(labelQualifierA), Node),
+            (Some(v"n"), s"(n:A WHERE $expressionString)", Seq(labelQualifierA), Node),
             // WHERE as variable
-            (Some(v"WHERE"), s"(WHERE:A WHERE $expressionString)", Seq(labelQualifierA(pos)), Node),
+            (Some(v"WHERE"), s"(WHERE:A WHERE $expressionString)", Seq(labelQualifierA), Node),
             // Missing variable is valid when parsing. Fail in semantic check
-            (None, s"(:A) WHERE $expressionString", Seq(labelQualifierA(pos)), Node),
+            (None, s"(:A) WHERE $expressionString", Seq(labelQualifierA), Node),
             // Missing variable is valid when parsing. Fail in semantic check
-            (None, s"(:A WHERE $expressionString)", Seq(labelQualifierA(pos)), Node),
+            (None, s"(:A WHERE $expressionString)", Seq(labelQualifierA), Node),
             (Some(v"n"), s"(n:`A B`) WHERE $expressionString", Seq(LabelQualifier("A B")(pos)), Node),
             (Some(v"n"), s"(n:`A B` WHERE $expressionString)", Seq(LabelQualifier("A B")(pos)), Node),
             // Missing variable is valid when parsing. Fail in semantic check
@@ -193,12 +192,12 @@ class ReadMatchPropertyPrivilegeAdministrationCommandParserTest
             (None, s"(:`:A`) WHERE $expressionString", Seq(LabelQualifier(":A")(pos)), Node),
             // Missing variable is valid when parsing. Fail in semantic check
             (None, s"(:`:A` WHERE $expressionString)", Seq(LabelQualifier(":A")(pos)), Node),
-            (Some(v"n"), s"(n:A|B) WHERE $expressionString", Seq(labelQualifierA(pos), labelQualifierB(pos)), Node),
-            (Some(v"n"), s"(n:A|B WHERE $expressionString)", Seq(labelQualifierA(pos), labelQualifierB(pos)), Node),
+            (Some(v"n"), s"(n:A|B) WHERE $expressionString", Seq(labelQualifierA, labelQualifierB), Node),
+            (Some(v"n"), s"(n:A|B WHERE $expressionString)", Seq(labelQualifierA, labelQualifierB), Node),
             // Missing variable is valid when parsing. Fail in semantic check
-            (None, s"(:A|B) WHERE $expressionString", Seq(labelQualifierA(pos), labelQualifierB(pos)), Node),
+            (None, s"(:A|B) WHERE $expressionString", Seq(labelQualifierA, labelQualifierB), Node),
             // Missing variable is valid when parsing. Fail in semantic check
-            (None, s"(:A|B WHERE $expressionString)", Seq(labelQualifierA(pos), labelQualifierB(pos)), Node),
+            (None, s"(:A|B WHERE $expressionString)", Seq(labelQualifierA, labelQualifierB), Node),
 
             // Relationships
             (Some(v"n"), s"()-[n]-() WHERE $expressionString", Seq(RelationshipAllQualifier()(pos)), Relationship),
@@ -212,14 +211,14 @@ class ReadMatchPropertyPrivilegeAdministrationCommandParserTest
             ),
             // Missing variable is valid when parsing. Fail in semantic check
             (None, s"()-[]-() WHERE $expressionString", Seq(RelationshipAllQualifier()(pos)), Relationship),
-            (Some(v"n"), s"()-[n:A]-() WHERE $expressionString", Seq(relQualifierA(pos)), Relationship),
-            (Some(v"n"), s"()-[n:A WHERE $expressionString]-()", Seq(relQualifierA(pos)), Relationship),
+            (Some(v"n"), s"()-[n:A]-() WHERE $expressionString", Seq(relQualifierA), Relationship),
+            (Some(v"n"), s"()-[n:A WHERE $expressionString]-()", Seq(relQualifierA), Relationship),
             // WHERE as variable
-            (Some(v"WHERE"), s"()-[WHERE:A WHERE $expressionString]-()", Seq(relQualifierA(pos)), Relationship),
+            (Some(v"WHERE"), s"()-[WHERE:A WHERE $expressionString]-()", Seq(relQualifierA), Relationship),
             // Missing variable is valid when parsing. Fail in semantic check
-            (None, s"()-[:A]-() WHERE $expressionString", Seq(relQualifierA(pos)), Relationship),
+            (None, s"()-[:A]-() WHERE $expressionString", Seq(relQualifierA), Relationship),
             // Missing variable is valid when parsing. Fail in semantic check
-            (None, s"()-[:A WHERE $expressionString]-()", Seq(relQualifierA(pos)), Relationship),
+            (None, s"()-[:A WHERE $expressionString]-()", Seq(relQualifierA), Relationship),
             (
               Some(v"n"),
               s"()-[n:`A B`]-() WHERE $expressionString",
@@ -255,23 +254,23 @@ class ReadMatchPropertyPrivilegeAdministrationCommandParserTest
             (
               Some(v"n"),
               s"()-[n:A|B]-() WHERE $expressionString",
-              Seq(relQualifierA(pos), relQualifierB(pos)),
+              Seq(relQualifierA, relQualifierB),
               Relationship
             ),
             (
               Some(v"n"),
               s"()-[n:A|B WHERE $expressionString]-()",
-              Seq(relQualifierA(pos), relQualifierB(pos)),
+              Seq(relQualifierA, relQualifierB),
               Relationship
             ),
             // Missing variable is valid when parsing. Fail in semantic check
-            (None, s"()-[:A|B]-() WHERE $expressionString", Seq(relQualifierA(pos), relQualifierB(pos)), Relationship),
+            (None, s"()-[:A|B]-() WHERE $expressionString", Seq(relQualifierA, relQualifierB), Relationship),
             // Missing variable is valid when parsing. Fail in semantic check
-            (None, s"()-[:A|B WHERE $expressionString]-()", Seq(relQualifierA(pos), relQualifierB(pos)), Relationship),
+            (None, s"()-[:A|B WHERE $expressionString]-()", Seq(relQualifierA, relQualifierB), Relationship),
             // Directional relationships is valid when parsing but does not add any extra information
-            (Some(v"n"), s"()-[n:A]->() WHERE $expressionString", Seq(relQualifierA(pos)), Relationship),
-            (Some(v"n"), s"()<-[n:A WHERE $expressionString]-()", Seq(relQualifierA(pos)), Relationship),
-            (Some(v"n"), s"()<-[n:A WHERE $expressionString]->()", Seq(relQualifierA(pos)), Relationship)
+            (Some(v"n"), s"()-[n:A]->() WHERE $expressionString", Seq(relQualifierA), Relationship),
+            (Some(v"n"), s"()<-[n:A WHERE $expressionString]-()", Seq(relQualifierA), Relationship),
+            (Some(v"n"), s"()<-[n:A WHERE $expressionString]->()", Seq(relQualifierA), Relationship)
           )
         case _ => fail("Unexpected expression")
       }
@@ -367,8 +366,8 @@ class ReadMatchPropertyPrivilegeAdministrationCommandParserTest
         s"$verb$immutableString ${action.name} {*} ON $graphKeyword `f:oo` $patternKeyword $propertyRule $preposition role" should
           parseTo[Statements](
             func(
-              GraphPrivilege(action, NamedGraphsScope(Seq(namespacedName("f:oo"))) _)(pos),
-              AllPropertyResource() _,
+              GraphPrivilege(action, NamedGraphsScope(Seq(namespacedName("f:oo")))(pos))(pos),
+              AllPropertyResource()(pos),
               patternQualifier,
               Seq(literalRole),
               immutable
@@ -377,8 +376,8 @@ class ReadMatchPropertyPrivilegeAdministrationCommandParserTest
         s"$verb$immutableString ${action.name} {bar} ON $graphKeyword `f:oo` $patternKeyword $propertyRule $preposition role" should
           parseTo[Statements](
             func(
-              GraphPrivilege(action, NamedGraphsScope(Seq(namespacedName("f:oo"))) _)(pos),
-              PropertiesResource(Seq("bar")) _,
+              GraphPrivilege(action, NamedGraphsScope(Seq(namespacedName("f:oo")))(pos))(pos),
+              PropertiesResource(Seq("bar"))(pos),
               patternQualifier,
               Seq(literalRole),
               immutable
@@ -388,7 +387,7 @@ class ReadMatchPropertyPrivilegeAdministrationCommandParserTest
           parseTo[Statements](
             func(
               GraphPrivilege(action, graphScopeFoo)(pos),
-              PropertiesResource(Seq("b:ar")) _,
+              PropertiesResource(Seq("b:ar"))(pos),
               patternQualifier,
               Seq(literalRole),
               immutable
@@ -398,7 +397,7 @@ class ReadMatchPropertyPrivilegeAdministrationCommandParserTest
           parseTo[Statements](
             func(
               GraphPrivilege(action, graphScopeFooBaz)(pos),
-              AllPropertyResource() _,
+              AllPropertyResource()(pos),
               patternQualifier,
               Seq(literalRole),
               immutable
@@ -408,7 +407,7 @@ class ReadMatchPropertyPrivilegeAdministrationCommandParserTest
           parseTo[Statements](
             func(
               GraphPrivilege(action, graphScopeFooBaz)(pos),
-              PropertiesResource(Seq("bar")) _,
+              PropertiesResource(Seq("bar"))(pos),
               patternQualifier,
               Seq(literalRole),
               immutable
@@ -424,9 +423,9 @@ class ReadMatchPropertyPrivilegeAdministrationCommandParserTest
         case Cypher5 =>
           _.toAst(statementToStatements(grantGraphPrivilege(
             GraphPrivilege(ReadAction, AllGraphsScope()(pos))(pos),
-            AllPropertyResource() _,
+            AllPropertyResource()(pos),
             List(PatternQualifier(
-              Seq(LabelAllQualifier() _),
+              Seq(LabelAllQualifier()(pos)),
               Some(varFor("n")),
               equals(prop(varFor("n"), "prop1"), literalInt(1)),
               Node
@@ -442,9 +441,9 @@ class ReadMatchPropertyPrivilegeAdministrationCommandParserTest
         case Cypher5 =>
           _.toAst(statementToStatements(grantGraphPrivilege(
             GraphPrivilege(MatchAction, AllGraphsScope()(pos))(pos),
-            AllPropertyResource() _,
+            AllPropertyResource()(pos),
             List(PatternQualifier(
-              Seq(LabelAllQualifier() _),
+              Seq(LabelAllQualifier()(pos)),
               Some(varFor("n")),
               equals(prop(varFor("n"), "prop1"), literalInt(1)),
               Node
@@ -463,9 +462,9 @@ class ReadMatchPropertyPrivilegeAdministrationCommandParserTest
       parseTo[Statements](
         grantGraphPrivilege(
           GraphPrivilege(ReadAction, AllGraphsScope()(pos))(pos),
-          AllPropertyResource() _,
+          AllPropertyResource()(pos),
           List(PatternQualifier(
-            Seq(LabelAllQualifier() _),
+            Seq(LabelAllQualifier()(pos)),
             Some(varFor("a")),
             equals(prop(varFor("b"), "prop1"), literalInt(1)),
             Node
@@ -479,9 +478,9 @@ class ReadMatchPropertyPrivilegeAdministrationCommandParserTest
       parseTo[Statements](
         grantGraphPrivilege(
           GraphPrivilege(MatchAction, AllGraphsScope()(pos))(pos),
-          AllPropertyResource() _,
+          AllPropertyResource()(pos),
           List(PatternQualifier(
-            Seq(LabelAllQualifier() _),
+            Seq(LabelAllQualifier()(pos)),
             Some(varFor("a")),
             equals(prop(varFor("b"), "prop1"), literalInt(1)),
             Node
@@ -495,9 +494,9 @@ class ReadMatchPropertyPrivilegeAdministrationCommandParserTest
       parseTo[Statements](
         grantGraphPrivilege(
           GraphPrivilege(ReadAction, AllGraphsScope()(pos))(pos),
-          AllPropertyResource() _,
+          AllPropertyResource()(pos),
           List(PatternQualifier(
-            Seq(RelationshipAllQualifier() _),
+            Seq(RelationshipAllQualifier()(pos)),
             Some(varFor("a")),
             equals(prop(varFor("b"), "prop1"), literalInt(1)),
             Relationship
@@ -511,9 +510,9 @@ class ReadMatchPropertyPrivilegeAdministrationCommandParserTest
       parseTo[Statements](
         grantGraphPrivilege(
           GraphPrivilege(MatchAction, AllGraphsScope()(pos))(pos),
-          AllPropertyResource() _,
+          AllPropertyResource()(pos),
           List(PatternQualifier(
-            Seq(RelationshipAllQualifier() _),
+            Seq(RelationshipAllQualifier()(pos)),
             Some(varFor("a")),
             equals(prop(varFor("b"), "prop1"), literalInt(1)),
             Relationship
@@ -531,9 +530,9 @@ class ReadMatchPropertyPrivilegeAdministrationCommandParserTest
       parseTo[Statements](
         grantGraphPrivilege(
           GraphPrivilege(ReadAction, AllGraphsScope()(pos))(pos),
-          AllPropertyResource() _,
+          AllPropertyResource()(pos),
           List(PatternQualifier(
-            Seq(LabelAllQualifier() _),
+            Seq(LabelAllQualifier()(pos)),
             Some(varFor("n")),
             equals(
               literalInt(1),
@@ -553,9 +552,9 @@ class ReadMatchPropertyPrivilegeAdministrationCommandParserTest
       parseTo[Statements](
         grantGraphPrivilege(
           GraphPrivilege(MatchAction, AllGraphsScope()(pos))(pos),
-          AllPropertyResource() _,
+          AllPropertyResource()(pos),
           List(PatternQualifier(
-            Seq(LabelAllQualifier() _),
+            Seq(LabelAllQualifier()(pos)),
             Some(varFor("n")),
             equals(
               literalInt(1),
@@ -575,9 +574,9 @@ class ReadMatchPropertyPrivilegeAdministrationCommandParserTest
       parseTo[Statements](
         grantGraphPrivilege(
           GraphPrivilege(ReadAction, AllGraphsScope()(pos))(pos),
-          AllPropertyResource() _,
+          AllPropertyResource()(pos),
           List(PatternQualifier(
-            Seq(RelationshipAllQualifier() _),
+            Seq(RelationshipAllQualifier()(pos)),
             Some(varFor("r")),
             equals(
               literalInt(1),
@@ -597,9 +596,9 @@ class ReadMatchPropertyPrivilegeAdministrationCommandParserTest
       parseTo[Statements](
         grantGraphPrivilege(
           GraphPrivilege(MatchAction, AllGraphsScope()(pos))(pos),
-          AllPropertyResource() _,
+          AllPropertyResource()(pos),
           List(PatternQualifier(
-            Seq(RelationshipAllQualifier() _),
+            Seq(RelationshipAllQualifier()(pos)),
             Some(varFor("r")),
             equals(
               literalInt(1),
@@ -623,9 +622,9 @@ class ReadMatchPropertyPrivilegeAdministrationCommandParserTest
       parseTo[Statements](
         grantGraphPrivilege(
           GraphPrivilege(ReadAction, AllGraphsScope()(pos))(pos),
-          AllPropertyResource() _,
+          AllPropertyResource()(pos),
           List(PatternQualifier(
-            Seq(LabelQualifier("A") _),
+            Seq(LabelQualifier("A")(pos)),
             Some(varFor("n")),
             ExistsExpression(
               SingleQuery(
@@ -655,9 +654,9 @@ class ReadMatchPropertyPrivilegeAdministrationCommandParserTest
       parseTo[Statements](
         grantGraphPrivilege(
           GraphPrivilege(MatchAction, AllGraphsScope()(pos))(pos),
-          AllPropertyResource() _,
+          AllPropertyResource()(pos),
           List(PatternQualifier(
-            Seq(LabelQualifier("A") _),
+            Seq(LabelQualifier("A")(pos)),
             Some(varFor("n")),
             ExistsExpression(
               SingleQuery(

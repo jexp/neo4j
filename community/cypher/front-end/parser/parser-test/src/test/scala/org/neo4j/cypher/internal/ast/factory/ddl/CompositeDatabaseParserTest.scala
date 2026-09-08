@@ -63,7 +63,7 @@ class CompositeDatabaseParserTest extends AdministrationAndSchemaCommandParserTe
     parsesIn[Statements] {
       case Cypher5 => _.toAstPositioned(
           CreateCompositeDatabase(
-            NamespacedName(List("name"), Some("db"))(_),
+            NamespacedName(List("name"), Some("db"))(pos),
             IfExistsThrowError,
             NoOptions,
             NoWait()(pos),
@@ -72,7 +72,7 @@ class CompositeDatabaseParserTest extends AdministrationAndSchemaCommandParserTe
         )
       case _ => _.toAstPositioned(
           CreateCompositeDatabase(
-            NamespacedName(List("db.name"), None)(_),
+            NamespacedName(List("db.name"), None)(pos),
             IfExistsThrowError,
             NoOptions,
             NoWait()(pos),
@@ -86,7 +86,7 @@ class CompositeDatabaseParserTest extends AdministrationAndSchemaCommandParserTe
     parsesIn[Statements] {
       case Cypher5 => _.toAstPositioned(
           CreateCompositeDatabase(
-            NamespacedName(List("bar"), Some("foo"))(_),
+            NamespacedName(List("bar"), Some("foo"))(pos),
             IfExistsThrowError,
             NoOptions,
             NoWait()(pos),
@@ -95,7 +95,7 @@ class CompositeDatabaseParserTest extends AdministrationAndSchemaCommandParserTe
         )
       case _ => _.toAstPositioned(
           CreateCompositeDatabase(
-            NamespacedName(List("foo.bar"), None)(_),
+            NamespacedName(List("foo.bar"), None)(pos),
             IfExistsThrowError,
             NoOptions,
             NoWait()(pos),
@@ -409,7 +409,7 @@ class CompositeDatabaseParserTest extends AdministrationAndSchemaCommandParserTe
     parsesIn[Statements] {
       case Cypher5 => _.toAstPositioned(
           DropDatabase(
-            NamespacedName(List("name"), Some("db"))(_),
+            NamespacedName(List("name"), Some("db"))(pos),
             ifExists = false,
             composite = true,
             Restrict,
@@ -419,7 +419,7 @@ class CompositeDatabaseParserTest extends AdministrationAndSchemaCommandParserTe
         )
       case _ => _.toAstPositioned(
           DropDatabase(
-            NamespacedName(List("db.name"), None)(_),
+            NamespacedName(List("db.name"), None)(pos),
             ifExists = false,
             composite = true,
             Restrict,

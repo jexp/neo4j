@@ -47,9 +47,9 @@ class MergePrivilegeAdministrationCommandParserTest extends AdministrationAndSch
           val immutableString = maybeImmutable(immutable)
           test(s"$verb$immutableString MERGE { prop } ON GRAPH foo $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(MergeAdminAction, graphScopeFoo)(_),
-              PropertiesResource(propSeq)(_),
-              List(ElementsAllQualifier()(_)),
+              GraphPrivilege(MergeAdminAction, graphScopeFoo)(pos),
+              PropertiesResource(propSeq)(pos),
+              List(ElementsAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -59,9 +59,9 @@ class MergePrivilegeAdministrationCommandParserTest extends AdministrationAndSch
 
           test(s"$verb$immutableString MERGE { * } ON GRAPH foo $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(MergeAdminAction, graphScopeFoo)(_),
-              AllPropertyResource()(_),
-              List(ElementsAllQualifier()(_)),
+              GraphPrivilege(MergeAdminAction, graphScopeFoo)(pos),
+              AllPropertyResource()(pos),
+              List(ElementsAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -69,9 +69,9 @@ class MergePrivilegeAdministrationCommandParserTest extends AdministrationAndSch
 
           test(s"$verb$immutableString MERGE { prop1, prop2 } ON GRAPH foo $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(MergeAdminAction, graphScopeFoo)(_),
-              PropertiesResource(Seq("prop1", "prop2"))(_),
-              List(ElementsAllQualifier()(_)),
+              GraphPrivilege(MergeAdminAction, graphScopeFoo)(pos),
+              PropertiesResource(Seq("prop1", "prop2"))(pos),
+              List(ElementsAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -81,9 +81,9 @@ class MergePrivilegeAdministrationCommandParserTest extends AdministrationAndSch
 
           test(s"$verb$immutableString MERGE { * } ON HOME GRAPH $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(MergeAdminAction, HomeGraphScope()(_))(_),
-              AllPropertyResource()(_),
-              List(ElementsAllQualifier()(_)),
+              GraphPrivilege(MergeAdminAction, HomeGraphScope()(pos))(pos),
+              AllPropertyResource()(pos),
+              List(ElementsAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -91,9 +91,9 @@ class MergePrivilegeAdministrationCommandParserTest extends AdministrationAndSch
 
           test(s"$verb$immutableString MERGE { prop1, prop2 } ON HOME GRAPH RELATIONSHIP * $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(MergeAdminAction, HomeGraphScope()(_))(_),
-              PropertiesResource(Seq("prop1", "prop2"))(_),
-              List(RelationshipAllQualifier()(_)),
+              GraphPrivilege(MergeAdminAction, HomeGraphScope()(pos))(pos),
+              PropertiesResource(Seq("prop1", "prop2"))(pos),
+              List(RelationshipAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -103,9 +103,9 @@ class MergePrivilegeAdministrationCommandParserTest extends AdministrationAndSch
 
           test(s"$verb$immutableString MERGE { prop } ON GRAPHS * $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(MergeAdminAction, AllGraphsScope()(_))(_),
-              PropertiesResource(propSeq)(_),
-              List(ElementsAllQualifier()(_)),
+              GraphPrivilege(MergeAdminAction, AllGraphsScope()(pos))(pos),
+              PropertiesResource(propSeq)(pos),
+              List(ElementsAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -113,9 +113,9 @@ class MergePrivilegeAdministrationCommandParserTest extends AdministrationAndSch
 
           test(s"$verb$immutableString MERGE { prop } ON GRAPHS foo,baz $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(MergeAdminAction, graphScopeFooBaz)(_),
-              PropertiesResource(propSeq)(_),
-              List(ElementsAllQualifier()(_)),
+              GraphPrivilege(MergeAdminAction, graphScopeFooBaz)(pos),
+              PropertiesResource(propSeq)(pos),
+              List(ElementsAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -125,8 +125,8 @@ class MergePrivilegeAdministrationCommandParserTest extends AdministrationAndSch
 
           test(s"$verb$immutableString MERGE { prop } ON GRAPHS foo ELEMENTS A,B $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(MergeAdminAction, graphScopeFoo)(_),
-              PropertiesResource(propSeq)(_),
+              GraphPrivilege(MergeAdminAction, graphScopeFoo)(pos),
+              PropertiesResource(propSeq)(pos),
               List(elemQualifierA, elemQualifierB),
               Seq(literalRole),
               immutable
@@ -135,8 +135,8 @@ class MergePrivilegeAdministrationCommandParserTest extends AdministrationAndSch
 
           test(s"$verb$immutableString MERGE { prop } ON GRAPHS foo ELEMENT A $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(MergeAdminAction, graphScopeFoo)(_),
-              PropertiesResource(propSeq)(_),
+              GraphPrivilege(MergeAdminAction, graphScopeFoo)(pos),
+              PropertiesResource(propSeq)(pos),
               List(elemQualifierA),
               Seq(literalRole),
               immutable
@@ -145,8 +145,8 @@ class MergePrivilegeAdministrationCommandParserTest extends AdministrationAndSch
 
           test(s"$verb$immutableString MERGE { prop } ON GRAPHS foo NODES A,B $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(MergeAdminAction, graphScopeFoo)(_),
-              PropertiesResource(propSeq)(_),
+              GraphPrivilege(MergeAdminAction, graphScopeFoo)(pos),
+              PropertiesResource(propSeq)(pos),
               List(labelQualifierA, labelQualifierB),
               Seq(literalRole),
               immutable
@@ -155,9 +155,9 @@ class MergePrivilegeAdministrationCommandParserTest extends AdministrationAndSch
 
           test(s"$verb$immutableString MERGE { prop } ON GRAPHS foo NODES * $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(MergeAdminAction, graphScopeFoo)(_),
-              PropertiesResource(propSeq)(_),
-              List(LabelAllQualifier()(_)),
+              GraphPrivilege(MergeAdminAction, graphScopeFoo)(pos),
+              PropertiesResource(propSeq)(pos),
+              List(LabelAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -165,8 +165,8 @@ class MergePrivilegeAdministrationCommandParserTest extends AdministrationAndSch
 
           test(s"$verb$immutableString MERGE { prop } ON GRAPHS foo RELATIONSHIPS A,B $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(MergeAdminAction, graphScopeFoo)(_),
-              PropertiesResource(propSeq)(_),
+              GraphPrivilege(MergeAdminAction, graphScopeFoo)(pos),
+              PropertiesResource(propSeq)(pos),
               List(relQualifierA, relQualifierB),
               Seq(literalRole),
               immutable
@@ -175,9 +175,9 @@ class MergePrivilegeAdministrationCommandParserTest extends AdministrationAndSch
 
           test(s"$verb$immutableString MERGE { prop } ON GRAPHS foo RELATIONSHIP * $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(MergeAdminAction, graphScopeFoo)(_),
-              PropertiesResource(propSeq)(_),
-              List(RelationshipAllQualifier()(_)),
+              GraphPrivilege(MergeAdminAction, graphScopeFoo)(pos),
+              PropertiesResource(propSeq)(pos),
+              List(RelationshipAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -187,9 +187,9 @@ class MergePrivilegeAdministrationCommandParserTest extends AdministrationAndSch
 
           test(s"$verb$immutableString MERGE { prop } ON GRAPHS foo $preposition role1, role2") {
             parsesTo[Statements](func(
-              GraphPrivilege(MergeAdminAction, graphScopeFoo)(_),
-              PropertiesResource(propSeq)(_),
-              List(ElementsAllQualifier()(_)),
+              GraphPrivilege(MergeAdminAction, graphScopeFoo)(pos),
+              PropertiesResource(propSeq)(pos),
+              List(ElementsAllQualifier()(pos)),
               Seq(literalRole1, literalRole2),
               immutable
             )(pos))
@@ -199,9 +199,9 @@ class MergePrivilegeAdministrationCommandParserTest extends AdministrationAndSch
 
           test(s"$verb$immutableString MERGE { prop } ON GRAPH $$foo $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(MergeAdminAction, graphScopeParamFoo)(_),
-              PropertiesResource(propSeq)(_),
-              List(ElementsAllQualifier()(_)),
+              GraphPrivilege(MergeAdminAction, graphScopeParamFoo)(pos),
+              PropertiesResource(propSeq)(pos),
+              List(ElementsAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -209,9 +209,9 @@ class MergePrivilegeAdministrationCommandParserTest extends AdministrationAndSch
 
           test(s"$verb$immutableString MERGE { prop } ON GRAPH foo $preposition $$role") {
             parsesTo[Statements](func(
-              GraphPrivilege(MergeAdminAction, graphScopeFoo)(_),
-              PropertiesResource(propSeq)(_),
-              List(ElementsAllQualifier()(_)),
+              GraphPrivilege(MergeAdminAction, graphScopeFoo)(pos),
+              PropertiesResource(propSeq)(pos),
+              List(ElementsAllQualifier()(pos)),
               Seq(paramRole),
               immutable
             )(pos))

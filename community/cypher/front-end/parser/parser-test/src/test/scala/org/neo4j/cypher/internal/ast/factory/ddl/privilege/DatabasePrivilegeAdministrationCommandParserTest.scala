@@ -55,10 +55,10 @@ import org.neo4j.cypher.internal.util.test_helpers.GqlExceptionMatchers.gqlStatu
 import org.neo4j.gqlstatus.GqlStatusInfoCodes
 
 class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAndSchemaCommandParserTestBase {
-  private val databaseScopeFoo = NamedDatabasesScope(Seq(literalFoo))(_)
-  private val databaseScopeParamFoo = NamedDatabasesScope(Seq(namespacedParamFoo))(_)
-  private val databaseScopeFooBar = NamedDatabasesScope(Seq(literalFoo, namespacedName("bar")))(_)
-  private val databaseScopeFooParamBar = NamedDatabasesScope(Seq(literalFoo, stringParamName("bar")))(_)
+  private val databaseScopeFoo = NamedDatabasesScope(Seq(literalFoo))(pos)
+  private val databaseScopeParamFoo = NamedDatabasesScope(Seq(namespacedParamFoo))(pos)
+  private val databaseScopeFooBar = NamedDatabasesScope(Seq(literalFoo, namespacedName("bar")))(pos)
+  private val databaseScopeFooParamBar = NamedDatabasesScope(Seq(literalFoo, stringParamName("bar")))(pos)
 
   override protected def ignorePrettifier: Boolean = true
 
@@ -134,14 +134,14 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
 
               test(s"$verb$immutableString $privilege ON DATABASE * $preposition $$role") {
                 assertAst(
-                  privilegeFunc(action, AllDatabasesScope() _, Seq(paramRole), immutable)(pos),
+                  privilegeFunc(action, AllDatabasesScope()(pos), Seq(paramRole), immutable)(pos),
                   supportedInCypher5 = supportedInCypher5
                 )
               }
 
               test(s"$verb$immutableString $privilege ON DATABASES * $preposition role") {
                 assertAst(
-                  privilegeFunc(action, AllDatabasesScope() _, Seq(literalRole), immutable)(pos),
+                  privilegeFunc(action, AllDatabasesScope()(pos), Seq(literalRole), immutable)(pos),
                   supportedInCypher5 = supportedInCypher5
                 )
               }
@@ -150,7 +150,7 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
                 assertAst(
                   privilegeFunc(
                     action,
-                    AllDatabasesScope() _,
+                    AllDatabasesScope()(pos),
                     Seq(literalRole1, literalRole2),
                     immutable
                   )(pos),
@@ -169,7 +169,7 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
                 assertAst(
                   privilegeFunc(
                     action,
-                    NamedDatabasesScope(Seq(literal("fo:o"))) _,
+                    NamedDatabasesScope(Seq(literal("fo:o")))(pos),
                     Seq(literalRole),
                     immutable
                   )(pos),
@@ -182,7 +182,7 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
                   fromCypher5 =>
                     privilegeFunc(
                       action,
-                      NamedDatabasesScope(Seq(namespacedName(fromCypher5, "more", "Dots", "more", "Dots"))) _,
+                      NamedDatabasesScope(Seq(namespacedName(fromCypher5, "more", "Dots", "more", "Dots")))(pos),
                       Seq(literalRole),
                       immutable
                     )(pos),
@@ -232,7 +232,7 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
 
               test(s"$verb$immutableString $privilege ON HOME DATABASE $preposition role") {
                 assertAst(
-                  privilegeFunc(action, HomeDatabaseScope() _, Seq(literalRole), immutable)(pos),
+                  privilegeFunc(action, HomeDatabaseScope()(pos), Seq(literalRole), immutable)(pos),
                   supportedInCypher5 = supportedInCypher5
                 )
               }
@@ -241,7 +241,7 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
                 assertAst(
                   privilegeFunc(
                     action,
-                    HomeDatabaseScope() _,
+                    HomeDatabaseScope()(pos),
                     Seq(paramRole1, literalRole2),
                     immutable
                   )(pos),
@@ -507,8 +507,8 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
           test(s"$verb$immutableString SHOW TRANSACTION (*) ON DATABASE * $preposition role") {
             assertAst(privilegeFunc(
               ShowTransactionAction,
-              AllDatabasesScope() _,
-              List(UserAllQualifier() _),
+              AllDatabasesScope()(pos),
+              List(UserAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -518,7 +518,7 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
             assertAst(privilegeFunc(
               ShowTransactionAction,
               databaseScopeFoo,
-              List(UserAllQualifier() _),
+              List(UserAllQualifier()(pos)),
               Seq(literalRole1, literalRole2),
               immutable
             )(pos))
@@ -528,7 +528,7 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
             assertAst(privilegeFunc(
               ShowTransactionAction,
               databaseScopeParamFoo,
-              List(UserAllQualifier() _),
+              List(UserAllQualifier()(pos)),
               Seq(paramRole1, paramRole2),
               immutable
             )(pos))
@@ -537,8 +537,8 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
           test(s"$verb$immutableString SHOW TRANSACTION (user) ON HOME DATABASE $preposition role") {
             assertAst(privilegeFunc(
               ShowTransactionAction,
-              HomeDatabaseScope() _,
-              List(UserQualifier(literalUser) _),
+              HomeDatabaseScope()(pos),
+              List(UserQualifier(literalUser)(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -547,8 +547,8 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
           test(s"$verb$immutableString SHOW TRANSACTION ($$user) ON HOME DATABASE $preposition role") {
             assertAst(privilegeFunc(
               ShowTransactionAction,
-              HomeDatabaseScope() _,
-              List(UserQualifier(paramUser) _),
+              HomeDatabaseScope()(pos),
+              List(UserQualifier(paramUser)(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -567,8 +567,8 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
           test(s"$verb$immutableString SHOW TRANSACTIONS (user1,user2) ON DATABASES * $preposition role1, role2") {
             assertAst(privilegeFunc(
               ShowTransactionAction,
-              AllDatabasesScope() _,
-              List(UserQualifier(literalUser1) _, UserQualifier(literal("user2")) _),
+              AllDatabasesScope()(pos),
+              List(UserQualifier(literalUser1)(pos), UserQualifier(literal("user2"))(pos)),
               Seq(literalRole1, literalRole2),
               immutable
             )(pos))
@@ -577,8 +577,8 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
           test(s"$verb$immutableString SHOW TRANSACTIONS ON DATABASES * $preposition role") {
             assertAst(privilegeFunc(
               ShowTransactionAction,
-              AllDatabasesScope() _,
-              List(UserAllQualifier() _),
+              AllDatabasesScope()(pos),
+              List(UserAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -588,7 +588,7 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
             assertAst(privilegeFunc(
               ShowTransactionAction,
               databaseScopeFooBar,
-              List(UserAllQualifier() _),
+              List(UserAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -598,7 +598,7 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
             assertAst(privilegeFunc(
               ShowTransactionAction,
               databaseScopeFooParamBar,
-              List(UserQualifier(literalUser) _),
+              List(UserQualifier(literalUser)(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -607,8 +607,8 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
           test(s"$verb$immutableString TERMINATE TRANSACTION (*) ON DATABASE * $preposition $$role") {
             assertAst(privilegeFunc(
               TerminateTransactionAction,
-              AllDatabasesScope() _,
-              List(UserAllQualifier() _),
+              AllDatabasesScope()(pos),
+              List(UserAllQualifier()(pos)),
               Seq(paramRole),
               immutable
             )(pos))
@@ -618,7 +618,7 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
             assertAst(privilegeFunc(
               TerminateTransactionAction,
               databaseScopeFoo,
-              List(UserAllQualifier() _),
+              List(UserAllQualifier()(pos)),
               Seq(literalRole1, literalRole2),
               immutable
             )(pos))
@@ -628,7 +628,7 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
             assertAst(privilegeFunc(
               TerminateTransactionAction,
               databaseScopeParamFoo,
-              List(UserAllQualifier() _),
+              List(UserAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -637,8 +637,8 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
           test(s"$verb$immutableString TERMINATE TRANSACTION (user) ON HOME DATABASE $preposition role") {
             assertAst(privilegeFunc(
               TerminateTransactionAction,
-              HomeDatabaseScope() _,
-              List(UserQualifier(literalUser) _),
+              HomeDatabaseScope()(pos),
+              List(UserQualifier(literalUser)(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -655,8 +655,8 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
           test(s"$verb$immutableString TERMINATE TRANSACTIONS (user1,user2) ON DATABASES * $preposition role1, role2") {
             assertAst(privilegeFunc(
               TerminateTransactionAction,
-              AllDatabasesScope() _,
-              List(UserQualifier(literalUser1) _, UserQualifier(literal("user2")) _),
+              AllDatabasesScope()(pos),
+              List(UserQualifier(literalUser1)(pos), UserQualifier(literal("user2"))(pos)),
               Seq(literalRole1, literalRole2),
               immutable
             )(pos))
@@ -667,8 +667,8 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
           ) {
             assertAst(privilegeFunc(
               TerminateTransactionAction,
-              AllDatabasesScope() _,
-              List(UserQualifier(stringParam("user1")) _, UserQualifier(stringParam("user2")) _),
+              AllDatabasesScope()(pos),
+              List(UserQualifier(stringParam("user1"))(pos), UserQualifier(stringParam("user2"))(pos)),
               Seq(literalRole1, literalRole2),
               immutable
             )(pos))
@@ -677,8 +677,8 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
           test(s"$verb$immutableString TERMINATE TRANSACTIONS ON DATABASES * $preposition role") {
             assertAst(privilegeFunc(
               TerminateTransactionAction,
-              AllDatabasesScope() _,
-              List(UserAllQualifier() _),
+              AllDatabasesScope()(pos),
+              List(UserAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -688,7 +688,7 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
             assertAst(privilegeFunc(
               TerminateTransactionAction,
               databaseScopeFooBar,
-              List(UserAllQualifier() _),
+              List(UserAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -698,7 +698,7 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
             assertAst(privilegeFunc(
               TerminateTransactionAction,
               databaseScopeFooParamBar,
-              List(UserQualifier(literalUser) _),
+              List(UserQualifier(literalUser)(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -707,8 +707,8 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
           test(s"$verb$immutableString TRANSACTION ON DATABASES * $preposition role1, role2") {
             assertAst(privilegeFunc(
               AllTransactionActions,
-              AllDatabasesScope() _,
-              List(UserAllQualifier() _),
+              AllDatabasesScope()(pos),
+              List(UserAllQualifier()(pos)),
               Seq(literalRole1, literalRole2),
               immutable
             )(pos))
@@ -718,7 +718,7 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
             assertAst(privilegeFunc(
               AllTransactionActions,
               databaseScopeFoo,
-              List(UserAllQualifier() _),
+              List(UserAllQualifier()(pos)),
               Seq(literalRole1, paramRole2),
               immutable
             )(pos))
@@ -728,7 +728,7 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
             assertAst(privilegeFunc(
               AllTransactionActions,
               databaseScopeParamFoo,
-              List(UserAllQualifier() _),
+              List(UserAllQualifier()(pos)),
               Seq(literalRole1, literalRole2),
               immutable
             )(pos))
@@ -737,8 +737,8 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
           test(s"$verb$immutableString TRANSACTION (user) ON DATABASES * $preposition role") {
             assertAst(privilegeFunc(
               AllTransactionActions,
-              AllDatabasesScope() _,
-              List(UserQualifier(literalUser) _),
+              AllDatabasesScope()(pos),
+              List(UserQualifier(literalUser)(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -748,7 +748,7 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
             assertAst(privilegeFunc(
               AllTransactionActions,
               databaseScopeFooBar,
-              List(UserAllQualifier() _),
+              List(UserAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -758,7 +758,7 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
             assertAst(privilegeFunc(
               AllTransactionActions,
               databaseScopeFooParamBar,
-              List(UserQualifier(literalUser) _),
+              List(UserQualifier(literalUser)(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -767,8 +767,8 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
           test(s"$verb$immutableString TRANSACTION MANAGEMENT ON HOME DATABASE $preposition role") {
             assertAst(privilegeFunc(
               AllTransactionActions,
-              HomeDatabaseScope() _,
-              List(UserAllQualifier() _),
+              HomeDatabaseScope()(pos),
+              List(UserAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -787,8 +787,8 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
           test(s"$verb$immutableString TRANSACTION MANAGEMENT (user) ON DATABASES * $preposition role") {
             assertAst(privilegeFunc(
               AllTransactionActions,
-              AllDatabasesScope() _,
-              List(UserQualifier(literalUser) _),
+              AllDatabasesScope()(pos),
+              List(UserQualifier(literalUser)(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -797,8 +797,8 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
           test(s"$verb$immutableString TRANSACTION MANAGEMENT (user1, $$user2) ON DATABASES * $preposition role") {
             assertAst(privilegeFunc(
               AllTransactionActions,
-              AllDatabasesScope() _,
-              List(UserQualifier(literalUser1) _, UserQualifier(stringParam("user2")) _),
+              AllDatabasesScope()(pos),
+              List(UserQualifier(literalUser1)(pos), UserQualifier(stringParam("user2"))(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -808,7 +808,7 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
             assertAst(privilegeFunc(
               AllTransactionActions,
               databaseScopeFooBar,
-              List(UserAllQualifier() _),
+              List(UserAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -818,7 +818,7 @@ class DatabasePrivilegeAdministrationCommandParserTest extends AdministrationAnd
             assertAst(privilegeFunc(
               AllTransactionActions,
               databaseScopeFooParamBar,
-              List(UserQualifier(literalUser) _),
+              List(UserQualifier(literalUser)(pos)),
               Seq(literalRole),
               immutable
             )(pos))

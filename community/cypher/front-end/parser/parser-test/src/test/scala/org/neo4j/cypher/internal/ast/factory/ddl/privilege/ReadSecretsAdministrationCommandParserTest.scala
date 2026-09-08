@@ -24,7 +24,6 @@ import org.neo4j.cypher.internal.ast.factory.ddl.AdministrationAndSchemaCommandP
 import org.neo4j.cypher.internal.ast.prettifier.Prettifier.maybeImmutable
 import org.neo4j.cypher.internal.ast.test.util.AstParsing.Cypher5
 import org.neo4j.cypher.internal.expressions.Expression
-import org.neo4j.cypher.internal.util.InputPosition
 import org.neo4j.exceptions.SyntaxException
 
 class ReadSecretsAdministrationCommandParserTest extends AdministrationAndSchemaCommandParserTestBase {
@@ -166,7 +165,6 @@ class ReadSecretsAdministrationCommandParserTest extends AdministrationAndSchema
 
   }
 
-  private def readSecretQualifier(secret: Expression): InputPosition => SecretQualifier =
-    SecretQualifier(secret)(_)
-  private def secretAllQualifier: InputPosition => SecretAllQualifier = SecretAllQualifier()(_)
+  private def readSecretQualifier(secret: Expression): SecretQualifier = SecretQualifier(secret)(pos)
+  private def secretAllQualifier: SecretAllQualifier = SecretAllQualifier()(pos)
 }

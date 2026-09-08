@@ -16,7 +16,6 @@
  */
 package org.neo4j.cypher.internal.ast.factory.ddl
 
-import org.neo4j.cypher.internal.ast.AstConstructionTestSupportWithPosConversion
 import org.neo4j.cypher.internal.ast.Auth
 import org.neo4j.cypher.internal.ast.CreateUser
 import org.neo4j.cypher.internal.ast.IfExistsDoNothing
@@ -31,8 +30,7 @@ import org.neo4j.cypher.internal.ast.test.util.AstParsing.Cypher5
 
 import scala.util.Random
 
-class CreateUserAdministrationCommandParserTest extends UserAdministrationCommandParserTestBase
-    with AstConstructionTestSupportWithPosConversion {
+class CreateUserAdministrationCommandParserTest extends UserAdministrationCommandParserTestBase {
 
   override protected def ignorePrettifier: Boolean = true
 

@@ -150,8 +150,8 @@ class AliasAdministrationCommandParserTest extends AdministrationAndSchemaComman
     parsesIn[Statements] {
       case Cypher5 => _.toAstPositioned(
           CreateLocalDatabaseAlias(
-            NamespacedName(List("b", "c", "d"), Some("a"))(_),
-            NamespacedName(List("db"), None)(_),
+            NamespacedName(List("b", "c", "d"), Some("a"))(pos),
+            NamespacedName(List("db"), None)(pos),
             IfExistsDoNothing
           )(defaultPos)
         )
@@ -1193,8 +1193,8 @@ class AliasAdministrationCommandParserTest extends AdministrationAndSchemaComman
           )
       case _ => _.toAstPositioned(
           CreateRemoteDatabaseAlias(
-            NamespacedName(List("namespace.name.illegal"), None)(_),
-            NamespacedName(List("target"), None)(_),
+            NamespacedName(List("namespace.name.illegal"), None)(pos),
+            NamespacedName(List("target"), None)(pos),
             ifExistsDo = IfExistsThrowError,
             url = Left("neo4j://serverA:7687"),
             RemoteAliasStoredCredentials(
@@ -1614,16 +1614,16 @@ class AliasAdministrationCommandParserTest extends AdministrationAndSchemaComman
     parsesIn[Statements] {
       case Cypher5 => _.toAstPositioned(
           AlterLocalDatabaseAlias(
-            NamespacedName(List("hej"), Some("name"))(_),
-            Some(NamespacedName(List("db"), None)(_)),
+            NamespacedName(List("hej"), Some("name"))(pos),
+            Some(NamespacedName(List("db"), None)(pos)),
             ifExists = false,
             None
           )(pos)
         )
       case _ => _.toAstPositioned(
           AlterLocalDatabaseAlias(
-            NamespacedName(List("name.hej"), None)(_),
-            Some(NamespacedName(List("db"), None)(_)),
+            NamespacedName(List("name.hej"), None)(pos),
+            Some(NamespacedName(List("db"), None)(pos)),
             ifExists = false,
             None
           )(pos)
@@ -1635,16 +1635,16 @@ class AliasAdministrationCommandParserTest extends AdministrationAndSchemaComman
     parsesIn[Statements] {
       case Cypher5 => _.toAstPositioned(
           AlterLocalDatabaseAlias(
-            NamespacedName(List("hej", "a"), Some("name"))(_),
-            Some(NamespacedName(List("db"), None)(_)),
+            NamespacedName(List("hej", "a"), Some("name"))(pos),
+            Some(NamespacedName(List("db"), None)(pos)),
             ifExists = false,
             None
           )(pos)
         )
       case _ => _.toAstPositioned(
           AlterLocalDatabaseAlias(
-            NamespacedName(List("name.hej.a"), None)(_),
-            Some(NamespacedName(List("db"), None)(_)),
+            NamespacedName(List("name.hej.a"), None)(pos),
+            Some(NamespacedName(List("db"), None)(pos)),
             ifExists = false,
             None
           )(pos)
@@ -1951,16 +1951,16 @@ class AliasAdministrationCommandParserTest extends AdministrationAndSchemaComman
     parsesIn[Statements] {
       case Cypher5 => _.toAstPositioned(
           AlterRemoteDatabaseAlias(
-            NamespacedName(List("hej"), Some("name"))(_),
-            Some(NamespacedName(List("db"), None)(_)),
+            NamespacedName(List("hej"), Some("name"))(pos),
+            Some(NamespacedName(List("db"), None)(pos)),
             ifExists = false,
             Some(Left("heja"))
           )(pos)
         )
       case _ => _.toAstPositioned(
           AlterRemoteDatabaseAlias(
-            NamespacedName(List("name.hej"), None)(_),
-            Some(NamespacedName(List("db"), None)(_)),
+            NamespacedName(List("name.hej"), None)(pos),
+            Some(NamespacedName(List("db"), None)(pos)),
             ifExists = false,
             Some(Left("heja"))
           )(pos)
@@ -2073,8 +2073,8 @@ class AliasAdministrationCommandParserTest extends AdministrationAndSchemaComman
           )
       case _ => _.toAstPositioned(
           AlterRemoteDatabaseAlias(
-            NamespacedName(List("namespace.name.illegal"), None)(_),
-            Some(NamespacedName(List("target"), None)(_)),
+            NamespacedName(List("namespace.name.illegal"), None)(pos),
+            Some(NamespacedName(List("target"), None)(pos)),
             ifExists = false,
             Some(Left("neo4j://serverA:7687")),
             Some("user"),
@@ -2141,8 +2141,8 @@ class AliasAdministrationCommandParserTest extends AdministrationAndSchemaComman
           )
       case _ => _.toAstPositioned(
           AlterRemoteDatabaseAlias(
-            NamespacedName(List("name.hej.a"), None)(_),
-            Some(NamespacedName(List("db"), None)(_)),
+            NamespacedName(List("name.hej.a"), None)(pos),
+            Some(NamespacedName(List("db"), None)(pos)),
             ifExists = false,
             Some(Left("heja"))
           )(defaultPos)

@@ -143,7 +143,7 @@ class PropertyPrivilegeAdministrationCommandParserTestBase extends Administratio
 
   val scopes: Seq[Scope] = Seq(
     Scope("*", AllGraphsScope()(pos)),
-    Scope("foo", graphScopeFoo(pos))
+    Scope("foo", graphScopeFoo)
   )
 
   val disallowedPropertyRules: Seq[String] = Seq(

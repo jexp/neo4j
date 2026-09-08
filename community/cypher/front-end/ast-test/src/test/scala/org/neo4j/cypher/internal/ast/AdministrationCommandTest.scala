@@ -81,8 +81,7 @@ import java.nio.charset.StandardCharsets
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.jdk.CollectionConverters.SeqHasAsJava
 
-class AdministrationCommandTest extends CypherFunSuite with AstConstructionTestSupport with CypherVersionTestSupport
-    with AstConstructionTestSupportWithPosConversion {
+class AdministrationCommandTest extends CypherFunSuite with AstConstructionTestSupport with CypherVersionTestSupport {
 
   implicit val windowsSafe: WindowsSemanticErrorDefSeqStringSafe.type = WindowsSemanticErrorDefSeqStringSafe
 
@@ -166,7 +165,7 @@ class AdministrationCommandTest extends CypherFunSuite with AstConstructionTestS
       )(pos2),
       immutable = false,
       None,
-      List(LabelAllQualifier()(_)),
+      List(LabelAllQualifier()(pos)),
       List(literalString("role", pos3), literalInt(42, pos4))
     )(p)
 
@@ -187,7 +186,7 @@ class AdministrationCommandTest extends CypherFunSuite with AstConstructionTestS
       )(pos2),
       immutable = false,
       None,
-      List(LabelAllQualifier()(_)),
+      List(LabelAllQualifier()(pos)),
       List(literalString("role", pos3), literalInt(42, pos4))
     )(p)
 
@@ -208,7 +207,7 @@ class AdministrationCommandTest extends CypherFunSuite with AstConstructionTestS
       )(pos2),
       immutableOnly = false,
       None,
-      List(LabelAllQualifier()(_)),
+      List(LabelAllQualifier()(pos)),
       List(literalString("role", pos3), literalInt(42, pos4)),
       RevokeBothType()(pos)
     )(p)

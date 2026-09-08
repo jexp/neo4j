@@ -45,9 +45,9 @@ class PropertyPrivilegeAdministrationCommandParserTest extends AdministrationAnd
           val immutableString = maybeImmutable(immutable)
           test(s"$verb$immutableString SET PROPERTY { prop } ON GRAPH foo $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(SetPropertyAction, graphScopeFoo)(_),
-              PropertiesResource(propSeq)(_),
-              List(ElementsAllQualifier()(_)),
+              GraphPrivilege(SetPropertyAction, graphScopeFoo)(pos),
+              PropertiesResource(propSeq)(pos),
+              List(ElementsAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -57,9 +57,9 @@ class PropertyPrivilegeAdministrationCommandParserTest extends AdministrationAnd
 
           test(s"$verb$immutableString SET PROPERTY { * } ON GRAPH foo $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(SetPropertyAction, graphScopeFoo)(_),
-              AllPropertyResource()(_),
-              List(ElementsAllQualifier()(_)),
+              GraphPrivilege(SetPropertyAction, graphScopeFoo)(pos),
+              AllPropertyResource()(pos),
+              List(ElementsAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -67,9 +67,9 @@ class PropertyPrivilegeAdministrationCommandParserTest extends AdministrationAnd
 
           test(s"$verb$immutableString SET PROPERTY { prop1, prop2 } ON GRAPH foo $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(SetPropertyAction, graphScopeFoo)(_),
-              PropertiesResource(Seq("prop1", "prop2"))(_),
-              List(ElementsAllQualifier()(_)),
+              GraphPrivilege(SetPropertyAction, graphScopeFoo)(pos),
+              PropertiesResource(Seq("prop1", "prop2"))(pos),
+              List(ElementsAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -79,9 +79,9 @@ class PropertyPrivilegeAdministrationCommandParserTest extends AdministrationAnd
 
           test(s"$verb$immutableString SET PROPERTY { * } ON HOME GRAPH $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(SetPropertyAction, HomeGraphScope()(_))(_),
-              AllPropertyResource()(_),
-              List(ElementsAllQualifier()(_)),
+              GraphPrivilege(SetPropertyAction, HomeGraphScope()(pos))(pos),
+              AllPropertyResource()(pos),
+              List(ElementsAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -89,9 +89,9 @@ class PropertyPrivilegeAdministrationCommandParserTest extends AdministrationAnd
 
           test(s"$verb$immutableString SET PROPERTY { prop } ON HOME GRAPH $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(SetPropertyAction, HomeGraphScope()(_))(_),
-              PropertiesResource(propSeq)(_),
-              List(ElementsAllQualifier()(_)),
+              GraphPrivilege(SetPropertyAction, HomeGraphScope()(pos))(pos),
+              PropertiesResource(propSeq)(pos),
+              List(ElementsAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -99,8 +99,8 @@ class PropertyPrivilegeAdministrationCommandParserTest extends AdministrationAnd
 
           test(s"$verb$immutableString SET PROPERTY { prop } ON HOME GRAPH NODES A,B $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(SetPropertyAction, HomeGraphScope()(_))(_),
-              PropertiesResource(propSeq)(_),
+              GraphPrivilege(SetPropertyAction, HomeGraphScope()(pos))(pos),
+              PropertiesResource(propSeq)(pos),
               List(labelQualifierA, labelQualifierB),
               Seq(literalRole),
               immutable
@@ -111,9 +111,9 @@ class PropertyPrivilegeAdministrationCommandParserTest extends AdministrationAnd
 
           test(s"$verb$immutableString SET PROPERTY { prop } ON GRAPHS * $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(SetPropertyAction, AllGraphsScope()(_))(_),
-              PropertiesResource(propSeq)(_),
-              List(ElementsAllQualifier()(_)),
+              GraphPrivilege(SetPropertyAction, AllGraphsScope()(pos))(pos),
+              PropertiesResource(propSeq)(pos),
+              List(ElementsAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -121,9 +121,9 @@ class PropertyPrivilegeAdministrationCommandParserTest extends AdministrationAnd
 
           test(s"$verb$immutableString SET PROPERTY { prop } ON GRAPHS foo,baz $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(SetPropertyAction, graphScopeFooBaz)(_),
-              PropertiesResource(propSeq)(_),
-              List(ElementsAllQualifier()(_)),
+              GraphPrivilege(SetPropertyAction, graphScopeFooBaz)(pos),
+              PropertiesResource(propSeq)(pos),
+              List(ElementsAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -133,8 +133,8 @@ class PropertyPrivilegeAdministrationCommandParserTest extends AdministrationAnd
 
           test(s"$verb$immutableString SET PROPERTY { prop } ON GRAPHS foo ELEMENTS A,B $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(SetPropertyAction, graphScopeFoo)(_),
-              PropertiesResource(propSeq)(_),
+              GraphPrivilege(SetPropertyAction, graphScopeFoo)(pos),
+              PropertiesResource(propSeq)(pos),
               List(elemQualifierA, elemQualifierB),
               Seq(literalRole),
               immutable
@@ -143,8 +143,8 @@ class PropertyPrivilegeAdministrationCommandParserTest extends AdministrationAnd
 
           test(s"$verb$immutableString SET PROPERTY { prop } ON GRAPHS foo NODES A,B $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(SetPropertyAction, graphScopeFoo)(_),
-              PropertiesResource(propSeq)(_),
+              GraphPrivilege(SetPropertyAction, graphScopeFoo)(pos),
+              PropertiesResource(propSeq)(pos),
               List(labelQualifierA, labelQualifierB),
               Seq(literalRole),
               immutable
@@ -153,9 +153,9 @@ class PropertyPrivilegeAdministrationCommandParserTest extends AdministrationAnd
 
           test(s"$verb$immutableString SET PROPERTY { prop } ON GRAPHS foo NODES * $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(SetPropertyAction, graphScopeFoo)(_),
-              PropertiesResource(propSeq)(_),
-              List(LabelAllQualifier()(_)),
+              GraphPrivilege(SetPropertyAction, graphScopeFoo)(pos),
+              PropertiesResource(propSeq)(pos),
+              List(LabelAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -163,8 +163,8 @@ class PropertyPrivilegeAdministrationCommandParserTest extends AdministrationAnd
 
           test(s"$verb$immutableString SET PROPERTY { prop } ON GRAPHS foo RELATIONSHIPS A,B $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(SetPropertyAction, graphScopeFoo)(_),
-              PropertiesResource(propSeq)(_),
+              GraphPrivilege(SetPropertyAction, graphScopeFoo)(pos),
+              PropertiesResource(propSeq)(pos),
               List(relQualifierA, relQualifierB),
               Seq(literalRole),
               immutable
@@ -173,9 +173,9 @@ class PropertyPrivilegeAdministrationCommandParserTest extends AdministrationAnd
 
           test(s"$verb$immutableString SET PROPERTY { prop } ON GRAPHS foo RELATIONSHIPS * $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(SetPropertyAction, graphScopeFoo)(_),
-              PropertiesResource(propSeq)(_),
-              List(RelationshipAllQualifier()(_)),
+              GraphPrivilege(SetPropertyAction, graphScopeFoo)(pos),
+              PropertiesResource(propSeq)(pos),
+              List(RelationshipAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -185,9 +185,9 @@ class PropertyPrivilegeAdministrationCommandParserTest extends AdministrationAnd
 
           test(s"$verb$immutableString SET PROPERTY { prop } ON GRAPHS foo $preposition role1, role2") {
             parsesTo[Statements](func(
-              GraphPrivilege(SetPropertyAction, graphScopeFoo)(_),
-              PropertiesResource(propSeq)(_),
-              List(ElementsAllQualifier()(_)),
+              GraphPrivilege(SetPropertyAction, graphScopeFoo)(pos),
+              PropertiesResource(propSeq)(pos),
+              List(ElementsAllQualifier()(pos)),
               Seq(literalRole1, literalRole2),
               immutable
             )(pos))
@@ -197,9 +197,9 @@ class PropertyPrivilegeAdministrationCommandParserTest extends AdministrationAnd
 
           test(s"$verb$immutableString SET PROPERTY { prop } ON GRAPH $$foo $preposition role") {
             parsesTo[Statements](func(
-              GraphPrivilege(SetPropertyAction, graphScopeParamFoo)(_),
-              PropertiesResource(propSeq)(_),
-              List(ElementsAllQualifier()(_)),
+              GraphPrivilege(SetPropertyAction, graphScopeParamFoo)(pos),
+              PropertiesResource(propSeq)(pos),
+              List(ElementsAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -207,9 +207,9 @@ class PropertyPrivilegeAdministrationCommandParserTest extends AdministrationAnd
 
           test(s"$verb$immutableString SET PROPERTY { prop } ON GRAPH foo $preposition $$role") {
             parsesTo[Statements](func(
-              GraphPrivilege(SetPropertyAction, graphScopeFoo)(_),
-              PropertiesResource(propSeq)(_),
-              List(ElementsAllQualifier()(_)),
+              GraphPrivilege(SetPropertyAction, graphScopeFoo)(pos),
+              PropertiesResource(propSeq)(pos),
+              List(ElementsAllQualifier()(pos)),
               Seq(paramRole),
               immutable
             )(pos))

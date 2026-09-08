@@ -64,7 +64,7 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
             parsesTo[Statements](func(
               GraphPrivilege(action, HomeGraphScope()(pos))(pos),
               PropertiesResource(propSeq)(pos),
-              List(ElementsAllQualifier() _),
+              List(ElementsAllQualifier()(pos)),
               Seq(literalRole),
               immutable
             )(pos))
@@ -86,11 +86,11 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                 nodeKeyword =>
                   Seq(
                     ("*", AllPropertyResource()(pos), "*", AllGraphsScope()(pos)),
-                    ("*", AllPropertyResource()(pos), "foo", graphScopeFoo(pos)),
+                    ("*", AllPropertyResource()(pos), "foo", graphScopeFoo),
                     ("bar", PropertiesResource(Seq("bar"))(pos), "*", AllGraphsScope()(pos)),
-                    ("bar", PropertiesResource(Seq("bar"))(pos), "foo", graphScopeFoo(pos)),
+                    ("bar", PropertiesResource(Seq("bar"))(pos), "foo", graphScopeFoo),
                     ("foo, bar", PropertiesResource(Seq("foo", "bar"))(pos), "*", AllGraphsScope()(pos)),
-                    ("foo, bar", PropertiesResource(Seq("foo", "bar"))(pos), "foo", graphScopeFoo(pos))
+                    ("foo, bar", PropertiesResource(Seq("foo", "bar"))(pos), "foo", graphScopeFoo)
                   ).foreach {
                     case (
                         properties: String,
@@ -106,7 +106,7 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                             func(
                               GraphPrivilege(action, graphScope)(pos),
                               resource,
-                              List(LabelAllQualifier() _),
+                              List(LabelAllQualifier()(pos)),
                               Seq(paramRole),
                               immutable
                             )(pos)
@@ -118,7 +118,7 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                                 func(
                                   GraphPrivilege(action, graphScope)(pos),
                                   resource,
-                                  List(LabelAllQualifier() _),
+                                  List(LabelAllQualifier()(pos)),
                                   Seq(literalRole),
                                   immutable
                                 )(pos)
@@ -155,7 +155,7 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                             func(
                               GraphPrivilege(action, graphScope)(pos),
                               resource,
-                              List(LabelQualifier("A B") _),
+                              List(LabelQualifier("A B")(pos)),
                               Seq(literalRole),
                               immutable
                             )(pos)
@@ -177,7 +177,7 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                             func(
                               GraphPrivilege(action, graphScope)(pos),
                               resource,
-                              List(LabelAllQualifier() _),
+                              List(LabelAllQualifier()(pos)),
                               Seq(literalRColonOle),
                               immutable
                             )(pos)
@@ -188,7 +188,7 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                             func(
                               GraphPrivilege(action, graphScope)(pos),
                               resource,
-                              List(LabelQualifier(":A") _),
+                              List(LabelQualifier(":A")(pos)),
                               Seq(literalRole),
                               immutable
                             )(pos)
@@ -226,9 +226,9 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                     s"$verb$immutableString ${action.name} {*} ON $graphKeyword `f:oo` $nodeKeyword * $preposition role" should
                       parseTo[Statements](
                         func(
-                          GraphPrivilege(action, NamedGraphsScope(Seq(namespacedName("f:oo"))) _)(pos),
-                          AllPropertyResource() _,
-                          List(LabelAllQualifier() _),
+                          GraphPrivilege(action, NamedGraphsScope(Seq(namespacedName("f:oo")))(pos))(pos),
+                          AllPropertyResource()(pos),
+                          List(LabelAllQualifier()(pos)),
                           Seq(literalRole),
                           immutable
                         )(pos)
@@ -237,9 +237,9 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                     s"$verb$immutableString ${action.name} {bar} ON $graphKeyword `f:oo` $nodeKeyword * $preposition role" should
                       parseTo[Statements](
                         func(
-                          GraphPrivilege(action, NamedGraphsScope(Seq(namespacedName("f:oo"))) _)(pos),
-                          PropertiesResource(Seq("bar")) _,
-                          List(LabelAllQualifier() _),
+                          GraphPrivilege(action, NamedGraphsScope(Seq(namespacedName("f:oo")))(pos))(pos),
+                          PropertiesResource(Seq("bar"))(pos),
+                          List(LabelAllQualifier()(pos)),
                           Seq(literalRole),
                           immutable
                         )(pos)
@@ -249,8 +249,8 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                       parseTo[Statements](
                         func(
                           GraphPrivilege(action, graphScopeFoo)(pos),
-                          PropertiesResource(Seq("b:ar")) _,
-                          List(LabelAllQualifier() _),
+                          PropertiesResource(Seq("b:ar"))(pos),
+                          List(LabelAllQualifier()(pos)),
                           Seq(literalRole),
                           immutable
                         )(pos)
@@ -260,7 +260,7 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                       parseTo[Statements](
                         func(
                           GraphPrivilege(action, graphScopeFooBaz)(pos),
-                          AllPropertyResource() _,
+                          AllPropertyResource()(pos),
                           List(labelQualifierA),
                           Seq(literalRole),
                           immutable
@@ -271,7 +271,7 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                       parseTo[Statements](
                         func(
                           GraphPrivilege(action, graphScopeFooBaz)(pos),
-                          PropertiesResource(Seq("bar")) _,
+                          PropertiesResource(Seq("bar"))(pos),
                           List(labelQualifierA),
                           Seq(literalRole),
                           immutable
@@ -387,11 +387,11 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                 relTypeKeyword =>
                   Seq(
                     ("*", AllPropertyResource()(pos), "*", AllGraphsScope()(pos)),
-                    ("*", AllPropertyResource()(pos), "foo", graphScopeFoo(pos)),
+                    ("*", AllPropertyResource()(pos), "foo", graphScopeFoo),
                     ("bar", PropertiesResource(Seq("bar"))(pos), "*", AllGraphsScope()(pos)),
-                    ("bar", PropertiesResource(Seq("bar"))(pos), "foo", graphScopeFoo(pos)),
+                    ("bar", PropertiesResource(Seq("bar"))(pos), "foo", graphScopeFoo),
                     ("foo, bar", PropertiesResource(Seq("foo", "bar"))(pos), "*", AllGraphsScope()(pos)),
-                    ("foo, bar", PropertiesResource(Seq("foo", "bar"))(pos), "foo", graphScopeFoo(pos))
+                    ("foo, bar", PropertiesResource(Seq("foo", "bar"))(pos), "foo", graphScopeFoo)
                   ).foreach {
                     case (
                         properties: String,
@@ -408,7 +408,7 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                             func(
                               GraphPrivilege(action, graphScope)(pos),
                               resource,
-                              List(RelationshipAllQualifier() _),
+                              List(RelationshipAllQualifier()(pos)),
                               Seq(literalRole),
                               immutable
                             )(pos)
@@ -420,7 +420,7 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                                 func(
                                   GraphPrivilege(action, graphScope)(pos),
                                   resource,
-                                  List(RelationshipAllQualifier() _),
+                                  List(RelationshipAllQualifier()(pos)),
                                   Seq(paramRole),
                                   immutable
                                 )(pos)
@@ -458,7 +458,7 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                             func(
                               GraphPrivilege(action, graphScope)(pos),
                               resource,
-                              List(RelationshipQualifier("A B") _),
+                              List(RelationshipQualifier("A B")(pos)),
                               Seq(literalRole),
                               immutable
                             )(pos)
@@ -480,7 +480,7 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                             func(
                               GraphPrivilege(action, graphScope)(pos),
                               resource,
-                              List(RelationshipAllQualifier() _),
+                              List(RelationshipAllQualifier()(pos)),
                               Seq(literalRColonOle),
                               immutable
                             )(pos)
@@ -491,7 +491,7 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                             func(
                               GraphPrivilege(action, graphScope)(pos),
                               resource,
-                              List(RelationshipQualifier(":A") _),
+                              List(RelationshipQualifier(":A")(pos)),
                               Seq(literalRole),
                               immutable
                             )(pos)
@@ -529,9 +529,9 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                     s"$verb$immutableString ${action.name} {*} ON $graphKeyword `f:oo` $relTypeKeyword * $preposition role" should
                       parseTo[Statements](
                         func(
-                          GraphPrivilege(action, NamedGraphsScope(Seq(namespacedName("f:oo"))) _)(pos),
-                          AllPropertyResource() _,
-                          List(RelationshipAllQualifier() _),
+                          GraphPrivilege(action, NamedGraphsScope(Seq(namespacedName("f:oo")))(pos))(pos),
+                          AllPropertyResource()(pos),
+                          List(RelationshipAllQualifier()(pos)),
                           Seq(literalRole),
                           immutable
                         )(pos)
@@ -540,9 +540,9 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                     s"$verb$immutableString ${action.name} {bar} ON $graphKeyword `f:oo` $relTypeKeyword * $preposition role" should
                       parseTo[Statements](
                         func(
-                          GraphPrivilege(action, NamedGraphsScope(Seq(namespacedName("f:oo"))) _)(pos),
-                          PropertiesResource(Seq("bar")) _,
-                          List(RelationshipAllQualifier() _),
+                          GraphPrivilege(action, NamedGraphsScope(Seq(namespacedName("f:oo")))(pos))(pos),
+                          PropertiesResource(Seq("bar"))(pos),
+                          List(RelationshipAllQualifier()(pos)),
                           Seq(literalRole),
                           immutable
                         )(pos)
@@ -552,8 +552,8 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                       parseTo[Statements](
                         func(
                           GraphPrivilege(action, graphScopeFoo)(pos),
-                          PropertiesResource(Seq("b:ar")) _,
-                          List(RelationshipAllQualifier() _),
+                          PropertiesResource(Seq("b:ar"))(pos),
+                          List(RelationshipAllQualifier()(pos)),
                           Seq(literalRole),
                           immutable
                         )(pos)
@@ -563,7 +563,7 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                       parseTo[Statements](
                         func(
                           GraphPrivilege(action, graphScopeFooBaz)(pos),
-                          AllPropertyResource() _,
+                          AllPropertyResource()(pos),
                           List(relQualifierA),
                           Seq(literalRole),
                           immutable
@@ -574,7 +574,7 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                       parseTo[Statements](
                         func(
                           GraphPrivilege(action, graphScopeFooBaz)(pos),
-                          PropertiesResource(Seq("bar")) _,
+                          PropertiesResource(Seq("bar"))(pos),
                           List(relQualifierA),
                           Seq(literalRole),
                           immutable
@@ -682,11 +682,11 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                 elementKeyword =>
                   Seq(
                     ("*", AllPropertyResource()(pos), "*", AllGraphsScope()(pos)),
-                    ("*", AllPropertyResource()(pos), "foo", graphScopeFoo(pos)),
+                    ("*", AllPropertyResource()(pos), "foo", graphScopeFoo),
                     ("bar", PropertiesResource(Seq("bar"))(pos), "*", AllGraphsScope()(pos)),
-                    ("bar", PropertiesResource(Seq("bar"))(pos), "foo", graphScopeFoo(pos)),
+                    ("bar", PropertiesResource(Seq("bar"))(pos), "foo", graphScopeFoo),
                     ("foo, bar", PropertiesResource(Seq("foo", "bar"))(pos), "*", AllGraphsScope()(pos)),
-                    ("foo, bar", PropertiesResource(Seq("foo", "bar"))(pos), "foo", graphScopeFoo(pos))
+                    ("foo, bar", PropertiesResource(Seq("foo", "bar"))(pos), "foo", graphScopeFoo)
                   ).foreach {
                     case (
                         properties: String,
@@ -703,7 +703,7 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                             func(
                               GraphPrivilege(action, graphScope)(pos),
                               resource,
-                              List(ElementsAllQualifier() _),
+                              List(ElementsAllQualifier()(pos)),
                               Seq(literalRole),
                               immutable
                             )(pos)
@@ -715,7 +715,7 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                                 func(
                                   GraphPrivilege(action, graphScope)(pos),
                                   resource,
-                                  List(ElementsAllQualifier() _),
+                                  List(ElementsAllQualifier()(pos)),
                                   Seq(literalRole),
                                   immutable
                                 )(pos)
@@ -753,7 +753,7 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                             func(
                               GraphPrivilege(action, graphScope)(pos),
                               resource,
-                              List(ElementQualifier("A B") _),
+                              List(ElementQualifier("A B")(pos)),
                               Seq(literalRole),
                               immutable
                             )(pos)
@@ -775,7 +775,7 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                             func(
                               GraphPrivilege(action, graphScope)(pos),
                               resource,
-                              List(ElementsAllQualifier() _),
+                              List(ElementsAllQualifier()(pos)),
                               Seq(literalRColonOle),
                               immutable
                             )(pos)
@@ -786,7 +786,7 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                             func(
                               GraphPrivilege(action, graphScope)(pos),
                               resource,
-                              List(ElementQualifier(":A") _),
+                              List(ElementQualifier(":A")(pos)),
                               Seq(literalRole),
                               immutable
                             )(pos)
@@ -824,9 +824,9 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                     s"$verb$immutableString ${action.name} {*} ON $graphKeyword `f:oo` $elementKeyword * $preposition role" should
                       parseTo[Statements](
                         func(
-                          GraphPrivilege(action, NamedGraphsScope(Seq(namespacedName("f:oo"))) _)(pos),
-                          AllPropertyResource() _,
-                          List(ElementsAllQualifier() _),
+                          GraphPrivilege(action, NamedGraphsScope(Seq(namespacedName("f:oo")))(pos))(pos),
+                          AllPropertyResource()(pos),
+                          List(ElementsAllQualifier()(pos)),
                           Seq(literalRole),
                           immutable
                         )(pos)
@@ -835,9 +835,9 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                     s"$verb$immutableString ${action.name} {bar} ON $graphKeyword `f:oo` $elementKeyword * $preposition role" should
                       parseTo[Statements](
                         func(
-                          GraphPrivilege(action, NamedGraphsScope(Seq(namespacedName("f:oo"))) _)(pos),
-                          PropertiesResource(Seq("bar")) _,
-                          List(ElementsAllQualifier() _),
+                          GraphPrivilege(action, NamedGraphsScope(Seq(namespacedName("f:oo")))(pos))(pos),
+                          PropertiesResource(Seq("bar"))(pos),
+                          List(ElementsAllQualifier()(pos)),
                           Seq(literalRole),
                           immutable
                         )(pos)
@@ -847,8 +847,8 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                       parseTo[Statements](
                         func(
                           GraphPrivilege(action, graphScopeFoo)(pos),
-                          PropertiesResource(Seq("b:ar")) _,
-                          List(ElementsAllQualifier() _),
+                          PropertiesResource(Seq("b:ar"))(pos),
+                          List(ElementsAllQualifier()(pos)),
                           Seq(literalRole),
                           immutable
                         )(pos)
@@ -858,7 +858,7 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                       parseTo[Statements](
                         func(
                           GraphPrivilege(action, graphScopeFooBaz)(pos),
-                          AllPropertyResource() _,
+                          AllPropertyResource()(pos),
                           List(elemQualifierA),
                           Seq(literalRole),
                           immutable
@@ -869,7 +869,7 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                       parseTo[Statements](
                         func(
                           GraphPrivilege(action, graphScopeFooBaz)(pos),
-                          PropertiesResource(Seq("bar")) _,
+                          PropertiesResource(Seq("bar"))(pos),
                           List(elemQualifierA),
                           Seq(literalRole),
                           immutable
@@ -976,12 +976,12 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
               // Needs to be separate loop to avoid duplicate tests since the test does not have any segment keyword
               Seq(
                 ("*", AllPropertyResource()(pos), "*", AllGraphsScope()(pos)),
-                ("*", AllPropertyResource()(pos), "foo", graphScopeFoo(pos)),
-                ("*", AllPropertyResource()(pos), "$foo", graphScopeParamFoo(pos)),
+                ("*", AllPropertyResource()(pos), "foo", graphScopeFoo),
+                ("*", AllPropertyResource()(pos), "$foo", graphScopeParamFoo),
                 ("bar", PropertiesResource(Seq("bar"))(pos), "*", AllGraphsScope()(pos)),
-                ("bar", PropertiesResource(Seq("bar"))(pos), "foo", graphScopeFoo(pos)),
+                ("bar", PropertiesResource(Seq("bar"))(pos), "foo", graphScopeFoo),
                 ("foo, bar", PropertiesResource(Seq("foo", "bar"))(pos), "*", AllGraphsScope()(pos)),
-                ("foo, bar", PropertiesResource(Seq("foo", "bar"))(pos), "foo", graphScopeFoo(pos))
+                ("foo, bar", PropertiesResource(Seq("foo", "bar"))(pos), "foo", graphScopeFoo)
               ).foreach {
                 case (
                     properties: String,
@@ -995,7 +995,7 @@ class ReadMatchPrivilegeAdministrationCommandParserTest extends AdministrationAn
                     parsesTo[Statements](func(
                       GraphPrivilege(action, graphScope)(pos),
                       resource,
-                      List(ElementsAllQualifier() _),
+                      List(ElementsAllQualifier()(pos)),
                       Seq(literalRole),
                       immutable
                     )(pos))

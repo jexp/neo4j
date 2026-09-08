@@ -273,7 +273,7 @@ class CreateDatabaseAdministrationCommandParserTest extends AdministrationAndSch
     parsesIn[Statements] {
       case Cypher5 => _.toAstPositioned(
           CreateDatabase(
-            NamespacedName(List("bar"), Some("foo"))(_),
+            NamespacedName(List("bar"), Some("foo"))(pos),
             IfExistsThrowError,
             NoOptions,
             NoWait()(pos),
@@ -284,7 +284,7 @@ class CreateDatabaseAdministrationCommandParserTest extends AdministrationAndSch
         )
       case _ => _.toAstPositioned(
           CreateDatabase(
-            NamespacedName(List("foo.bar"), None)(_),
+            NamespacedName(List("foo.bar"), None)(pos),
             IfExistsThrowError,
             NoOptions,
             NoWait()(pos),

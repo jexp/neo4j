@@ -146,7 +146,7 @@ class ShowSettingPrivilegeAdministrationCommandParserTest extends Administration
 
               test(s"$verb$immutableString $command a b ON DBMS $preposition role") {
                 assertAst(
-                  func(action, List(settingQualifier("ab")(defaultPos)), Seq(literalRole), immutable)(defaultPos)
+                  func(action, List(settingQualifier("ab", defaultPos)), Seq(literalRole), immutable)(defaultPos)
                 )
               }
 
@@ -275,6 +275,6 @@ class ShowSettingPrivilegeAdministrationCommandParserTest extends Administration
       }
   }
 
-  private def settingQualifier(glob: String): InputPosition => SettingQualifier =
-    SettingQualifier(glob)(_)
+  private def settingQualifier(glob: String, position: InputPosition = pos): SettingQualifier =
+    SettingQualifier(glob)(position)
 }

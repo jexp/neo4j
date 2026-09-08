@@ -23,7 +23,6 @@ import org.neo4j.cypher.internal.ast.ProcedureQualifier
 import org.neo4j.cypher.internal.ast.Statements
 import org.neo4j.cypher.internal.ast.factory.ddl.AdministrationAndSchemaCommandParserTestBase
 import org.neo4j.cypher.internal.ast.prettifier.Prettifier.maybeImmutable
-import org.neo4j.cypher.internal.util.InputPosition
 
 class ExecuteProcedurePrivilegeAdministrationCommandParserTest extends AdministrationAndSchemaCommandParserTestBase {
 
@@ -329,6 +328,5 @@ class ExecuteProcedurePrivilegeAdministrationCommandParserTest extends Administr
       }
   }
 
-  private def procedureQualifier(procName: String): InputPosition => ProcedureQualifier =
-    ProcedureQualifier(procName)(_)
+  private def procedureQualifier(procName: String): ProcedureQualifier = ProcedureQualifier(procName)(pos)
 }
