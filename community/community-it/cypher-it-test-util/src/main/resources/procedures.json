@@ -3573,6 +3573,50 @@
     "cypherVersionScope": [5, 25]
   },
   {
+    "name": "dbms.reloadProcedures",
+    "description": "Reload procedures from disk.",
+    "mode": "DBMS",
+    "worksOnSystem": true,
+    "signature": "dbms.reloadProcedures(namespaces = * :: STRING) :: (name :: STRING, type :: STRING)",
+    "argumentDescription": [
+      {
+        "name": "namespaces",
+        "description": "namespaces = * :: STRING",
+        "type": "STRING",
+        "isDeprecated": false,
+        "default": "DefaultParameterValue{value=*, type=STRING}"
+      }
+    ],
+    "returnDescription": [
+      {
+        "name": "name",
+        "description": "name :: STRING",
+        "type": "STRING",
+        "isDeprecated": false
+      },
+      {
+        "name": "type",
+        "description": "type :: STRING",
+        "type": "STRING",
+        "isDeprecated": false
+      }
+    ],
+    "admin": true,
+    "rolesExecution": [
+      "admin"
+    ],
+    "rolesBoostedExecution": [
+      "admin"
+    ],
+    "isDeprecated": false,
+    "deprecatedBy": null,
+    "option": {
+      "deprecated": false
+    },
+    "enterpriseOnly": true,
+    "cypherVersionScope": [25]
+  },
+  {
     "name": "dbms.routing.getRoutingTable",
     "description": "Returns the advertised bolt capable endpoints for a given database, divided by each endpoint's capabilities. For example, an endpoint may serve read queries, write queries, and/or future `getRoutingTable` requests.",
     "mode": "DBMS",
