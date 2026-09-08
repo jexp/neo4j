@@ -30,6 +30,7 @@ import static org.neo4j.values.storable.DateTimeValue.builder;
 import static org.neo4j.values.storable.DateTimeValue.datetime;
 import static org.neo4j.values.storable.DateTimeValue.datetimeRaw;
 import static org.neo4j.values.storable.DateTimeValue.parse;
+import static org.neo4j.values.storable.DateTimeValue.parsePattern;
 import static org.neo4j.values.storable.DateValue.date;
 import static org.neo4j.values.storable.FrozenClock.assertEqualTemporal;
 import static org.neo4j.values.storable.InputMappingStructureBuilder.fromValues;
@@ -167,6 +168,29 @@ class DateTimeValueTest {
         assertThat(assertThrows(TemporalParseException.class, () -> parse("2015-2T12:00:00", inUTC))
                         .getMessage())
                 .startsWith("Text cannot be parsed to a Date");
+    }
+
+    @Test
+    void shouldParsePatternWithLiteral() {
+        assertEquals(
+                datetime(date(2024, 6, 27), time(14, 30, 0, 0, UTC)),
+                parsePattern(stringValue("2024-06-27 14:30"), stringValue("yyyy-MM-dd HH:mm"), inUTC));
+        assertEquals(
+                datetime(date(2024, 6, 27), time(14, 30, 0, 0, UTC)),
+                parsePattern(stringValue("2024-06-27 14:30 CEST"), stringValue("yyyy-MM-dd HH:mm 'CEST'"), inUTC));
+    }
+
+    @Test
+    void shouldNotParsePatternWhenLiteralDoesNotMatchInput() {
+        assertThrows(
+                TemporalParseException.class,
+                () -> parsePattern(stringValue("2024-06-27 14.30"), stringValue("yyyy-MM-dd HH:mm"), inUTC));
+        assertThrows(
+                TemporalParseException.class,
+                () -> parsePattern(stringValue("2024-06-27 14:30 UTC"), stringValue("yyyy-MM-dd HH:mm 'CEST'"), inUTC));
+        assertThrows(
+                TemporalParseException.class,
+                () -> parsePattern(stringValue("2024-06-27 14:30"), stringValue("yyyy-MM-dd HH:mm 'CEST'"), inUTC));
     }
 
     @Test

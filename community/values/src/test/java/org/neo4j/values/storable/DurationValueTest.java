@@ -41,6 +41,7 @@ import static org.neo4j.values.storable.DurationValue.between;
 import static org.neo4j.values.storable.DurationValue.duration;
 import static org.neo4j.values.storable.DurationValue.durationBetween;
 import static org.neo4j.values.storable.DurationValue.parse;
+import static org.neo4j.values.storable.DurationValue.parsePattern;
 import static org.neo4j.values.storable.LocalTimeValue.localTime;
 import static org.neo4j.values.storable.TimeValue.time;
 import static org.neo4j.values.storable.Values.NO_VALUE;
@@ -325,6 +326,61 @@ class DurationValueTest {
             assertThrows(TemporalParseException.class, () -> parse("PT-" + s));
             assertThrows(TemporalParseException.class, () -> parse("T1" + s));
         }
+    }
+
+    @Test
+    void shouldParseDurationPatternWithLiterals() {
+        assertEquals(duration(0, 0, 3600, 0), parsePattern(stringValue("1 hours"), stringValue("h 'hours'")));
+        assertEquals(duration(16, 25, 0, 0), parsePattern(stringValue("P1Y4M25D"), stringValue("'P'y'Y'M'M'd'D'")));
+        assertEquals(duration(0, 0, 3, 0), parsePattern(stringValue("3𓀡0"), stringValue("s'𓀡'h")));
+        assertEquals(duration(0, 0, 3600, 0), parsePattern(stringValue("1  0"), stringValue("h '' m")));
+        assertEquals(duration(0, 0, 3600, 0), parsePattern(stringValue("1 ' 0"), stringValue("h '''' m")));
+        // unescaped non-token characters are literals too, matched like escaped ones
+        assertEquals(duration(16, 3, 0, 0), parsePattern(stringValue("1-4-3"), stringValue("y-M-d")));
+        assertEquals(duration(0, 0, 36610, 0), parsePattern(stringValue("10:10:10"), stringValue("h:m:s")));
+    }
+
+    @Test
+    void shouldNotParseDurationPatternWhenEscapedLiteralOverrunsInput() {
+        assertThrows(TemporalParseException.class, () -> parsePattern(stringValue("1"), stringValue("'ab'H H")));
+        assertThrows(TemporalParseException.class, () -> parsePattern(stringValue("1"), stringValue("'a'H")));
+        assertThrows(TemporalParseException.class, () -> parsePattern(stringValue("1"), stringValue("''''H H")));
+        assertThrows(TemporalParseException.class, () -> parsePattern(stringValue("1"), stringValue("''''H")));
+        assertThrows(TemporalParseException.class, () -> parsePattern(stringValue("1"), stringValue("'ab'")));
+        // a literal that consumes the input exactly leaves nothing for a following field token
+        assertThrows(TemporalParseException.class, () -> parsePattern(stringValue("ab"), stringValue("'ab'H m")));
+    }
+
+    @Test
+    void shouldNotParseDurationPatternWhenLiteralDoesNotMatchInput() {
+        assertThrows(TemporalParseException.class, () -> parsePattern(stringValue("b1"), stringValue("'a'H")));
+        assertThrows(TemporalParseException.class, () -> parsePattern(stringValue("1a0"), stringValue("h 'b' m")));
+        // unescaped non-token characters must match the input like escaped ones
+        assertThrows(TemporalParseException.class, () -> parsePattern(stringValue("1q14 5"), stringValue("y q M")));
+        assertThrows(TemporalParseException.class, () -> parsePattern(stringValue("1_4"), stringValue("y-M")));
+        assertThrows(TemporalParseException.class, () -> parsePattern(stringValue("1.2"), stringValue("h:m")));
+        assertThrows(TemporalParseException.class, () -> parsePattern(stringValue("1-"), stringValue("y --")));
+    }
+
+    @Test
+    void shouldNotParseDurationPatternWhenTrailingTokenHasNoInput() {
+        assertThrows(TemporalParseException.class, () -> parsePattern(stringValue("ab"), stringValue("'ab'H")));
+        assertThrows(TemporalParseException.class, () -> parsePattern(stringValue("a"), stringValue("'a'H")));
+        assertThrows(
+                TemporalParseException.class, () -> parsePattern(stringValue("1 years"), stringValue("y 'years' q")));
+        assertThrows(TemporalParseException.class, () -> parsePattern(stringValue(""), stringValue("H")));
+    }
+
+    @Test
+    void shouldNotParseDurationPatternWithUnbalancedEscapes() {
+        // the malformed pattern is reported even though the input would also fail to match
+        assertThrows(InvalidArgumentException.class, () -> parsePattern(stringValue("1 ' 1"), stringValue("h ' m")));
+        assertThrows(InvalidArgumentException.class, () -> parsePattern(stringValue("1 ' 1"), stringValue("h ''' m")));
+    }
+
+    @Test
+    void shouldTreatPatternWithoutFieldTokensAsZeroDuration() {
+        assertEquals(duration(0, 0, 0, 0), parsePattern(stringValue("ab"), stringValue("'ab'")));
     }
 
     @Test

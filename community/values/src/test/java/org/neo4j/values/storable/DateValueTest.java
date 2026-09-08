@@ -31,8 +31,10 @@ import static org.neo4j.values.storable.DateValue.date;
 import static org.neo4j.values.storable.DateValue.epochDateRaw;
 import static org.neo4j.values.storable.DateValue.ordinalDate;
 import static org.neo4j.values.storable.DateValue.parse;
+import static org.neo4j.values.storable.DateValue.parsePattern;
 import static org.neo4j.values.storable.DateValue.quarterDate;
 import static org.neo4j.values.storable.DateValue.weekDate;
+import static org.neo4j.values.storable.Values.stringValue;
 import static org.neo4j.values.utils.AnyValueTestUtil.assertEqual;
 import static org.neo4j.values.utils.AnyValueTestUtil.assertNotEqual;
 
@@ -237,6 +239,24 @@ class DateValueTest {
     @Test
     void shouldNotEqualOther() {
         assertNotEqual(date(2018, 1, 31), date(2018, 1, 30));
+    }
+
+    @Test
+    void shouldParsePatternWithLiteral() {
+        assertEquals(date(2024, 6, 27), parsePattern(stringValue("2024-06-27"), stringValue("yyyy-MM-dd")));
+        assertEquals(date(2024, 6, 27), parsePattern(stringValue("2024-06-27 CEST"), stringValue("yyyy-MM-dd 'CEST'")));
+    }
+
+    @Test
+    void shouldNotParsePatternWhenLiteralDoesNotMatchInput() {
+        assertThrows(
+                TemporalParseException.class, () -> parsePattern(stringValue("2024_06_27"), stringValue("yyyy-MM-dd")));
+        assertThrows(
+                TemporalParseException.class,
+                () -> parsePattern(stringValue("2024-06-27 UTC"), stringValue("yyyy-MM-dd 'CEST'")));
+        assertThrows(
+                TemporalParseException.class,
+                () -> parsePattern(stringValue("2024-06-27"), stringValue("yyyy-MM-dd 'CEST'")));
     }
 
     private static void assertCannotParse(String text) {

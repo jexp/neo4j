@@ -888,6 +888,13 @@ public final class DurationValue extends ScalarValue implements TemporalAmount, 
             inputIndex += inc;
         }
 
+        public void matchInputChar(char literal) {
+            if (inputIndex >= input.length() || input.charAt(inputIndex) != literal) {
+                throw TemporalParseException.mismatchedPattern(pattern, input, CYPHER_TYPE_NAME);
+            }
+            inputIndex += 1;
+        }
+
         public void toggleEscape() {
             inEscape = !inEscape;
         }
@@ -924,6 +931,9 @@ public final class DurationValue extends ScalarValue implements TemporalAmount, 
         public void getValue(int previous, boolean last) {
             String intTokens = "0123456789";
             hasSeen(previous);
+            if (inputIndex >= input.length()) {
+                throw TemporalParseException.mismatchedPattern(pattern, input, CYPHER_TYPE_NAME);
+            }
 
             StringBuilder value = new StringBuilder().append(input.charAt(inputIndex));
             int valueLength = 0;
@@ -964,6 +974,24 @@ public final class DurationValue extends ScalarValue implements TemporalAmount, 
         String input = text.stringValue();
         String pattern = patternInput.stringValue();
 
+        // A malformed pattern must be reported as such even when the input would fail to match first,
+        // so the escape balance is validated before any input is consumed.
+        boolean escapeOpen = false;
+        for (int i = 0; i < pattern.length(); i++) {
+            if (getComponent(pattern.charAt(i)) == DurationToken.ESCAPE_TOKEN) {
+                if (escapeOpen
+                        && i + 1 < pattern.length()
+                        && getComponent(pattern.charAt(i + 1)) == DurationToken.ESCAPE_TOKEN) {
+                    i += 1;
+                } else {
+                    escapeOpen = !escapeOpen;
+                }
+            }
+        }
+        if (escapeOpen) {
+            throw InvalidArgumentException.patternParsingFailed();
+        }
+
         ParseContext ctx = new ParseContext(
                 new boolean[DurationToken.values().length],
                 new long[DurationToken.values().length],
@@ -982,12 +1010,12 @@ public final class DurationValue extends ScalarValue implements TemporalAmount, 
                 if (currentToken == DurationToken.ESCAPE_TOKEN) {
                     if (i + 1 < pattern.length() && getComponent(pattern.charAt(i + 1)) == DurationToken.ESCAPE_TOKEN) {
                         i += 1;
-                        ctx.incIndex();
+                        ctx.matchInputChar(pattern.charAt(i));
                     } else {
                         ctx.toggleEscape();
                     }
                 } else {
-                    ctx.incIndex();
+                    ctx.matchInputChar(pattern.charAt(i));
                 }
             } else {
                 if (previousToken.isToken && currentToken != previousToken) {
@@ -996,19 +1024,15 @@ public final class DurationValue extends ScalarValue implements TemporalAmount, 
 
                 if (currentToken == DurationToken.ESCAPE_TOKEN) {
                     ctx.toggleEscape();
-                } else if (currentToken == DurationToken.NOT_A_COMPONENT_TOKEN && ctx.inputIndex + 1 < input.length()) {
-                    ctx.incIndex();
+                } else if (currentToken == DurationToken.NOT_A_COMPONENT_TOKEN) {
+                    ctx.matchInputChar(pattern.charAt(i));
                 }
             }
 
             previousToken = currentToken;
         }
 
-        if (ctx.inEscape) {
-            throw InvalidArgumentException.patternParsingFailed();
-        }
-
-        if (previousToken.isToken && ctx.inputIndex < input.length()) {
+        if (previousToken.isToken) {
             ctx.getValue(previousToken.ordinal(), true);
         }
 

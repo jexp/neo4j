@@ -21,11 +21,14 @@ package org.neo4j.values.storable;
 
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.neo4j.values.storable.DateValue.date;
 import static org.neo4j.values.storable.LocalDateTimeValue.localDateTime;
 import static org.neo4j.values.storable.LocalDateTimeValue.localDateTimeRaw;
 import static org.neo4j.values.storable.LocalDateTimeValue.parse;
+import static org.neo4j.values.storable.LocalDateTimeValue.parsePattern;
 import static org.neo4j.values.storable.LocalTimeValue.localTime;
+import static org.neo4j.values.storable.Values.stringValue;
 import static org.neo4j.values.utils.AnyValueTestUtil.assertEqual;
 import static org.neo4j.values.utils.AnyValueTestUtil.assertNotEqual;
 
@@ -35,6 +38,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.neo4j.exceptions.ArithmeticException;
 import org.neo4j.exceptions.InvalidArgumentException;
+import org.neo4j.exceptions.TemporalParseException;
 import org.neo4j.gqlstatus.ErrorGqlStatusObjectAssertions;
 import org.neo4j.gqlstatus.GqlStatusInfoCodes;
 
@@ -124,5 +128,28 @@ class LocalDateTimeValueTest {
     @Test
     void shouldNotEqualOther() {
         assertNotEqual(localDateTime(2018, 1, 31, 10, 52, 5, 6), localDateTime(2018, 1, 31, 10, 52, 5, 7));
+    }
+
+    @Test
+    void shouldParsePatternWithLiteral() {
+        assertEquals(
+                localDateTime(date(2024, 6, 27), localTime(14, 30, 0, 0)),
+                parsePattern(stringValue("2024-06-27 14:30"), stringValue("yyyy-MM-dd HH:mm")));
+        assertEquals(
+                localDateTime(date(2024, 6, 27), localTime(14, 30, 0, 0)),
+                parsePattern(stringValue("2024-06-27 14:30 CEST"), stringValue("yyyy-MM-dd HH:mm 'CEST'")));
+    }
+
+    @Test
+    void shouldNotParsePatternWhenLiteralDoesNotMatchInput() {
+        assertThrows(
+                TemporalParseException.class,
+                () -> parsePattern(stringValue("2024-06-27 14.30"), stringValue("yyyy-MM-dd HH:mm")));
+        assertThrows(
+                TemporalParseException.class,
+                () -> parsePattern(stringValue("2024-06-27 14:30 UTC"), stringValue("yyyy-MM-dd HH:mm 'CEST'")));
+        assertThrows(
+                TemporalParseException.class,
+                () -> parsePattern(stringValue("2024-06-27 14:30"), stringValue("yyyy-MM-dd HH:mm 'CEST'")));
     }
 }
