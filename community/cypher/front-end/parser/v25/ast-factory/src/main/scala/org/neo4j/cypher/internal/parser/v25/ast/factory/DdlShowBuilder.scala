@@ -65,6 +65,7 @@ import org.neo4j.cypher.internal.ast.ReturnItems
 import org.neo4j.cypher.internal.ast.ShowAliases
 import org.neo4j.cypher.internal.ast.ShowAllPrivileges
 import org.neo4j.cypher.internal.ast.ShowAuthRules
+import org.neo4j.cypher.internal.ast.ShowAuthRulesPrivileges
 import org.neo4j.cypher.internal.ast.ShowConstraintType
 import org.neo4j.cypher.internal.ast.ShowConstraintsClause
 import org.neo4j.cypher.internal.ast.ShowCurrentGraphTypeClause
@@ -532,7 +533,7 @@ trait DdlShowBuilder extends Cypher25ParserListener {
     val (asCommand, asRevoke) = astOpt[(Boolean, Boolean)](ctx.privilegeAsCommand(), (false, false))
     val cmdYield = astOpt[Either[(Yield, Option[Return]), Where]](ctx.showCommandYield())
     ctx.ast = if (asCommand)
-      ShowPrivilegeCommands(ShowAllPrivileges()(pos(ctx)), asRevoke, cmdYield)(pos(ctx))
+      ShowPrivilegeCommands(ShowAllPrivileges()(pos(ctx)), asRevoke, cmdYield, fromCypher5 = false)(pos(ctx))
     else {
       ShowPrivileges(ShowAllPrivileges()(pos(ctx)), cmdYield)(pos(ctx))
     }
@@ -547,7 +548,7 @@ trait DdlShowBuilder extends Cypher25ParserListener {
       ctx.roleNames.ast[Seq[Expression]]().toList
     )(pos(ctx))
     ctx.ast = if (asCommand) {
-      ShowPrivilegeCommands(scope, asRevoke, cmdYield)(pos(ctx))
+      ShowPrivilegeCommands(scope, asRevoke, cmdYield, fromCypher5 = false)(pos(ctx))
     } else {
       ShowPrivileges(scope, cmdYield)(pos(ctx))
     }
@@ -563,7 +564,22 @@ trait DdlShowBuilder extends Cypher25ParserListener {
       ShowUsersPrivileges(namesList.ast[ArraySeq[Expression]]().toList)(pos(ctx))
     else ShowUserPrivileges(None)(pos(ctx))
     ctx.ast = if (asCommand) {
-      ShowPrivilegeCommands(scope, asRevoke, cmdYield)(pos(ctx))
+      ShowPrivilegeCommands(scope, asRevoke, cmdYield, fromCypher5 = false)(pos(ctx))
+    } else {
+      ShowPrivileges(scope, cmdYield)(pos(ctx))
+    }
+  }
+
+  final override def exitShowAuthRulePrivileges(
+    ctx: Cypher25Parser.ShowAuthRulePrivilegesContext
+  ): Unit = {
+    val (asCommand, asRevoke) = astOpt[(Boolean, Boolean)](ctx.privilegeAsCommand(), (false, false))
+    val cmdYield = astOpt[Either[(Yield, Option[Return]), Where]](ctx.showCommandYield())
+    val scope = ShowAuthRulesPrivileges(
+      ctx.authRuleNames.ast[Seq[Expression]]().toList
+    )(pos(ctx))
+    ctx.ast = if (asCommand) {
+      ShowPrivilegeCommands(scope, asRevoke, cmdYield, fromCypher5 = false)(pos(ctx))
     } else {
       ShowPrivileges(scope, cmdYield)(pos(ctx))
     }

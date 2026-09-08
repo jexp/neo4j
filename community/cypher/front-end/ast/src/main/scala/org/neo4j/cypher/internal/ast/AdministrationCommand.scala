@@ -1409,7 +1409,15 @@ final case class ShowPrivileges(
   override def name = "SHOW PRIVILEGE"
 
   override def semanticCheck: SemanticCheck =
-    super.semanticCheck chain
+    (scope match {
+      case s: ShowAuthRulesPrivileges => requireFeatureSupport(
+          "The `SHOW AUTH RULE PRIVILEGES` clause",
+          SemanticFeature.AttributeBasedAccessControl,
+          position
+        )
+      case _ => success
+    }) chain
+      super.semanticCheck chain
       SemanticState.recordCurrentScope(this)
 
   override def withYieldOrWhere(newYieldOrWhere: YieldOrWhere): ShowPrivileges =
@@ -1429,6 +1437,7 @@ object ShowPrivileges {
       ShowColumn("immutable", CTBoolean)(position)
     ) ++ (scope match {
       case _: ShowUserPrivileges | _: ShowUsersPrivileges => List(ShowColumn("user")(position))
+      case _: ShowAuthRulesPrivileges                     => List(ShowColumn("authRule")(position))
       case _                                              => List.empty
     })
     ShowPrivileges(scope, yieldOrWhere, columns)(position)
@@ -1478,7 +1487,15 @@ final case class ShowPrivilegeCommands(
   override def name = "SHOW PRIVILEGE COMMANDS"
 
   override def semanticCheck: SemanticCheck =
-    super.semanticCheck chain
+    (scope match {
+      case s: ShowAuthRulesPrivileges => requireFeatureSupport(
+          "The `SHOW AUTH RULE PRIVILEGES AS COMMANDS` clause",
+          SemanticFeature.AttributeBasedAccessControl,
+          position
+        )
+      case _ => success
+    }) chain
+      super.semanticCheck chain
       SemanticState.recordCurrentScope(this)
 
   override def withYieldOrWhere(newYieldOrWhere: YieldOrWhere): ShowPrivilegeCommands =
@@ -1490,10 +1507,33 @@ object ShowPrivilegeCommands {
   def apply(
     scope: ShowPrivilegeScope,
     asRevoke: Boolean,
-    yieldOrWhere: YieldOrWhere
+    yieldOrWhere: YieldOrWhere,
+    fromCypher5: Boolean
   )(position: InputPosition): ShowPrivilegeCommands = {
-    val allColumns =
-      List((ShowColumn("command")(position), true), (ShowColumn("immutable", CTBoolean)(position), false))
+    val allColumnsWithVersion =
+      // (column, default, allowedInCypher5)
+      List(
+        (ShowColumn("command")(position), true, true),
+        (ShowColumn("access")(position), false, false),
+        (ShowColumn("action")(position), false, false),
+        (ShowColumn("roles", CTList(CTString))(position), false, false),
+        (ShowColumn("immutable", CTBoolean)(position), false, true)
+      ) ++ (
+        scope match {
+          case _: ShowUserPrivileges | _: ShowUsersPrivileges if !fromCypher5 =>
+            List((ShowColumn("users", CTList(CTString))(position), true, false))
+          // Auth rules are Cypher 25 only so no need to check Cypher version
+          case _: ShowAuthRulesPrivileges => List((ShowColumn("authRules", CTList(CTString))(position), true, false))
+          case _                          => List.empty
+        }
+      )
+
+    // Filter out the non-Cypher 5 columns if we come from Cypher 5
+    val allColumns = allColumnsWithVersion.flatMap {
+      case (column, default, false) if fromCypher5 => None
+      case (column, default, _)                    => Some(column, default)
+    }
+
     val columns = DefaultOrAllShowColumns(allColumns, yieldOrWhere).columns
     ShowPrivilegeCommands(scope, asRevoke, yieldOrWhere, columns)(position)
   }

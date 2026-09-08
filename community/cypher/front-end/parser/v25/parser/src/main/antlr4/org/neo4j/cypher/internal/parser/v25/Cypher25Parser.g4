@@ -1022,6 +1022,8 @@ dropCommand
 showAdminCommand
    : SHOW (
       showAliases
+      | showAuthRulePrivileges
+      | showAuthRules
       | showCurrentUser
       | showPrivileges
       | showRolePrivileges
@@ -1030,7 +1032,6 @@ showAdminCommand
       | showSupportedPrivileges
       | showUserPrivileges
       | showUsers
-      | showAuthRules
    )
    ;
 
@@ -1649,6 +1650,10 @@ showRolePrivileges
 
 showUserPrivileges
    : (USER | USERS) userNames? privilegeToken privilegeAsCommand? showCommandYield?
+   ;
+
+showAuthRulePrivileges
+   : authRuleKeywords authRuleNames privilegeToken privilegeAsCommand? showCommandYield?
    ;
 
 privilegeAsCommand

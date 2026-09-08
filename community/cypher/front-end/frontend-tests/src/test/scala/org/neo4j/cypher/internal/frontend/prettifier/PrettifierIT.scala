@@ -3539,6 +3539,14 @@ class PrettifierIT extends AbstractPrettifierTest {
       "SHOW USER PRIVILEGES",
     "show users privilege" ->
       "SHOW USER PRIVILEGES",
+    FailsInCypher5(
+      "show auth rules rule privilege",
+      "SHOW AUTH RULE rule PRIVILEGES"
+    ),
+    FailsInCypher5(
+      "show auth rule rule1, $rule2 privilege",
+      "SHOW AUTH RULES rule1, $rule2 PRIVILEGES"
+    ),
     "show role abc privileges" ->
       "SHOW ROLE abc PRIVILEGES",
     "show  role `$aB%x`  privileges" ->
@@ -3565,6 +3573,10 @@ class PrettifierIT extends AbstractPrettifierTest {
       "SHOW USER $bar PRIVILEGES AS COMMANDS",
     "show user foo, $bar privileges as command" ->
       "SHOW USERS foo, $bar PRIVILEGES AS COMMANDS",
+    FailsInCypher5(
+      "show auth rule foo, $bar privileges as command",
+      "SHOW AUTH RULES foo, $bar PRIVILEGES AS COMMANDS"
+    ),
     "show role role privileges as revoke command" ->
       "SHOW ROLE role PRIVILEGES AS REVOKE COMMANDS",
     "show role $bar privilege as command" ->

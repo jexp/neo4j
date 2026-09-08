@@ -643,6 +643,8 @@ public interface Cypher25ParserListener extends ParseTreeListener {
 
     void exitShowUserPrivileges(Cypher25Parser.ShowUserPrivilegesContext ctx);
 
+    void exitShowAuthRulePrivileges(Cypher25Parser.ShowAuthRulePrivilegesContext ctx);
+
     void exitPrivilegeAsCommand(Cypher25Parser.PrivilegeAsCommandContext ctx);
 
     void exitPrivilegeToken(Cypher25Parser.PrivilegeTokenContext ctx);

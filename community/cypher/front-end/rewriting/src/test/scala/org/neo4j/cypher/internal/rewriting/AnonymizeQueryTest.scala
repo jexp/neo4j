@@ -424,16 +424,18 @@ class AnonymizeQueryTest extends AnonymizerTestBase {
       "SHOW CURRENT USER YIELD home",
       "SHOW CURRENT USER YIELD Xhome",
       additionalExpectedAstUpdates = _ match {
-        case s: ShowCurrentUser => s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))(pos)
-        case s                  => s
+        case s: ShowCurrentUser =>
+          s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))(s.position)
+        case s => s
       }
     )
     assertRewrite(
       "SHOW USERS WHERE user IN ['user1', $userParam]",
       "SHOW USERS WHERE Xuser IN ['string[user1]', $XuserParam]",
       additionalExpectedAstUpdates = _ match {
-        case s: ShowUsers => s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))(pos)
-        case s            => s
+        case s: ShowUsers =>
+          s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))(s.position)
+        case s => s
       }
     )
     assertRewrite(
@@ -471,8 +473,9 @@ class AnonymizeQueryTest extends AnonymizerTestBase {
       "SHOW ROLES YIELD role, immutable WHERE role = 'wanted' RETURN immutable",
       "SHOW ROLES YIELD Xrole, Ximmutable WHERE Xrole = 'string[wanted]' RETURN Ximmutable",
       additionalExpectedAstUpdates = _ match {
-        case s: ShowRoles => s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))(pos)
-        case s            => s
+        case s: ShowRoles =>
+          s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))(s.position)
+        case s => s
       }
     )
     assertRewrite(
@@ -548,16 +551,38 @@ class AnonymizeQueryTest extends AnonymizerTestBase {
       "SHOW ROLE role PRIVILEGES",
       "SHOW ROLE `string[role]` PRIVILEGES",
       additionalExpectedAstUpdates = _ match {
-        case s: ShowPrivileges => s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))(pos)
-        case s                 => s
+        case s: ShowPrivileges =>
+          s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))(s.position)
+        case s => s
       }
     )
     assertRewrite(
+      CypherVersion.Cypher5, // SHOW USER PRIVILEGES have different columns in Cypher 5 and 25
       "SHOW USER user PRIVILEGES AS COMMANDS WHERE command CONTAINS 'GRANT'",
       "SHOW USER `string[user]` PRIVILEGES AS COMMANDS WHERE Xcommand CONTAINS 'string[GRANT]'",
       additionalExpectedAstUpdates = _ match {
         case s: ShowPrivilegeCommands =>
-          s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))(pos)
+          s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))(s.position)
+        case s => s
+      }
+    )
+    assertRewrite(
+      CypherVersion.Cypher25, // SHOW USER PRIVILEGES have different columns in Cypher 5 and 25
+      "SHOW USER user PRIVILEGES AS COMMANDS WHERE command CONTAINS 'GRANT'",
+      "SHOW USER `string[user]` PRIVILEGES AS COMMANDS WHERE Xcommand CONTAINS 'string[GRANT]'",
+      additionalExpectedAstUpdates = _ match {
+        case s: ShowPrivilegeCommands =>
+          s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))(s.position)
+        case s => s
+      }
+    )
+    assertRewrite(
+      CypherVersion.Cypher25,
+      "SHOW AUTH RULE rule PRIVILEGES AS COMMANDS WHERE command CONTAINS 'GRANT'",
+      "SHOW AUTH RULE `string[rule]` PRIVILEGES AS COMMANDS WHERE Xcommand CONTAINS 'string[GRANT]'",
+      additionalExpectedAstUpdates = _ match {
+        case s: ShowPrivilegeCommands =>
+          s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))(s.position)
         case s => s
       }
     )
@@ -566,7 +591,7 @@ class AnonymizeQueryTest extends AnonymizerTestBase {
       "SHOW SUPPORTED PRIVILEGES YIELD Xaction, Xdescription ORDER BY Xaction SKIP 1 LIMIT 2",
       additionalExpectedAstUpdates = _ match {
         case s: ShowSupportedPrivilegeCommand =>
-          s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))(pos)
+          s.copy(defaultColumnSet = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))(s.position)
         case s => s
       }
     )
@@ -609,7 +634,7 @@ class AnonymizeQueryTest extends AnonymizerTestBase {
       additionalExpectedAstUpdates = _ match {
         case s: ShowServers => s.copy(
             defaultColumns = s.defaultColumns.copy(columns = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))
-          )(pos)
+          )(s.position)
         case s => s
       }
     )
@@ -691,7 +716,7 @@ class AnonymizeQueryTest extends AnonymizerTestBase {
       additionalExpectedAstUpdates = _ match {
         case s: ShowAliases => s.copy(
             defaultColumns = s.defaultColumns.copy(columns = rewriteAdminShowDefaultColumnSet(s.defaultColumnSet))
-          )(pos)
+          )(s.position)
         case s => s
       }
     )

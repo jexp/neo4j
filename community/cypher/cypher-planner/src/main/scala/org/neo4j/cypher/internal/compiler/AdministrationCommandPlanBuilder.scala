@@ -133,6 +133,7 @@ import org.neo4j.cypher.internal.ast.ShowAliasAction
 import org.neo4j.cypher.internal.ast.ShowAliases
 import org.neo4j.cypher.internal.ast.ShowAuthRuleAction
 import org.neo4j.cypher.internal.ast.ShowAuthRules
+import org.neo4j.cypher.internal.ast.ShowAuthRulesPrivileges
 import org.neo4j.cypher.internal.ast.ShowCurrentUser
 import org.neo4j.cypher.internal.ast.ShowPrivilegeAction
 import org.neo4j.cypher.internal.ast.ShowPrivilegeCommands
@@ -1294,6 +1295,9 @@ case object AdministrationCommandPlanBuilder extends Phase[PlannerContext, BaseS
               ShowUserPrivileges(Some(users.head))(scope.position),
               Some(plans.AssertAllowedDbmsActionsOrSelf(users.head, Seq(ShowPrivilegeAction, ShowUserAction)))
             )
+          // SHOW AUTH RULES rule1[, rule2] PRIVILEGES
+          case scope: ShowAuthRulesPrivileges =>
+            (scope, Some(plans.AssertAllowedDbmsActions(None, Seq(ShowPrivilegeAction, ShowAuthRuleAction))))
           // SHOW [ALL | ROLE role | ROLES role1, role2] PRIVILEGES
           case scope =>
             (scope, Some(plans.AssertAllowedDbmsActions(ShowPrivilegeAction)))
@@ -1320,6 +1324,9 @@ case object AdministrationCommandPlanBuilder extends Phase[PlannerContext, BaseS
               ShowUserPrivileges(Some(users.head))(scope.position),
               Some(plans.AssertAllowedDbmsActionsOrSelf(users.head, Seq(ShowPrivilegeAction, ShowUserAction)))
             )
+          // SHOW AUTH RULES rule1[, rule2] PRIVILEGES
+          case scope: ShowAuthRulesPrivileges =>
+            (scope, Some(plans.AssertAllowedDbmsActions(None, Seq(ShowPrivilegeAction, ShowAuthRuleAction))))
           // SHOW [ALL | ROLE role | ROLES role1, role2] PRIVILEGES
           case scope =>
             (scope, Some(plans.AssertAllowedDbmsActions(ShowPrivilegeAction)))

@@ -218,6 +218,7 @@ import org.neo4j.cypher.internal.ast.ShardDefinition
 import org.neo4j.cypher.internal.ast.ShowAliases
 import org.neo4j.cypher.internal.ast.ShowAllPrivileges
 import org.neo4j.cypher.internal.ast.ShowAuthRules
+import org.neo4j.cypher.internal.ast.ShowAuthRulesPrivileges
 import org.neo4j.cypher.internal.ast.ShowConstraintsClause
 import org.neo4j.cypher.internal.ast.ShowCurrentGraphTypeClause
 import org.neo4j.cypher.internal.ast.ShowCurrentUser
@@ -1747,6 +1748,11 @@ object Prettifier {
           s"USER ${escapeName(names.head)}"
         else
           s"USERS ${escapeNames(names)}"
+      case ShowAuthRulesPrivileges(names) =>
+        if (names.size == 1)
+          s"AUTH RULE ${escapeName(names.head)}"
+        else
+          s"AUTH RULES ${escapeNames(names)}"
       case ShowRolesPrivileges(names) =>
         if (names.size == 1)
           s"ROLE ${escapeName(names.head)}"

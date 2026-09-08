@@ -20,6 +20,8 @@ import org.neo4j.cypher.internal.ast.ShowAuthRules
 import org.neo4j.cypher.internal.ast.Statement
 import org.neo4j.cypher.internal.ast.Statements
 import org.neo4j.cypher.internal.ast.test.util.AstParsing.Cypher5
+import org.neo4j.cypher.internal.util.test_helpers.GqlExceptionMatchers.gqlStatus
+import org.neo4j.gqlstatus.GqlStatusInfoCodes
 
 class ShowAuthRuleAdministrationCommandParserTest extends AdministrationAndSchemaCommandParserTestBase {
 
@@ -346,5 +348,53 @@ class ShowAuthRuleAdministrationCommandParserTest extends AdministrationAndSchem
 
   test("SHOW AUTH RULES WHERE name = 'rule' AS COMMANDS") {
     failsParsing[Statements]
+  }
+
+  test("SHOW AUTH RULES RETURN *") {
+    failsParsing[Statements].in {
+      case Cypher5 => _.withSyntaxErrorContaining("Invalid input 'AUTH'")
+      case _ => _.withSyntaxError(
+          """Invalid input '*': expected 'PRIVILEGE' or 'PRIVILEGES' (line 1, column 24 (offset: 23))
+            |"SHOW AUTH RULES RETURN *"
+            |                        ^""".stripMargin
+        ).withSyntaxErrorGqlStatus(
+          gqlStatus(
+            GqlStatusInfoCodes.STATUS_42I06,
+            "error: syntax error or access rule violation - invalid input. Invalid input '*', expected: 'PRIVILEGE' or 'PRIVILEGES'."
+          )
+        )
+    }
+  }
+
+  test("SHOW AUTH RULES RETURN") {
+    failsParsing[Statements].in {
+      case Cypher5 => _.withSyntaxErrorContaining("Invalid input 'AUTH'")
+      case _ => _.withSyntaxError(
+          """Invalid input '': expected 'PRIVILEGE' or 'PRIVILEGES' (line 1, column 23 (offset: 22))
+            |"SHOW AUTH RULES RETURN"
+            |                       ^""".stripMargin
+        ).withSyntaxErrorGqlStatus(
+          gqlStatus(
+            GqlStatusInfoCodes.STATUS_42I06,
+            "error: syntax error or access rule violation - invalid input. Invalid input '', expected: 'PRIVILEGE' or 'PRIVILEGES'."
+          )
+        )
+    }
+  }
+
+  test("SHOW AUTH RULES YIELD") {
+    failsParsing[Statements].in {
+      case Cypher5 => _.withSyntaxErrorContaining("Invalid input 'AUTH'")
+      case _ => _.withSyntaxError(
+          """Invalid input '': expected a variable name, '*', ',', 'PRIVILEGE' or 'PRIVILEGES' (line 1, column 22 (offset: 21))
+            |"SHOW AUTH RULES YIELD"
+            |                      ^""".stripMargin
+        ).withSyntaxErrorGqlStatus(
+          gqlStatus(
+            GqlStatusInfoCodes.STATUS_42I06,
+            "error: syntax error or access rule violation - invalid input. Invalid input '', expected: a variable name, '*', ',', 'PRIVILEGE' or 'PRIVILEGES'."
+          )
+        )
+    }
   }
 }

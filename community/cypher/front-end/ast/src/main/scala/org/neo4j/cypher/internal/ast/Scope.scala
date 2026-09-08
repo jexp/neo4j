@@ -114,4 +114,11 @@ final case class ShowUsersPrivileges(users: List[Expression])(val position: Inpu
     this.copy(children.head.asInstanceOf[List[Expression]])(position).asInstanceOf[this.type]
 }
 
+final case class ShowAuthRulesPrivileges(authRules: List[Expression])(val position: InputPosition)
+    extends ShowPrivilegeScope {
+
+  override def dup(children: Seq[AnyRef]): ShowAuthRulesPrivileges.this.type =
+    this.copy(children.head.asInstanceOf[List[Expression]])(position).asInstanceOf[this.type]
+}
+
 final case class ShowAllPrivileges()(val position: InputPosition) extends ShowPrivilegeScope

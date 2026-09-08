@@ -503,6 +503,8 @@ public abstract class AbstractCypher25AstBuilder implements Cypher25ParserListen
                 exitShowRolePrivileges((Cypher25Parser.ShowRolePrivilegesContext) ctx);
             case Cypher25Parser.RULE_showUserPrivileges ->
                 exitShowUserPrivileges((Cypher25Parser.ShowUserPrivilegesContext) ctx);
+            case Cypher25Parser.RULE_showAuthRulePrivileges ->
+                exitShowAuthRulePrivileges((Cypher25Parser.ShowAuthRulePrivilegesContext) ctx);
             case Cypher25Parser.RULE_privilegeAsCommand ->
                 exitPrivilegeAsCommand((Cypher25Parser.PrivilegeAsCommandContext) ctx);
             case Cypher25Parser.RULE_privilegeToken -> exitPrivilegeToken((Cypher25Parser.PrivilegeTokenContext) ctx);

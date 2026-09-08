@@ -358,6 +358,7 @@ import org.neo4j.cypher.internal.ast.ShowAliases
 import org.neo4j.cypher.internal.ast.ShowAllPrivileges
 import org.neo4j.cypher.internal.ast.ShowAuthRuleAction
 import org.neo4j.cypher.internal.ast.ShowAuthRules
+import org.neo4j.cypher.internal.ast.ShowAuthRulesPrivileges
 import org.neo4j.cypher.internal.ast.ShowConstraintAction
 import org.neo4j.cypher.internal.ast.ShowConstraintType
 import org.neo4j.cypher.internal.ast.ShowConstraintsClause
@@ -3974,8 +3975,11 @@ class AstGenerator(
     showRole = ShowRolesPrivileges(names)(pos)
     showUser1 = ShowUsersPrivileges(names)(pos)
     showUser2 = ShowUserPrivileges(None)(pos)
+    showAuthRule = ShowAuthRulesPrivileges(names)(pos)
     showAll = ShowAllPrivileges()(pos)
-    scope <- oneOf(showRole, showUser1, showUser2, showAll)
+    scopeCypher5 <- oneOf(showRole, showUser1, showUser2, showAll)
+    scopeCypher25 <- oneOf(showRole, showUser1, showUser2, showAuthRule, showAll)
+    scope = if (usesCypher5) scopeCypher5 else scopeCypher25
     yields <- _eitherYieldOrWhere
   } yield ShowPrivileges(scope, yields)(pos)
 
@@ -3984,11 +3988,14 @@ class AstGenerator(
     showRole = ShowRolesPrivileges(names)(pos)
     showUser1 = ShowUsersPrivileges(names)(pos)
     showUser2 = ShowUserPrivileges(None)(pos)
+    showAuthRule = ShowAuthRulesPrivileges(names)(pos)
     showAll = ShowAllPrivileges()(pos)
-    scope <- oneOf(showRole, showUser1, showUser2, showAll)
+    scopeCypher5 <- oneOf(showRole, showUser1, showUser2, showAll)
+    scopeCypher25 <- oneOf(showRole, showUser1, showUser2, showAuthRule, showAll)
+    scope = if (usesCypher5) scopeCypher5 else scopeCypher25
     asRevoke <- boolean
     yields <- _eitherYieldOrWhere
-  } yield ShowPrivilegeCommands(scope, asRevoke, yields)(pos)
+  } yield ShowPrivilegeCommands(scope, asRevoke, yields, usesCypher5)(pos)
 
   def _dbmsPrivilege: Gen[PrivilegeCommand] = for {
     dbmsAction <- _dbmsAction
