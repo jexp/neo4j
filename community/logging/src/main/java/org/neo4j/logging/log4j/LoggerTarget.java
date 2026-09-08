@@ -23,6 +23,7 @@ public enum LoggerTarget {
     ROOT_LOGGER(""),
     QUERY_LOGGER("QueryLogger"),
     PLAN_LOGGER("PlanLogger"),
+    GRAPH_STATS_LOGGER("GraphStatsLogger"),
     HTTP_LOGGER("HttpLogger"),
     SECURITY_LOGGER("SecurityLogger"),
     VIRTUAL_GRAPH_LOGGER("VirtualGraphLogger");

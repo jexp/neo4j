@@ -1762,6 +1762,31 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
             .build();
 
     @Internal
+    @Description("Periodically collect graph counts (node/relationship/index/constraint statistics) "
+            + "and log them to a separate graph stats log file.")
+    public static final Setting<Boolean> graph_stats_collection_enabled = newBuilder(
+                    "internal.dbms.logs.graph_stats.collection_enabled", BOOL, false)
+            .dynamic()
+            .build();
+
+    @Internal
+    @Description("The interval between periodic graph stats collections.")
+    public static final Setting<Duration> graph_stats_collection_interval = newBuilder(
+                    "internal.dbms.logs.graph_stats.collection_interval", DURATION, Duration.ofHours(24))
+            .dynamic()
+            .build();
+
+    @Internal
+    @Description("How much a graph stats snapshot needs to have diverged from the previously logged one "
+            + "before it is logged again, expressed as the maximum relative difference across all "
+            + "compared entries. Independent of `dbms.cypher.statistics_divergence_threshold`.")
+    public static final Setting<Double> graph_stats_collection_divergence_threshold = newBuilder(
+                    "internal.dbms.logs.graph_stats.divergence_threshold", DOUBLE, 0.75)
+            .addConstraint(range(0.0, 1.0))
+            .dynamic()
+            .build();
+
+    @Internal
     @Description("Log whether the query plan served from one of the query caches.")
     public static final Setting<Boolean> log_query_cache_usage = newBuilder(
                     "internal.dbms.logs.query.query_cache_usage", BOOL, false)

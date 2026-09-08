@@ -42,6 +42,7 @@ case class CardinalityByLabelsAndRelationshipType(
 ) extends StatisticsKey
 case class IndexSelectivity(index: IndexDescriptor) extends StatisticsKey
 case class IndexPropertyExistsSelectivity(index: IndexDescriptor) extends StatisticsKey
+case class NamedCount(key: String) extends StatisticsKey
 
 class MutableGraphStatisticsSnapshot(val map: mutable.Map[StatisticsKey, Double] = mutable.Map.empty) {
   def freeze: GraphStatisticsSnapshot = GraphStatisticsSnapshot(map.toMap)
@@ -65,6 +66,8 @@ case class GraphStatisticsSnapshot(statsValues: Map[StatisticsKey, Double] = Map
         instrumented.uniqueValueSelectivity(index)
       case IndexPropertyExistsSelectivity(index) =>
         instrumented.indexPropertyIsNotNullSelectivity(index)
+      case NamedCount(_) =>
+        ()
     }
     snapshot.freeze
   }
