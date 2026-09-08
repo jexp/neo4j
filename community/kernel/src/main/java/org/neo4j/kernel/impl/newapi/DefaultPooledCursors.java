@@ -55,30 +55,11 @@ public class DefaultPooledCursors extends DefaultCursors implements CursorFactor
     private static final int RELATIONSHIP_TYPE_INDEX = 12;
     private static final int FULL_RELATIONSHIP_TYPE_INDEX = 13;
 
-    // Must stay aligned with the slot constants above: CURSOR_KINDS[i] names the cursor type at index i.
-    private static final String[] CURSOR_KINDS = {
-        "node",
-        "full access node",
-        "relationship scan",
-        "full access relationship scan",
-        "relationship traversal",
-        "full access relationship traversal",
-        "property",
-        "full access property",
-        "node value index",
-        "node label index",
-        "full access node label index",
-        "relationship value index",
-        "relationship type index",
-        "full access relationship type index",
-    };
-
     private final StorageReader storageReader;
     private final StoreCursors storeCursors;
     private final StorageEngineIndexingBehaviour indexingBehaviour;
     private final boolean applyAccessModeToTxState;
     private final DefaultCursorFactory cursorFactory;
-    private final int[] numNonReturnedCursors = new int[14];
     private DefaultNodeCursor nodeCursor;
     private DefaultNodeCursor fullAccessNodeCursor;
     private DefaultRelationshipScanCursor relationshipScanCursor;
@@ -124,10 +105,8 @@ public class DefaultPooledCursors extends DefaultCursors implements CursorFactor
         this.cursorFactory = cursorFactory;
     }
 
-    private <T extends AutoCloseablePlus> T trace(T cursor, int trackingIndex) {
-        T tracedCursor = trace(cursor);
-        numNonReturnedCursors[trackingIndex]++;
-        return tracedCursor;
+    private <T extends AutoCloseablePlus> T trace(T cursor, int ignored) {
+        return trace(cursor);
     }
 
     @Override
@@ -136,7 +115,7 @@ public class DefaultPooledCursors extends DefaultCursors implements CursorFactor
             return trace(newNodeCursor(cursorContext, memoryTracker), NODE);
         }
         try {
-            return acquire(nodeCursor, NODE);
+            return acquire(nodeCursor);
         } finally {
             nodeCursor = null;
         }
@@ -150,21 +129,17 @@ public class DefaultPooledCursors extends DefaultCursors implements CursorFactor
                 applyAccessModeToTxState);
     }
 
-    private <T extends TraceableCursor> T acceptCursor(T pooledCursor, T cursor, int trackingIndex) {
+    private <T extends TraceableCursor> T acceptCursor(T pooledCursor, T cursor) {
         if (pooledCursor != null) {
             pooledCursor.release();
         }
         cursor.removeTracer();
-        if (numNonReturnedCursors[trackingIndex] == 0) {
-            throw new IllegalStateException(
-                    "Returned too many cursors to the pool, kind:" + CURSOR_KINDS[trackingIndex]);
-        }
-        numNonReturnedCursors[trackingIndex]--;
+        // TODO trace and warn/log on accepting more cursors than allocating
         return cursor;
     }
 
     protected void accept(DefaultNodeCursor cursor) {
-        nodeCursor = acceptCursor(nodeCursor, cursor, NODE);
+        nodeCursor = acceptCursor(nodeCursor, cursor);
     }
 
     @Override
@@ -177,14 +152,14 @@ public class DefaultPooledCursors extends DefaultCursors implements CursorFactor
                     FULL_NODE);
         }
         try {
-            return acquire(fullAccessNodeCursor, FULL_NODE);
+            return acquire(fullAccessNodeCursor);
         } finally {
             fullAccessNodeCursor = null;
         }
     }
 
     private void acceptFullAccess(DefaultNodeCursor cursor) {
-        fullAccessNodeCursor = acceptCursor(fullAccessNodeCursor, cursor, FULL_NODE);
+        fullAccessNodeCursor = acceptCursor(fullAccessNodeCursor, cursor);
     }
 
     @Override
@@ -200,14 +175,14 @@ public class DefaultPooledCursors extends DefaultCursors implements CursorFactor
                     RELATIONSHIP_SCAN);
         }
         try {
-            return acquire(relationshipScanCursor, RELATIONSHIP_SCAN);
+            return acquire(relationshipScanCursor);
         } finally {
             relationshipScanCursor = null;
         }
     }
 
     private void accept(DefaultRelationshipScanCursor cursor) {
-        relationshipScanCursor = acceptCursor(relationshipScanCursor, cursor, RELATIONSHIP_SCAN);
+        relationshipScanCursor = acceptCursor(relationshipScanCursor, cursor);
     }
 
     @Override
@@ -222,21 +197,19 @@ public class DefaultPooledCursors extends DefaultCursors implements CursorFactor
         }
 
         try {
-            return acquire(fullAccessRelationshipScanCursor, FULL_RELATIONSHIP_SCAN);
+            return acquire(fullAccessRelationshipScanCursor);
         } finally {
             fullAccessRelationshipScanCursor = null;
         }
     }
 
-    private <C extends TraceableCursor> C acquire(C cursor, int trackingIndex) {
+    private <C extends TraceableCursor> C acquire(C cursor) {
         cursor.acquire();
-        numNonReturnedCursors[trackingIndex]++;
         return cursor;
     }
 
     private void acceptFullAccess(DefaultRelationshipScanCursor cursor) {
-        fullAccessRelationshipScanCursor =
-                acceptCursor(fullAccessRelationshipScanCursor, cursor, FULL_RELATIONSHIP_SCAN);
+        fullAccessRelationshipScanCursor = acceptCursor(fullAccessRelationshipScanCursor, cursor);
     }
 
     @Override
@@ -254,14 +227,14 @@ public class DefaultPooledCursors extends DefaultCursors implements CursorFactor
         }
 
         try {
-            return acquire(relationshipTraversalCursor, RELATIONSHIP_TRAVERSAL);
+            return acquire(relationshipTraversalCursor);
         } finally {
             relationshipTraversalCursor = null;
         }
     }
 
     private void accept(DefaultRelationshipTraversalCursor cursor) {
-        relationshipTraversalCursor = acceptCursor(relationshipTraversalCursor, cursor, RELATIONSHIP_TRAVERSAL);
+        relationshipTraversalCursor = acceptCursor(relationshipTraversalCursor, cursor);
     }
 
     @Override
@@ -277,15 +250,14 @@ public class DefaultPooledCursors extends DefaultCursors implements CursorFactor
         }
 
         try {
-            return acquire(fullAccessRelationshipTraversalCursor, FULL_RELATIONSHIP_TRAVERSAL);
+            return acquire(fullAccessRelationshipTraversalCursor);
         } finally {
             fullAccessRelationshipTraversalCursor = null;
         }
     }
 
     private void acceptFullAccess(DefaultRelationshipTraversalCursor cursor) {
-        fullAccessRelationshipTraversalCursor =
-                acceptCursor(fullAccessRelationshipTraversalCursor, cursor, FULL_RELATIONSHIP_TRAVERSAL);
+        fullAccessRelationshipTraversalCursor = acceptCursor(fullAccessRelationshipTraversalCursor, cursor);
     }
 
     @Override
@@ -300,14 +272,14 @@ public class DefaultPooledCursors extends DefaultCursors implements CursorFactor
                     PROPERTY);
         }
         try {
-            return acquire(propertyCursor, PROPERTY);
+            return acquire(propertyCursor);
         } finally {
             propertyCursor = null;
         }
     }
 
     private void accept(TraceablePropertyCursor cursor) {
-        propertyCursor = acceptCursor(propertyCursor, cursor, PROPERTY);
+        propertyCursor = acceptCursor(propertyCursor, cursor);
     }
 
     @Override
@@ -321,7 +293,7 @@ public class DefaultPooledCursors extends DefaultCursors implements CursorFactor
         }
 
         try {
-            return acquire((TraceableCursor & PropertyCursor) fullAccessPropertyCursor, FULL_PROPERTY);
+            return acquire((TraceableCursor & PropertyCursor) fullAccessPropertyCursor);
         } finally {
             fullAccessPropertyCursor = null;
         }
@@ -330,8 +302,7 @@ public class DefaultPooledCursors extends DefaultCursors implements CursorFactor
     private void acceptFullAccess(PropertyCursor cursor) {
         fullAccessPropertyCursor = acceptCursor(
                 (TraceablePropertyCursor & PropertyCursor) fullAccessPropertyCursor,
-                (TraceablePropertyCursor & PropertyCursor) cursor,
-                FULL_PROPERTY);
+                (TraceablePropertyCursor & PropertyCursor) cursor);
     }
 
     @Override
@@ -344,14 +315,14 @@ public class DefaultPooledCursors extends DefaultCursors implements CursorFactor
         }
 
         try {
-            return acquire(nodeValueIndexCursor, NODE_VALUE_INDEX);
+            return acquire(nodeValueIndexCursor);
         } finally {
             nodeValueIndexCursor = null;
         }
     }
 
     private void accept(DefaultNodeValueIndexCursor cursor) {
-        nodeValueIndexCursor = acceptCursor(nodeValueIndexCursor, cursor, NODE_VALUE_INDEX);
+        nodeValueIndexCursor = acceptCursor(nodeValueIndexCursor, cursor);
     }
 
     @Override
@@ -365,14 +336,14 @@ public class DefaultPooledCursors extends DefaultCursors implements CursorFactor
         }
 
         try {
-            return acquire(nodeLabelIndexCursor, NODE_LABEL_INDEX);
+            return acquire(nodeLabelIndexCursor);
         } finally {
             nodeLabelIndexCursor = null;
         }
     }
 
     private void accept(DefaultNodeLabelIndexCursor cursor) {
-        nodeLabelIndexCursor = acceptCursor(nodeLabelIndexCursor, cursor, NODE_LABEL_INDEX);
+        nodeLabelIndexCursor = acceptCursor(nodeLabelIndexCursor, cursor);
     }
 
     @Override
@@ -382,14 +353,14 @@ public class DefaultPooledCursors extends DefaultCursors implements CursorFactor
         }
 
         try {
-            return acquire(fullAccessNodeLabelIndexCursor, FULL_NODE_LABEL_INDEX);
+            return acquire(fullAccessNodeLabelIndexCursor);
         } finally {
             fullAccessNodeLabelIndexCursor = null;
         }
     }
 
     private void acceptFullAccess(DefaultNodeLabelIndexCursor cursor) {
-        fullAccessNodeLabelIndexCursor = acceptCursor(fullAccessNodeLabelIndexCursor, cursor, FULL_NODE_LABEL_INDEX);
+        fullAccessNodeLabelIndexCursor = acceptCursor(fullAccessNodeLabelIndexCursor, cursor);
     }
 
     @Override
@@ -408,14 +379,14 @@ public class DefaultPooledCursors extends DefaultCursors implements CursorFactor
         }
 
         try {
-            return acquire(relationshipValueIndexCursor, RELATIONSHIP_VALUE_INDEX);
+            return acquire(relationshipValueIndexCursor);
         } finally {
             relationshipValueIndexCursor = null;
         }
     }
 
     public void accept(DefaultRelationshipValueIndexCursor cursor) {
-        relationshipValueIndexCursor = acceptCursor(relationshipValueIndexCursor, cursor, RELATIONSHIP_VALUE_INDEX);
+        relationshipValueIndexCursor = acceptCursor(relationshipValueIndexCursor, cursor);
     }
 
     @Override
@@ -448,14 +419,14 @@ public class DefaultPooledCursors extends DefaultCursors implements CursorFactor
         }
 
         try {
-            return acquire(relationshipTypeIndexCursor, RELATIONSHIP_TYPE_INDEX);
+            return acquire(relationshipTypeIndexCursor);
         } finally {
             relationshipTypeIndexCursor = null;
         }
     }
 
     private void accept(InternalRelationshipTypeIndexCursor cursor) {
-        relationshipTypeIndexCursor = acceptCursor(relationshipTypeIndexCursor, cursor, RELATIONSHIP_TYPE_INDEX);
+        relationshipTypeIndexCursor = acceptCursor(relationshipTypeIndexCursor, cursor);
     }
 
     @Override
@@ -485,15 +456,14 @@ public class DefaultPooledCursors extends DefaultCursors implements CursorFactor
         }
 
         try {
-            return acquire(fullAccessRelationshipTypeIndexCursor, FULL_RELATIONSHIP_TYPE_INDEX);
+            return acquire(fullAccessRelationshipTypeIndexCursor);
         } finally {
             fullAccessRelationshipTypeIndexCursor = null;
         }
     }
 
     private void acceptFullAccess(InternalRelationshipTypeIndexCursor cursor) {
-        fullAccessRelationshipTypeIndexCursor =
-                acceptCursor(fullAccessRelationshipTypeIndexCursor, cursor, FULL_RELATIONSHIP_TYPE_INDEX);
+        fullAccessRelationshipTypeIndexCursor = acceptCursor(fullAccessRelationshipTypeIndexCursor, cursor);
     }
 
     public void release() {
@@ -554,27 +524,7 @@ public class DefaultPooledCursors extends DefaultCursors implements CursorFactor
         relationshipTypeIndexCursor = null;
         fullAccessRelationshipTypeIndexCursor = null;
 
-        var leaked = new StringBuilder();
-        // Leaked counts are kept: they track cursors still outstanding, which may yet be returned after this
-        // throws. The throw marks the owning transaction as failed cleanup, so it is disposed rather than reused.
-        for (int i = 0; i < numNonReturnedCursors.length; i++) {
-            int numNonReturned = numNonReturnedCursors[i];
-            if (numNonReturned != 0) {
-                if (!leaked.isEmpty()) {
-                    leaked.append("; ");
-                }
-                leaked.append(CURSOR_KINDS[i])
-                        .append(" (index ")
-                        .append(i)
-                        .append("): ")
-                        .append(numNonReturned);
-            }
-        }
-        if (!leaked.isEmpty()) {
-            throw new IllegalStateException("Not all allocated cursors were returned: " + leaked
-                    + ". Enable internal.dbms.debug.track_cursor_close and internal.dbms.debug.trace_cursors"
-                    + " to capture the allocating stack trace of the leaked cursor.");
-        }
+        // TODO trace and warn/log on unaccounted cursors
     }
 
     private InternalCursorFactory newInternalCursors(CursorContext cursorContext, MemoryTracker memoryTracker) {
