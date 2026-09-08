@@ -22,7 +22,6 @@ package org.neo4j.bolt.tls;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import org.neo4j.bolt.test.annotation.BoltTestExtension;
-import org.neo4j.bolt.test.annotation.connection.initializer.Connected;
 import org.neo4j.bolt.test.annotation.connection.transport.preset.SecureTransportOnly;
 import org.neo4j.bolt.test.annotation.setup.SettingsFunction;
 import org.neo4j.bolt.test.annotation.test.TransportTest;
@@ -50,10 +49,10 @@ public class PlaintextIT {
 
     @TransportTest
     @SecureTransportOnly
-    void shouldTerminateConnectionDuringHandshake(BoltWire wire, @Connected ConnectionProvider connectionProvider)
+    void shouldTerminateConnectionDuringHandshake(BoltWire wire, ConnectionProvider connectionProvider)
             throws Exception {
         assertThatExceptionOfType(BoltTestClientIOException.class)
-                .isThrownBy(() -> connectionProvider.create().send(wire.getProtocolVersion()))
-                .withStackTraceContaining("Connection closed");
+                .isThrownBy(() -> connectionProvider.create().connect().send(wire.getProtocolVersion()))
+                .withStackTraceContaining("Failed to establish connection.");
     }
 }

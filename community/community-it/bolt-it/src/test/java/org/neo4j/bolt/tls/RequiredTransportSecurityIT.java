@@ -58,14 +58,16 @@ public class RequiredTransportSecurityIT {
     @TransportTest
     @ExcludeTransport({TransportType.LOCAL, TransportType.UNIX, TransportType.WEBSOCKET_TLS, TransportType.TCP_TLS})
     void shouldCloseUnencryptedConnectionOnHandshakeWhenEncryptionIsRequired(
-            BoltWire wire, @Connected ConnectionProvider connectionProvider) throws IOException {
+            BoltWire wire, ConnectionProvider connectionProvider) throws IOException {
         BoltTestConnection connection = connectionProvider.create();
 
         try {
             connection.connect();
             connection.send(wire.getProtocolVersion());
         } catch (RuntimeException e) {
-            assertThat(e).isInstanceOf(BoltTestClientClosedException.class);
+            assertThat(e)
+                    .isInstanceOf(BoltTestClientClosedException.class)
+                    .hasMessage("Failed to establish connection.");
         }
 
         BoltConnectionAssertions.assertThat(connection)
