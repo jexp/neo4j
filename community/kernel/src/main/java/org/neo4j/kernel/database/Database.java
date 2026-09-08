@@ -412,10 +412,9 @@ public class Database extends AbstractDatabase {
         life.add(new LockerLifecycleAdapter(fileLockerService.createDatabaseLocker(fs, databaseLayout)));
         life.add(databaseConfig);
 
-        this.clusterHorizonTracker =
-                mode == HostedOnMode.SINGLE || !isMultiVersioned(storageEngineFactory, namedDatabaseId)
-                        ? ClusterHorizonTracker.NO_OP
-                        : new ClusterHorizonTrackerImpl();
+        this.clusterHorizonTracker = mode == HostedOnMode.SINGLE || !storageEngineFactory.multiVersioned()
+                ? ClusterHorizonTracker.NO_OP
+                : new ClusterHorizonTrackerImpl();
         databaseDependencies.satisfyDependency(clusterHorizonTracker);
         databaseDependencies.satisfyDependencies(chunkedTransactionTracker);
         databaseDependencies.satisfyDependency(databaseCreationOptions);
@@ -1609,11 +1608,6 @@ public class Database extends AbstractDatabase {
                         namedDatabaseId.name(),
                         databaseConfig.get(memory_transaction_database_max_size),
                         memory_transaction_database_max_size.name());
-    }
-
-    private static boolean isMultiVersioned(
-            StorageEngineFactory storageEngineFactory, NamedDatabaseId namedDatabaseId) {
-        return !namedDatabaseId.isSystemDatabase() && storageEngineFactory.multiVersioned();
     }
 
     private class KernelTransactionVisibilityProvider implements TransactionVisibilityProvider {
