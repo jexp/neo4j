@@ -83,7 +83,9 @@ import org.neo4j.test.extension.SkipOnSpd;
 import org.neo4j.test.tags.MultiVersionedTag;
 import org.neo4j.test.utils.TestDirectory;
 import org.neo4j.values.storable.Float16Format;
+import org.neo4j.values.storable.RandomValues;
 import org.neo4j.values.storable.RandomValuesUtils;
+import org.neo4j.values.storable.ValueType;
 import org.neo4j.values.storable.VectorValue;
 
 @Neo4jLayoutExtension
@@ -112,7 +114,7 @@ public class RangeIndexKeySizeValidationIT {
     private GraphDatabaseAPI db;
     private JobScheduler scheduler;
     private PageCache pageCache;
-    private boolean includeVectorTypes = false;
+    private RandomValues.Configuration valuesConfiguration;
 
     @AfterEach
     void cleanup() throws Exception {
@@ -147,7 +149,7 @@ public class RangeIndexKeySizeValidationIT {
         NamedDynamicValueGenerator[] dynamicValueGenerators = NamedDynamicValueGenerator.values();
         StringBuilder sb = new StringBuilder();
         for (NamedDynamicValueGenerator generator : dynamicValueGenerators) {
-            if (!includeVectorTypes && generator.isVectorType) {
+            if (!isSupported(generator)) {
                 continue;
             }
             int expectedMax = generator.expectedMax;
@@ -327,9 +329,7 @@ public class RangeIndexKeySizeValidationIT {
         Object[] propValues = new Object[propKeys.length];
         List<NamedDynamicValueGenerator> generators =
                 new ArrayList<>(Arrays.asList(NamedDynamicValueGenerator.values()));
-        if (!includeVectorTypes) {
-            generators.removeIf(NamedDynamicValueGenerator::isVectorType);
-        }
+        generators.removeIf(generator -> !isSupported(generator));
         for (int propKey = 0; propKey < propKeys.length; propKey++) {
             NamedDynamicValueGenerator among = random.among(generators.toArray(NamedDynamicValueGenerator[]::new));
             propValues[propKey] = among.dynamicValue(random, keySizeLimitPerSlot, wiggleRoomPerSlot);
@@ -385,8 +385,16 @@ public class RangeIndexKeySizeValidationIT {
 
         dbms = builder.build();
         db = (GraphDatabaseAPI) dbms.database(DEFAULT_DATABASE_NAME);
-        includeVectorTypes =
-                RandomValuesUtils.selectStorageEngineDependentConfiguration(db).includeVectorTypes();
+        valuesConfiguration = RandomValuesUtils.selectStorageEngineDependentConfiguration(db);
+    }
+
+    /**
+     * A value type is only exercised when the running storage engine <em>and</em> kernel version can store it.
+     * {@link RandomValuesUtils} derives both from the started database, so the allowed types already exclude
+     * vector types that the storage engine does not support as well as those gated behind a later kernel version.
+     */
+    private boolean isSupported(NamedDynamicValueGenerator generator) {
+        return generator.valueType == null || valuesConfiguration.allowedTypes().contains(generator.valueType);
     }
 
     private static class SuccessAndFail {
@@ -482,7 +490,7 @@ public class RangeIndexKeySizeValidationIT {
                     int dim = Math.clamp(i, VectorValue.MIN_VECTOR_DIMENSIONS, VectorValue.MAX_VECTOR_DIMENSIONS);
                     return random.randomValues().nextInt16Vector(dim, dim);
                 },
-                true),
+                ValueType.INT16_VECTOR),
         vectorInt32(
                 Types.VECTOR_INT32.elementSize,
                 2040,
@@ -490,7 +498,7 @@ public class RangeIndexKeySizeValidationIT {
                     int dim = Math.clamp(i, VectorValue.MIN_VECTOR_DIMENSIONS, VectorValue.MAX_VECTOR_DIMENSIONS);
                     return random.randomValues().nextInt32Vector(dim, dim);
                 },
-                true),
+                ValueType.INT32_VECTOR),
         vectorInt64(
                 Types.VECTOR_INT64.elementSize,
                 1020,
@@ -498,7 +506,7 @@ public class RangeIndexKeySizeValidationIT {
                     int dim = Math.clamp(i, VectorValue.MIN_VECTOR_DIMENSIONS, VectorValue.MAX_VECTOR_DIMENSIONS);
                     return random.randomValues().nextInt64Vector(dim, dim);
                 },
-                true),
+                ValueType.INT64_VECTOR),
         vectorFloat16(
                 Types.VECTOR_FLOAT16.elementSize,
                 4081,
@@ -506,7 +514,7 @@ public class RangeIndexKeySizeValidationIT {
                     int dim = Math.clamp(i, VectorValue.MIN_VECTOR_DIMENSIONS, VectorValue.MAX_VECTOR_DIMENSIONS);
                     return random.randomValues().nextFloat16Vector(Float16Format.FLOAT16, dim, dim);
                 },
-                true),
+                ValueType.FLOAT16_VECTOR),
         vectorBFloat16(
                 Types.VECTOR_BFLOAT16.elementSize,
                 4081,
@@ -514,7 +522,7 @@ public class RangeIndexKeySizeValidationIT {
                     int dim = Math.clamp(i, VectorValue.MIN_VECTOR_DIMENSIONS, VectorValue.MAX_VECTOR_DIMENSIONS);
                     return random.randomValues().nextFloat16Vector(Float16Format.BFLOAT16, dim, dim);
                 },
-                true),
+                ValueType.BFLOAT16_VECTOR),
         vectorFloat32(
                 Types.VECTOR_FLOAT32.elementSize,
                 2040,
@@ -522,7 +530,7 @@ public class RangeIndexKeySizeValidationIT {
                     int dim = Math.clamp(i, VectorValue.MIN_VECTOR_DIMENSIONS, VectorValue.MAX_VECTOR_DIMENSIONS);
                     return random.randomValues().nextFloat32Vector(dim, dim);
                 },
-                true),
+                ValueType.FLOAT32_VECTOR),
         vectorFloat64(
                 Types.VECTOR_FLOAT64.elementSize,
                 1020,
@@ -530,34 +538,29 @@ public class RangeIndexKeySizeValidationIT {
                     int dim = Math.clamp(i, VectorValue.MIN_VECTOR_DIMENSIONS, VectorValue.MAX_VECTOR_DIMENSIONS);
                     return random.randomValues().nextFloat64Vector(dim, dim);
                 },
-                true);
+                ValueType.FLOAT64_VECTOR);
 
         private final int singleArrayEntrySize;
         private final DynamicValueGenerator generator;
         private final int expectedMax;
-        private final boolean isVectorType;
+
+        /** The generated vector value type, or {@code null} for generators of always-supported types. */
+        private final ValueType valueType;
 
         NamedDynamicValueGenerator(
                 int singleArrayEntrySize, int expectedLongestArrayLength, DynamicValueGenerator generator) {
-            this.singleArrayEntrySize = singleArrayEntrySize;
-            this.expectedMax = expectedLongestArrayLength;
-            this.generator = generator;
-            this.isVectorType = false;
+            this(singleArrayEntrySize, expectedLongestArrayLength, generator, null);
         }
 
         NamedDynamicValueGenerator(
                 int singleArrayEntrySize,
                 int expectedLongestArrayLength,
                 DynamicValueGenerator generator,
-                boolean isVectorType) {
+                ValueType valueType) {
             this.singleArrayEntrySize = singleArrayEntrySize;
             this.expectedMax = expectedLongestArrayLength;
             this.generator = generator;
-            this.isVectorType = isVectorType;
-        }
-
-        boolean isVectorType() {
-            return isVectorType;
+            this.valueType = valueType;
         }
 
         Object dynamicValue(RandomSupport random, int length) {
