@@ -123,6 +123,7 @@ import org.neo4j.storageengine.api.LongReference;
 import org.neo4j.token.api.TokenConstants;
 import org.neo4j.token.api.TokenType;
 import org.neo4j.util.CalledFromGeneratedCode;
+import org.neo4j.util.Stringifier;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.AnyValues;
 import org.neo4j.values.ElementIdMapper;
@@ -2962,9 +2963,49 @@ public final class CypherFunctions {
         }
     }
 
-    public static Value toString(AnyValue in) {
+    public static Value toStringCypher5(AnyValue in) {
         if (in == NO_VALUE) {
             return NO_VALUE;
+        } else if (in instanceof TextValue text) {
+            return text;
+        } else if (in instanceof UUIDValue uuidValue) {
+            return stringValue(uuidValue.prettyPrint());
+        } else if (in instanceof NumberValue number) {
+            return stringValue(number.prettyPrint());
+        } else if (in instanceof BooleanValue b) {
+            return stringValue(b.prettyPrint());
+        } else if (in instanceof TemporalValue || in instanceof DurationValue || in instanceof PointValue) {
+            return stringValue(in.toString());
+        } else if (in instanceof VectorValue) {
+            return stringValue(in.prettify());
+        } else {
+            throw CypherTypeException.functionArgumentWrongType(
+                    "Invalid input for function 'toString()': Expected a String, UUID, Float, Integer, Boolean, Temporal, Duration or Vector, got: "
+                            + in,
+                    "toString",
+                    in.prettify(),
+                    List.of("STRING", "UUID", "FLOAT", "INTEGER", "BOOLEAN", "TEMPORAL", "DURATION", "VECTOR"),
+                    CypherTypeValueMapper.valueType(in));
+        }
+    }
+
+    public static Value toString(
+            AnyValue in, DbAccess access, NodeCursor nodeCursor, RelationshipScanCursor relCursor) {
+        if (in == NO_VALUE) {
+            return NO_VALUE;
+        }
+        return stringify(in, access, nodeCursor, relCursor);
+    }
+
+    /**
+     * Converts a value to a string representation, rendering NO_VALUE as the literal text "null".
+     * Used to render list/map elements as part of a larger string, where an actual null cannot appear
+     * in the result. Top-level callers that need to propagate null should use {@link #toString} instead.
+     */
+    private static Value stringify(
+            AnyValue in, DbAccess access, NodeCursor nodeCursor, RelationshipScanCursor relCursor) {
+        if (in == NO_VALUE) {
+            return stringValue("null");
         } else if (in instanceof TextValue text) {
             return text;
         } else if (in instanceof UUIDValue uuidValue) {
@@ -2977,38 +3018,185 @@ public final class CypherFunctions {
             return stringValue(b.prettyPrint());
         } else if (in instanceof TemporalValue || in instanceof DurationValue || in instanceof PointValue) {
             return stringValue(in.toString());
+        } else if (in instanceof VirtualNodeValue node) {
+            return stringValue(stringifyNode(node, access, nodeCursor));
+        } else if (in instanceof VirtualRelationshipValue rel) {
+            return stringValue(stringifyRelationship(rel, access, relCursor));
+        } else if (in instanceof VirtualPathValue path) {
+            return stringValue(stringifyPath(path, access, nodeCursor, relCursor));
+        } else if (in instanceof SequenceValue seq) {
+            return stringValue(stringifyList(seq, access, nodeCursor, relCursor));
+        } else if (in instanceof MapValue map) {
+            return stringValue(stringifyMap(map, access, nodeCursor, relCursor));
         } else {
             throw CypherTypeException.functionArgumentWrongType(
-                    "Invalid input for function 'toString()': Expected a String, UUID, Vector, Float, Integer, Boolean, Temporal or Duration, got: "
+                    "Invalid input for function 'toString()': Expected a String, UUID, Float, Integer, Boolean, Temporal, Duration, Vector, List, Map, Node, Relationship or Path, got: "
                             + in,
                     "toString",
                     in.prettify(),
-                    List.of("STRING", "UUID", "VECTOR", "FLOAT", "INTEGER", "BOOLEAN", "TEMPORAL", "DURATION"),
+                    List.of(
+                            "STRING",
+                            "UUID",
+                            "FLOAT",
+                            "INTEGER",
+                            "BOOLEAN",
+                            "TEMPORAL",
+                            "DURATION",
+                            "VECTOR",
+                            "LIST<ANY>",
+                            "MAP",
+                            "NODE",
+                            "RELATIONSHIP",
+                            "PATH"),
                     CypherTypeValueMapper.valueType(in));
         }
     }
 
-    public static AnyValue toStringOrNull(AnyValue in) {
+    private static String stringifyNode(VirtualNodeValue node, DbAccess access, NodeCursor nodeCursor) {
+        List<String> labelNames = new ArrayList<>();
+        for (AnyValue label : (SequenceValue) labels(node, access, nodeCursor)) {
+            labelNames.add(((TextValue) label).stringValue());
+        }
+        labelNames.sort(String::compareTo);
+        StringBuilder sb = new StringBuilder("(");
+        for (String labelName : labelNames) {
+            sb.append(':').append(Stringifier.backtickEmpty(labelName));
+        }
+        return sb.append(')').toString();
+    }
+
+    private static String stringifyRelationship(
+            VirtualRelationshipValue rel, DbAccess access, RelationshipScanCursor relCursor) {
+        AnyValue typeValue = type(rel, access, relCursor, access.dataRead());
+        String typeName = typeValue == NO_VALUE ? "" : ((TextValue) typeValue).stringValue();
+        return "[:" + Stringifier.backtickEmpty(typeName) + "]";
+    }
+
+    private static String stringifyPath(
+            VirtualPathValue path, DbAccess access, NodeCursor nodeCursor, RelationshipScanCursor relCursor) {
+        SequenceValue pathNodes = (SequenceValue) nodes(path);
+        SequenceValue pathRelationships = (SequenceValue) relationships(path);
+        long[] nodeIds = path.nodeIds();
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(stringifyNode((VirtualNodeValue) pathNodes.value(0), access, nodeCursor));
+        for (int i = 0; i < pathRelationships.intSize(); i++) {
+            VirtualRelationshipValue rel = (VirtualRelationshipValue) pathRelationships.value(i);
+            boolean forward = rel.startNodeId(consumer(access, relCursor)) == nodeIds[i];
+            sb.append(forward ? "-" : "<-")
+                    .append(stringifyRelationship(rel, access, relCursor))
+                    .append(forward ? "->" : "-")
+                    .append(stringifyNode((VirtualNodeValue) pathNodes.value(i + 1), access, nodeCursor));
+        }
+        return sb.toString();
+    }
+
+    private static String stringifyList(
+            SequenceValue seq, DbAccess access, NodeCursor nodeCursor, RelationshipScanCursor relCursor) {
+        StringBuilder sb = new StringBuilder("[");
+        boolean first = true;
+        for (AnyValue element : seq) {
+            if (!first) {
+                sb.append(", ");
+            }
+            first = false;
+            sb.append(((TextValue) stringify(element, access, nodeCursor, relCursor)).stringValue());
+        }
+        return sb.append("]").toString();
+    }
+
+    private static String stringifyMap(
+            MapValue map, DbAccess access, NodeCursor nodeCursor, RelationshipScanCursor relCursor) {
+        List<String> keys = new ArrayList<>();
+        map.keySet().forEach(keys::add);
+        keys.sort(String::compareTo);
+        StringBuilder sb = new StringBuilder("{");
+        boolean first = true;
+        for (String key : keys) {
+            if (!first) {
+                sb.append(", ");
+            }
+            first = false;
+            String stringValue = ((TextValue) stringify(map.get(key), access, nodeCursor, relCursor)).stringValue();
+            sb.append(Stringifier.backtickEmpty(key)).append(": ").append(stringValue);
+        }
+        return sb.append("}").toString();
+    }
+
+    public static AnyValue toStringOrNullCypher5(AnyValue in) {
         if (in instanceof TextValue
                 || in instanceof NumberValue
                 || in instanceof BooleanValue
                 || in instanceof TemporalValue
                 || in instanceof DurationValue
                 || in instanceof PointValue
-                || in instanceof VectorValue
-                || in instanceof UUIDValue) {
-            return toString(in);
+                || in instanceof UUIDValue
+                || in instanceof VectorValue) {
+            return toStringCypher5(in);
         } else {
             return NO_VALUE;
         }
     }
 
-    public static AnyValue toStringList(AnyValue in) {
+    public static AnyValue toStringOrNull(
+            AnyValue in, DbAccess access, NodeCursor nodeCursor, RelationshipScanCursor relCursor) {
+        if (in == NO_VALUE) {
+            return NO_VALUE;
+        }
+        return stringifyOrNull(in, access, nodeCursor, relCursor);
+    }
+
+    /**
+     * Like {@link #toStringOrNull} but renders NO_VALUE as the literal text "null" instead of propagating
+     * null. Used to render list elements as part of a larger stringified list, where an actual null cannot
+     * appear in the result (see {@link #toStringList}).
+     */
+    private static AnyValue stringifyOrNull(
+            AnyValue in, DbAccess access, NodeCursor nodeCursor, RelationshipScanCursor relCursor) {
+        if (in == NO_VALUE
+                || in instanceof TextValue
+                || in instanceof NumberValue
+                || in instanceof BooleanValue
+                || in instanceof TemporalValue
+                || in instanceof DurationValue
+                || in instanceof PointValue
+                || in instanceof VectorValue
+                || in instanceof UUIDValue
+                || in instanceof SequenceValue
+                || in instanceof MapValue
+                || in instanceof VirtualNodeValue
+                || in instanceof VirtualRelationshipValue
+                || in instanceof VirtualPathValue) {
+            return stringify(in, access, nodeCursor, relCursor);
+        } else {
+            return NO_VALUE;
+        }
+    }
+
+    public static AnyValue toStringListCypher5(AnyValue in) {
         if (in == NO_VALUE) {
             return NO_VALUE;
         } else if (in instanceof SequenceValue sv) {
             return StreamSupport.stream(sv.spliterator(), false)
-                    .map(entry -> entry == NO_VALUE ? NO_VALUE : toStringOrNull(entry))
+                    .map(entry -> entry == NO_VALUE ? NO_VALUE : toStringOrNullCypher5(entry))
+                    .collect(ListValueBuilder.collector());
+        } else {
+            throw CypherTypeException.functionArgumentWrongType(
+                    String.format("Invalid input for function 'toStringList()': Expected a List, got: %s", in),
+                    "toStringList",
+                    in.prettify(),
+                    List.of("LIST<ANY>"),
+                    CypherTypeValueMapper.valueType(in));
+        }
+    }
+
+    public static AnyValue toStringList(
+            AnyValue in, DbAccess access, NodeCursor nodeCursor, RelationshipScanCursor relCursor) {
+        if (in == NO_VALUE) {
+            return NO_VALUE;
+        } else if (in instanceof SequenceValue sv) {
+            return StreamSupport.stream(sv.spliterator(), false)
+                    .map(entry -> stringifyOrNull(entry, access, nodeCursor, relCursor))
                     .collect(ListValueBuilder.collector());
         } else {
             throw CypherTypeException.functionArgumentWrongType(
@@ -3051,8 +3239,8 @@ public final class CypherFunctions {
                     || in instanceof PointValue
                     || in instanceof VectorValue
                     || in instanceof UUIDValue) {
-                // Every branch of toString() for these types returns a TextValue
-                TextValue expressionAsAString = (TextValue) toString(in);
+                // Every branch of toStringCypher5() for these types returns a TextValue
+                TextValue expressionAsAString = (TextValue) toStringCypher5(in);
                 sb.append(((TextValue) literalPartValues[i]).stringValue()).append(expressionAsAString.stringValue());
             } else {
                 throw CypherTypeException.invalidType(

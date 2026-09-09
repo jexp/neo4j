@@ -948,12 +948,28 @@ case class CommunityExpressionConverter(
 
       case ToIntegerOrNull =>
         commands.expressions.ToIntegerOrNullFunction(self.toCommandExpression(id, invocation.arguments.head))
-      case ToLower  => commands.expressions.ToLowerFunction(self.toCommandExpression(id, invocation.arguments.head))
-      case ToString => commands.expressions.ToStringFunction(self.toCommandExpression(id, invocation.arguments.head))
+      case ToLower => commands.expressions.ToLowerFunction(self.toCommandExpression(id, invocation.arguments.head))
+      case ToString =>
+        cypherVersion match {
+          case CypherVersion.Cypher5 =>
+            commands.expressions.ToStringFunctionCypher5(self.toCommandExpression(id, invocation.arguments.head))
+          case _ =>
+            commands.expressions.ToStringFunctionCypher25(self.toCommandExpression(id, invocation.arguments.head))
+        }
       case ToStringList =>
-        commands.expressions.ToStringListFunction(self.toCommandExpression(id, invocation.arguments.head))
+        cypherVersion match {
+          case CypherVersion.Cypher5 =>
+            commands.expressions.ToStringListFunctionCypher5(self.toCommandExpression(id, invocation.arguments.head))
+          case _ =>
+            commands.expressions.ToStringListFunctionCypher25(self.toCommandExpression(id, invocation.arguments.head))
+        }
       case ToStringOrNull =>
-        commands.expressions.ToStringOrNullFunction(self.toCommandExpression(id, invocation.arguments.head))
+        cypherVersion match {
+          case CypherVersion.Cypher5 =>
+            commands.expressions.ToStringOrNullFunctionCypher5(self.toCommandExpression(id, invocation.arguments.head))
+          case _ =>
+            commands.expressions.ToStringOrNullFunctionCypher25(self.toCommandExpression(id, invocation.arguments.head))
+        }
       case ToUpper => commands.expressions.ToUpperFunction(self.toCommandExpression(id, invocation.arguments.head))
       case Properties =>
         commands.expressions.PropertiesFunction(self.toCommandExpression(id, invocation.arguments.head))

@@ -16,6 +16,7 @@
  */
 package org.neo4j.cypher.internal.expressions.functions
 
+import org.neo4j.cypher.internal.CypherVersion
 import org.neo4j.cypher.internal.expressions.FunctionTypeSignature
 import org.neo4j.cypher.internal.util.symbols.CTAny
 import org.neo4j.cypher.internal.util.symbols.CTBoolean
@@ -24,29 +25,44 @@ import org.neo4j.cypher.internal.util.symbols.CTDateTime
 import org.neo4j.cypher.internal.util.symbols.CTDuration
 import org.neo4j.cypher.internal.util.symbols.CTFloat
 import org.neo4j.cypher.internal.util.symbols.CTInteger
+import org.neo4j.cypher.internal.util.symbols.CTList
 import org.neo4j.cypher.internal.util.symbols.CTLocalDateTime
 import org.neo4j.cypher.internal.util.symbols.CTLocalTime
+import org.neo4j.cypher.internal.util.symbols.CTMap
+import org.neo4j.cypher.internal.util.symbols.CTNode
+import org.neo4j.cypher.internal.util.symbols.CTPath
 import org.neo4j.cypher.internal.util.symbols.CTPoint
+import org.neo4j.cypher.internal.util.symbols.CTRelationship
 import org.neo4j.cypher.internal.util.symbols.CTString
 import org.neo4j.cypher.internal.util.symbols.CTTime
 import org.neo4j.cypher.internal.util.symbols.CTUUID
+import org.neo4j.cypher.internal.util.symbols.CTVector
 
 case object ToString extends Function {
   override def name = "toString"
 
-  val validInputTypes = Seq(
+  val validInputTypesCypher5 = Seq(
     CTFloat,
     CTInteger,
     CTBoolean,
     CTString,
-    CTUUID,
+    CTUUID, // Cypher 5 pass through support
     CTDuration,
     CTDate,
     CTTime,
     CTDateTime,
     CTLocalTime,
     CTLocalDateTime,
-    CTPoint
+    CTPoint,
+    CTVector // Cypher 5 pass through support
+  )
+
+  val validInputTypes = validInputTypesCypher5 ++ Seq(
+    CTList(CTAny),
+    CTMap,
+    CTNode,
+    CTRelationship,
+    CTPath
   )
 
   override val signatures: Vector[FunctionTypeSignature] = Vector(
@@ -58,7 +74,19 @@ case object ToString extends Function {
       description =
         "Converts an `INTEGER`, `FLOAT`, `BOOLEAN`, `POINT` or temporal type (i.e. `DATE`, `ZONED TIME`, `LOCAL TIME`, `ZONED DATETIME`, `LOCAL DATETIME` or `DURATION`) value to a `STRING`.",
       category = Category.STRING,
-      argumentDescriptions = Map("input" -> "A value to be converted into a string.")
+      argumentDescriptions = Map("input" -> "A value to be converted into a string."),
+      scopes = Set(CypherVersion.Cypher5)
+    ),
+    FunctionTypeSignature(
+      this,
+      names = Vector("input"),
+      argumentTypes = Vector(CTAny),
+      outputType = CTString,
+      description =
+        "Converts a value to a `STRING`.",
+      category = Category.STRING,
+      argumentDescriptions = Map("input" -> "A value to be converted into a string."),
+      scopes = Set(CypherVersion.Cypher25)
     )
   )
 }

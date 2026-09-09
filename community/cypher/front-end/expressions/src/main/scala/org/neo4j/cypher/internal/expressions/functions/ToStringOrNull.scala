@@ -16,6 +16,7 @@
  */
 package org.neo4j.cypher.internal.expressions.functions
 
+import org.neo4j.cypher.internal.CypherVersion
 import org.neo4j.cypher.internal.expressions.FunctionTypeSignature
 import org.neo4j.cypher.internal.util.symbols.CTAny
 import org.neo4j.cypher.internal.util.symbols.CTString
@@ -32,7 +33,19 @@ case object ToStringOrNull extends Function {
       description =
         "Converts an `INTEGER`, `FLOAT`, `BOOLEAN`, `POINT` or temporal type (i.e. `DATE`, `ZONED TIME`, `LOCAL TIME`, `ZONED DATETIME`, `LOCAL DATETIME` or `DURATION`) value to a `STRING`, or null if the value cannot be converted.",
       category = Category.STRING,
-      argumentDescriptions = Map("input" -> "A value to be converted into a string or null.")
+      argumentDescriptions = Map("input" -> "A value to be converted into a string or null."),
+      scopes = Set(CypherVersion.Cypher5)
+    ),
+    FunctionTypeSignature(
+      this,
+      names = Vector("input"),
+      argumentTypes = Vector(CTAny),
+      outputType = CTString,
+      description =
+        "Converts a value to a `STRING` using the same conversion rules as `toString()`, returning null instead of raising an error for any input it cannot convert.",
+      category = Category.STRING,
+      argumentDescriptions = Map("input" -> "A value to be converted into a string or null."),
+      scopes = Set(CypherVersion.Cypher25)
     )
     // TODO: Also Category.SCALAR, in case we entangle the categories. For now we keep the same as toString
   )

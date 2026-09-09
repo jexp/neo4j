@@ -20,15 +20,21 @@
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
 import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.QueryContext
 import org.neo4j.cypher.internal.runtime.interpreted.InterpretedRuntimeTestSuite
 import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
 import org.neo4j.cypher.internal.runtime.interpreted.commands.LiteralHelper.literal
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ToStringListFunctionCypher25
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ToStringListFunctionCypher5
 import org.neo4j.cypher.internal.util.test_helpers.CypherScalaCheckDrivenPropertyChecks
 import org.neo4j.cypher.internal.util.test_helpers.GqlExceptionMatchers.functionArgumentGqlException
 import org.neo4j.exceptions.CypherTypeException
 import org.neo4j.values.storable.TextValue
 import org.neo4j.values.storable.Values
 import org.neo4j.values.storable.Values.NO_VALUE
+import org.neo4j.values.storable.Values.int8Vector
+import org.neo4j.values.storable.Values.intValue
+import org.neo4j.values.storable.Values.stringArray
 import org.neo4j.values.storable.Values.stringValue
 import org.neo4j.values.virtual.ListValue
 import org.neo4j.values.virtual.VirtualValues
@@ -82,6 +88,13 @@ class ToStringListFunctionTest extends InterpretedRuntimeTestSuite with CypherSc
     ))
   }
 
+  test("should stringify a vector element instead of returning null") {
+    assert(toStringList(Seq[Any]("1234", int8Vector(1, 2, 3))) === VirtualValues.list(
+      stringValue("1234"),
+      stringValue("vector([1, 2, 3], 3, INTEGER8)")
+    ))
+  }
+
   test("should throw an exception if the list argument contains a non-list") {
     val caughtException = the[CypherTypeException] thrownBy toStringList("foo")
     caughtException should be(functionArgumentGqlException(
@@ -102,7 +115,49 @@ class ToStringListFunctionTest extends InterpretedRuntimeTestSuite with CypherSc
     }
   }
 
+  // toStringList (Cypher 25)
+
+  test("Cypher 25: should stringify a nested map and list instead of returning null") {
+    assert(toStringListCypher25(
+      Seq[Any]("1234", VirtualValues.EMPTY_MAP, VirtualValues.EMPTY_LIST)
+    ) === VirtualValues.list(
+      stringValue("1234"),
+      stringValue("{}"),
+      stringValue("[]")
+    ))
+  }
+
+  test("Cypher 25: should stringify a non-empty nested list") {
+    val nestedList = VirtualValues.list(intValue(1), intValue(2), intValue(3))
+    assert(toStringListCypher25(Seq[Any](nestedList)) === VirtualValues.list(stringValue("[1, 2, 3]")))
+  }
+
+  test("Cypher 25: should stringify a null element instead of returning null") {
+    assert(toStringListCypher25(Seq[Any]("1234", null)) === VirtualValues.list(
+      stringValue("1234"),
+      stringValue("null")
+    ))
+  }
+
+  test("Cypher 25: should return null if argument is null") {
+    assert(toStringListCypher25(null) === NO_VALUE)
+  }
+
+  test("Cypher 25: should stringify a node in the list instead of returning null") {
+    val node = VirtualValues.nodeValue(-10, "-10", stringArray("A"), VirtualValues.EMPTY_MAP)
+    assert(toStringListCypher25(Seq[Any]("1234", node)) === VirtualValues.list(
+      stringValue("1234"),
+      stringValue("(:A)")
+    ))
+  }
+
   private def toStringList(orig: Any) = {
-    ToStringListFunction(literal(orig))(CypherRow.empty, QueryStateHelper.empty)
+    ToStringListFunctionCypher5(literal(orig))(CypherRow.empty, QueryStateHelper.empty)
+  }
+
+  private val entityState = QueryStateHelper.emptyWith(query = mock[QueryContext])
+
+  private def toStringListCypher25(orig: Any) = {
+    ToStringListFunctionCypher25(literal(orig))(CypherRow.empty, entityState)
   }
 }

@@ -6048,7 +6048,37 @@
       "reader"
     ],
     "cypherVersionScope": [
-      5,
+      5
+    ],
+    "signature": "toString(input :: ANY) :: STRING",
+    "argumentDescription": [
+      {
+        "name": "input",
+        "description": "A value to be converted into a string.",
+        "isDeprecated": false,
+        "type": "ANY"
+      }
+    ],
+    "category": "String"
+  },
+  {
+    "name": "toString",
+    "aggregating": false,
+    "isDeprecated": false,
+    "deprecatedBy": null,
+    "isBuiltIn": true,
+    "rolesBoostedExecution": [],
+    "returnDescription": "STRING",
+    "description": "Converts a value to a `STRING`.",
+    "rolesExecution": [
+      "PUBLIC",
+      "admin",
+      "architect",
+      "editor",
+      "publisher",
+      "reader"
+    ],
+    "cypherVersionScope": [
       25
     ],
     "signature": "toString(input :: ANY) :: STRING",
@@ -6112,7 +6142,37 @@
       "reader"
     ],
     "cypherVersionScope": [
-      5,
+      5
+    ],
+    "signature": "toStringOrNull(input :: ANY) :: STRING",
+    "argumentDescription": [
+      {
+        "name": "input",
+        "description": "A value to be converted into a string or null.",
+        "isDeprecated": false,
+        "type": "ANY"
+      }
+    ],
+    "category": "String"
+  },
+  {
+    "name": "toStringOrNull",
+    "aggregating": false,
+    "isDeprecated": false,
+    "deprecatedBy": null,
+    "isBuiltIn": true,
+    "rolesBoostedExecution": [],
+    "returnDescription": "STRING",
+    "description": "Converts a value to a `STRING` using the same conversion rules as `toString()`, returning null instead of raising an error for any input it cannot convert.",
+    "rolesExecution": [
+      "PUBLIC",
+      "admin",
+      "architect",
+      "editor",
+      "publisher",
+      "reader"
+    ],
+    "cypherVersionScope": [
       25
     ],
     "signature": "toStringOrNull(input :: ANY) :: STRING",

@@ -57,6 +57,17 @@ abstract class FunctionTestBase(funcName: String) extends SemanticFunSuite {
     }
   }
 
+  protected def testInvalidApplicationInSpecificVersion(
+    version: CypherVersion,
+    argumentTypes: TypeSpec*
+  )(message: String): Unit = {
+    withClue(s"Cypher version: $version") {
+      val (result, _) = evaluateWithTypes(version, argumentTypes.toIndexedSeq)
+      result.errors should not be empty
+      result.errors.head.msg should equal(message)
+    }
+  }
+
   protected def testInvalidApplicationWithGql(
     argumentTypes: TypeSpec*
   )(

@@ -16,6 +16,7 @@
  */
 package org.neo4j.cypher.internal.ast.semantics.functions
 
+import org.neo4j.cypher.internal.CypherVersion
 import org.neo4j.cypher.internal.util.symbols.CTAny
 import org.neo4j.cypher.internal.util.symbols.CTBoolean
 import org.neo4j.cypher.internal.util.symbols.CTDate
@@ -52,11 +53,12 @@ class ToStringTest extends FunctionTestBase("toString") {
   }
 
   test("should fail type check for incompatible arguments") {
-    testInvalidApplication(CTRelationship)(
+    // Cypher 25's toString() accepts nodes and relationships; only Cypher 5 still rejects them.
+    testInvalidApplicationInSpecificVersion(CypherVersion.Cypher5, CTRelationship)(
       "Type mismatch: expected Boolean, Float, Integer, Point, String, Duration, Date, Time, LocalTime, LocalDateTime or DateTime but was Relationship"
     )
 
-    testInvalidApplication(CTNode)(
+    testInvalidApplicationInSpecificVersion(CypherVersion.Cypher5, CTNode)(
       "Type mismatch: expected Boolean, Float, Integer, Point, String, Duration, Date, Time, LocalTime, LocalDateTime or DateTime but was Node"
     )
   }

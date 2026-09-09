@@ -16,6 +16,7 @@
  */
 package org.neo4j.cypher.internal.ast.semantics
 
+import org.neo4j.cypher.internal.CypherVersion
 import org.neo4j.cypher.internal.ast.prettifier.ExpressionStringifier
 import org.neo4j.cypher.internal.ast.semantics.SemanticCheck.fromContext
 import org.neo4j.cypher.internal.ast.semantics.SemanticCheck.when
@@ -323,12 +324,24 @@ object SemanticFunctionCheck extends SemanticAnalysisTooling {
 
         case ToBoolean =>
           checkArgs(invocation, 1, ToBoolean.signatures) ifOkChain
-            checkToSpecifiedTypeOfArgument(invocation, Seq(CTString, CTBoolean, CTInteger)) ifOkChain
+            checkToSpecifiedTypeOfArgument(
+              invocation,
+              semanticCheckContext.cypherVersion,
+              Seq(CTString, CTBoolean, CTInteger)
+            ) ifOkChain
             specifyType(CTBoolean, invocation)
 
         case ToString =>
-          checkArgs(invocation, 1, ToString.signatures) ifOkChain
-            checkToSpecifiedTypeOfArgument(invocation, ToString.validInputTypes) ifOkChain
+          val allowedTypes = semanticCheckContext.cypherVersion match {
+            case CypherVersion.Cypher5 => ToString.validInputTypesCypher5
+            case _ /* ≥ Cypher 25 */   => ToString.validInputTypes
+          }
+          checkArgs(
+            invocation,
+            1,
+            ToString.signaturesByScope(semanticCheckContext.cypherVersion).toVector
+          ) ifOkChain
+            checkToSpecifiedTypeOfArgument(invocation, semanticCheckContext.cypherVersion, allowedTypes) ifOkChain
             specifyType(CTString, invocation)
 
         case Distance =>
@@ -472,6 +485,7 @@ object SemanticFunctionCheck extends SemanticAnalysisTooling {
 
   private def checkToSpecifiedTypeOfArgument(
     invocation: FunctionInvocation,
+    cypherVersion: CypherVersion,
     allowedTypes: Seq[CypherType]
   ): SemanticCheck =
     (s: SemanticState) => {
@@ -484,7 +498,7 @@ object SemanticFunctionCheck extends SemanticAnalysisTooling {
       if (correctType) SemanticCheckResult.success(s)
       else {
         val error = invocation.function match {
-          case ToString =>
+          case ToString if cypherVersion == CypherVersion.Cypher5 =>
             SemanticCheckResult.error(
               s,
               SemanticError.invalidEntityType(
@@ -504,6 +518,36 @@ object SemanticFunctionCheck extends SemanticAnalysisTooling {
                   "ZONED DATETIME"
                 ),
                 s"Type mismatch: expected Boolean, Float, Integer, Point, String, Duration, Date, Time, LocalTime, LocalDateTime or DateTime but was ${specifiedType.mkString(", ")}",
+                argument.position
+              )
+            )
+          case ToString =>
+            SemanticCheckResult.error(
+              s,
+              SemanticError.invalidEntityType(
+                TypeSpec.cypherTypeForTypeSpec(specifiedType).normalizedCypherTypeString(),
+                "argument to function toString()",
+                List(
+                  "BOOLEAN",
+                  "FLOAT",
+                  "INTEGER",
+                  "POINT",
+                  "STRING",
+                  "UUID",
+                  "DURATION",
+                  "DATE",
+                  "ZONED TIME",
+                  "LOCAL TIME",
+                  "LOCAL DATETIME",
+                  "ZONED DATETIME",
+                  "VECTOR",
+                  "LIST<ANY>",
+                  "MAP",
+                  "NODE",
+                  "RELATIONSHIP",
+                  "PATH"
+                ),
+                s"Type mismatch: expected Boolean, Float, Integer, Point, String, UUID, Duration, Date, Time, LocalTime, LocalDateTime, DateTime, Vector, List<Any>, Map, Node, Relationship or Path but was ${specifiedType.mkString(", ")}",
                 argument.position
               )
             )
