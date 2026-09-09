@@ -97,6 +97,7 @@ public interface SchemaRule44 {
                     name,
                     constraintRuleType.asConstraintType(),
                     schema,
+                    null,
                     ownedIndex,
                     null,
                     null,

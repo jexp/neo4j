@@ -332,33 +332,34 @@ class SchemaRuleTest {
                 "Index( type='VECTOR', schema=(:`La:bel`|Label1 {`prop:erty`, prop1}), indexProvider='Undecided-0' )",
                 vectorLabelPrototype2);
         assertUserDescription(
-                "Constraint( type='NODE PROPERTY EXISTENCE', schema=(:Label1 {prop2, prop3}) )", existsLabelConstraint);
+                "Constraint( type='NODE PROPERTY EXISTENCE', schema=(:Label1 {prop2, prop3}), graphTypeDependence='INDEPENDENT' )",
+                existsLabelConstraint);
         assertUserDescription(
-                "Constraint( type='RELATIONSHIP PROPERTY EXISTENCE', schema=()-[:Type1 {prop2, prop3}]-() )",
+                "Constraint( type='RELATIONSHIP PROPERTY EXISTENCE', schema=()-[:Type1 {prop2, prop3}]-(), graphTypeDependence='INDEPENDENT' )",
                 existsRelTypeConstraint);
         assertUserDescription(
                 "Index( type='FULLTEXT', schema=(:`La:bel`|Label1 {`prop:erty`, prop1}), indexProvider='Undecided-0' )",
                 nodeFtsPrototype2);
         assertUserDescription(
-                "Constraint( type='NODE PROPERTY UNIQUENESS', schema=(:`La:bel` {`prop:erty`, prop1}) )",
+                "Constraint( type='NODE PROPERTY UNIQUENESS', schema=(:`La:bel` {`prop:erty`, prop1}), graphTypeDependence='UNDESIGNATED' )",
                 uniqueLabelConstraint2);
         assertUserDescription(
-                "Constraint( type='RELATIONSHIP PROPERTY UNIQUENESS', schema=()-[:Type1 {prop2, prop3}]-() )",
+                "Constraint( type='RELATIONSHIP PROPERTY UNIQUENESS', schema=()-[:Type1 {prop2, prop3}]-(), graphTypeDependence='UNDESIGNATED' )",
                 uniqueRelTypeConstraint);
         assertUserDescription(
-                "Constraint( type='NODE PROPERTY TYPE', schema=(:Label1 {prop2, prop3}), propertyType=BOOLEAN | INTEGER )",
+                "Constraint( type='NODE PROPERTY TYPE', schema=(:Label1 {prop2, prop3}), graphTypeDependence='INDEPENDENT', propertyType=BOOLEAN | INTEGER )",
                 nodeTypeConstraintBoolInt);
         assertUserDescription(
-                "Constraint( type='NODE PROPERTY TYPE', schema=(:Label1 {prop2, prop3}), propertyType=BOOLEAN | INTEGER )",
+                "Constraint( type='NODE PROPERTY TYPE', schema=(:Label1 {prop2, prop3}), graphTypeDependence='INDEPENDENT', propertyType=BOOLEAN | INTEGER )",
                 nodeTypeConstraintIntBool);
         assertUserDescription(
-                "Constraint( type='NODE PROPERTY TYPE', schema=(:Label1 {prop2, prop3}), propertyType=BOOLEAN | STRING )",
+                "Constraint( type='NODE PROPERTY TYPE', schema=(:Label1 {prop2, prop3}), graphTypeDependence='INDEPENDENT', propertyType=BOOLEAN | STRING )",
                 nodeTypeConstraintBoolString);
         assertUserDescription(
-                "Constraint( type='RELATIONSHIP PROPERTY TYPE', schema=()-[:Type1 {prop2, prop3}]-(), propertyType=BOOLEAN | STRING )",
+                "Constraint( type='RELATIONSHIP PROPERTY TYPE', schema=()-[:Type1 {prop2, prop3}]-(), graphTypeDependence='INDEPENDENT', propertyType=BOOLEAN | STRING )",
                 relationshipTypeConstraintBoolInt);
         assertUserDescription(
-                "Constraint( type='RELATIONSHIP PROPERTY TYPE', schema=()-[:Type1 {prop2, prop3}]-(), propertyType=BOOLEAN | STRING )",
+                "Constraint( type='RELATIONSHIP PROPERTY TYPE', schema=()-[:Type1 {prop2, prop3}]-(), graphTypeDependence='INDEPENDENT', propertyType=BOOLEAN | STRING )",
                 relationshipTypeConstraintIntBool);
         assertUserDescription(
                 "Index( name='rangeLabelPrototypeNamed', type='RANGE', schema=(:Label1 {prop2, prop3}), indexProvider='Undecided-0' )",
@@ -471,31 +472,31 @@ class SchemaRuleTest {
                         + "schema=()-[:Type1|Type2 {prop1, prop2}]-(), indexProvider='Undecided-0' )",
                 vectorRelTypeIndexNamed);
         assertUserDescription(
-                "Constraint( id=1, name='uniqueLabelConstraintNamed', type='NODE PROPERTY UNIQUENESS', schema=(:Label1 {prop2, prop3}), ownedIndex=1 )",
+                "Constraint( id=1, name='uniqueLabelConstraintNamed', type='NODE PROPERTY UNIQUENESS', schema=(:Label1 {prop2, prop3}), ownedIndex=1, graphTypeDependence='UNDESIGNATED' )",
                 uniqueLabelConstraintNamed);
         assertUserDescription(
-                "Constraint( id=7, name='uniqueRelTypeConstraintNamed', type='RELATIONSHIP PROPERTY UNIQUENESS', schema=()-[:Type1 {prop2, prop3}]-(), ownedIndex=1 )",
+                "Constraint( id=7, name='uniqueRelTypeConstraintNamed', type='RELATIONSHIP PROPERTY UNIQUENESS', schema=()-[:Type1 {prop2, prop3}]-(), ownedIndex=1, graphTypeDependence='UNDESIGNATED' )",
                 uniqueRelTypeConstraintNamed);
         assertUserDescription(
-                "Constraint( id=2, name='existsLabelConstraintNamed', type='NODE PROPERTY EXISTENCE', schema=(:Label1 {prop2, prop3}) )",
+                "Constraint( id=2, name='existsLabelConstraintNamed', type='NODE PROPERTY EXISTENCE', schema=(:Label1 {prop2, prop3}), graphTypeDependence='INDEPENDENT' )",
                 existsLabelConstraintNamed);
         assertUserDescription(
-                "Constraint( id=3, name='nodeKeyConstraintNamed', type='NODE KEY', schema=(:Label1 {prop2, prop3}), ownedIndex=3 )",
+                "Constraint( id=3, name='nodeKeyConstraintNamed', type='NODE KEY', schema=(:Label1 {prop2, prop3}), ownedIndex=3, graphTypeDependence='UNDESIGNATED' )",
                 nodeKeyConstraintNamed);
         assertUserDescription(
-                "Constraint( id=6, name='relKeyConstraintNamed', type='RELATIONSHIP KEY', schema=()-[:Type1 {prop2, prop3}]-(), ownedIndex=4 )",
+                "Constraint( id=6, name='relKeyConstraintNamed', type='RELATIONSHIP KEY', schema=()-[:Type1 {prop2, prop3}]-(), ownedIndex=4, graphTypeDependence='UNDESIGNATED' )",
                 relKeyConstraintNamed);
         assertUserDescription(
-                "Constraint( id=4, name='existsRelTypeConstraintNamed', type='RELATIONSHIP PROPERTY EXISTENCE', schema=()-[:Type1 {prop2, prop3}]-() )",
+                "Constraint( id=4, name='existsRelTypeConstraintNamed', type='RELATIONSHIP PROPERTY EXISTENCE', schema=()-[:Type1 {prop2, prop3}]-(), graphTypeDependence='INDEPENDENT' )",
                 existsRelTypeConstraintNamed);
         assertUserDescription(
-                "Constraint( id=5, name='uniqueLabelConstraint2Named', type='NODE PROPERTY UNIQUENESS', schema=(:`La:bel` {`prop:erty`, prop1}), ownedIndex=5 )",
+                "Constraint( id=5, name='uniqueLabelConstraint2Named', type='NODE PROPERTY UNIQUENESS', schema=(:`La:bel` {`prop:erty`, prop1}), ownedIndex=5, graphTypeDependence='UNDESIGNATED' )",
                 uniqueLabelConstraint2Named);
         assertUserDescription(
-                "Constraint( id=10, name='namedNodeTypeConstraint', type='NODE PROPERTY TYPE', schema=(:Label1 {prop2, prop3}), propertyType=STRING )",
+                "Constraint( id=10, name='namedNodeTypeConstraint', type='NODE PROPERTY TYPE', schema=(:Label1 {prop2, prop3}), graphTypeDependence='INDEPENDENT', propertyType=STRING )",
                 namedNodeTypeConstraint);
         assertUserDescription(
-                "Constraint( id=11, name='namedRelationshipTypeConstraint', type='RELATIONSHIP PROPERTY TYPE', schema=()-[:Type1 {prop2, prop3}]-(), propertyType=STRING )",
+                "Constraint( id=11, name='namedRelationshipTypeConstraint', type='RELATIONSHIP PROPERTY TYPE', schema=()-[:Type1 {prop2, prop3}]-(), graphTypeDependence='INDEPENDENT', propertyType=STRING )",
                 namedRelationshipTypeConstraint);
     }
 

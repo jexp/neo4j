@@ -106,18 +106,18 @@ class ConstraintDescriptorFactoryTest {
                         .withName("Constraint 1")
                         .userDescription(SIMPLE_NAME_LOOKUP))
                 .isEqualTo(
-                        "Constraint( id=1, name='Constraint 1', type='NODE PROPERTY EXISTENCE', schema=(:Label1 {property2}) )");
+                        "Constraint( id=1, name='Constraint 1', type='NODE PROPERTY EXISTENCE', schema=(:Label1 {property2}), graphTypeDependence='INDEPENDENT' )");
         assertThat(ConstraintDescriptorFactory.existsForRelType(false, 1, 3)
                         .withId(2)
                         .withName("Constraint 2")
                         .userDescription(SIMPLE_NAME_LOOKUP))
                 .isEqualTo(
-                        "Constraint( id=2, name='Constraint 2', type='RELATIONSHIP PROPERTY EXISTENCE', schema=()-[:RelType1 {property3}]-() )");
+                        "Constraint( id=2, name='Constraint 2', type='RELATIONSHIP PROPERTY EXISTENCE', schema=()-[:RelType1 {property3}]-(), graphTypeDependence='INDEPENDENT' )");
         assertThat(ConstraintDescriptorFactory.uniqueForLabel(2, 4)
                         .withId(3)
                         .withName("Constraint 3")
                         .userDescription(SIMPLE_NAME_LOOKUP))
                 .isEqualTo(
-                        "Constraint( id=3, name='Constraint 3', type='NODE PROPERTY UNIQUENESS', schema=(:Label2 {property4}) )");
+                        "Constraint( id=3, name='Constraint 3', type='NODE PROPERTY UNIQUENESS', schema=(:Label2 {property4}), graphTypeDependence='UNDESIGNATED' )");
     }
 }

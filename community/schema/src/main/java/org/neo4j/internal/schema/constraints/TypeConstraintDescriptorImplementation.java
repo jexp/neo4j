@@ -230,7 +230,18 @@ public class TypeConstraintDescriptorImplementation extends ConstraintDescriptor
 
     private String userDescription(TokenNameLookup tokenNameLookup, Mask mask) {
         return SchemaUserDescription.forConstraint(
-                tokenNameLookup, id, name, PROPERTY_TYPE, schema(), null, propertyType, null, null, defaultValue, mask);
+                tokenNameLookup,
+                id,
+                name,
+                PROPERTY_TYPE,
+                schema(),
+                graphTypeDependence,
+                null,
+                propertyType,
+                null,
+                null,
+                defaultValue,
+                mask);
     }
 
     @Override

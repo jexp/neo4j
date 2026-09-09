@@ -173,7 +173,7 @@ class ErrorMessagesTest extends ExecutionEngineWithoutRestartFunSuite {
     expectError(
       "CREATE CONSTRAINT my_constraint FOR (person:Person) REQUIRE person.name IS UNIQUE",
       String.format(
-        "Unable to create Constraint( name='my_constraint', type='NODE PROPERTY UNIQUENESS', schema=(:Person {name}) ):%n" +
+        "Unable to create Constraint( name='my_constraint', type='NODE PROPERTY UNIQUENESS', schema=(:Person {name}), graphTypeDependence='UNDESIGNATED' ):%n" +
           "Both Node(" + node1 + ") and Node(" + node2 + ") have the label `Person` and property `name` = 'A'"
       )
     )
@@ -212,7 +212,7 @@ class ErrorMessagesTest extends ExecutionEngineWithoutRestartFunSuite {
   ) {
     expectError(
       "CREATE CONSTRAINT FOR (n:Person) REQUIRE (n.firstname) IS NODE KEY",
-      String.format("Unable to create Constraint( type='NODE KEY', schema=(:Person {firstname}) ):%n" +
+      String.format("Unable to create Constraint( type='NODE KEY', schema=(:Person {firstname}), graphTypeDependence='UNDESIGNATED' ):%n" +
         "Node Key constraint requires Neo4j Enterprise Edition")
     )
   }

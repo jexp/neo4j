@@ -178,6 +178,7 @@ final class NodeLabelExistenceConstraintDescriptorImplementation extends Constra
                 name,
                 ConstraintType.NODE_LABEL_EXISTENCE,
                 schema,
+                graphTypeDependence(),
                 null,
                 null,
                 tokenNameLookup.labelGetName(requiredLabelId),

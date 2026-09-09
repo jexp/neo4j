@@ -186,6 +186,7 @@ final class RelationshipEndpointLabelConstraintDescriptorImplementation extends 
                 name,
                 ConstraintType.RELATIONSHIP_ENDPOINT_LABEL,
                 schema,
+                graphTypeDependence(),
                 null,
                 null,
                 tokenNameLookup.labelGetName(endpointLabelId),

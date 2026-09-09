@@ -96,6 +96,7 @@ public final class SchemaUserDescription {
             String name,
             ConstraintType type,
             SchemaDescriptor schema,
+            GraphTypeDependence graphTypeDependence,
             Long ownedIndex,
             PropertyTypeSet propertyType,
             String enforcedLabel,
@@ -110,6 +111,7 @@ public final class SchemaUserDescription {
         if (ownedIndex != null) {
             joiner.add("ownedIndex=" + ownedIndex);
         }
+        maybeAddGraphTypeDependence(graphTypeDependence, joiner);
         maybeAddAllowedPropertyTypes(propertyType, joiner);
         maybeAddEnforcedLabel(enforcedLabel, joiner);
         maybeAddDefaultValue(defaultValue, joiner);
@@ -166,6 +168,12 @@ public final class SchemaUserDescription {
 
     private static void addSchema(TokenNameLookup tokenNameLookup, SchemaDescriptor schema, StringJoiner joiner) {
         joiner.add("schema=" + schema.userDescription(tokenNameLookup));
+    }
+
+    private static void maybeAddGraphTypeDependence(GraphTypeDependence graphTypeDependence, StringJoiner joiner) {
+        if (graphTypeDependence != null) {
+            joiner.add("graphTypeDependence='" + graphTypeDependence + "'");
+        }
     }
 
     public static final TokenNameLookup TOKEN_ID_NAME_LOOKUP = new TokenNameLookup() {

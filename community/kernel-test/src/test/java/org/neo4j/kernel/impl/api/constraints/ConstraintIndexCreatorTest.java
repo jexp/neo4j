@@ -158,7 +158,7 @@ class ConstraintIndexCreatorTest {
                 UniquePropertyValueValidationException.class,
                 () -> creator.createUniquenessConstraintIndex(transaction, constraint, prototype, x -> {}));
         assertEquals(
-                "Existing data does not satisfy Constraint( name='constraint', type='NODE PROPERTY UNIQUENESS', schema=(:Label {prop}) ): "
+                "Existing data does not satisfy Constraint( name='constraint', type='NODE PROPERTY UNIQUENESS', schema=(:Label {prop}), graphTypeDependence='UNDESIGNATED' ): "
                         + "Both Node(2) and Node(1) have the label `Label[123]` and property `PropertyKey[456]` = 'a'",
                 exception.getMessage());
 

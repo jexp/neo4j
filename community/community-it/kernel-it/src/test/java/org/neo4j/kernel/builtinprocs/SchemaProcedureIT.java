@@ -115,7 +115,7 @@ class SchemaProcedureIT extends KernelIntegrationTest {
                         VirtualValues.list(stringValue("Constraint( id=" + constraintId(constraintName)
                                 + ", name='constraint name', type='NODE PROPERTY UNIQUENESS', schema=(:Person {age}), "
                                 + "ownedIndex="
-                                + indexId(constraintName) + " )")),
+                                + indexId(constraintName) + ", graphTypeDependence='UNDESIGNATED' )")),
                         node.properties().get("constraints"));
             }
         }

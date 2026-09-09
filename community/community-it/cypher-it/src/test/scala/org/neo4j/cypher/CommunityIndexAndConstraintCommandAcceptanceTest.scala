@@ -496,11 +496,11 @@ class CommunityIndexAndConstraintCommandAcceptanceTest extends ExecutionEngineFu
 
     // THEN
     exception should be(gqlException(
-      s"""Unable to create Constraint( type='NODE KEY', schema=(:$label {$prop}) ):
+      s"""Unable to create Constraint( type='NODE KEY', schema=(:$label {$prop}), graphTypeDependence='UNDESIGNATED' ):
          |Node Key constraint requires Neo4j Enterprise Edition. Note that only the first found violation is shown.""".stripMargin,
       gqlStatus(
         GqlStatusInfoCodes.STATUS_50N11,
-        s"error: general processing exception - constraint creation failed. Unable to create 'Constraint( type='NODE KEY', schema=(:$label {$prop}) )'."
+        s"error: general processing exception - constraint creation failed. Unable to create 'Constraint( type='NODE KEY', schema=(:$label {$prop}), graphTypeDependence='UNDESIGNATED' )'."
       ).withCause(
         GqlStatusInfoCodes.STATUS_51N27,
         "error: system configuration or operation exception - not supported in this edition. Key constraint is not supported in community edition."
@@ -517,11 +517,11 @@ class CommunityIndexAndConstraintCommandAcceptanceTest extends ExecutionEngineFu
 
     // THEN
     exception should be(gqlException(
-      s"""Unable to create Constraint( type='RELATIONSHIP KEY', schema=()-[:$relType {$prop}]-() ):
+      s"""Unable to create Constraint( type='RELATIONSHIP KEY', schema=()-[:$relType {$prop}]-(), graphTypeDependence='UNDESIGNATED' ):
          |Relationship Key constraint requires Neo4j Enterprise Edition. Note that only the first found violation is shown.""".stripMargin,
       gqlStatus(
         GqlStatusInfoCodes.STATUS_50N11,
-        s"error: general processing exception - constraint creation failed. Unable to create 'Constraint( type='RELATIONSHIP KEY', schema=()-[:$relType {$prop}]-() )'."
+        s"error: general processing exception - constraint creation failed. Unable to create 'Constraint( type='RELATIONSHIP KEY', schema=()-[:$relType {$prop}]-(), graphTypeDependence='UNDESIGNATED' )'."
       ).withCause(
         GqlStatusInfoCodes.STATUS_51N27,
         "error: system configuration or operation exception - not supported in this edition. Key constraint is not supported in community edition."
@@ -538,11 +538,11 @@ class CommunityIndexAndConstraintCommandAcceptanceTest extends ExecutionEngineFu
 
     // THEN
     exception should be(gqlException(
-      s"""Unable to create Constraint( type='NODE PROPERTY EXISTENCE', schema=(:$label {$prop}) ):
+      s"""Unable to create Constraint( type='NODE PROPERTY EXISTENCE', schema=(:$label {$prop}), graphTypeDependence='INDEPENDENT' ):
          |Property existence constraint requires Neo4j Enterprise Edition. Note that only the first found violation is shown.""".stripMargin,
       gqlStatus(
         GqlStatusInfoCodes.STATUS_50N11,
-        s"error: general processing exception - constraint creation failed. Unable to create 'Constraint( type='NODE PROPERTY EXISTENCE', schema=(:$label {$prop}) )'."
+        s"error: general processing exception - constraint creation failed. Unable to create 'Constraint( type='NODE PROPERTY EXISTENCE', schema=(:$label {$prop}), graphTypeDependence='INDEPENDENT' )'."
       ).withCause(
         GqlStatusInfoCodes.STATUS_51N27,
         "error: system configuration or operation exception - not supported in this edition. Property existence constraint is not supported in community edition."
@@ -559,11 +559,11 @@ class CommunityIndexAndConstraintCommandAcceptanceTest extends ExecutionEngineFu
 
     // THEN
     exception should be(gqlException(
-      s"""Unable to create Constraint( type='RELATIONSHIP PROPERTY EXISTENCE', schema=()-[:$relType {$prop}]-() ):
+      s"""Unable to create Constraint( type='RELATIONSHIP PROPERTY EXISTENCE', schema=()-[:$relType {$prop}]-(), graphTypeDependence='INDEPENDENT' ):
          |Property existence constraint requires Neo4j Enterprise Edition. Note that only the first found violation is shown.""".stripMargin,
       gqlStatus(
         GqlStatusInfoCodes.STATUS_50N11,
-        s"error: general processing exception - constraint creation failed. Unable to create 'Constraint( type='RELATIONSHIP PROPERTY EXISTENCE', schema=()-[:$relType {$prop}]-() )'."
+        s"error: general processing exception - constraint creation failed. Unable to create 'Constraint( type='RELATIONSHIP PROPERTY EXISTENCE', schema=()-[:$relType {$prop}]-(), graphTypeDependence='INDEPENDENT' )'."
       ).withCause(
         GqlStatusInfoCodes.STATUS_51N27,
         "error: system configuration or operation exception - not supported in this edition. Property existence constraint is not supported in community edition."
@@ -580,7 +580,7 @@ class CommunityIndexAndConstraintCommandAcceptanceTest extends ExecutionEngineFu
 
     // THEN
     exception should be(gqlException(
-      s"""Unable to create Constraint( name='$constraintName', type='NODE PROPERTY TYPE', schema=(:$label {$prop}), propertyType=INTEGER ):
+      s"""Unable to create Constraint( name='$constraintName', type='NODE PROPERTY TYPE', schema=(:$label {$prop}), graphTypeDependence='INDEPENDENT', propertyType=INTEGER ):
          |Property type constraint requires Neo4j Enterprise Edition. Note that only the first found violation is shown.""".stripMargin,
       gqlStatus(
         GqlStatusInfoCodes.STATUS_50N11,
@@ -601,7 +601,7 @@ class CommunityIndexAndConstraintCommandAcceptanceTest extends ExecutionEngineFu
 
     // THEN
     exception should be(gqlException(
-      s"""Unable to create Constraint( name='$constraintName', type='RELATIONSHIP PROPERTY TYPE', schema=()-[:$relType {$prop}]-(), propertyType=INTEGER ):
+      s"""Unable to create Constraint( name='$constraintName', type='RELATIONSHIP PROPERTY TYPE', schema=()-[:$relType {$prop}]-(), graphTypeDependence='INDEPENDENT', propertyType=INTEGER ):
          |Property type constraint requires Neo4j Enterprise Edition. Note that only the first found violation is shown.""".stripMargin,
       gqlStatus(
         GqlStatusInfoCodes.STATUS_50N11,
@@ -670,22 +670,22 @@ class CommunityIndexAndConstraintCommandAcceptanceTest extends ExecutionEngineFu
     val failingCreateCommands: Seq[(String, String, String)] = Seq(
       (
         s"CREATE CONSTRAINT $constraintName FOR (n:$label) REQUIRE n.$prop IS NODE KEY",
-        s"Constraint( type='NODE KEY', schema=(:$label {$prop}) )",
+        s"Constraint( type='NODE KEY', schema=(:$label {$prop}), graphTypeDependence='UNDESIGNATED' )",
         "Key"
       ),
       (
         s"CREATE CONSTRAINT $constraintName FOR ()-[r:$relType]-() REQUIRE r.$prop IS REL KEY",
-        s"Constraint( type='RELATIONSHIP KEY', schema=()-[:$relType {$prop}]-() )",
+        s"Constraint( type='RELATIONSHIP KEY', schema=()-[:$relType {$prop}]-(), graphTypeDependence='UNDESIGNATED' )",
         "Key"
       ),
       (
         s"CREATE CONSTRAINT $constraintName FOR (n:$label) REQUIRE n.$prop IS NOT NULL",
-        s"Constraint( type='NODE PROPERTY EXISTENCE', schema=(:$label {$prop}) )",
+        s"Constraint( type='NODE PROPERTY EXISTENCE', schema=(:$label {$prop}), graphTypeDependence='INDEPENDENT' )",
         "Property existence"
       ),
       (
         s"CREATE CONSTRAINT $constraintName FOR ()-[r:$relType]-() REQUIRE r.$prop IS NOT NULL",
-        s"Constraint( type='RELATIONSHIP PROPERTY EXISTENCE', schema=()-[:$relType {$prop}]-() )",
+        s"Constraint( type='RELATIONSHIP PROPERTY EXISTENCE', schema=()-[:$relType {$prop}]-(), graphTypeDependence='INDEPENDENT' )",
         "Property existence"
       ),
       (s"CREATE CONSTRAINT $constraintName FOR (n:$label) REQUIRE n.$prop IS :: INT", constraintName, "Property type"),
