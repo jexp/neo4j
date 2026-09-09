@@ -206,7 +206,7 @@ class SchemaCommandsBuilder {
         }
 
         backedConstraints.forEach((backed1, backingType1) -> backedConstraints.forEach((backed2, backingType2) -> {
-            if (backed1 != backed2 && backed1.constraintType() == backed2.constraintType()) {
+            if (backed1 != backed2 && backingType1 == backingType2) {
                 throw new SchemaCommandReaderException("Duplicate backing indexes found for constraints '%s' and '%s'"
                         .formatted(backed1.name(), backed2.name()));
             }
