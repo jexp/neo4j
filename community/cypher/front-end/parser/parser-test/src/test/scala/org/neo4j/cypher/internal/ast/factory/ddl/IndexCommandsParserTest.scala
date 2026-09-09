@@ -1447,7 +1447,10 @@ class IndexCommandsParserTest extends AdministrationAndSchemaCommandParserTestBa
       test(
         s"CREATE FULLTEXT INDEX FOR $pattern ON EACH [n2.name] OPTIONS {indexConfig : {fulltext.analyzer: 'some_analyzer'}}"
       ) {
-        failsParsing[ast.Statements].withSyntaxErrorContaining("Invalid input '.': expected ':'")
+        failsParsing[ast.Statements].in {
+          case Cypher5 => _.withSyntaxErrorContaining("Invalid input '.': expected ':'")
+          case _       => _.withSyntaxErrorContaining("Invalid input '.': expected an expression")
+        }
       }
   }
 

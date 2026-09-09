@@ -28,11 +28,15 @@ import org.neo4j.cypher.internal.expressions.AllReducePredicate.AllReduceScope
 import org.neo4j.cypher.internal.expressions.AllReducePredicate.ReductionStepVariableScope
 import org.neo4j.cypher.internal.expressions.CountStar
 import org.neo4j.cypher.internal.expressions.Expression
+import org.neo4j.cypher.internal.expressions.ExtractMapEntriesScope
+import org.neo4j.cypher.internal.expressions.ExtractMapScope
 import org.neo4j.cypher.internal.expressions.ExtractScope
 import org.neo4j.cypher.internal.expressions.FilterScope
 import org.neo4j.cypher.internal.expressions.FunctionInvocationLike
 import org.neo4j.cypher.internal.expressions.IterablePredicateExpression
 import org.neo4j.cypher.internal.expressions.ListComprehension
+import org.neo4j.cypher.internal.expressions.MapComprehension
+import org.neo4j.cypher.internal.expressions.MapEntriesComprehension
 import org.neo4j.cypher.internal.expressions.PatternComprehension
 import org.neo4j.cypher.internal.expressions.PatternExpression
 import org.neo4j.cypher.internal.expressions.ReduceExpression
@@ -164,6 +168,48 @@ object pegExpression {
           )
         val expressionResult = apply(expression, incoming)
         collect(incoming.expressionResultScope(lc, Seq(expressionResult, extractScope)))
+
+      case mc @ MapComprehension(
+          es @ ExtractMapScope(variable, innerPredicate, extractKeyExpression, extractValueExpression),
+          expression
+        ) =>
+        val innerIncoming = incoming.amendedWithShadowingConstant(Set(variable))
+        val innerResult =
+          (innerPredicate.toSeq :+ extractKeyExpression :+ extractValueExpression).map(apply(_, innerIncoming))
+        val extractReferenced = WorkingScope.referencedInChildren(innerResult) diff variable
+        val extractScope =
+          innerIncoming.expressionResultScope(
+            es,
+            innerResult,
+            Some(extractReferenced),
+            Declarations(Seq(variable), Seq.empty)
+          )
+        val expressionResult = apply(expression, incoming)
+        collect(incoming.expressionResultScope(mc, Seq(expressionResult, extractScope)))
+
+      case mec @ MapEntriesComprehension(
+          es @ ExtractMapEntriesScope(
+            keyVariable,
+            valueVariable,
+            innerPredicate,
+            extractKeyExpression,
+            extractValueExpression
+          ),
+          expression
+        ) =>
+        val innerIncoming = incoming.amendedWithShadowingConstant(Set(keyVariable, valueVariable))
+        val innerResult =
+          (innerPredicate.toSeq :+ extractKeyExpression :+ extractValueExpression).map(apply(_, innerIncoming))
+        val extractReferenced = WorkingScope.referencedInChildren(innerResult) diff Set(keyVariable, valueVariable)
+        val extractScope =
+          innerIncoming.expressionResultScope(
+            es,
+            innerResult,
+            Some(extractReferenced),
+            Declarations(Seq(keyVariable, valueVariable), Seq.empty)
+          )
+        val expressionResult = apply(expression, incoming)
+        collect(incoming.expressionResultScope(mec, Seq(expressionResult, extractScope)))
 
       case pe @ PatternExpression(pattern) =>
         val patternResult =

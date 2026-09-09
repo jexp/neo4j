@@ -50,6 +50,8 @@ import org.neo4j.cypher.internal.ast.semantics.scoping.TableResult
 import org.neo4j.cypher.internal.ast.semantics.scoping.WorkingScope
 import org.neo4j.cypher.internal.expressions.AllReducePredicate.AllReduceScope
 import org.neo4j.cypher.internal.expressions.AllReducePredicate.ReductionStepVariableScope
+import org.neo4j.cypher.internal.expressions.ExtractMapEntriesScope
+import org.neo4j.cypher.internal.expressions.ExtractMapScope
 import org.neo4j.cypher.internal.expressions.ExtractScope
 import org.neo4j.cypher.internal.expressions.FilterScope
 import org.neo4j.cypher.internal.expressions.LogicalVariable
@@ -385,7 +387,8 @@ case class VariableChecker(
     if (isDebugEnabled) debug.foreach(_.logVisit(ws, acc))
     ws match {
       case s @ ExpressionScope(
-          _: ExtractScope | _: FilterScope | _: ReduceScope | _: AllReduceScope | _: ReductionStepVariableScope,
+          _: ExtractScope | _: ExtractMapScope | _: ExtractMapEntriesScope | _: FilterScope | _: ReduceScope |
+          _: AllReduceScope | _: ReductionStepVariableScope,
           _,
           _,
           d,

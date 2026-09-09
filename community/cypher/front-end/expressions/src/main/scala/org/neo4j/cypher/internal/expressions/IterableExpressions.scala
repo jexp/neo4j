@@ -61,6 +61,73 @@ object ListComprehension {
     ListComprehension(ExtractScope(variable, innerPredicate, extractExpression)(position), expression)(position)
 }
 
+case class MapComprehension(scope: ExtractMapScope, expression: Expression)(val position: InputPosition)
+    extends FilteringExpression {
+
+  val name = "{...}"
+
+  def variable: LogicalVariable = scope.variable
+  def innerPredicate: Option[Expression] = scope.innerPredicate
+  def extractKeyExpression: Expression = scope.extractKeyExpression
+  def extractValueExpression: Expression = scope.extractValueExpression
+
+  override def isConstantForQuery: Boolean =
+    expression.isConstantForQuery &&
+      innerPredicate.forall(_.isConstantForQuery) &&
+      scope.extractKeyExpression.isConstantForQuery &&
+      scope.extractValueExpression.isConstantForQuery
+}
+
+object MapComprehension {
+
+  def apply(
+    variable: LogicalVariable,
+    expression: Expression,
+    innerPredicate: Option[Expression],
+    keyExpression: Expression,
+    valueExpression: Expression
+  )(position: InputPosition): MapComprehension =
+    MapComprehension(
+      ExtractMapScope(variable, innerPredicate, keyExpression, valueExpression)(position),
+      expression
+    )(position)
+}
+
+case class MapEntriesComprehension(scope: ExtractMapEntriesScope, expression: Expression)(
+  val position: InputPosition
+) extends IterableExpression {
+
+  def keyVariable: LogicalVariable = scope.keyVariable
+  def valueVariable: LogicalVariable = scope.valueVariable
+  def innerPredicate: Option[Expression] = scope.innerPredicate
+  def extractKeyExpression: Expression = scope.extractKeyExpression
+  def extractValueExpression: Expression = scope.extractValueExpression
+
+  override def arguments: Seq[Expression] = Seq(expression)
+
+  override def isConstantForQuery: Boolean =
+    expression.isConstantForQuery &&
+      innerPredicate.forall(_.isConstantForQuery) &&
+      scope.extractKeyExpression.isConstantForQuery &&
+      scope.extractValueExpression.isConstantForQuery
+}
+
+object MapEntriesComprehension {
+
+  def apply(
+    keyVariable: LogicalVariable,
+    valueVariable: LogicalVariable,
+    expression: Expression,
+    innerPredicate: Option[Expression],
+    keyExpression: Expression,
+    valueExpression: Expression
+  )(position: InputPosition): MapEntriesComprehension =
+    MapEntriesComprehension(
+      ExtractMapEntriesScope(keyVariable, valueVariable, innerPredicate, keyExpression, valueExpression)(position),
+      expression
+    )(position)
+}
+
 case class PatternComprehension(
   namedPath: Option[LogicalVariable],
   pattern: RelationshipsPattern,

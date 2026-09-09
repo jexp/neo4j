@@ -59,6 +59,8 @@ import org.neo4j.cypher.internal.expressions.ElementIdToLongId
 import org.neo4j.cypher.internal.expressions.EndsWith
 import org.neo4j.cypher.internal.expressions.Equals
 import org.neo4j.cypher.internal.expressions.Expression
+import org.neo4j.cypher.internal.expressions.ExtractMapEntriesScope
+import org.neo4j.cypher.internal.expressions.ExtractMapScope
 import org.neo4j.cypher.internal.expressions.ExtractScope
 import org.neo4j.cypher.internal.expressions.FilterScope
 import org.neo4j.cypher.internal.expressions.FunctionInvocation
@@ -93,6 +95,8 @@ import org.neo4j.cypher.internal.expressions.ListLiteral
 import org.neo4j.cypher.internal.expressions.ListSlice
 import org.neo4j.cypher.internal.expressions.Literal
 import org.neo4j.cypher.internal.expressions.LiteralEntry
+import org.neo4j.cypher.internal.expressions.MapComprehension
+import org.neo4j.cypher.internal.expressions.MapEntriesComprehension
 import org.neo4j.cypher.internal.expressions.MapExpression
 import org.neo4j.cypher.internal.expressions.MapProjection
 import org.neo4j.cypher.internal.expressions.Modulo
@@ -246,6 +250,33 @@ private class DefaultExpressionStringifier(
     symbolicDelimiter: String = ""
   )(innerExp: Expression): String =
     inner(outer, isCaseExpression, isSyntactic = true, symbolicDelimiter)(innerExp)._1
+
+  private def comprehensionPredicateSuffix(outer: Expression, innerPredicate: Option[Expression]): String =
+    innerPredicate.map(pr =>
+      // if there is an extract/key/value expression, then innerPredicate is delimited by a vertical bar (|)
+      " WHERE " + delimitedInner(outer, symbolicDelimiter = "|")(pr)
+    ).getOrElse("")
+
+  private def comprehensionKeyExpression(outer: Expression, keyExpression: Expression): String =
+    keyExpression match {
+      case _: Literal   => delimitedInner(outer)(keyExpression)
+      case _: Parameter => delimitedInner(outer)(keyExpression)
+      case _: Variable  => delimitedInner(outer)(keyExpression)
+      case _            => s"(${apply(keyExpression)})"
+    }
+
+  private def comprehensionSourceExpression(
+    outer: Expression,
+    sourceExpression: Expression,
+    innerPredicate: Option[Expression]
+  ): String =
+    innerPredicate match {
+      // if there is no innerPredicate, then the source expression is delimited by a vertical bar (|)
+      // otherwise, it is not delimited by a vertical bar (|)
+      // since the parser prioritizes parsing an extract/key/value expression
+      case None => delimitedInner(outer, symbolicDelimiter = "|")(sourceExpression)
+      case _    => delimitedInner(outer)(sourceExpression)
+    }
 
   @inline
   private def nonLastInner(
@@ -585,6 +616,23 @@ private class DefaultExpressionStringifier(
         }
         noEagerConsumption(s"[$v IN $expr$p$e]")
 
+      case MapComprehension(scope, expression) =>
+        val v = apply(scope.variable)
+        val p = comprehensionPredicateSuffix(ast, scope.innerPredicate)
+        val k = comprehensionKeyExpression(ast, scope.extractKeyExpression)
+        val value = delimitedInner(ast)(scope.extractValueExpression)
+        val expr = comprehensionSourceExpression(ast, expression, scope.innerPredicate)
+        noEagerConsumption(s"{$v IN $expr$p | $k: $value}")
+
+      case MapEntriesComprehension(scope, expression) =>
+        val k = apply(scope.keyVariable)
+        val v = apply(scope.valueVariable)
+        val p = comprehensionPredicateSuffix(ast, scope.innerPredicate)
+        val key = comprehensionKeyExpression(ast, scope.extractKeyExpression)
+        val value = delimitedInner(ast)(scope.extractValueExpression)
+        val expr = comprehensionSourceExpression(ast, expression, scope.innerPredicate)
+        noEagerConsumption(s"{$k: $v IN $expr$p | $key: $value}")
+
       case PatternComprehension(variable, RelationshipsPattern(relChain), predicate, proj) =>
         val v = variable.map(apply).map(_ + " = ").getOrElse("")
         val p = patterns.apply(relChain)
@@ -776,7 +824,8 @@ private class DefaultExpressionStringifier(
         val e = delimitedInner(ast)(expression)
         noEagerConsumption(s"reduce($a = $i, $v IN $l | $e)")
 
-      case _: ExtractScope | _: FilterScope | _: ReduceScope | _: AllReduceScope | _: ReductionStepVariableScope =>
+      case _: ExtractScope | _: ExtractMapScope | _: ExtractMapEntriesScope | _: FilterScope | _: ReduceScope |
+        _: AllReduceScope | _: ReductionStepVariableScope =>
         // These are not really expressions, they are part of expressions
         noEagerConsumption("")
 

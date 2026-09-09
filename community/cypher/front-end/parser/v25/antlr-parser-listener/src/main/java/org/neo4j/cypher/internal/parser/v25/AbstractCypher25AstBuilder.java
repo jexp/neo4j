@@ -232,6 +232,8 @@ public abstract class AbstractCypher25AstBuilder implements Cypher25ParserListen
             case Cypher25Parser.RULE_extendedWhen -> exitExtendedWhen((Cypher25Parser.ExtendedWhenContext) ctx);
             case Cypher25Parser.RULE_listComprehension ->
                 exitListComprehension((Cypher25Parser.ListComprehensionContext) ctx);
+            case Cypher25Parser.RULE_mapComprehension ->
+                exitMapComprehension((Cypher25Parser.MapComprehensionContext) ctx);
             case Cypher25Parser.RULE_patternComprehension ->
                 exitPatternComprehension((Cypher25Parser.PatternComprehensionContext) ctx);
             case Cypher25Parser.RULE_reduceExpression ->

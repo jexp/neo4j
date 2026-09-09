@@ -5291,6 +5291,12 @@ class PrettifierIT extends AbstractPrettifierTest {
     FailsInCypher5(
       """RETURN s"it's fine {n.name}" AS x""",
       """RETURN s"it's fine {n.name}" AS x"""
+    ),
+    // map comprehension
+    FailsInCypher5("""RETURN { k:v IN map | k : v} AS x""", """RETURN {k: v IN map | k: v} AS x"""),
+    FailsInCypher5(
+      """RETURN { k IN keys(map) | k + "new" : v} AS x""",
+      """RETURN {k IN keys(map) | (k + "new"): v} AS x"""
     )
   )
 

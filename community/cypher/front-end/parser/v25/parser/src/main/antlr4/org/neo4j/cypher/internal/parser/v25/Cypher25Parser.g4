@@ -644,6 +644,7 @@ expression1
    | collectExpression
    | mapProjection
    | listComprehension
+   | mapComprehension
    | listLiteral
    | patternComprehension
    | reduceExpression
@@ -708,10 +709,15 @@ extendedWhen
 
 // Observe that this is not possible to write as:
 // (WHERE whereExp = expression)? (BAR barExp = expression)? RBRACKET
-// Due to an ambigouity with cases such as [node IN nodes WHERE node:A|B]
+// Due to an ambiguity with cases such as [node IN nodes WHERE node:A|B]
 // where |B will be interpreted as part of the whereExp, rather than as the expected barExp.
 listComprehension
    : LBRACKET variable IN expression ((WHERE whereExp = expression)? BAR barExp = expression | (WHERE whereExp = expression)?) RBRACKET
+   ;
+   
+mapComprehension
+   : LCURLY variable IN expression (WHERE whereExp = expression)? BAR keyExp = expression6 COLON valueExp = expression RCURLY                                    # MapComprehensionForList
+   | LCURLY keyVar = variable COLON valueVar = variable IN expression (WHERE whereExp = expression)? BAR keyExp = expression6 COLON valueExp = expression RCURLY # MapComprehensionForMap
    ;
 
 patternComprehension

@@ -379,7 +379,9 @@ case class CommunityExpressionConverter(
       case e: internal.expressions.ContainerIndex => commands.expressions
           .ContainerIndex(self.toCommandExpression(id, e.expr), self.toCommandExpression(id, e.idx))
 
-      case e: internal.expressions.ListComprehension => listComprehension(id, e, self)
+      case e: internal.expressions.ListComprehension       => listComprehension(id, e, self)
+      case e: internal.expressions.MapComprehension        => mapComprehension(id, e, self)
+      case e: internal.expressions.MapEntriesComprehension => mapEntriesComprehension(id, e, self)
       case e: internal.expressions.AllIterablePredicate =>
         val ev = ExpressionVariable.cast(e.variable)
         commands.AllInList(
@@ -1324,6 +1326,55 @@ case class CommunityExpressionConverter(
       case None =>
         filter
     }
+  }
+
+  private def mapComprehension(
+    id: Id,
+    e: internal.expressions.MapComprehension,
+    self: ExpressionConverters
+  ): commands.expressions.Expression = {
+    val ev = ExpressionVariable.cast(e.variable)
+    val filter = e.innerPredicate match {
+      case Some(_: internal.expressions.True) | None =>
+        self.toCommandExpression(id, e.expression)
+      case Some(inner) =>
+        commands.expressions.FilterFunction(
+          self.toCommandExpression(id, e.expression),
+          ev.name,
+          ev.offset,
+          self.toCommandPredicate(id, inner)
+        )
+    }
+    commands.expressions.MapComprehensionFunction(
+      filter,
+      ev.name,
+      ev.offset,
+      self.toCommandExpression(id, e.extractKeyExpression),
+      self.toCommandExpression(id, e.extractValueExpression)
+    )
+  }
+
+  private def mapEntriesComprehension(
+    id: Id,
+    e: internal.expressions.MapEntriesComprehension,
+    self: ExpressionConverters
+  ): commands.expressions.Expression = {
+    val keyEv = ExpressionVariable.cast(e.keyVariable)
+    val valueEv = ExpressionVariable.cast(e.valueVariable)
+    val predicate = e.innerPredicate match {
+      case Some(_: internal.expressions.True) | None => None
+      case Some(inner)                               => Some(self.toCommandPredicate(id, inner))
+    }
+    commands.expressions.MapEntriesComprehensionFunction(
+      self.toCommandExpression(id, e.expression),
+      keyEv.name,
+      keyEv.offset,
+      valueEv.name,
+      valueEv.offset,
+      predicate,
+      self.toCommandExpression(id, e.extractKeyExpression),
+      self.toCommandExpression(id, e.extractValueExpression)
+    )
   }
 
   private def getPropertyKey(propertyKey: PropertyKeyName) = tokenContext.getOptPropertyKeyId(propertyKey.name) match {

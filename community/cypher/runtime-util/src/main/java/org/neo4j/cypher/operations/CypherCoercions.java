@@ -349,6 +349,19 @@ public final class CypherCoercions {
         return value == NO_VALUE ? NO_VALUE : asMapValue(value, access, nodeCursor, relationshipCursor, propertyCursor);
     }
 
+    /**
+     * Unlike {@link CypherCoercions#asMapValue}, this does not coerce nodes/relationships to maps -
+     * the value must already be a map.
+     */
+    public static MapValue asMapValueStrict(AnyValue value) {
+        assert value != NO_VALUE : "NO_VALUE checks need to happen outside this call";
+        if (value instanceof MapValue map) {
+            return map;
+        }
+        throw CypherTypeException.expectedMap(
+                value.toString(), value.prettyPrint(), CypherTypeValueMapper.valueType(value));
+    }
+
     public static SequenceValue asSequenceValue(AnyValue value) {
         assert value != NO_VALUE : "NO_VALUE checks need to happen outside this call";
         if (value instanceof SequenceValue sequence) {

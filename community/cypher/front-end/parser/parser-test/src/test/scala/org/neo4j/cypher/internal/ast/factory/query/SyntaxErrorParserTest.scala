@@ -357,7 +357,22 @@ class SyntaxErrorParserTest extends AstParsingTestBase {
   test("return [1,") { invalid("", "an expression", 10) }
   test("return [1") { invalid("", "an expression, ',' or ']'", 9) }
   test("return [") { invalid("", "an expression", 8) }
-  test("return {1a:''}") { invalid("1a", "an identifier or '}'", 8) }
+
+  test("return {1a:''}") {
+    invalid({
+      case Cypher5 => (
+          "1a",
+          "an identifier or '}'",
+          8
+        )
+      // ≥ Cypher25
+      case _ => (
+          "1a",
+          "an expression",
+          8
+        )
+    })
+  }
 
   test("return true AN false") {
     invalid({
@@ -374,7 +389,22 @@ class SyntaxErrorParserTest extends AstParsingTestBase {
         )
     })
   }
-  test("return {") { invalid("", "an identifier or '}'", 8) }
+
+  test("return {") {
+    invalid({
+      case Cypher5 => (
+          "",
+          "an identifier or '}'",
+          8
+        )
+      // ≥ Cypher25
+      case _ => (
+          "",
+          "an expression",
+          8
+        )
+    })
+  }
 
   test("eturn 1") {
     invalid({

@@ -374,6 +374,42 @@ class IsolateAggregationTest extends CypherFunSuite with RewriteTest with AstCon
     )
   }
 
+  test("Nodes that are needed in the projection are also added to the WITH in a map comprehension") {
+    assertRewrite(
+      CypherVersion.Cypher25,
+      "MATCH (v:player)--(n:team) RETURN { x IN collect(v.age) WHERE x>40 | toString(x): n.age} AS res",
+      "MATCH (v:player)--(n:team) WITH collect(v.age) AS `  UNNAMED0`, n as `  UNNAMED1` " +
+        "RETURN { x IN `  UNNAMED0` WHERE x>40 | toString(x): `  UNNAMED1`.age} AS res",
+      additionalExpectedAstUpdates = expectedStatement => {
+        expectedStatement.endoRewrite(bottomUp(Rewriter.lift {
+          // The original/rewritten statement will have AddedInRewriteGeneral,
+          // the explicit WITH in the expected will have DefaultWith
+          // so let's update that before checking the equality
+          case w: With if w.withType == DefaultWith =>
+            w.copy(withType = AddedInRewriteGeneral())(w.position)
+        }))
+      }
+    )
+  }
+
+  test("Nodes that are needed in the projection are also added to the WITH in a map entries comprehension") {
+    assertRewrite(
+      CypherVersion.Cypher25,
+      "MATCH (v:player)--(n:team) RETURN { k: x IN collect(v.stats) WHERE x>40 | k: n.age} AS res",
+      "MATCH (v:player)--(n:team) WITH collect(v.stats) AS `  UNNAMED0`, n as `  UNNAMED1` " +
+        "RETURN { k: x IN `  UNNAMED0` WHERE x>40 | k: `  UNNAMED1`.age} AS res",
+      additionalExpectedAstUpdates = expectedStatement => {
+        expectedStatement.endoRewrite(bottomUp(Rewriter.lift {
+          // The original/rewritten statement will have AddedInRewriteGeneral,
+          // the explicit WITH in the expected will have DefaultWith
+          // so let's update that before checking the equality
+          case w: With if w.withType == DefaultWith =>
+            w.copy(withType = AddedInRewriteGeneral())(w.position)
+        }))
+      }
+    )
+  }
+
   test("Nodes that are needed in the projection are also added to the WITH in a reduce expression") {
     assertRewrite(
       "MATCH (k:player) RETURN reduce(totalAge = 0, n IN collect(k.age) | totalAge + k.age) AS reduction",

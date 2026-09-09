@@ -33,6 +33,8 @@ import org.neo4j.cypher.internal.expressions.IsAggregate
 import org.neo4j.cypher.internal.expressions.IterablePredicateExpression
 import org.neo4j.cypher.internal.expressions.ListComprehension
 import org.neo4j.cypher.internal.expressions.LogicalVariable
+import org.neo4j.cypher.internal.expressions.MapComprehension
+import org.neo4j.cypher.internal.expressions.MapEntriesComprehension
 import org.neo4j.cypher.internal.expressions.ReduceExpression
 import org.neo4j.cypher.internal.expressions.Variable
 import org.neo4j.cypher.internal.frontend.phases.factories.PlanPipelineTransformerConfig
@@ -171,6 +173,18 @@ case object isolateAggregation extends StatementRewriter with StepSequencer.Step
 
           case e @ DesugaredMapProjection(entity, items, _) if HasAggregateButIsNotAggregate(e)(cancellationChecker) =>
             items.map(_.exp) :+ entity
+
+          case e @ MapComprehension(scope, expr) if HasAggregateButIsNotAggregate(e)(cancellationChecker) =>
+            val boundVariables = Set(e.variable)
+            Seq(expr) ++
+              scope.extractKeyExpression.dependencies.diff(boundVariables) ++
+              scope.extractValueExpression.dependencies.diff(boundVariables)
+
+          case e @ MapEntriesComprehension(scope, expr) if HasAggregateButIsNotAggregate(e)(cancellationChecker) =>
+            val boundVariables = Set(e.keyVariable, e.valueVariable)
+            Seq(expr) ++
+              scope.extractKeyExpression.dependencies.diff(boundVariables) ++
+              scope.extractValueExpression.dependencies.diff(boundVariables)
 
           case e: IterablePredicateExpression if HasAggregateButIsNotAggregate(e)(cancellationChecker) =>
             val predicate: Expression =

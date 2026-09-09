@@ -60,6 +60,37 @@ case class ExtractScope(
       introducedVariables
 }
 
+case class ExtractMapScope(
+  variable: LogicalVariable,
+  innerPredicate: Option[Expression],
+  extractKeyExpression: Expression,
+  extractValueExpression: Expression
+)(val position: InputPosition) extends ScopeExpression {
+  val introducedVariables: Set[LogicalVariable] = Set(variable)
+
+  override def scopeDependencies: Set[LogicalVariable] =
+    innerPredicate.fold(Set.empty[LogicalVariable])(_.dependencies) ++
+      extractKeyExpression.dependencies ++
+      extractValueExpression.dependencies --
+      introducedVariables
+}
+
+case class ExtractMapEntriesScope(
+  keyVariable: LogicalVariable,
+  valueVariable: LogicalVariable,
+  innerPredicate: Option[Expression],
+  extractKeyExpression: Expression,
+  extractValueExpression: Expression
+)(val position: InputPosition) extends ScopeExpression {
+  val introducedVariables: Set[LogicalVariable] = Set(keyVariable, valueVariable)
+
+  override def scopeDependencies: Set[LogicalVariable] =
+    innerPredicate.fold(Set.empty[LogicalVariable])(_.dependencies) ++
+      extractKeyExpression.dependencies ++
+      extractValueExpression.dependencies --
+      introducedVariables
+}
+
 case class ReduceScope(accumulator: LogicalVariable, variable: LogicalVariable, expression: Expression)(
   val position: InputPosition
 ) extends ScopeExpression {

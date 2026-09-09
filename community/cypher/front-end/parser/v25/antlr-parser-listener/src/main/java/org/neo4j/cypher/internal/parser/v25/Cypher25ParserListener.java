@@ -299,6 +299,8 @@ public interface Cypher25ParserListener extends ParseTreeListener {
 
     void exitListComprehension(Cypher25Parser.ListComprehensionContext ctx);
 
+    void exitMapComprehension(Cypher25Parser.MapComprehensionContext ctx);
+
     void exitPatternComprehension(Cypher25Parser.PatternComprehensionContext ctx);
 
     void exitReduceExpression(Cypher25Parser.ReduceExpressionContext ctx);

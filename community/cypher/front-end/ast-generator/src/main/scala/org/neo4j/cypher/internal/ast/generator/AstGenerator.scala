@@ -484,6 +484,8 @@ import org.neo4j.cypher.internal.expressions.EntityType
 import org.neo4j.cypher.internal.expressions.Equals
 import org.neo4j.cypher.internal.expressions.ExplicitParameter
 import org.neo4j.cypher.internal.expressions.Expression
+import org.neo4j.cypher.internal.expressions.ExtractMapEntriesScope
+import org.neo4j.cypher.internal.expressions.ExtractMapScope
 import org.neo4j.cypher.internal.expressions.ExtractScope
 import org.neo4j.cypher.internal.expressions.False
 import org.neo4j.cypher.internal.expressions.FilterScope
@@ -520,6 +522,8 @@ import org.neo4j.cypher.internal.expressions.ListLiteral
 import org.neo4j.cypher.internal.expressions.ListSlice
 import org.neo4j.cypher.internal.expressions.Literal
 import org.neo4j.cypher.internal.expressions.LiteralEntry
+import org.neo4j.cypher.internal.expressions.MapComprehension
+import org.neo4j.cypher.internal.expressions.MapEntriesComprehension
 import org.neo4j.cypher.internal.expressions.MapExpression
 import org.neo4j.cypher.internal.expressions.MapProjection
 import org.neo4j.cypher.internal.expressions.MapProjectionElement
@@ -1042,6 +1046,37 @@ class AstGenerator(
     expression <- _expression
   } yield ListComprehension(scope, expression)(pos)
 
+  def _extractMapScope: Gen[ExtractMapScope] = for {
+    variable <- _variable
+    innerPredicate <- option(_expression)
+    extractKeyExpression <- _expression
+    extractValueExpression <- _expression
+  } yield ExtractMapScope(variable, innerPredicate, extractKeyExpression, extractValueExpression)(pos)
+
+  def _mapComprehension: Gen[MapComprehension] = for {
+    scope <- _extractMapScope
+    expression <- _expression
+  } yield MapComprehension(scope, expression)(pos)
+
+  def _extractMapEntriesScope: Gen[ExtractMapEntriesScope] = for {
+    keyVariable <- _variable
+    valueVariable <- _variable
+    innerPredicate <- option(_expression)
+    extractKeyExpression <- _expression
+    extractValueExpression <- _expression
+  } yield ExtractMapEntriesScope(
+    keyVariable,
+    valueVariable,
+    innerPredicate,
+    extractKeyExpression,
+    extractValueExpression
+  )(pos)
+
+  def _mapEntriesComprehension: Gen[MapEntriesComprehension] = for {
+    scope <- _extractMapEntriesScope
+    expression <- _expression
+  } yield MapEntriesComprehension(scope, expression)(pos)
+
   def _iterablePredicate: Gen[IterablePredicateExpression] = for {
     scope <- _filterScope
     expression <- _expression
@@ -1267,6 +1302,8 @@ class AstGenerator(
     lzy(_list),
     lzy(_listSlice),
     lzy(_listComprehension),
+    lzy(_mapComprehension),
+    lzy(_mapEntriesComprehension),
     lzy(_containerIndex),
     lzy(_existsExpression),
     lzy(_countExpression),

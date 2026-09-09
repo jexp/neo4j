@@ -593,6 +593,28 @@ trait ExpressionBuilder extends Cypher25ParserListener {
     )(pos(ctx))
   }
 
+  final override def exitMapComprehension(ctx: Cypher25Parser.MapComprehensionContext): Unit = {
+    ctx.ast = ctx match {
+      case c: Cypher25Parser.MapComprehensionForMapContext =>
+        MapEntriesComprehension(
+          keyVariable = c.keyVar.ast(),
+          valueVariable = c.valueVar.ast(),
+          expression = c.expression(0).ast(),
+          innerPredicate = if (c.whereExp != null) Some(c.whereExp.ast()) else None,
+          keyExpression = c.keyExp.ast(),
+          valueExpression = c.valueExp.ast()
+        )(pos(ctx))
+      case c: Cypher25Parser.MapComprehensionForListContext =>
+        MapComprehension(
+          variable = c.variable().ast(),
+          expression = c.expression(0).ast(),
+          innerPredicate = if (c.whereExp != null) Some(c.whereExp.ast()) else None,
+          keyExpression = c.keyExp.ast(),
+          valueExpression = c.valueExp.ast()
+        )(pos(ctx))
+    }
+  }
+
   final override def exitPatternComprehension(
     ctx: Cypher25Parser.PatternComprehensionContext
   ): Unit = {

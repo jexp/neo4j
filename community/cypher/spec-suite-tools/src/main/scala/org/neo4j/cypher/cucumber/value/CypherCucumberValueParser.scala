@@ -103,10 +103,10 @@ object CypherCucumberValueParser {
   private def nullValue[X: P]: P[AnyRef] = P("null").!.map(_ => null)
 
   private def list[X: P](implicit asDriverParameter: Boolean): P[java.util.List[AnyRef]] =
-    P("[" ~~ cypherValue.rep(sep = ",") ~~/ "]").map(_.asJava)
+    P("[" ~ cypherValue.rep(sep = ",") ~/ "]").map(_.asJava)
 
   private def map[X: P](implicit asDriverParameter: Boolean): P[java.util.Map[String, AnyRef]] =
-    P("{" ~~/ keyValue.rep(sep = ",") ~~/ "}").map(_.toMap.asJava)
+    P("{" ~/ keyValue.rep(sep = ",") ~/ "}").map(_.toMap.asJava)
 
   private def node[X: P](implicit asDriverParameter: Boolean): P[NoIdNode] = P("(" ~~/ label.rep ~/ map.? ~/ ")")
     .map { case (labels, properties) => NoIdNode(labels.toSet.asJava, properties.getOrElse(Collections.emptyMap())) }
@@ -202,7 +202,7 @@ object CypherCucumberValueParser {
   private def label[X: P]: P[String] = ":" ~~ symbolicName.!
 
   private def keyValue[X: P](implicit asDriverParameter: Boolean): P[(String, AnyRef)] =
-    symbolicName ~~ ":" ~ cypherValue
+    symbolicName ~ ":" ~ cypherValue
 
   private def outgoing[X: P](implicit asDriverParameter: Boolean): P[Connection] =
     ("-" ~~/ relationship ~~/ "->" ~~/ node)
@@ -211,7 +211,7 @@ object CypherCucumberValueParser {
   private def incoming[X: P](implicit asDriverParameter: Boolean): P[Connection] =
     ("<-" ~~/ relationship ~~/ "-" ~~/ node)
       .map { case (r, n) => Connection(r, n, outgoing = false) }
-  private def symbolicName[X: P]: P[String] = CharsWhileIn("a-zA-Z0-9$_").!
+  private def symbolicName[X: P]: P[String] = CharsWhile(c => c.isLetterOrDigit || c == '$' || c == '_').!
 
   private def digits[X: P]: P[Unit] = CharsWhileIn("0-9")
 

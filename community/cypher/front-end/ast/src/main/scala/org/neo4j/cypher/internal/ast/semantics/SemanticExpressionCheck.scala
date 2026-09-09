@@ -73,6 +73,8 @@ import org.neo4j.cypher.internal.expressions.Equals
 import org.neo4j.cypher.internal.expressions.Expression
 import org.neo4j.cypher.internal.expressions.Expression.DefaultTypeMismatchMessageGenerator
 import org.neo4j.cypher.internal.expressions.Expression.SemanticContext
+import org.neo4j.cypher.internal.expressions.ExtractMapEntriesScope
+import org.neo4j.cypher.internal.expressions.ExtractMapScope
 import org.neo4j.cypher.internal.expressions.ExtractScope
 import org.neo4j.cypher.internal.expressions.FilterScope
 import org.neo4j.cypher.internal.expressions.FilteringExpression
@@ -100,6 +102,8 @@ import org.neo4j.cypher.internal.expressions.ListComprehension
 import org.neo4j.cypher.internal.expressions.ListLiteral
 import org.neo4j.cypher.internal.expressions.ListSlice
 import org.neo4j.cypher.internal.expressions.LiteralEntry
+import org.neo4j.cypher.internal.expressions.MapComprehension
+import org.neo4j.cypher.internal.expressions.MapEntriesComprehension
 import org.neo4j.cypher.internal.expressions.MapExpression
 import org.neo4j.cypher.internal.expressions.MapProjection
 import org.neo4j.cypher.internal.expressions.Modulo
@@ -599,6 +603,12 @@ object SemanticExpressionCheck extends SemanticAnalysisTooling {
         FilteringExpressions.semanticCheck(ctx, x) chain
           checkInnerListComprehension(x)
 
+      case x: MapComprehension =>
+        checkInnerMapComprehension(ctx, x)
+
+      case x: MapEntriesComprehension =>
+        checkInnerMapEntriesComprehension(ctx, x)
+
       case x: PatternComprehension =>
         SemanticState.recordCurrentScope(x) chain
           withScopedState {
@@ -612,9 +622,11 @@ object SemanticExpressionCheck extends SemanticAnalysisTooling {
             specifyType(outerTypes, x)
           }
 
-      case _: FilterScope  => SemanticCheck.success
-      case _: ExtractScope => SemanticCheck.success
-      case _: ReduceScope  => SemanticCheck.success
+      case _: FilterScope            => SemanticCheck.success
+      case _: ExtractScope           => SemanticCheck.success
+      case _: ExtractMapScope        => SemanticCheck.success
+      case _: ExtractMapEntriesScope => SemanticCheck.success
+      case _: ReduceScope            => SemanticCheck.success
 
       case x: CountStar =>
         specifyType(CTInteger, x) chain
@@ -1091,19 +1103,18 @@ object SemanticExpressionCheck extends SemanticAnalysisTooling {
         expectType(CTList(CTAny).covariant, e.expression) ifOkChain
         checkInnerPredicate(e)
 
-    def checkPredicateDefined(e: FilteringExpression): SemanticCheck =
-      when(e.innerPredicate.isEmpty) {
-        SemanticError.functionRequiresWhereClause(e.name, e.position)
-      }
-
-    private def checkInnerPredicate(e: FilteringExpression): SemanticCheck =
+    def checkInnerPredicate(e: FilteringExpression): SemanticCheck =
       e.innerPredicate match {
         case Some(predicate) => withScopedState {
             declareVariable(e.variable, possibleInnerTypes(e)) chain
-              SemanticExpressionCheck.simple(predicate) chain
-              SemanticExpressionCheck.expectType(CTBoolean.covariant, predicate)
+              checkPredicateType(predicate)
           }
         case None => SemanticCheck.success
+      }
+
+    def checkPredicateDefined(e: FilteringExpression): SemanticCheck =
+      when(e.innerPredicate.isEmpty) {
+        SemanticError.functionRequiresWhereClause(e.name, e.position)
       }
 
     def possibleInnerTypes(e: FilteringExpression): TypeGenerator = s =>
@@ -1268,6 +1279,36 @@ object SemanticExpressionCheck extends SemanticAnalysisTooling {
           specifyType(types(x.expression), x)
         }
     }
+
+  private def checkPredicateType(predicate: Expression): SemanticCheck =
+    simple(predicate) chain expectType(CTBoolean.covariant, predicate)
+
+  private def checkInnerMapComprehension(ctx: SemanticContext, x: MapComprehension): SemanticCheck =
+    SemanticExpressionCheck.check(ctx, x.expression) chain
+      expectType(CTList(CTAny).covariant, x.expression) ifOkChain
+      withScopedState {
+        declareVariable(x.variable, FilteringExpressions.possibleInnerTypes(x)) chain
+          x.innerPredicate.foldSemanticCheck(checkPredicateType) chain
+          simple(x.extractKeyExpression) chain
+          expectType(CTString.covariant, x.extractKeyExpression) chain
+          simple(x.extractValueExpression)
+      } chain {
+        specifyType(CTMap, x)
+      }
+
+  private def checkInnerMapEntriesComprehension(ctx: SemanticContext, x: MapEntriesComprehension): SemanticCheck =
+    SemanticExpressionCheck.check(ctx, x.expression) chain
+      expectType(CTMap.invariant, x.expression) ifOkChain
+      withScopedState {
+        declareVariable(x.keyVariable, CTString.covariant) chain
+          declareVariable(x.valueVariable, CTAny.covariant) chain
+          x.innerPredicate.foldSemanticCheck(checkPredicateType) chain
+          simple(x.extractKeyExpression) chain
+          expectType(CTString.covariant, x.extractKeyExpression) chain
+          simple(x.extractValueExpression)
+      } chain {
+        specifyType(CTMap, x)
+      }
 
   private def checkForShadowedVariables(
     importingWithSubqueryCallsToFilter: Seq[ImportingWithSubqueryCall],
