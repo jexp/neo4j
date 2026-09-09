@@ -71,7 +71,21 @@ public class LuceneKnnBinaryQuantizedVectorFormat extends KnnVectorsFormat {
 
     @Override
     public KnnVectorsReader fieldsReader(SegmentReadState state) throws IOException {
-        return vectorsFormat.fieldsReader(state);
+        // Every file the readers below open goes through this directory, which is the only place
+        // that still knows a `.vec` from a `.veq`: inside a compound segment the name reaching
+        // MMapDirectory is the container's.
+        SegmentReadState readState = RawVectorAdvisors.isAvailable() ? markRawVectors(state) : state;
+        KnnVectorsReader reader = vectorsFormat.fieldsReader(readState);
+        return PrefetchingKnnVectorsReader.wrap(reader, readState);
+    }
+
+    private static SegmentReadState markRawVectors(SegmentReadState state) {
+        return new SegmentReadState(
+                RawVectorsReadAdvice.markRawVectors(state.directory),
+                state.segmentInfo,
+                state.fieldInfos,
+                state.context,
+                state.segmentSuffix);
     }
 
     @Override

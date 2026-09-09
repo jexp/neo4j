@@ -27,6 +27,8 @@ import java.util.Objects;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.CharacterUtils;
 import org.apache.lucene.index.FilteredTermsEnum;
+import org.apache.lucene.index.FloatVectorValues;
+import org.apache.lucene.index.KnnVectorValues;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.Terms;
@@ -58,6 +60,7 @@ import org.apache.lucene.search.ScorerSupplier;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.Weight;
 import org.apache.lucene.search.WildcardQuery;
+import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.AttributeSource;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.StringHelper;
@@ -450,8 +453,10 @@ public class Lucene10QueryContext implements LuceneQueryContext {
 
         RescoreOrEmptyQuery(Query vectorQuery, float[] query, String field, int n) {
             // cannot use RescoreTopNQuery::createFullPrecisionRescorerQuery due to null VectorSimilarityFunction
-            this.delegate =
-                    new RescoreTopNQuery(new NonEmptyQuery(vectorQuery), new VectorValuesSource(query, field), n);
+            this.delegate = new RescoreTopNQuery(
+                    new NonEmptyQuery(new PrefetchCandidatesQuery(vectorQuery, field)),
+                    new VectorValuesSource(query, field),
+                    n);
         }
 
         @Override
@@ -554,7 +559,7 @@ public class Lucene10QueryContext implements LuceneQueryContext {
 
         @Override
         public Query rewrite(IndexSearcher indexSearcher) throws IOException {
-            Query inner = indexSearcher.rewrite(delegate);
+            Query inner = delegate.rewrite(indexSearcher);
             return inner != delegate ? new NonEmptyQuery(inner) : this;
         }
 
@@ -720,6 +725,235 @@ public class Lucene10QueryContext implements LuceneQueryContext {
                 // make up fake doc
                 this.doc = NO_MORE_DOCS;
                 return FAKE_DOC - docIdBase;
+            }
+        }
+    }
+
+    /// Prefetches the full-precision vectors of every rescore candidate in one batch.
+    ///
+    /// [RescoreTopNQuery] rescores every hit of the inner query, pulling each candidate's raw vector
+    /// through [DoubleValues#advanceExact] one document at a time. On an index whose raw vectors do
+    /// not fit in page cache that is a page fault per candidate at queue depth one, and it dominates
+    /// the query. The candidates are all known before rescoring starts -- the inner ANN query has
+    /// already collected them -- so this wrapper drains them up front, maps them to vector ordinals
+    /// and hands the whole set to [KnnVectorValues#prefetch], letting the OS fetch them
+    /// concurrently. It only reorders the I/O; the documents it yields are exactly the inner
+    /// query's, in the same order.
+    ///
+    /// Sits inside [NonEmptyQuery] so it never sees that class's synthetic entry.
+    static final class PrefetchCandidatesQuery extends Query {
+        private final Query delegate;
+        private final String field;
+
+        PrefetchCandidatesQuery(Query delegate, String field) {
+            this.delegate = delegate;
+            this.field = field;
+        }
+
+        @Override
+        public Weight createWeight(IndexSearcher searcher, ScoreMode scoreMode, float boost) throws IOException {
+            return new PrefetchCandidatesWeight(searcher.createWeight(delegate, scoreMode, boost), field);
+        }
+
+        @Override
+        public Query rewrite(IndexSearcher indexSearcher) throws IOException {
+            Query inner = delegate.rewrite(indexSearcher);
+            return inner != delegate ? new PrefetchCandidatesQuery(inner, field) : this;
+        }
+
+        @Override
+        public String toString(String field) {
+            return delegate.toString(field);
+        }
+
+        @Override
+        public void visit(QueryVisitor visitor) {
+            delegate.visit(visitor);
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof PrefetchCandidatesQuery that
+                    && this.delegate.equals(that.delegate)
+                    && this.field.equals(that.field);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(classHash(), delegate, field);
+        }
+
+        private static final class PrefetchCandidatesWeight extends FilterWeight {
+            private final String field;
+
+            PrefetchCandidatesWeight(Weight delegate, String field) {
+                super(delegate);
+                this.field = field;
+            }
+
+            @Override
+            public ScorerSupplier scorerSupplier(LeafReaderContext context) throws IOException {
+                ScorerSupplier inner = in.scorerSupplier(context);
+                return inner == null ? null : new PrefetchCandidatesScorerSupplier(inner, context, field);
+            }
+        }
+
+        /// Deliberately does not forward `bulkScorer`, which would hand out a scorer that bypasses
+        /// the prefetching iterator. The inherited default wraps [#get] instead.
+        private static final class PrefetchCandidatesScorerSupplier extends ScorerSupplier {
+            private final ScorerSupplier delegate;
+            private final LeafReaderContext context;
+            private final String field;
+
+            PrefetchCandidatesScorerSupplier(ScorerSupplier delegate, LeafReaderContext context, String field) {
+                this.delegate = delegate;
+                this.context = context;
+                this.field = field;
+            }
+
+            @Override
+            public Scorer get(long leadCost) throws IOException {
+                return new PrefetchCandidatesScorer(delegate.get(leadCost), context, field);
+            }
+
+            @Override
+            public long cost() {
+                return delegate.cost();
+            }
+
+            // NonEmptyScorerSupplier forwards this, so keep the chain unbroken rather than letting
+            // it stop at the inherited no-op
+            @Override
+            public void setTopLevelScoringClause() throws IOException {
+                delegate.setTopLevelScoringClause();
+            }
+        }
+
+        private static final class PrefetchCandidatesScorer extends Scorer {
+            private final DocIdSetIterator iterator;
+
+            PrefetchCandidatesScorer(Scorer delegate, LeafReaderContext context, String field) {
+                iterator = new PrefetchingDocIdSetIterator(delegate.iterator(), context, field);
+            }
+
+            @Override
+            public int docID() {
+                return iterator.docID();
+            }
+
+            @Override
+            public DocIdSetIterator iterator() {
+                return iterator;
+            }
+
+            // draining the delegate leaves it unable to score, and RescoreTopNQuery asks for
+            // COMPLETE_NO_SCORES because the rescoring value source does not need scores
+            @Override
+            public float getMaxScore(int upTo) {
+                return 0.0f;
+            }
+
+            @Override
+            public float score() {
+                return 0.0f;
+            }
+        }
+
+        static final class PrefetchingDocIdSetIterator extends DocIdSetIterator {
+            private static final int INITIAL_CAPACITY = 128;
+
+            private final DocIdSetIterator delegate;
+            private final LeafReaderContext context;
+            private final String field;
+
+            private int[] docs;
+            private int size;
+            private int index = -1;
+            private int doc = -1;
+
+            PrefetchingDocIdSetIterator(DocIdSetIterator delegate, LeafReaderContext context, String field) {
+                this.delegate = delegate;
+                this.context = context;
+                this.field = field;
+            }
+
+            @Override
+            public int docID() {
+                return doc;
+            }
+
+            @Override
+            public int nextDoc() throws IOException {
+                return positionAt(index + 1);
+            }
+
+            @Override
+            public int advance(int target) throws IOException {
+                materialise();
+                int i = index + 1;
+                while (i < size && docs[i] < target) {
+                    i++;
+                }
+                return positionAt(i);
+            }
+
+            @Override
+            public long cost() {
+                return delegate.cost();
+            }
+
+            private int positionAt(int i) throws IOException {
+                materialise();
+                index = i;
+                return doc = i < size ? docs[i] : NO_MORE_DOCS;
+            }
+
+            private void materialise() throws IOException {
+                if (docs != null) {
+                    return;
+                }
+
+                int[] buffer = new int[INITIAL_CAPACITY];
+                int count = 0;
+                for (int d = delegate.nextDoc(); d != NO_MORE_DOCS; d = delegate.nextDoc()) {
+                    if (count == buffer.length) {
+                        buffer = ArrayUtil.grow(buffer, count + 1);
+                    }
+                    buffer[count++] = d;
+                }
+                docs = buffer;
+                size = count;
+
+                prefetch();
+            }
+
+            private void prefetch() throws IOException {
+                if (size <= 1) {
+                    return;
+                }
+
+                FloatVectorValues values = context.reader().getFloatVectorValues(field);
+                if (values == null) {
+                    return;
+                }
+
+                KnnVectorValues.DocIndexIterator ords = values.iterator();
+                int[] toPrefetch = new int[size];
+                int count = 0;
+                for (int i = 0; i < size; i++) {
+                    int target = docs[i];
+                    int current = ords.docID();
+                    if (current < target) {
+                        current = ords.advance(target);
+                    }
+                    if (current == NO_MORE_DOCS) {
+                        break;
+                    }
+                    if (current == target) {
+                        toPrefetch[count++] = ords.index();
+                    }
+                }
+                values.prefetch(toPrefetch, count);
             }
         }
     }

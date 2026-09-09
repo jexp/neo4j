@@ -19,11 +19,20 @@
  */
 package org.neo4j.kernel.api.impl.index.lucene.v10;
 
+import java.util.List;
+import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.index.StandardDirectoryReader;
 import org.neo4j.kernel.api.impl.index.lucene.LuceneDirectoryReader;
 
 public class LuceneDirectoryReaderAccess {
+    public static List<LeafReaderContext> getLeaves(LuceneDirectoryReader reader) {
+        if (reader instanceof Lucene10DirectoryReader lucene10Reader) {
+            return lucene10Reader.reader.leaves();
+        }
+        throw new IllegalArgumentException("Can only read leaves for a Lucene 10 reader");
+    }
+
     public static SegmentInfos getSegmentInfos(LuceneDirectoryReader reader) {
         if (reader instanceof Lucene10DirectoryReader lucene10Reader) {
             if (lucene10Reader.reader instanceof StandardDirectoryReader directoryReader) {

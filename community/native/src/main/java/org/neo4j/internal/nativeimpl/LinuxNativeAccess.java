@@ -55,6 +55,13 @@ public class LinuxNativeAccess implements NativeAccess {
      */
     private static final int MADV_POPULATE_WRITE = 23;
 
+    /**
+     * Constant defined in mman-common.h and asks the kernel to start reading the specified range into the page cache
+     * without waiting for it. Same value as POSIX_MADV_WILLNEED, which glibc implements with this call.
+     * For more info check man page for madvise.
+     */
+    private static final int MADV_WILLNEED = 3;
+
     private static final boolean NATIVE_ACCESS_AVAILABLE;
     private static final Throwable INITIALIZATION_FAILURE;
 
@@ -167,6 +174,17 @@ public class LinuxNativeAccess implements NativeAccess {
                             + bytes);
         }
         return wrapResult(() -> madvise(address, bytes, MADV_POPULATE_WRITE));
+    }
+
+    @Override
+    public NativeCallResult tryAdviseWillNeedMemory(long address, long bytes) {
+        if (address == 0 || bytes <= 0) {
+            return new NativeCallResult(
+                    ERROR,
+                    "Incorrect address or number of bytes. Requested address: " + address + ", number of bytes: "
+                            + bytes);
+        }
+        return wrapResult(() -> madvise(address, bytes, MADV_WILLNEED));
     }
 
     @Override

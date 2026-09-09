@@ -164,6 +164,8 @@ public class Lucene10RescoringQueryTest {
                     assertKnnQuery(
                             rescoreQueryAssert
                                     .extracting("query", type(Query.class))
+                                    // NonEmptyQuery -> PrefetchCandidatesQuery -> KnnFloatVectorQuery
+                                    .extracting("delegate", type(Query.class))
                                     .extracting("delegate", type(KnnFloatVectorQuery.class)),
                             params.efSearch,
                             embedding);
@@ -233,6 +235,8 @@ public class Lucene10RescoringQueryTest {
                     assertKnnQuery(
                             rescoreQueryAssert
                                     .extracting("query", type(Query.class))
+                                    // NonEmptyQuery -> PrefetchCandidatesQuery -> KnnFloatVectorQuery
+                                    .extracting("delegate", type(Query.class))
                                     .extracting("delegate", type(KnnFloatVectorQuery.class)),
                             params.efSearch,
                             embedding,

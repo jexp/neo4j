@@ -163,6 +163,30 @@ class LinuxNativeAccessTest {
         }
 
         @Test
+        void failToAdviseMemoryForIncorrectAddressOrLength() {
+            assertThat(nativeAccess.tryAdviseWillNeedMemory(0, 4096).isError()).isTrue();
+            assertThat(nativeAccess.tryAdviseWillNeedMemory(4096, 0).isError()).isTrue();
+            assertThat(nativeAccess.tryAdviseWillNeedMemory(4096, -1).isError()).isTrue();
+        }
+
+        /// MADV_WILLNEED on anonymous memory has nothing to read in, but the kernel still validates
+        /// the range, so a zero return is the evidence that the address and length reached it intact.
+        @Test
+        void adviseAllocatedMemory() {
+            long alignment = 64 * 1024;
+            long bytes = 1024 * 1024;
+            long allocation = Native.malloc(bytes + alignment);
+            assertThat(allocation).isNotZero();
+            try {
+                long address = (allocation + alignment - 1) & -alignment;
+                assertThat(nativeAccess.tryAdviseWillNeedMemory(address, bytes).isError())
+                        .isFalse();
+            } finally {
+                Native.free(allocation);
+            }
+        }
+
+        @Test
         void adviseSequentialAccessOnLinuxForCorrectDescriptor()
                 throws IOException, IllegalAccessException, ClassNotFoundException {
             Path file = tempFile.resolve("correctSequentialFile");

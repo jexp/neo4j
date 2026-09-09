@@ -49,5 +49,7 @@ class AbsentNativeAccessTest {
     @Test
     void absentNativeAccessPopulateMemoryAlwaysFails() {
         assertThat(absentNativeAccess.tryPopulateMemory(4096, 4096).isError()).isTrue();
+        assertThat(absentNativeAccess.tryAdviseWillNeedMemory(4096, 4096).isError())
+                .isTrue();
     }
 }

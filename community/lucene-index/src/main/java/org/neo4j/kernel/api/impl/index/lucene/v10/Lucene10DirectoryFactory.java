@@ -32,6 +32,7 @@ import org.apache.lucene.store.ByteBuffersDirectory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexOutput;
+import org.apache.lucene.store.MMapDirectory;
 import org.apache.lucene.store.NIOFSDirectory;
 import org.apache.lucene.store.NRTCachingDirectory;
 import org.neo4j.io.IOUtils;
@@ -39,6 +40,7 @@ import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.api.impl.index.lucene.LuceneContext;
 import org.neo4j.kernel.api.impl.index.lucene.LuceneDirectory;
 import org.neo4j.kernel.api.impl.index.lucene.LuceneDirectoryFactory;
+import org.neo4j.kernel.api.impl.index.lucene.v10.codec.RawVectorsReadAdvice;
 import org.neo4j.kernel.api.impl.index.storage.DirectoryFactory;
 
 public class Lucene10DirectoryFactory implements LuceneDirectoryFactory {
@@ -48,6 +50,9 @@ public class Lucene10DirectoryFactory implements LuceneDirectoryFactory {
     public LuceneDirectory openPersistent(Path dir) throws IOException {
         Files.createDirectories(dir);
         FSDirectory directory = USE_DEFAULT_DIRECTORY_FACTORY ? FSDirectory.open(dir) : new NIOFSDirectory(dir);
+        if (directory instanceof MMapDirectory mmapDirectory) {
+            mmapDirectory.setReadAdvice(RawVectorsReadAdvice.READ_ADVICE);
+        }
         NRTCachingDirectory nrtCachingDirectory = new NRTCachingDirectory(directory, MAX_MERGE_SIZE_MB, MAX_CACHED_MB);
         return new Lucene10Directory(nrtCachingDirectory);
     }
