@@ -75,6 +75,7 @@ import org.neo4j.cypher.internal.expressions.RelTypeName
 import org.neo4j.cypher.internal.expressions.SemanticDirection
 import org.neo4j.cypher.internal.expressions.Variable
 import org.neo4j.cypher.internal.frontend.helpers.CNFNormalizerTestUtil
+import org.neo4j.cypher.internal.frontend.helpers.ExpandClausesTestUtil
 import org.neo4j.cypher.internal.frontend.phases.BaseState
 import org.neo4j.cypher.internal.frontend.phases.FieldSignature
 import org.neo4j.cypher.internal.frontend.phases.Monitors
@@ -88,7 +89,6 @@ import org.neo4j.cypher.internal.frontend.phases.UserFunctionSignature
 import org.neo4j.cypher.internal.frontend.phases.collapseMultipleInPredicates
 import org.neo4j.cypher.internal.frontend.phases.isolateAggregation
 import org.neo4j.cypher.internal.frontend.phases.parserTransformers.AstRewriting
-import org.neo4j.cypher.internal.frontend.phases.parserTransformers.ExpandClauses
 import org.neo4j.cypher.internal.frontend.phases.parserTransformers.ExpandSubclauses
 import org.neo4j.cypher.internal.frontend.phases.parserTransformers.ExtractLocalDefinitions
 import org.neo4j.cypher.internal.frontend.phases.parserTransformers.Parse
@@ -577,7 +577,7 @@ trait LogicalPlanningTestSupport extends AstConstructionTestSupport
       PreparatoryRewriting andThen
       SemanticAnalysis(warn = Some(true)) andThen
       ScopeSurveyor andThen
-      ExpandClauses andThen
+      ExpandClausesTestUtil.expandStarsAndClauses andThen
       ScopeSurveyor andThen
       ExpandSubclauses andThen
       ScopeSurveyor andThen

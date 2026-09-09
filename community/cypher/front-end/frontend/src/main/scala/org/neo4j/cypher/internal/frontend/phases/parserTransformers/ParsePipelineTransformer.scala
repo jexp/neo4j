@@ -76,6 +76,7 @@ case object ParsePipelineTransformer extends StepSequencer.Step {
     ProcedureWarnings,
     IsolateSubqueriesInMutatingPatterns,
     ReplacePatternComprehensionWithCollectSubqueryRewriter,
+    ExpandStarProjections,
     ExpandClauses,
     ExpandSubclauses,
     ObfuscationMetadataCollection

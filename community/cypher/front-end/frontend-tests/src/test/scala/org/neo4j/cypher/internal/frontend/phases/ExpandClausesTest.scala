@@ -39,9 +39,10 @@ import org.neo4j.cypher.internal.ast.TerminateTransactionsClause
 import org.neo4j.cypher.internal.ast.With
 import org.neo4j.cypher.internal.ast.semantics.SemanticFeature
 import org.neo4j.cypher.internal.frontend.PlannerName
+import org.neo4j.cypher.internal.frontend.helpers.ExpandClausesTestUtil
 import org.neo4j.cypher.internal.frontend.helpers.TestContext
-import org.neo4j.cypher.internal.frontend.phases.parserTransformers.ExpandClauses
 import org.neo4j.cypher.internal.frontend.phases.parserTransformers.Parse
+import org.neo4j.cypher.internal.frontend.phases.parserTransformers.scoping.ComputeExpressionDependencies
 import org.neo4j.cypher.internal.frontend.phases.parserTransformers.scoping.ScopeSurveyor
 import org.neo4j.cypher.internal.parser.AstParserFactory
 import org.neo4j.cypher.internal.rewriting.AstRewritingTestSupport
@@ -59,11 +60,13 @@ import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 class ExpandClausesTest extends CypherFunSuite with RewritePhaseTest with AstConstructionTestSupport {
 
   override def rewriterPhaseUnderTest: Transformer[BaseContext, BaseState, BaseState] =
-    ScopeSurveyor andThen ExpandClauses
+    ScopeSurveyor andThen ComputeExpressionDependencies andThen ExpandClausesTestUtil.expandStarsAndClauses
+
+  override def checkSemanticsAfterRewrite: Boolean = true
 
   override val phaseTestConfig = PhaseTestConfig(
     excludedVersions = Set(CypherVersion.Cypher5),
-    semanticFeatures = Seq(SemanticFeature.UseAsMultipleGraphsSelector)
+    semanticFeatures = Seq(SemanticFeature.UseAsMultipleGraphsSelector, SemanticFeature.GroupByClause)
   )
 
   private def withUpdate() = (expectedStatement: Statement) => {
@@ -636,9 +639,9 @@ class ExpandClausesTest extends CypherFunSuite with RewritePhaseTest with AstCon
         |CALL (n) {
         |  USE `neo2`
         |  MATCH (m:L1)
-        |  RETURN m AS `  UNNAMED1`, n AS `  UNNAMED0`
+        |  RETURN m AS `  UNNAMED0`, n AS `  UNNAMED1`
         |}
-        |WITH `  UNNAMED1` AS m, `  UNNAMED0` AS n
+        |WITH `  UNNAMED0` AS m, `  UNNAMED1` AS n
         |MATCH (o:L2)
         |RETURN (n.x + m.x) + o.x AS `n.x + m.x + o.x`""".stripMargin,
       additionalExpectedAstUpdates = withUpdate(),
@@ -671,9 +674,9 @@ class ExpandClausesTest extends CypherFunSuite with RewritePhaseTest with AstCon
         |CALL (n) {
         |  USE `neo2`
         |  MATCH (m:L1)
-        |  RETURN m AS `  UNNAMED1`, n AS `  UNNAMED0`
+        |  RETURN m AS `  UNNAMED0`, n AS `  UNNAMED1`
         |}
-        |WITH `  UNNAMED1` AS m, `  UNNAMED0` AS n
+        |WITH `  UNNAMED0` AS m, `  UNNAMED1` AS n
         |CALL (m, n) {
         |  USE `neo1`
         |  MATCH (o:L2)
@@ -727,17 +730,17 @@ class ExpandClausesTest extends CypherFunSuite with RewritePhaseTest with AstCon
         |CALL (`  UNNAMED0`,`  UNNAMED1`,`  UNNAMED2`,`  UNNAMED3`) {
         |  UNWIND range(0, `  UNNAMED3` - 1) AS `  UNNAMED4`
         |  WITH (`  UNNAMED0`[`  UNNAMED4`])[0] AS a, (`  UNNAMED1`[`  UNNAMED4`])[0] AS b, (`  UNNAMED2`[`  UNNAMED4`])[0] AS x
-        |  RETURN DISTINCT a AS `  UNNAMED5`, b AS `  UNNAMED7`, x AS `  UNNAMED6`
+        |  RETURN DISTINCT a AS `  UNNAMED5`, b AS `  UNNAMED6`, x AS `  UNNAMED7`
         |  UNION
         |  UNWIND range(0, `  UNNAMED3` - 1) AS `  UNNAMED4`
         |  WITH (`  UNNAMED0`[`  UNNAMED4`])[0] AS a, (`  UNNAMED1`[`  UNNAMED4`])[0] AS b, (`  UNNAMED2`[`  UNNAMED4`])[0] AS x
-        |  RETURN DISTINCT a AS `  UNNAMED5`, b AS `  UNNAMED7`, x AS `  UNNAMED6`
+        |  RETURN DISTINCT a AS `  UNNAMED5`, b AS `  UNNAMED6`, x AS `  UNNAMED7`
         |  UNION
         |  UNWIND range(0, `  UNNAMED3` - 1) AS `  UNNAMED4`
         |  WITH (`  UNNAMED0`[`  UNNAMED4`])[0] AS a, (`  UNNAMED1`[`  UNNAMED4`])[0] AS b, (`  UNNAMED2`[`  UNNAMED4`])[0] AS x
-        |  RETURN DISTINCT a AS `  UNNAMED5`, b AS `  UNNAMED7`, x AS `  UNNAMED6`
+        |  RETURN DISTINCT a AS `  UNNAMED5`, b AS `  UNNAMED6`, x AS `  UNNAMED7`
         |}
-        |RETURN `  UNNAMED5` AS a, `  UNNAMED7` AS b, `  UNNAMED6` AS x""".stripMargin,
+        |RETURN `  UNNAMED5` AS a, `  UNNAMED6` AS b, `  UNNAMED7` AS x""".stripMargin,
       additionalExpectedAstUpdates = withUpdate(),
       additionalActualAstCleanup = withUpdate()
     )
@@ -1076,7 +1079,7 @@ class ExpandClausesTest extends CypherFunSuite with RewritePhaseTest with AstCon
         |  UNWIND range(0, `  UNNAMED1` - 1) AS `  UNNAMED2`
         |  WITH (`  UNNAMED0`[`  UNNAMED2`])[0] AS x
         |  WITH x AS x, 3 AS b, 4 AS z
-        |  RETURN b AS `  UNNAMED4`, x AS `  UNNAMED3`, z AS `  UNNAMED5`
+        |  RETURN b AS `  UNNAMED3`, x AS `  UNNAMED4`, z AS `  UNNAMED5`
         |  UNION
         |  UNWIND range(0, `  UNNAMED1` - 1) AS `  UNNAMED2`
         |  WITH (`  UNNAMED0`[`  UNNAMED2`])[0] AS x
@@ -1104,9 +1107,9 @@ class ExpandClausesTest extends CypherFunSuite with RewritePhaseTest with AstCon
         |    }
         |    RETURN z AS z
         |  }
-        |  RETURN b AS `  UNNAMED4`, x AS `  UNNAMED3`, z AS `  UNNAMED5`
+        |  RETURN b AS `  UNNAMED3`, x AS `  UNNAMED4`, z AS `  UNNAMED5`
         |}
-        |RETURN `  UNNAMED4` AS b, `  UNNAMED3` AS x, `  UNNAMED5` AS z""".stripMargin,
+        |RETURN `  UNNAMED3` AS b, `  UNNAMED4` AS x, `  UNNAMED5` AS z""".stripMargin,
       additionalExpectedAstUpdates = withUpdate(),
       additionalActualAstCleanup = withUpdate()
     )
@@ -3245,7 +3248,7 @@ class ExpandClausesTest extends CypherFunSuite with RewritePhaseTest with AstCon
         |  UNWIND range(0, `  UNNAMED1` - 1) AS `  UNNAMED2`
         |  WITH (`  UNNAMED0`[`  UNNAMED2`])[0] AS x
         |  WITH x AS x, 3 AS b, 4 AS z
-        |  RETURN b AS `  UNNAMED4`, x AS `  UNNAMED3`, z AS `  UNNAMED5`
+        |  RETURN b AS `  UNNAMED3`, x AS `  UNNAMED4`, z AS `  UNNAMED5`
         |  UNION
         |  UNWIND range(0, `  UNNAMED1` - 1) AS `  UNNAMED2`
         |  WITH (`  UNNAMED0`[`  UNNAMED2`])[0] AS x
@@ -3273,9 +3276,9 @@ class ExpandClausesTest extends CypherFunSuite with RewritePhaseTest with AstCon
         |    }
         |    RETURN z AS z
         |  }
-        |  RETURN b AS `  UNNAMED4`, x AS `  UNNAMED3`, z AS `  UNNAMED5`
+        |  RETURN b AS `  UNNAMED3`, x AS `  UNNAMED4`, z AS `  UNNAMED5`
         |}
-        |RETURN `  UNNAMED4` AS b, `  UNNAMED3` AS x, `  UNNAMED5` AS z""".stripMargin,
+        |RETURN `  UNNAMED3` AS b, `  UNNAMED4` AS x, `  UNNAMED5` AS z""".stripMargin,
       additionalExpectedAstUpdates = withUpdate(),
       additionalActualAstCleanup = withUpdate()
     )
@@ -5299,7 +5302,7 @@ class ExpandClausesTest extends CypherFunSuite with RewritePhaseTest with AstCon
         |  UNWIND range(0, `  UNNAMED1` - 1) AS `  UNNAMED2`
         |  WITH (`  UNNAMED0`[`  UNNAMED2`])[0] AS x
         |  WITH x AS x, 3 AS b, 4 AS z
-        |  RETURN b AS `  UNNAMED4`, x AS `  UNNAMED3`, z AS `  UNNAMED5`
+        |  RETURN b AS `  UNNAMED3`, x AS `  UNNAMED4`, z AS `  UNNAMED5`
         |  UNION
         |  UNWIND range(0, `  UNNAMED1` - 1) AS `  UNNAMED2`
         |  WITH (`  UNNAMED0`[`  UNNAMED2`])[0] AS x
@@ -5308,9 +5311,9 @@ class ExpandClausesTest extends CypherFunSuite with RewritePhaseTest with AstCon
         |    WITH x AS x, 3 AS c
         |    RETURN x + c AS z
         |  }
-        |  RETURN b AS `  UNNAMED4`, x AS `  UNNAMED3`, z AS `  UNNAMED5`
+        |  RETURN b AS `  UNNAMED3`, x AS `  UNNAMED4`, z AS `  UNNAMED5`
         |}
-        |WITH `  UNNAMED4` AS b, `  UNNAMED5` AS z
+        |WITH `  UNNAMED3` AS b, `  UNNAMED5` AS z
         |WITH b AS b, z AS z, CASE
         |  WHEN z > 0 THEN 0
         |  ELSE 1
@@ -5658,7 +5661,8 @@ class ExpandClausesTest extends CypherFunSuite with RewritePhaseTest with AstCon
       InitialState(query, plannerName, new AnonymousVariableNameGenerator)
     val testContext = TestContext(cypherVersion = CypherVersion.Cypher25)
     val scopeState = ScopeSurveyor.process(Parse.process(testState, testContext), testContext)
-    val rewritten = ExpandClauses.process(scopeState, testContext)
+    val withDependencies = ComputeExpressionDependencies.process(scopeState, testContext)
+    val rewritten = ExpandClausesTestUtil.expandStarsAndClauses.transform(withDependencies, testContext)
 
     val returnItem = rewritten.statement().asInstanceOf[Query].asInstanceOf[SingleQuery]
       .clauses.last.asInstanceOf[Return].returnItems.items.head.asInstanceOf[AliasedReturnItem]
@@ -6007,9 +6011,9 @@ class ExpandClausesTest extends CypherFunSuite with RewritePhaseTest with AstCon
         |CALL (n) {
         |  USE `neo2`
         |  MATCH (m:L1)
-        |  RETURN m AS `  UNNAMED1`, n AS `  UNNAMED0`
+        |  RETURN m AS `  UNNAMED0`, n AS `  UNNAMED1`
         |}
-        |WITH `  UNNAMED1` AS m, `  UNNAMED0` AS n
+        |WITH `  UNNAMED0` AS m, `  UNNAMED1` AS n
         |CALL (m, n) {
         |  USE `neo1`
         |  MATCH (o:L2)
@@ -6311,6 +6315,223 @@ class ExpandClausesTest extends CypherFunSuite with RewritePhaseTest with AstCon
     )
   }
 
+  test("expands a star in a subquery expression of a return item in a NEXT part") {
+    assertRewritten(
+      """UNWIND [1] AS x
+        |RETURN x
+        |NEXT
+        |USE neo4j
+        |RETURN 1 AS y, COLLECT { WITH * LIMIT 1 RETURN x AS z } AS q""".stripMargin,
+      """UNWIND [1] AS x
+        |WITH x AS x
+        |CALL (x) {
+        |  USE `neo4j`
+        |  RETURN 1 AS y, COLLECT {
+        |    WITH x AS x
+        |      LIMIT 1
+        |    RETURN x AS z
+        |  } AS q
+        |}
+        |RETURN y AS y, q AS q""".stripMargin,
+      additionalExpectedAstUpdates = withUpdate(),
+      additionalActualAstCleanup = withUpdate()
+    )
+  }
+
+  // The subclause scope of a projection covers the projected aliases as well as the incoming variables, so the
+  // star expands to both.
+  test("expands a star in a subquery expression of an ORDER BY in a NEXT part") {
+    assertRewritten(
+      """UNWIND [1] AS x
+        |RETURN x
+        |NEXT
+        |USE neo4j
+        |RETURN 1 AS y
+        |  ORDER BY COLLECT { WITH * LIMIT 1 RETURN x AS z }""".stripMargin,
+      """UNWIND [1] AS x
+        |WITH x AS x
+        |CALL (x) {
+        |  USE `neo4j`
+        |  RETURN 1 AS y
+        |    ORDER BY COLLECT {
+        |      WITH x AS x, y AS y
+        |        LIMIT 1
+        |      RETURN x AS z
+        |    } ASCENDING
+        |}
+        |RETURN y AS y""".stripMargin,
+      additionalExpectedAstUpdates = withUpdate(),
+      additionalActualAstCleanup = withUpdate()
+    )
+  }
+
+  test("GROUP BY key that can only be an alias reference is anonymized with the return items") {
+    assertRewritten(
+      """UNWIND [1] AS x
+        |RETURN x
+        |NEXT
+        |USE neo4j
+        |RETURN x, 1 AS k, count(*) AS c
+        |  GROUP BY k""".stripMargin,
+      """UNWIND [1] AS x
+        |WITH x AS x
+        |WITH count(*) AS `  UNNAMED1`, collect([x]) AS `  UNNAMED0`
+        |CALL (`  UNNAMED0`,`  UNNAMED1`) {
+        |  USE `neo4j`
+        |  UNWIND range(0, `  UNNAMED1` - 1) AS `  UNNAMED2`
+        |  WITH (`  UNNAMED0`[`  UNNAMED2`])[0] AS x
+        |  RETURN x AS `  UNNAMED3`, 1 AS `  UNNAMED4`, count(*) AS `  UNNAMED5`
+        |    GROUP BY `  UNNAMED4`
+        |}
+        |RETURN `  UNNAMED3` AS x, `  UNNAMED4` AS k, `  UNNAMED5` AS c""".stripMargin,
+      additionalExpectedAstUpdates = withUpdate(),
+      additionalActualAstCleanup = withUpdate()
+    )
+  }
+
+  test("GROUP BY key naming a passthrough return item is anonymized") {
+    assertRewritten(
+      """UNWIND [1] AS x
+        |RETURN x
+        |NEXT
+        |USE neo4j
+        |RETURN x, count(*) AS c
+        |  GROUP BY x""".stripMargin,
+      """UNWIND [1] AS x
+        |WITH x AS x
+        |WITH count(*) AS `  UNNAMED1`, collect([x]) AS `  UNNAMED0`
+        |CALL (`  UNNAMED0`,`  UNNAMED1`) {
+        |  USE `neo4j`
+        |  UNWIND range(0, `  UNNAMED1` - 1) AS `  UNNAMED2`
+        |  WITH (`  UNNAMED0`[`  UNNAMED2`])[0] AS x
+        |  RETURN x AS `  UNNAMED3`, count(*) AS `  UNNAMED4`
+        |    GROUP BY `  UNNAMED3`
+        |}
+        |RETURN `  UNNAMED3` AS x, `  UNNAMED4` AS c""".stripMargin,
+      additionalExpectedAstUpdates = withUpdate(),
+      additionalActualAstCleanup = withUpdate()
+    )
+  }
+
+  test("GROUP BY key resolves to the return item alias, not to the incoming variable it shadows") {
+    assertRewritten(
+      """UNWIND [1] AS x
+        |RETURN x
+        |NEXT
+        |USE neo4j
+        |RETURN x + 1 AS x, count(*) AS c
+        |  GROUP BY x""".stripMargin,
+      """UNWIND [1] AS x
+        |WITH x AS x
+        |WITH count(*) AS `  UNNAMED1`, collect([x]) AS `  UNNAMED0`
+        |CALL (`  UNNAMED0`,`  UNNAMED1`) {
+        |  USE `neo4j`
+        |  UNWIND range(0, `  UNNAMED1` - 1) AS `  UNNAMED2`
+        |  WITH (`  UNNAMED0`[`  UNNAMED2`])[0] AS x
+        |  RETURN x + 1 AS `  UNNAMED3`, count(*) AS `  UNNAMED4`
+        |    GROUP BY `  UNNAMED3`
+        |}
+        |RETURN `  UNNAMED3` AS x, `  UNNAMED4` AS c""".stripMargin,
+      additionalExpectedAstUpdates = withUpdate(),
+      additionalActualAstCleanup = withUpdate()
+    )
+  }
+
+  test("expands the imports of a CALL (*) in a subquery expression of an anonymized ORDER BY") {
+    assertRewritten(
+      """UNWIND [1] AS x
+        |RETURN x
+        |NEXT
+        |USE neo4j
+        |RETURN x
+        |  ORDER BY COLLECT { CALL (*) { RETURN x AS z } RETURN z }""".stripMargin,
+      """UNWIND [1] AS x
+        |WITH x AS x
+        |CALL (x) {
+        |  USE `neo4j`
+        |  RETURN x AS `  UNNAMED0`
+        |    ORDER BY COLLECT {
+        |      CALL (`  UNNAMED0`) {
+        |        RETURN `  UNNAMED0` AS z
+        |      }
+        |      RETURN z AS z
+        |    } ASCENDING
+        |}
+        |RETURN `  UNNAMED0` AS x""".stripMargin,
+      additionalExpectedAstUpdates = withUpdate(),
+      additionalActualAstCleanup = withUpdate()
+    )
+  }
+
+  test("Aliases not correctly substituted in query after rewriting") {
+    assertRewritten(
+      """UNWIND [1] AS x
+        |RETURN x LIMIT 1
+        |NEXT USE neo4j
+        |INSERT (:N)
+        |LET a = 1, b = []
+        |RETURN a, x, 1 AS c, 1 AS alias6,
+        |  COLLECT {
+        |    WITH 1 AS alias27, 1 AS alias26
+        |    LIMIT 4
+        |    WHERE EXISTS {
+        |      LOAD CSV WITH HEADERS FROM 'file:///fuzz.csv' AS alias28
+        |      ORDER BY alias28
+        |    }
+        |    RETURN max('rQAm') AS alias29 SKIP 7 LIMIT 0
+        |  } AS alias30
+        |ORDER BY alias6 DESC,
+        |  COLLECT {
+        |    WITH 1 AS alias27, 1 AS alias26
+        |    LIMIT 4
+        |    WHERE EXISTS {
+        |      LOAD CSV WITH HEADERS FROM 'file:///fuzz.csv' AS alias28
+        |      ORDER BY alias28
+        |    }
+        |    RETURN max('rQAm') AS alias29 SKIP 7 LIMIT 0
+        |  } DESC,
+        |  alias30 DESC""".stripMargin,
+      """UNWIND [1] AS x
+        |WITH x AS x
+        |  LIMIT 1
+        |WITH count(*) AS `  UNNAMED1`, collect([x]) AS `  UNNAMED0`
+        |CALL (`  UNNAMED0`,`  UNNAMED1`) {
+        |  USE `neo4j`
+        |  UNWIND range(0, `  UNNAMED1` - 1) AS `  UNNAMED2`
+        |  WITH (`  UNNAMED0`[`  UNNAMED2`])[0] AS x
+        |  INSERT (:N)
+        |  WITH x AS x, 1 AS a, [] AS b
+        |  RETURN a AS `  UNNAMED3`, x AS `  UNNAMED4`, 1 AS `  UNNAMED5`, 1 AS `  UNNAMED6`, COLLECT {
+        |  WITH 1 AS alias27, 1 AS alias26
+        |    LIMIT 4
+        |    WHERE EXISTS {
+        |    LOAD CSV WITH HEADERS FROM "file:///fuzz.csv" AS alias28
+        |    WITH a AS a, alias26 AS alias26, alias27 AS alias27, alias28 AS alias28, b AS b, x AS x
+        |      ORDER BY alias28 ASCENDING
+        |  }
+        |  RETURN max("rQAm") AS alias29
+        |    SKIP 7
+        |    LIMIT 0
+        |} AS `  UNNAMED7`
+        |    ORDER BY `  UNNAMED6` DESCENDING, COLLECT {
+        |  WITH 1 AS alias27, 1 AS alias26
+        |    LIMIT 4
+        |    WHERE EXISTS {
+        |    LOAD CSV WITH HEADERS FROM "file:///fuzz.csv" AS alias28
+        |    WITH `  UNNAMED3` AS `  UNNAMED3`, alias26 AS alias26, alias27 AS alias27, alias28 AS alias28, `  UNNAMED7` AS `  UNNAMED7`, `  UNNAMED6` AS `  UNNAMED6`, b AS b, `  UNNAMED5` AS `  UNNAMED5`, `  UNNAMED4` AS `  UNNAMED4`
+        |      ORDER BY alias28 ASCENDING
+        |  }
+        |  RETURN max("rQAm") AS alias29
+        |    SKIP 7
+        |    LIMIT 0
+        |} DESCENDING, `  UNNAMED7` DESCENDING
+        |}
+        |RETURN `  UNNAMED3` AS a, `  UNNAMED4` AS x, `  UNNAMED5` AS c, `  UNNAMED6` AS alias6, `  UNNAMED7` AS alias30""".stripMargin,
+      additionalExpectedAstUpdates = withUpdate(),
+      additionalActualAstCleanup = withUpdate()
+    )
+  }
+
 }
 
 class ExpandCommandClauseTest extends CypherFunSuite with AstRewritingTestSupport {
@@ -6446,7 +6667,8 @@ class ExpandCommandClauseTest extends CypherFunSuite with AstRewritingTestSuppor
         )
       } else expectedUpdatedReturn
 
-    val transformer = ScopeSurveyor andThen ExpandClauses
+    val transformer =
+      ScopeSurveyor andThen ComputeExpressionDependencies andThen ExpandClausesTestUtil.expandStarsAndClauses
     val plannerName = new PlannerName {
       override def name: String = "fake"
       override def toTextOutput: String = "fake"

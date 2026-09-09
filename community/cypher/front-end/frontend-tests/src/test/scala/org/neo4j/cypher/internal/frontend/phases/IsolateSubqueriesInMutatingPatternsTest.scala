@@ -22,7 +22,7 @@ import org.neo4j.cypher.internal.ast.AstConstructionTestSupport
 import org.neo4j.cypher.internal.ast.DefaultWith
 import org.neo4j.cypher.internal.ast.Statement
 import org.neo4j.cypher.internal.ast.With
-import org.neo4j.cypher.internal.frontend.phases.parserTransformers.ExpandClauses
+import org.neo4j.cypher.internal.frontend.helpers.ExpandClausesTestUtil
 import org.neo4j.cypher.internal.frontend.phases.parserTransformers.IsolateSubqueriesInMutatingPatterns
 import org.neo4j.cypher.internal.frontend.phases.parserTransformers.SemanticAnalysis
 import org.neo4j.cypher.internal.frontend.phases.parserTransformers.scoping.ScopeSurveyor
@@ -54,7 +54,7 @@ class IsolateSubqueriesInMutatingPatternsTest extends CypherFunSuite with Rewrit
       IsolateSubqueriesInMutatingPatterns andThen
       SemanticAnalysis(Some(false)) andThen
       ScopeSurveyor andThen
-      ExpandClauses
+      ExpandClausesTestUtil.expandStarsAndClauses
 
   private val additionalExpectedAstUpdates = (expectedStatement: Statement) => {
     expectedStatement.endoRewrite(bottomUp(Rewriter.lift {

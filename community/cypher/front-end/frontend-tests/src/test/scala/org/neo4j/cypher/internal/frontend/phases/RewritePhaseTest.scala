@@ -104,6 +104,9 @@ trait RewritePhaseTest extends CypherVersionTestSupport {
 
   val phaseTestConfig: PhaseTestConfig = PhaseTestConfig()
 
+  // Check that a rewrite which introduces a semantic error fails.
+  def checkSemanticsAfterRewrite: Boolean = false
+
   def rewriterPhaseUnderTest: Transformer[BaseContext, BaseState, BaseState]
 
   // Override this to add additional rewrites needed for phases test.
@@ -184,7 +187,7 @@ trait RewritePhaseTest extends CypherVersionTestSupport {
   ): Unit = {
     (CypherVersion.values().toSet -- disabledVersions).foreach { version =>
       withClue(s"CYPHER $version\n") {
-        val state = prepareFrom(version, q, rewriterPhaseUnderTest)
+        val state = prepareFrom(version, q, rewriterPhaseUnderTest, reanalyzeResult = true)
         verify.apply(state.statement())
       }
     }
@@ -204,7 +207,13 @@ trait RewritePhaseTest extends CypherVersionTestSupport {
     invalidSemantics: Boolean
   ): Unit = {
 
-    val fromOutState = prepareFrom(version, from, rewriterPhaseUnderTest, invalidSemantics = invalidSemantics)
+    val fromOutState = prepareFrom(
+      version,
+      from,
+      rewriterPhaseUnderTest,
+      invalidSemantics = invalidSemantics,
+      reanalyzeResult = !invalidSemantics
+    )
     val toOutState = prepareFrom(version, to, rewriterPhaseForExpected, invalidSemantics = invalidSemantics)
 
     val actualStatement = additionalActualAstCleanup(fromOutState.statement())
@@ -221,7 +230,13 @@ trait RewritePhaseTest extends CypherVersionTestSupport {
     semanticTableExpressions: List[Expression],
     invalidSemantics: Boolean = false
   ): Unit = {
-    val fromOutState = prepareFrom(version, from, rewriterPhaseUnderTest, invalidSemantics = invalidSemantics)
+    val fromOutState = prepareFrom(
+      version,
+      from,
+      rewriterPhaseUnderTest,
+      invalidSemantics = invalidSemantics,
+      reanalyzeResult = !invalidSemantics
+    )
 
     val actualStatement = fromOutState.statement()
 
@@ -250,7 +265,8 @@ trait RewritePhaseTest extends CypherVersionTestSupport {
     from: String,
     transformer: Transformer[BaseContext, BaseState, BaseState],
     statement: Option[Statement] = None,
-    invalidSemantics: Boolean = false
+    invalidSemantics: Boolean = false,
+    reanalyzeResult: Boolean = false
   ): BaseState = {
 
     def initialState = InitialState(from, plannerName, new AnonymousVariableNameGenerator, maybeStatement = statement)
@@ -267,6 +283,12 @@ trait RewritePhaseTest extends CypherVersionTestSupport {
 
     preparedState.anonymousVariableNameGenerator.resetCounter()
 
-    transformer.transform(preparedState, testContext)
+    val rewrittenState = transformer.transform(preparedState, testContext)
+
+    if (checkSemanticsAfterRewrite && reanalyzeResult && phaseTestConfig.checkSemantics) {
+      RewritePhaseTest.reanalyze.transform(rewrittenState, testContext)
+    }
+
+    rewrittenState
   }
 }

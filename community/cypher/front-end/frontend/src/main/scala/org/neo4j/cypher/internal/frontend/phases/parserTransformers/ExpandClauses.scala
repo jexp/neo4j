@@ -17,20 +17,18 @@
 package org.neo4j.cypher.internal.frontend.phases.parserTransformers
 
 import org.neo4j.cypher.internal.CypherVersion
-import org.neo4j.cypher.internal.ast.ASTAnnotationMap.PositionedNode
 import org.neo4j.cypher.internal.ast.AddedInRewriteGeneral
 import org.neo4j.cypher.internal.ast.AddedWithOrigin
 import org.neo4j.cypher.internal.ast.AliasedReturnItem
 import org.neo4j.cypher.internal.ast.Clause
 import org.neo4j.cypher.internal.ast.ConditionalQueryWhen
-import org.neo4j.cypher.internal.ast.CountExpression
-import org.neo4j.cypher.internal.ast.ExistsExpression
+import org.neo4j.cypher.internal.ast.ExplicitGroupingElements
 import org.neo4j.cypher.internal.ast.Finish
 import org.neo4j.cypher.internal.ast.FlavouredWithType
 import org.neo4j.cypher.internal.ast.FreeProjection
 import org.neo4j.cypher.internal.ast.FullSubqueryExpression
+import org.neo4j.cypher.internal.ast.GroupBy
 import org.neo4j.cypher.internal.ast.NextStatement
-import org.neo4j.cypher.internal.ast.ParsedAsYield
 import org.neo4j.cypher.internal.ast.PartQuery
 import org.neo4j.cypher.internal.ast.ProjectionClause
 import org.neo4j.cypher.internal.ast.Query
@@ -54,7 +52,6 @@ import org.neo4j.cypher.internal.ast.Yield
 import org.neo4j.cypher.internal.ast.semantics.SemanticTable
 import org.neo4j.cypher.internal.ast.semantics.scoping.Result
 import org.neo4j.cypher.internal.ast.semantics.scoping.ScopeState
-import org.neo4j.cypher.internal.ast.semantics.scoping.StatementScope
 import org.neo4j.cypher.internal.ast.semantics.scoping.TableResult
 import org.neo4j.cypher.internal.expressions.CaseExpression
 import org.neo4j.cypher.internal.expressions.ContainerIndex
@@ -81,27 +78,27 @@ import org.neo4j.cypher.internal.frontend.phases.factories.ParsingConfig
 import org.neo4j.cypher.internal.frontend.phases.parserTransformers.IsolateSubqueriesInMutatingPatterns.SubqueriesInMutatingPatternsIsolated
 import org.neo4j.cypher.internal.frontend.phases.parserTransformers.scoping.UpToDateScopes
 import org.neo4j.cypher.internal.rewriting.conditions.ContainsNoExpandableClauses
+import org.neo4j.cypher.internal.rewriting.conditions.ContainsNoStarProjections
 import org.neo4j.cypher.internal.rewriting.conditions.ProjectionClausesHaveSemanticInfo
+import org.neo4j.cypher.internal.rewriting.rewriters.computeDependenciesForExpressions.ExpressionsHaveComputedDependencies
 import org.neo4j.cypher.internal.util.ASTNode
 import org.neo4j.cypher.internal.util.AnonymousVariableNameGenerator
 import org.neo4j.cypher.internal.util.Foldable.SkipChildren
 import org.neo4j.cypher.internal.util.Foldable.TraverseChildren
-import org.neo4j.cypher.internal.util.Foldable.TreeAny
 import org.neo4j.cypher.internal.util.FunctionName
 import org.neo4j.cypher.internal.util.InputPosition
-import org.neo4j.cypher.internal.util.Ref
 import org.neo4j.cypher.internal.util.Rewriter
 import org.neo4j.cypher.internal.util.StepSequencer
 import org.neo4j.cypher.internal.util.StepSequencer.Condition
 import org.neo4j.cypher.internal.util.bottomUp
-import org.neo4j.cypher.internal.util.helpers.LazyVal
 import org.neo4j.cypher.internal.util.topDown
 
 import scala.annotation.tailrec
 
 /**
  * ExpandClauses rewrites ASTs that does not have a representation that is supported by planner and runtime.
- * The AST, NEXT, WHEN, Top Level Braces and * are rewritten into known ASTs such as UNIONs and SingleQueries.
+ * The AST, NEXT, WHEN and Top Level Braces are rewritten into known ASTs such as UNIONs and SingleQueries.
+ * Stars are expanded ahead of this phase, by [[ExpandStarProjections]].
  *
  * The expansions follow a structures like this:
  *
@@ -153,12 +150,10 @@ case object ExpandClauses extends StatementRewriter with StepSequencer.Step with
 
   private def needsExpansion(statement: ASTNode): Boolean =
     statement.folder.treeExists {
-      case _: TopLevelBraces                                => true
-      case _: ConditionalQueryWhen                          => true
-      case _: NextStatement                                 => true
-      case ri: ReturnItems if ri.includeExisting            => true
-      case sq: ScopeClauseSubqueryCall if sq.isImportingAll => true
-      case With(_, _, _, _, _, _, _, _: FlavouredWithType)  => true
+      case _: TopLevelBraces                               => true
+      case _: ConditionalQueryWhen                         => true
+      case _: NextStatement                                => true
+      case With(_, _, _, _, _, _, _, _: FlavouredWithType) => true
     }
 
   override def process(from: BaseState, context: BaseContext): BaseState = {
@@ -176,6 +171,10 @@ case object ExpandClauses extends StatementRewriter with StepSequencer.Step with
       UpToDateScopes,
       BaseContains[SemanticTable](),
       ProjectionClausesHaveSemanticInfo,
+      // anonymizeSortKey reads computed scope dependencies, which throw when they have not been computed.
+      ExpressionsHaveComputedDependencies,
+      // The expansions here rewrite the very clauses a star is expanded from.
+      ContainsNoStarProjections,
       SemanticTypeCheckCompleted,
       DeprecatedSemanticsReplaced,
       SubqueriesInMutatingPatternsIsolated
@@ -200,30 +199,6 @@ case object ExpandClauses extends StatementRewriter with StepSequencer.Step with
 
     val ensureUniqueIds: Rewriter = bottomUp(Rewriter.lift { case v: LogicalVariable => v.copyId })
 
-    /**
-     * Memoized union of `referenced` variables across an AST subtree.
-     */
-    val refsCache: scala.collection.mutable.HashMap[Ref[ASTNode], Set[LogicalVariable]] =
-      scala.collection.mutable.HashMap.empty
-
-    def refsFor(ast: ASTNode): Set[LogicalVariable] = collectRefsThrough(ast)
-
-    def collectRefsThrough(node: AnyRef): Set[LogicalVariable] = node match {
-      case ast: ASTNode =>
-        refsCache.getOrElseUpdate(
-          Ref(ast), {
-            val own = scopeState.scopeOfOpt(ast)
-              .map(_.referenced.getVariables.toSet)
-              .getOrElse(Set.empty[LogicalVariable])
-            ast.treeChildren.foldLeft(own)((acc, child) => acc ++ collectRefsThrough(child))
-          }
-        )
-      case other =>
-        other.treeChildren.foldLeft(Set.empty[LogicalVariable])((acc, child) =>
-          acc ++ collectRefsThrough(child)
-        )
-    }
-
     enum ContextKind {
       case SingleQueryCtx
       case UnionDistinctCtx
@@ -244,7 +219,7 @@ case object ExpandClauses extends StatementRewriter with StepSequencer.Step with
     }
 
     case object Layout {
-      def empty: Layout = Layout(None, Seq.empty, Map.empty, None, SemanticContext(SingleQueryCtx), Set.empty, None)
+      def empty: Layout = Layout(None, Seq.empty, Map.empty, None, SemanticContext(SingleQueryCtx))
     }
 
     /**
@@ -266,9 +241,7 @@ case object ExpandClauses extends StatementRewriter with StepSequencer.Step with
       ingress: Seq[Clause],
       incomingMapping: Map[LogicalVariable, AnonymizedVariable],
       utilityVariable: Option[LogicalVariable],
-      semanticContext: SemanticContext,
-      referencedByQuery: Set[LogicalVariable],
-      importingWith: Option[PositionedNode[With]]
+      semanticContext: SemanticContext
     ) {
       def pushUse(maybeUse: Option[UseGraph]): Layout = copy(use = if (maybeUse.isDefined) maybeUse else use)
       def consumeLayout: Layout = copy(use = None, ingress = Seq.empty, utilityVariable = None)
@@ -290,43 +263,14 @@ case object ExpandClauses extends StatementRewriter with StepSequencer.Step with
           withIncomingMappingAndContext(anonymizeResultMapping, SemanticContext(BodyInNextCtx, layout.resultMapping))
         else withIncomingMappingAndContext(anonymizeResultMapping, SemanticContext(LastInNextCtx, layout.resultMapping))
 
-      private def importingWithFor(sq: SingleQuery): Option[PositionedNode[With]] =
-        if (
-          scopeState.scopeOfOpt(sq).exists {
-            case StatementScope(_, _, _, _, _, _, _, true) => true
-            case _                                         => false
-          }
-        )
-          sq.partitionedClauses.importingWith.map(PositionedNode(_))
-        else None
+      def inUnionDistinct: Layout =
+        copy(semanticContext = semanticContext.copy(kind = UnionDistinctCtx))
 
-      def inUnionDistinctRefByQuery(ast: ASTNode): Layout =
-        copy(
-          semanticContext = semanticContext.copy(kind = UnionDistinctCtx),
-          referencedByQuery = refsFor(ast)
-        )
+      def inUnionAll: Layout =
+        copy(semanticContext = semanticContext.copy(kind = UnionAllCtx))
 
-      def inUnionAllRefByQuery(ast: ASTNode): Layout =
-        copy(
-          semanticContext = semanticContext.copy(kind = UnionAllCtx),
-          referencedByQuery = refsFor(ast)
-        )
-
-      def inSingleQueryRefBySingleQuery(sq: SingleQuery): Layout =
-        copy(
-          semanticContext = semanticContext.copy(kind = SingleQueryCtx),
-          referencedByQuery = refsFor(sq),
-          importingWith = importingWithFor(sq)
-        )
-
-      def refByQuery(ast: ASTNode): Layout =
-        copy(referencedByQuery = refsFor(ast))
-
-      def refBySingleQuery(sq: SingleQuery): Layout =
-        copy(
-          referencedByQuery = refsFor(sq),
-          importingWith = importingWithFor(sq)
-        )
+      def inSingleQuery: Layout =
+        copy(semanticContext = semanticContext.copy(kind = SingleQueryCtx))
 
       private def drivingTableReset(pos: InputPosition): Clause =
         With(
@@ -368,13 +312,28 @@ case object ExpandClauses extends StatementRewriter with StepSequencer.Step with
           returnItem.withName(semanticContext.mappedReturns(returnItem.alias.get).copyId)(returnItem.position)
         } else returnItem
 
-      def anonymizeSortKey(sortItem: SortItem): SortItem = {
-        sortItem.mapExpression(exp =>
-          semanticContext.mappedReturns.foldLeft(exp)((accExpr, pair) =>
-            accExpr.replaceAllOccurrencesBy(pair._1.copyId, pair._2.copyId)
-          )
-        )
+      def anonymizeSortKey(sortItem: SortItem): SortItem =
+        sortItem.mapExpression(substituteReturns(_, semanticContext.mappedReturns))
+
+      /**
+       * A grouping key always resolves to the projection alias, so the renamed aliases apply to keys just like they
+       * do to sort keys.
+       */
+      def anonymizeGroupingKeys(groupBy: GroupBy): GroupBy = groupBy.groupingElements match {
+        case elements @ ExplicitGroupingElements(keys) =>
+          groupBy.copy(groupingElements =
+            elements.copy(elements = keys.map(substituteReturns(_, semanticContext.mappedReturns)))(elements.position)
+          )(groupBy.position)
+        case _ => groupBy
       }
+
+      private def substituteReturns(
+        expression: Expression,
+        mapping: Map[LogicalVariable, LogicalVariable]
+      ): Expression =
+        mapping.foldLeft(expression)((accExpr, pair) =>
+          accExpr.replaceAllOccurrencesBy(pair._1.copyId, pair._2.copyId)
+        )
     }
 
     case class AnonymizedVariable(original: LogicalVariable, incoming: LogicalVariable, outgoing: LogicalVariable) {
@@ -939,70 +898,24 @@ case object ExpandClauses extends StatementRewriter with StepSequencer.Step with
       }._2
     }
 
-    def isSimplifiableEmptyWith(clause: ProjectionClause, layout: Layout): Boolean =
-      clause match {
-        case w @ With(false, ReturnItems(_, Seq(), _), None, None, None, None, None, withType)
-          if version != CypherVersion.Cypher5 &&
-            withType != ParsedAsYield &&
-            !layout.importingWith.contains(PositionedNode(w)) => true
-        case _ => false
-      }
-
-    def getExpandedItems(
-      clause: ProjectionClause,
-      returnItems: ReturnItems,
-      layout: Layout
-    ): Seq[ReturnItem] =
-      if (returnItems.includeExisting) {
-        clause match {
-          case w: With
-            if version != CypherVersion.Cypher5 &&
-              !clause.isAggregating && w.withType != ParsedAsYield =>
-            scopeState.getOutgoingVariablesAndConstantsReturnItemSeq(clause)
-              .filterNot(i =>
-                returnItems.items.exists(_.name == i.name) || !layout.referencedByQuery.exists(_.name == i.name)
-              )
-          case w: With if layout.importingWith.contains(PositionedNode(w)) =>
-            scopeState.getOutgoingVariablesAndConstantsReturnItemSeq(clause)
-              .filterNot(i => returnItems.items.exists(_.name == i.name))
-          case _ =>
-            scopeState.getOutgoingVariableReturnItemSeq(clause)
-              .filterNot(i => returnItems.items.exists(_.name == i.name))
-        }
-      } else Seq.empty
-
-    def sortExpandedItems(expandedItems: Seq[ReturnItem], returnItems: ReturnItems): Seq[ReturnItem] =
-      returnItems.defaultOrderOnColumns
-        .map(order => expandedItems.sortBy(ri => order.indexOf(ri.name)))
-        .getOrElse(expandedItems.sortBy(_.name))
-
     def expandReturnItems(clause: ProjectionClause, returnItems: ReturnItems, layout: Layout): ProjectionClause = {
-      if (isSimplifiableEmptyWith(clause, layout)) {
-        return clause.asInstanceOf[With]
-          .copyProjection(returnItems = ReturnItems(FreeProjection, Seq.empty, None)(returnItems.position))
-          .withRewrittenType
-      }
-
-      val expandedItems = getExpandedItems(clause, returnItems, layout)
-      val sortedItems = sortExpandedItems(expandedItems, returnItems)
-
-      val allItems = sortedItems ++ returnItems.items
       val isReturn = clause.isInstanceOf[Return]
-      val anonymizedItems = if (isReturn) allItems.map(layout.anonymize) else allItems
+      val anonymizedItems = if (isReturn) returnItems.items.map(layout.anonymize) else returnItems.items
       val anonymizedSortKeys =
         if (isReturn)
           clause.orderBy.map(ob => ob.copy(sortItems = ob.sortItems.map(layout.anonymizeSortKey))(ob.position))
         else clause.orderBy
+      val anonymizedGroupBy =
+        if (isReturn) clause.groupBy.map(layout.anonymizeGroupingKeys)
+        else clause.groupBy
 
       clause.copyProjection(
         returnItems =
           returnItems.copy(FreeProjection, anonymizedItems, defaultOrderOnColumns = None)(returnItems.position),
+        groupBy = anonymizedGroupBy,
         orderBy = anonymizedSortKeys
       ).withRewrittenType
     }
-
-    def getScopeImports(call: ScopeClauseSubqueryCall): Seq[LogicalVariable] =
-      scopeState.getReferenced(call).toSeq.sortBy(_.name).map(_.copyId)
 
     def removeTopLevelBraces(tlb: TopLevelBraces, layout: Layout): Query =
       tlb.query.endoRewrite(rewriter(layout.pushUse(tlb.use)))
@@ -1025,79 +938,40 @@ case object ExpandClauses extends StatementRewriter with StepSequencer.Step with
         expandReturnItems(clause, returnItems, layout)
       case clause @ Yield(returnItems, _, _, _, _, _) =>
         expandReturnItems(clause, returnItems, layout)
-      case clause: ScopeClauseSubqueryCall if clause.isImportingAll =>
-        clause.copy(isImportingAll = false, importedVariables = getScopeImports(clause))(clause.position)
       case u @ UnionDistinct(lhs, rhs) =>
-        val updatedLayout = layout.inUnionDistinctRefByQuery(u)
+        val updatedLayout = layout.inUnionDistinct
         u.copy(
           flattenQuery(lhs, updatedLayout),
           ensureNoTopLevelBracesSingleQuery(rhs, updatedLayout)
         )(u.position)
       case u @ UnionAll(lhs, rhs) =>
-        val updatedLayout = layout.inUnionAllRefByQuery(u)
+        val updatedLayout = layout.inUnionAll
         u.copy(
           flattenQuery(lhs, updatedLayout),
           ensureNoTopLevelBracesSingleQuery(rhs, updatedLayout)
         )(u.position)
       case tlb: TopLevelBraces =>
-        removeTopLevelBraces(tlb, layout.refByQuery(tlb))
+        removeTopLevelBraces(tlb, layout)
       case sq: SingleQuery if sq.partitionedClauses.initialGraphSelection.isDefined =>
-        layout.inSingleQueryRefBySingleQuery(sq).adapt(sq)
+        layout.inSingleQuery.adapt(sq)
       case sq: SingleQuery =>
-        layout.refBySingleQuery(sq).adapt(sq)
+        layout.adapt(sq)
       case wh: ConditionalQueryWhen =>
-        WhenExpansion.expand(wh, layout.refByQuery(wh))
+        WhenExpansion.expand(wh, layout)
       case ns @ NextStatement(queries) =>
         // A NEXT chain flattens all operands into one SingleQuery.
-        val lay = layout.refByQuery(ns)
-        val ingress = lay.use.toSeq.endoRewrite(ensureUniqueIds)
-        SingleQuery(ingress ++ rewriteNextQueries(queries, lay.copy(use = None)))(ns.position)
-    }
-
-    def clauseCleanup(clauses: Seq[Clause]): Seq[Clause] = clauses.filter {
-      case With(false, ReturnItems(_, Seq(), _), None, None, None, None, None, _) => false
-      case _                                                                      => true
-    }
-
-    def subqueryExpressionCleanup(query: Query): Query = {
-      val placeholderName = LazyVal(anonVarNameGen.nextName)
-      query.mapEachSingleQuery(sq => {
-        val clauses = clauseCleanup(sq.clauses)
-        if (clauses.nonEmpty)
-          sq.copy(clauses)(sq.position)
-        else sq.copy(Seq(Return(
-          ReturnItems(
-            FreeProjection,
-            Seq(AliasedReturnItem(
-              SignedDecimalIntegerLiteral("1")(sq.position.zeroLength),
-              Variable(placeholderName.value, sq.position)
-            )(sq.position, AliasedReturnItem.wasAutoAliasedDefault))
-          )(sq.position)
-        )(sq.position)))(sq.position)
-      })
+        val ingress = layout.use.toSeq.endoRewrite(ensureUniqueIds)
+        SingleQuery(ingress ++ rewriteNextQueries(queries, layout.copy(use = None)))(ns.position)
     }
 
     // Cypher 5 requires a WITH clause between clauses in some cases so the query is not possible to fully cleanup.
     def cleanupCypher5: Rewriter = Rewriter.noop
 
-    def cleanup: Rewriter = Rewriter.lift({
-      case ex: ExistsExpression =>
-        ex.copy(query =
-          subqueryExpressionCleanup(ex.query)
-        )(ex.position, ex.computedIntroducedVariables, ex.computedScopeDependencies)
-
-      case cnt: CountExpression =>
-        cnt.copy(query =
-          subqueryExpressionCleanup(cnt.query)
-        )(cnt.position, cnt.computedIntroducedVariables, cnt.computedScopeDependencies)
-      case sq: SingleQuery => sq.copy(clauseCleanup(sq.clauses))(sq.position)
-    })
-
     def build(): Rewriter = version match {
       case CypherVersion.Cypher5 =>
         topDown(rewriter(Layout.empty) andThen cleanupCypher5)
       case CypherVersion.Cypher25 =>
-        topDown(rewriter(Layout.empty)) andThen topDown(cleanup)
+        topDown(rewriter(Layout.empty)) andThen DropEmptyProjections.rewriter(anonVarNameGen)
     }
 
     build()

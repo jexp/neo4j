@@ -126,6 +126,12 @@ sealed trait WorkingScope extends Product with Foldable {
     acc.toMap
   }
 
+  /**
+   * Every variable used anywhere in this scope's subtree, both the published references and the hidden
+   * ones (see [[hiddenReferences]]), so a variable used only inside a grouping key counts as used.
+   */
+  def allReferencedSymbols: Set[LogicalVariable] = collectAllReferences.keySet.map(_.value)
+
   def collectAllDeclarations: Set[Ref[LogicalVariable]] =
     children.foldLeft(declared.allSymbols.map(Ref.apply)) { case (declarations, child) =>
       declarations ++ child.collectAllDeclarations

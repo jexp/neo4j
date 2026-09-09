@@ -19,8 +19,8 @@ package org.neo4j.cypher.internal.frontend.phases
 import org.neo4j.cypher.internal.CypherVersion
 import org.neo4j.cypher.internal.ast.AstConstructionTestSupport
 import org.neo4j.cypher.internal.ast.AstConstructionTestSupport.VariableStringInterpolator
+import org.neo4j.cypher.internal.frontend.helpers.ExpandClausesTestUtil
 import org.neo4j.cypher.internal.frontend.phases.parserTransformers.AstRewriting
-import org.neo4j.cypher.internal.frontend.phases.parserTransformers.ExpandClauses
 import org.neo4j.cypher.internal.frontend.phases.parserTransformers.scoping.ScopeSurveyor
 import org.neo4j.cypher.internal.frontend.phases.rewriting.cnf.flattenBooleanOperators
 import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
@@ -33,7 +33,7 @@ class ShortestPathVariableDeduplicatorTest extends CypherFunSuite
 
   override def preProcessTransformer: Transformer[BaseContext, BaseState, BaseState] = {
     ScopeSurveyor andThen
-      ExpandClauses andThen
+      ExpandClausesTestUtil.expandStarsAndClauses andThen
       RewritePhaseTest.reanalyze andThen
       AstRewriting() andThen
       RewritePhaseTest.reanalyze andThen

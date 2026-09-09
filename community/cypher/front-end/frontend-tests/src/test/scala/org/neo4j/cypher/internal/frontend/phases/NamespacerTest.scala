@@ -34,8 +34,8 @@ import org.neo4j.cypher.internal.expressions.QuantifiedPath
 import org.neo4j.cypher.internal.expressions.RelationshipChain
 import org.neo4j.cypher.internal.expressions.Variable
 import org.neo4j.cypher.internal.expressions.VariableGrouping
+import org.neo4j.cypher.internal.frontend.helpers.ExpandClausesTestUtil
 import org.neo4j.cypher.internal.frontend.phases.parserTransformers.AstRewriting
-import org.neo4j.cypher.internal.frontend.phases.parserTransformers.ExpandClauses
 import org.neo4j.cypher.internal.frontend.phases.parserTransformers.scoping.ScopeSurveyor
 import org.neo4j.cypher.internal.util.AnonymousVariableNameGenerator
 import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
@@ -442,7 +442,7 @@ class NamespacerTest extends CypherFunSuite with AstConstructionTestSupport with
 
   override def preProcessTransformer: Transformer[BaseContext, BaseState, BaseState] =
     ScopeSurveyor andThen
-      ExpandClauses andThen
+      ExpandClausesTestUtil.expandStarsAndClauses andThen
       RewritePhaseTest.reanalyze andThen
       AstRewriting() andThen
       RewritePhaseTest.reanalyze

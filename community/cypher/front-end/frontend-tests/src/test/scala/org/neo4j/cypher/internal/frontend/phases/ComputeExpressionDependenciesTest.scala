@@ -20,8 +20,8 @@ import org.neo4j.cypher.internal.CypherVersion
 import org.neo4j.cypher.internal.ast.AstConstructionTestSupport
 import org.neo4j.cypher.internal.ast.Statement
 import org.neo4j.cypher.internal.expressions.ExpressionWithComputedDependencies
+import org.neo4j.cypher.internal.frontend.helpers.ExpandClausesTestUtil
 import org.neo4j.cypher.internal.frontend.phases.parserTransformers.AstRewriting
-import org.neo4j.cypher.internal.frontend.phases.parserTransformers.ExpandClauses
 import org.neo4j.cypher.internal.frontend.phases.parserTransformers.SemanticAnalysis
 import org.neo4j.cypher.internal.frontend.phases.parserTransformers.scoping.ComputeExpressionDependencies
 import org.neo4j.cypher.internal.frontend.phases.parserTransformers.scoping.ScopeSurveyor
@@ -174,7 +174,7 @@ class ComputeExpressionDependenciesPostNamingTest extends ComputeExpressionDepen
 
   override def preProcessTransformer: Transformer[BaseContext, BaseState, BaseState] =
     ScopeSurveyor andThen
-      ExpandClauses andThen
+      ExpandClausesTestUtil.expandStarsAndClauses andThen
       RewritePhaseTest.reanalyze andThen
       AstRewriting() andThen
       RewritePhaseTest.reanalyze andThen

@@ -29,9 +29,9 @@ import org.neo4j.cypher.internal.compiler.CypherPlannerTestSuite
 import org.neo4j.cypher.internal.compiler.phases.LogicalPlanState
 import org.neo4j.cypher.internal.compiler.phases.PlannerContext
 import org.neo4j.cypher.internal.frontend.PlannerName
+import org.neo4j.cypher.internal.frontend.helpers.ExpandClausesTestUtil
 import org.neo4j.cypher.internal.frontend.helpers.TestContext
 import org.neo4j.cypher.internal.frontend.phases.InitialState
-import org.neo4j.cypher.internal.frontend.phases.parserTransformers.ExpandClauses
 import org.neo4j.cypher.internal.frontend.phases.parserTransformers.scoping.ScopeSurveyor
 import org.neo4j.cypher.internal.frontend.phases.rewriting.cnf.flattenBooleanOperators
 import org.neo4j.cypher.internal.frontend.phases.rewriting.cnf.simplifyPredicates
@@ -70,7 +70,7 @@ class InlineRelationshipTypePredicatesTest extends CypherPlannerTestSuite with P
       InitialState("", plannerName, new AnonymousVariableNameGenerator, maybeStatement = Some(statement))
     val testContext = TestContext(cypherVersion = CypherVersion.Cypher25)
     val scopeState = ScopeSurveyor.process(testState, testContext)
-    ExpandClauses.process(scopeState, testContext).statement()
+    ExpandClausesTestUtil.expandStarsAndClauses.transform(scopeState, testContext).statement()
   }
 
   override def rewriteAST(
