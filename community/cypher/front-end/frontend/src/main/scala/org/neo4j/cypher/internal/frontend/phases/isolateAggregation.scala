@@ -26,6 +26,7 @@ import org.neo4j.cypher.internal.ast.ReturnItems
 import org.neo4j.cypher.internal.ast.SingleQuery
 import org.neo4j.cypher.internal.ast.UnaliasedReturnItem
 import org.neo4j.cypher.internal.ast.With
+import org.neo4j.cypher.internal.ast.semantics.scoping.StatementScope
 import org.neo4j.cypher.internal.expressions.DesugaredMapProjection
 import org.neo4j.cypher.internal.expressions.Expression
 import org.neo4j.cypher.internal.expressions.IsAggregate
@@ -41,6 +42,7 @@ import org.neo4j.cypher.internal.rewriting.conditions.AggregationsAreIsolated
 import org.neo4j.cypher.internal.rewriting.conditions.HasAggregateButIsNotAggregate
 import org.neo4j.cypher.internal.rewriting.conditions.SemanticInfoAvailable
 import org.neo4j.cypher.internal.util.CancellationChecker
+import org.neo4j.cypher.internal.util.InputPosition
 import org.neo4j.cypher.internal.util.Ref
 import org.neo4j.cypher.internal.util.Rewriter
 import org.neo4j.cypher.internal.util.StepSequencer
@@ -69,56 +71,71 @@ case object isolateAggregation extends StatementRewriter with StepSequencer.Step
   override def instance(from: BaseState, context: BaseContext): Rewriter =
     bottomUp(rewriter(from)(context.cancellationChecker), cancellation = context.cancellationChecker)
 
-  private def rewriter(from: BaseState)(cancellationChecker: CancellationChecker): Rewriter = Rewriter.lift {
-    case q @ SingleQuery(clauses) =>
-      val newClauses = clauses.flatMap {
-        case clause: ProjectionClause if clauseNeedingWork(clause)(cancellationChecker) =>
-          val clauseReturnItems = clause.returnItems.items
-          val (returnsItemsWithAggregations, others) =
-            clauseReturnItems.partition(r => HasAggregateButIsNotAggregate(r.expression)(cancellationChecker))
-
-          val withAggregations = returnsItemsWithAggregations.map(_.expression).toSet
-
-          val withReturnItems: Set[ReturnItem] =
-            extractExpressionsToInclude(withAggregations)(cancellationChecker).map {
-              e =>
-                AliasedReturnItem(
-                  e,
-                  Variable(from.anonymousVariableNameGenerator.nextName)(e.position, Variable.isIsolatedDefault)
-                )(e.position)
-            } ++ others
-          val pos = clause.position
-          val withClause = With(
-            distinct = false,
-            ReturnItems(FreeProjection, withReturnItems.toIndexedSeq)(pos),
-            None,
-            None,
-            None,
-            None,
-            None,
-            withType = AddedInRewriteGeneral()
-          )(pos)
-
-          val expressionRewriter = createRewriterFor(withReturnItems)
-          val newReturnItems = clauseReturnItems.map {
-            case ri @ AliasedReturnItem(expression, _) =>
-              ri.copy(expression =
-                expression.endoRewrite(expressionRewriter)
-              )(ri.position, AliasedReturnItem.wasAutoAliasedDefault)
-            case ri @ UnaliasedReturnItem(expression, _) =>
-              ri.copy(expression = expression.endoRewrite(expressionRewriter))(ri.position)
-          }
-          val resultClause = clause.withReturnItems(newReturnItems)
-
-          IndexedSeq(withClause, resultClause)
-
-        case clause => IndexedSeq(clause)
+  private def rewriter(from: BaseState)(cancellationChecker: CancellationChecker): Rewriter = {
+    // Snapshotted upfront: a live per-clause lookup would go stale mid-bottomUp, once an inner
+    // aggregation has already been split and the outer clause embeds a subtree the survey never recorded.
+    val scopeConstantNamesByPosition: Map[InputPosition, Set[String]] =
+      from.scopeState().recordedScopes.collect {
+        case (Ref(clause: ProjectionClause), scope: StatementScope) =>
+          clause.position -> scope.incoming.constants.map(_.name)
       }
 
-      q.copy(clauses = newClauses)(q.position)
+    Rewriter.lift {
+      case q @ SingleQuery(clauses) =>
+        val newClauses = clauses.flatMap {
+          case clause: ProjectionClause if clauseNeedingWork(clause)(cancellationChecker) =>
+            val clauseReturnItems = clause.returnItems.items
+            val (returnsItemsWithAggregations, others) =
+              clauseReturnItems.partition(r => HasAggregateButIsNotAggregate(r.expression)(cancellationChecker))
+
+            val withAggregations = returnsItemsWithAggregations.map(_.expression).toSet
+
+            // Constants (e.g. imported into a CALL subquery) don't vary across the aggregated rows,
+            // so they must not be hoisted into the WITH as an implicit grouping key.
+            val scopeConstantNames: Set[String] =
+              scopeConstantNamesByPosition.getOrElse(clause.position, Set.empty)
+
+            val withReturnItems: Set[ReturnItem] =
+              extractExpressionsToInclude(withAggregations, scopeConstantNames)(cancellationChecker).map {
+                e =>
+                  AliasedReturnItem(
+                    e,
+                    Variable(from.anonymousVariableNameGenerator.nextName)(e.position, Variable.isIsolatedDefault)
+                  )(e.position)
+              } ++ others
+            val pos = clause.position
+            val withClause = With(
+              distinct = false,
+              ReturnItems(FreeProjection, withReturnItems.toIndexedSeq)(pos),
+              None,
+              None,
+              None,
+              None,
+              None,
+              withType = AddedInRewriteGeneral()
+            )(pos)
+
+            val expressionRewriter = createRewriterFor(withReturnItems, scopeConstantNames)
+            val newReturnItems = clauseReturnItems.map {
+              case ri @ AliasedReturnItem(expression, _) =>
+                ri.copy(expression =
+                  expression.endoRewrite(expressionRewriter)
+                )(ri.position, AliasedReturnItem.wasAutoAliasedDefault)
+              case ri @ UnaliasedReturnItem(expression, _) =>
+                ri.copy(expression = expression.endoRewrite(expressionRewriter))(ri.position)
+            }
+            val resultClause = clause.withReturnItems(newReturnItems)
+
+            IndexedSeq(withClause, resultClause)
+
+          case clause => IndexedSeq(clause)
+        }
+
+        q.copy(clauses = newClauses)(q.position)
+    }
   }
 
-  private def createRewriterFor(withReturnItems: Set[ReturnItem]): Rewriter = {
+  private def createRewriterFor(withReturnItems: Set[ReturnItem], scopeConstantNames: Set[String]): Rewriter = {
     val aliasedExpressionRefs: Map[Ref[Expression], LogicalVariable] =
       withReturnItems.map(ri => Ref(ri.expression) -> ri.alias.get).toMap
     lazy val aliasedExpressions: Map[Expression, LogicalVariable] =
@@ -128,7 +145,7 @@ case object isolateAggregation extends StatementRewriter with StepSequencer.Step
       case original: Expression =>
         aliasedExpressionRefs.get(Ref(original)).orElse {
           // Don't rewrite constant expressions, unless they were explicitly aliased.
-          Option.when(isNotConstantExpression(original)) {
+          Option.when(isNotConstantExpression(original, scopeConstantNames)) {
             aliasedExpressions.get(original)
           }.flatten
         }.map(_.copyId).getOrElse(original)
@@ -136,7 +153,7 @@ case object isolateAggregation extends StatementRewriter with StepSequencer.Step
     topDown(inner)
   }
 
-  private def extractExpressionsToInclude(originalExpressions: Set[Expression])(
+  private def extractExpressionsToInclude(originalExpressions: Set[Expression], scopeConstantNames: Set[String])(
     cancellationChecker: CancellationChecker
   ): Set[Expression] = {
     val expressionsToGoToWith: Set[Expression] = fixedPoint(cancellationChecker) {
@@ -169,13 +186,14 @@ case object isolateAggregation extends StatementRewriter with StepSequencer.Step
         }
     }(originalExpressions).filter {
       // Constant expressions should never be isolated
-      isNotConstantExpression
+      isNotConstantExpression(_, scopeConstantNames)
     }
     expressionsToGoToWith
   }
 
-  private def isNotConstantExpression(expr: Expression): Boolean =
-    IsAggregate(expr) || expr.dependencies.nonEmpty
+  private def isNotConstantExpression(expr: Expression, scopeConstantNames: Set[String]): Boolean =
+    IsAggregate(expr) ||
+      (expr.dependencies.nonEmpty && !expr.dependencies.forall(v => scopeConstantNames.contains(v.name)))
 
   private def clauseNeedingWork(c: Clause)(cancellationChecker: CancellationChecker): Boolean = c.folder.treeExists {
     case e: Expression => HasAggregateButIsNotAggregate(e)(cancellationChecker)
@@ -183,7 +201,8 @@ case object isolateAggregation extends StatementRewriter with StepSequencer.Step
 
   override def preConditions: Set[StepSequencer.Condition] = Set(
     // Otherwise it might rewrite ambiguous symbols incorrectly, e.g. when a grouping variable is shadowed in for-comprehension.
-    Namespacer.completed
+    Namespacer.completed,
+    UpToDateScopes
   )
 
   override def postConditions: Set[StepSequencer.Condition] = Set(AggregationsAreIsolated)

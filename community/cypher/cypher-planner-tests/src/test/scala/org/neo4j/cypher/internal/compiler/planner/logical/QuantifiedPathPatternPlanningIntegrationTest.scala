@@ -196,8 +196,8 @@ trait QuantifiedPathPatternPlanningIntegrationTestBase extends CypherPlannerTest
       end = "b",
       innerStart = "  n@1",
       innerEnd = "  m@3",
-      groupNodes = Set(("  n@1", "  n@5"), ("  m@3", "  m@7")),
-      groupRelationships = Set(("  r@2", "  r@6")),
+      groupNodes = Set(("  n@1", "  n@4"), ("  m@3", "  m@6")),
+      groupRelationships = Set(("  r@2", "  r@5")),
       innerRelationships = Set("  r@2"),
       previouslyBoundRelationships = Set.empty,
       previouslyBoundRelationshipGroups = Set.empty,
@@ -211,9 +211,9 @@ trait QuantifiedPathPatternPlanningIntegrationTestBase extends CypherPlannerTest
         .repeatTrail(`(a) ((n)-[r]->(m))+ (b)`)
         .|.filter(isRepeatTrailUnique("  r@2"))
         .|.expandAll("(`  n@1`)-[`  r@2`]->(`  m@3`)")
-        .|.filter("any(`  a@4` IN `  n@1`.list WHERE `  n@1`.p > `  a@4`)")
+        .|.filter("any(`  a@7` IN `  n@1`.list WHERE `  n@1`.p > `  a@7`)")
         .|.argument("  n@1")
-        .filter("any(`  a@4` IN `  a@0`.list WHERE `  a@0`.p > `  a@4`)")
+        .filter("any(`  a@8` IN `  a@0`.list WHERE `  a@0`.p > `  a@8`)")
         .allNodeScan("`  a@0`")
         .build()
   }

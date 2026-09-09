@@ -41,7 +41,8 @@ case object CopyQuantifiedPathPatternPredicatesToJuxtaposedNodes
   )
 
   override def invalidatedConditions: Set[StepSequencer.Condition] =
-    Set(ExpressionsHaveComputedDependencies, UpToDateScopes)
+    // copyVariables duplicates a variable declaration, so Namespacer must re-run to disambiguate the copy.
+    Set(ExpressionsHaveComputedDependencies, UpToDateScopes, Namespacer.completed)
 
   def instance(from: BaseState, context: BaseContext): Rewriter =
     CopyQuantifiedPathPatternPredicatesToJuxtaposedNodesRewriter.instance

@@ -26,6 +26,7 @@ import org.neo4j.cypher.internal.ast.With
 import org.neo4j.cypher.internal.ast.semantics.SemanticChecker
 import org.neo4j.cypher.internal.ast.semantics.SemanticState
 import org.neo4j.cypher.internal.frontend.helpers.TestState
+import org.neo4j.cypher.internal.frontend.phases.parserTransformers.scoping.ScopeSurveyor
 import org.neo4j.cypher.internal.frontend.phases.rewriting.cnf.TestContext
 import org.neo4j.cypher.internal.rewriting.RewriteTest
 import org.neo4j.cypher.internal.rewriting.rewriters.computeDependenciesForExpressions
@@ -37,7 +38,18 @@ import org.neo4j.cypher.internal.util.inSequence
 import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
 class IsolateAggregationTest extends CypherFunSuite with RewriteTest with AstConstructionTestSupport {
-  def rewriterUnderTest: Rewriter = isolateAggregation.instance(TestState(None), new TestContext(mock[Monitors]))
+  override def sendStatementToRewriterConstructor: Boolean = true
+
+  def rewriterUnderTest: Rewriter = rewriterUnderTest(None)
+
+  override def rewriterUnderTest(statement: Statement): Rewriter = rewriterUnderTest(Some(statement))
+
+  private def rewriterUnderTest(statement: Option[Statement]): Rewriter = {
+    val scopeState = statement.map(s =>
+      ScopeSurveyor.run(s, None, CypherVersion.Cypher5, Seq.empty)
+    )
+    isolateAggregation.instance(TestState(statement, scopeState), new TestContext(mock[Monitors]))
+  }
 
   test("refers to renamed variable in where clause") {
     assertRewrite(
@@ -598,6 +610,62 @@ class IsolateAggregationTest extends CypherFunSuite with RewriteTest with AstCon
     )
   }
 
+  test("does not turn a CALL-imported constant into a grouping key") {
+    assertRewrite(
+      """WITH 0.2 AS tax
+        |CALL (tax) {
+        |  UNWIND [1, 2] AS y
+        |  RETURN sum(y) + tax AS res
+        |}
+        |RETURN res AS res""".stripMargin,
+      """WITH 0.2 AS tax
+        |CALL (tax) {
+        |  UNWIND [1, 2] AS y
+        |  WITH sum(y) AS `  UNNAMED0`
+        |  RETURN `  UNNAMED0` + tax AS res
+        |}
+        |RETURN res AS res""".stripMargin,
+      additionalExpectedAstUpdates = expectedStatement => {
+        expectedStatement.endoRewrite(bottomUp(Rewriter.lift {
+          case w: With if w.returnItems.items.exists(r => r.name.equals("  UNNAMED0")) =>
+            w.copy(withType = AddedInRewriteGeneral())(w.position)
+        }))
+      }
+    )
+  }
+
+  test("does turn a locally reused name into a grouping key once the scope has been cleared") {
+    assertRewrite(
+      """WITH 0.2 AS tax
+        |CALL (tax) {
+        |  CALL () {
+        |    UNWIND [1, 2] AS tax
+        |    UNWIND [1, 2] AS y
+        |    RETURN sum(y) + tax AS res
+        |  }
+        |  RETURN res AS res
+        |}
+        |RETURN res AS res""".stripMargin,
+      """WITH 0.2 AS tax
+        |CALL (tax) {
+        |  CALL () {
+        |    UNWIND [1, 2] AS tax
+        |    UNWIND [1, 2] AS y
+        |    WITH sum(y) AS `  UNNAMED0`, tax AS `  UNNAMED1`
+        |    RETURN `  UNNAMED0` + `  UNNAMED1` AS res
+        |  }
+        |  RETURN res AS res
+        |}
+        |RETURN res AS res""".stripMargin,
+      additionalExpectedAstUpdates = expectedStatement => {
+        expectedStatement.endoRewrite(bottomUp(Rewriter.lift {
+          case w: With if w.returnItems.items.exists(r => r.name.equals("  UNNAMED0")) =>
+            w.copy(withType = AddedInRewriteGeneral())(w.position)
+        }))
+      }
+    )
+  }
+
   override protected def parseForRewriting(queryText: String): Statement = {
     val exceptionFactory = Neo4jCypherExceptionFactory(queryText, Some(pos))
     super.parseForRewriting(queryText).endoRewrite(inSequence(NormalizeWithAndReturnClauses(
@@ -613,7 +681,7 @@ class IsolateAggregationTest extends CypherFunSuite with RewriteTest with AstCon
 
     val originalWithDeps = original.endoRewrite(computeDependenciesForExpressions(semanticCheckResult.state))
 
-    val result = rewrite(originalWithDeps)
+    val result = rewrite(originalWithDeps, originalQuery)
     (expected, result)
 
   }
