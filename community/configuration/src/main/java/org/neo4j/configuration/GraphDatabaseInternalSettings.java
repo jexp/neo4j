@@ -2095,6 +2095,12 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
 
     @Internal
     @Description("")
+    public static final Setting<Duration> spd_import_termination_check_interval = newBuilder(
+                    "internal.db.spd_import.termination_check_interval", DURATION, ofSeconds(1))
+            .build();
+
+    @Internal
+    @Description("")
     public static final Setting<Duration> spd_import_progress_collect_interval = newBuilder(
                     "internal.db.spd_import.progress_collect_interval", DURATION, ofSeconds(1))
             .build();
