@@ -35,7 +35,7 @@ case object VectorNorm extends Function {
       description =
         "Returns a `FLOAT` representing the distance between the given vector and an origin vector, which is a vector with the same dimension with all coordinates set to zero, calculated using the specified `vectorDistanceMetric`.",
       overrideDefaultAsString = Some(
-        name + "(vector1 :: VECTOR, vector2 :: VECTOR, coordinateType :: [EUCLIDEAN, EUCLIDEAN_SQUARED, MANHATTAN, COSINE, DOT, HAMMING]) :: FLOAT"
+        name + "(vector :: VECTOR, vectorDistanceMetric :: [EUCLIDEAN, MANHATTAN]) :: FLOAT"
       ),
       overriddenArgumentTypeName =
         Some(Map("vectorDistanceMetric" -> "[EUCLIDEAN, MANHATTAN]")),

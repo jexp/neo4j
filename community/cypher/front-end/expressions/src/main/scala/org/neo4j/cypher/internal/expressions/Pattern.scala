@@ -17,11 +17,15 @@
 package org.neo4j.cypher.internal.expressions
 
 import org.neo4j.cypher.internal.expressions.PatternPart.Selector
+import org.neo4j.cypher.internal.expressions.functions.Category
+import org.neo4j.cypher.internal.expressions.functions.FunctionWithName
 import org.neo4j.cypher.internal.label_expressions.LabelExpression
 import org.neo4j.cypher.internal.util.ASTNode
 import org.neo4j.cypher.internal.util.DeprecatedFeature
 import org.neo4j.cypher.internal.util.InputPosition
 import org.neo4j.cypher.internal.util.helpers.LazyVal
+import org.neo4j.cypher.internal.util.symbols.CTList
+import org.neo4j.cypher.internal.util.symbols.CTPath
 
 import scala.annotation.tailrec
 
@@ -224,6 +228,44 @@ case class ShortestPathsPatternPart(element: PatternElement, single: Boolean)(va
   override def dependencies: Set[LogicalVariable] = element.dependencies
 
   override def containsDynamicPattern: Boolean = element.containsDynamicPattern
+}
+
+object ShortestPathShowInfo extends FunctionWithName {
+  def name: String = "shortestPath"
+
+  val functionInfoForShow: Seq[FunctionTypeSignature] = Vector(
+    FunctionTypeSignature(
+      function = this,
+      outputType = CTPath,
+      names = Vector("pathPattern"),
+      description =
+        "Returns the shortest path for a given path pattern with a variable-length relationship. If multiple shortest paths exist, one is returned non-deterministically.",
+      category = Category.PATH,
+      argumentTypes = Vector(CTPath),
+      argumentDescriptions = Map(
+        "pathPattern" -> "A path pattern containing a variable-length relationship."
+      )
+    )
+  )
+}
+
+object AllShortestPathsShowInfo extends FunctionWithName {
+  def name: String = "allShortestPaths"
+
+  val functionInfoForShow: Seq[FunctionTypeSignature] = Vector(
+    FunctionTypeSignature(
+      function = this,
+      outputType = CTList(CTPath),
+      names = Vector("pathPattern"),
+      description =
+        "Returns all shortest paths for a given path pattern with a variable-length relationship.",
+      category = Category.LIST,
+      argumentTypes = Vector(CTPath),
+      argumentDescriptions = Map(
+        "pathPattern" -> "A path pattern containing a variable-length relationship."
+      )
+    )
+  )
 }
 
 object PatternPart {

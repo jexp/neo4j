@@ -523,7 +523,12 @@ abstract class ExecutionEngine(
       org.neo4j.cypher.internal.expressions.PropertyExistsShowInfo
         .functionInfoForShow.map(FunctionWithInformation.apply)
 
-    (informations ++ predicateInformations ++ propertyExistsInformations).asJava
+    val shortestPathInformations: Seq[FunctionInformation] =
+      (org.neo4j.cypher.internal.expressions.ShortestPathShowInfo.functionInfoForShow ++
+        org.neo4j.cypher.internal.expressions.AllShortestPathsShowInfo.functionInfoForShow)
+        .map(FunctionWithInformation.apply)
+
+    (informations ++ predicateInformations ++ propertyExistsInformations ++ shortestPathInformations).asJava
   }
 
   override def close(): Unit =

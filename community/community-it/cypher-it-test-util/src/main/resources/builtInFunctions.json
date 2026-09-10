@@ -145,6 +145,38 @@
     "category": "Predicate"
   },
   {
+    "name": "allShortestPaths",
+    "aggregating": false,
+    "isDeprecated": false,
+    "deprecatedBy": null,
+    "isBuiltIn": true,
+    "rolesBoostedExecution": [],
+    "returnDescription": "LIST<PATH>",
+    "description": "Returns all shortest paths for a given path pattern with a variable-length relationship.",
+    "rolesExecution": [
+      "PUBLIC",
+      "admin",
+      "architect",
+      "editor",
+      "publisher",
+      "reader"
+    ],
+    "cypherVersionScope": [
+      5,
+      25
+    ],
+    "signature": "allShortestPaths(pathPattern :: PATH) :: LIST<PATH>",
+    "argumentDescription": [
+      {
+        "name": "pathPattern",
+        "description": "A path pattern containing a variable-length relationship.",
+        "isDeprecated": false,
+        "type": "PATH"
+      }
+    ],
+    "category": "List"
+  },
+  {
     "name": "any",
     "aggregating": false,
     "isDeprecated": false,
@@ -4661,6 +4693,38 @@
     "category": "String"
   },
   {
+    "name": "shortestPath",
+    "aggregating": false,
+    "isDeprecated": false,
+    "deprecatedBy": null,
+    "isBuiltIn": true,
+    "rolesBoostedExecution": [],
+    "returnDescription": "PATH",
+    "description": "Returns the shortest path for a given path pattern with a variable-length relationship. If multiple shortest paths exist, one is returned non-deterministically.",
+    "rolesExecution": [
+      "PUBLIC",
+      "admin",
+      "architect",
+      "editor",
+      "publisher",
+      "reader"
+    ],
+    "cypherVersionScope": [
+      5,
+      25
+    ],
+    "signature": "shortestPath(pathPattern :: PATH) :: PATH",
+    "argumentDescription": [
+      {
+        "name": "pathPattern",
+        "description": "A path pattern containing a variable-length relationship.",
+        "isDeprecated": false,
+        "type": "PATH"
+      }
+    ],
+    "category": "Path"
+  },
+  {
     "name": "sign",
     "aggregating": false,
     "isDeprecated": false,
@@ -6835,7 +6899,7 @@
     "cypherVersionScope": [
       25
     ],
-    "signature": "vector_norm(vector1 :: VECTOR, vector2 :: VECTOR, coordinateType :: [EUCLIDEAN, EUCLIDEAN_SQUARED, MANHATTAN, COSINE, DOT, HAMMING]) :: FLOAT",
+    "signature": "vector_norm(vector :: VECTOR, vectorDistanceMetric :: [EUCLIDEAN, MANHATTAN]) :: FLOAT",
     "argumentDescription": [
       {
         "name": "vector",
