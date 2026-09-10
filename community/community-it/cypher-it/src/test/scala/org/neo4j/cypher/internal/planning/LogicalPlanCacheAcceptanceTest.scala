@@ -167,7 +167,8 @@ class LogicalPlanCacheAcceptanceTest extends CypherITTestSuite with GraphDatabas
         ValueUtils.asParameterMapValue(asJavaMapDeep(params)),
         devNullLogger,
         null,
-        cacheStrategy = CacheStrategy.defaultDefault
+        cacheStrategy = CacheStrategy.defaultDefault,
+        isOutermostQuery = true
       )
       val id = context.executingQuery().id()
       context.close()

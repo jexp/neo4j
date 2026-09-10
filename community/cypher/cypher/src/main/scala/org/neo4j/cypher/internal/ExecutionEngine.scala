@@ -260,7 +260,7 @@ abstract class ExecutionEngine(
     context.executingQuery().onPreparseReady(query.resolvedLanguage)
     val executableQuery =
       try {
-        getOrCompile(context, query, tracer, params, notificationLogger, cacheStrategy)
+        getOrCompile(context, query, tracer, params, notificationLogger, cacheStrategy, isOutermostQuery)
       } catch {
         case gqlException: ErrorGqlStatusObject =>
           if (isOutermostQuery) {
@@ -320,7 +320,8 @@ abstract class ExecutionEngine(
     params: MapValue,
     notificationLogger: InternalNotificationLogger,
     sessionDatabase: DatabaseReference,
-    cacheStrategy: CacheStrategy
+    cacheStrategy: CacheStrategy,
+    isOutermostQuery: Boolean
   ): CompilerWithExpressionCodeGenOption[ExecutableQuery] = {
     val compiledExpressionCompiler =
       () =>
@@ -331,7 +332,8 @@ abstract class ExecutionEngine(
           params,
           notificationLogger,
           sessionDatabase,
-          cacheStrategy
+          cacheStrategy,
+          isOutermostQuery
         )
     val interpretedExpressionCompiler =
       () =>
@@ -342,7 +344,8 @@ abstract class ExecutionEngine(
           params,
           notificationLogger,
           sessionDatabase,
-          cacheStrategy
+          cacheStrategy,
+          isOutermostQuery
         )
 
     new CompilerWithExpressionCodeGenOption[ExecutableQuery] {
@@ -380,7 +383,8 @@ abstract class ExecutionEngine(
     tracer: QueryCompilationEvent,
     params: MapValue,
     notificationLogger: InternalNotificationLogger,
-    cacheStrategy: CacheStrategy
+    cacheStrategy: CacheStrategy,
+    isOutermostQuery: Boolean
   ): ExecutableQuery = {
 
     // create transaction and query context
@@ -459,7 +463,8 @@ abstract class ExecutionEngine(
 
             override def isShard: Boolean = false
           },
-          cacheStrategy
+          cacheStrategy,
+          isOutermostQuery
         )
 
         val queryCacheResult = queryCache.computeIfAbsentOrStale(

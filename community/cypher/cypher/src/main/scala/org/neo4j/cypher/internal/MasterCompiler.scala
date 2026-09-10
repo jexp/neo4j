@@ -69,7 +69,8 @@ trait MasterCompiler {
     params: MapValue,
     notificationLogger: InternalNotificationLogger,
     sessionDatabase: DatabaseReference,
-    cacheStrategy: CacheStrategy
+    cacheStrategy: CacheStrategy,
+    isOutermostQuery: Boolean
   ): ExecutableQuery
 
   def supportsAdministrativeCommands(): Boolean
@@ -107,9 +108,19 @@ class SingleMasterCompiler(compiler: Compiler) extends MasterCompiler {
     params: MapValue,
     notificationLogger: InternalNotificationLogger,
     sessionDatabase: DatabaseReference,
-    cacheStrategy: CacheStrategy
+    cacheStrategy: CacheStrategy,
+    isOutermostQuery: Boolean
   ): ExecutableQuery =
-    compiler.compile(query, tracer, transactionalContext, params, notificationLogger, sessionDatabase, cacheStrategy)
+    compiler.compile(
+      query,
+      tracer,
+      transactionalContext,
+      params,
+      notificationLogger,
+      sessionDatabase,
+      cacheStrategy,
+      isOutermostQuery
+    )
 
   def supportsAdministrativeCommands(): Boolean = false
 }
@@ -143,7 +154,8 @@ class LibraryMasterCompiler(compilerLibrary: CompilerLibrary) extends MasterComp
     params: MapValue,
     notificationLogger: InternalNotificationLogger,
     sessionDatabase: DatabaseReference,
-    cacheStrategy: CacheStrategy
+    cacheStrategy: CacheStrategy,
+    isOutermostQuery: Boolean
   ): ExecutableQuery = {
 
     // Do the compilation
@@ -153,7 +165,16 @@ class LibraryMasterCompiler(compilerLibrary: CompilerLibrary) extends MasterComp
       query.options.materializedEntitiesMode
     )
 
-    compiler.compile(query, tracer, transactionalContext, params, notificationLogger, sessionDatabase, cacheStrategy)
+    compiler.compile(
+      query,
+      tracer,
+      transactionalContext,
+      params,
+      notificationLogger,
+      sessionDatabase,
+      cacheStrategy,
+      isOutermostQuery
+    )
   }
 
   def supportsAdministrativeCommands(): Boolean = compilerLibrary.supportsAdministrativeCommands()

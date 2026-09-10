@@ -39,6 +39,8 @@ trait Compiler {
    * @param query                   query to convert
    * @param tracer                  compilation tracer to which events of the compilation process are reported
    * @param transactionalContext    transactional context to use during compilation (in logical and physical planning)
+   * @param isOutermostQuery        whether this is the outermost, user-facing query, as opposed to an inner query
+   *                                issued on its behalf (e.g. by an administration command)
    * @throws Neo4jException public cypher exceptions on compilation problems
    * @return a compiled and executable query
    */
@@ -50,6 +52,7 @@ trait Compiler {
     params: MapValue,
     notificationLogger: InternalNotificationLogger,
     sessionDatabase: DatabaseReference,
-    cacheStrategy: CacheStrategy
+    cacheStrategy: CacheStrategy,
+    isOutermostQuery: Boolean
   ): ExecutableQuery
 }

@@ -158,7 +158,8 @@ case class CypherCurrentCompiler[CONTEXT <: RuntimeContext](
     params: MapValue,
     notificationLogger: InternalNotificationLogger,
     sessionDatabase: DatabaseReference,
-    cacheStrategy: CacheStrategy
+    cacheStrategy: CacheStrategy,
+    isOutermostQuery: Boolean
   ): ExecutableQuery = {
 
     // we only pass in the runtime to be able to support checking against the correct CommandManagementRuntime
@@ -211,8 +212,9 @@ case class CypherCurrentCompiler[CONTEXT <: RuntimeContext](
     val cachedExecutionPlan = cacheResult.value
 
     logicalPlanResult.compileReason match {
-      case None => // No need to append to the planner log
-      case Some(planningReason) => logQueryPlan(
+      // Only the outermost, user-facing query is appended to the planner log, matching the query log
+      case Some(planningReason) if isOutermostQuery =>
+        logQueryPlan(
           transactionalContext.executingQuery(),
           executionPlanCacheKeyHash,
           cachedExecutionPlan,
@@ -223,6 +225,7 @@ case class CypherCurrentCompiler[CONTEXT <: RuntimeContext](
           logicalPlanResult.planningTimeMillis,
           planningReason
         )
+      case _ => // No need to append to the planner log
     }
 
     new CypherExecutableQuery(
