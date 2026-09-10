@@ -35,11 +35,20 @@ public record ResumableStateData(
         long problemHandlerPosition,
         List<RelationshipsIrRangeData> relationshipsIrRanges) {
 
+    public ResumableStateData {
+        relationshipsIrRanges = List.copyOf(relationshipsIrRanges);
+    }
+
     public record RelationshipsIrRangeData(
             Map<RelationshipsIRPhase, Boolean> hasRelationshipsInPhase,
             boolean initialPassDone,
             long nextIrPosition,
             boolean hasRelationships) {
+
+        public RelationshipsIrRangeData {
+            hasRelationshipsInPhase = Collections.unmodifiableMap(new EnumMap<>(hasRelationshipsInPhase));
+        }
+
         private void writeDataToOutputStream(DataOutputStream checkpointStream) throws IOException {
             checkpointStream.writeInt(hasRelationshipsInPhase.size());
             for (Map.Entry<RelationshipsIRPhase, Boolean> entry : hasRelationshipsInPhase.entrySet()) {
@@ -62,10 +71,7 @@ public record ResumableStateData(
             long nextIrPosition = inputStream.readLong();
             boolean hasRelationships = inputStream.readBoolean();
             return new RelationshipsIrRangeData(
-                    Collections.unmodifiableMap(hasRelationshipsInPhase),
-                    initialPassDone,
-                    nextIrPosition,
-                    hasRelationships);
+                    hasRelationshipsInPhase, initialPassDone, nextIrPosition, hasRelationships);
         }
     }
 
@@ -95,11 +101,7 @@ public record ResumableStateData(
         for (int i = 0; i < numRanges; i++) {
             relationshipsIrRanges.add(RelationshipsIrRangeData.fromInputStream(inputStream));
         }
-        return new ResumableStateData(
-                stepOrdinal,
-                collectorBadEntries,
-                problemHandlerPosition,
-                Collections.unmodifiableList(relationshipsIrRanges));
+        return new ResumableStateData(stepOrdinal, collectorBadEntries, problemHandlerPosition, relationshipsIrRanges);
     }
 
     @SuppressWarnings("UnusedReturnValue")
@@ -131,10 +133,7 @@ public record ResumableStateData(
 
         public ResumableStateData build() {
             return new ResumableStateData(
-                    stepOrdinal,
-                    badCollectedEntriesCount,
-                    problemHandlerPosition,
-                    Collections.unmodifiableList(relationshipsIrRanges));
+                    stepOrdinal, badCollectedEntriesCount, problemHandlerPosition, relationshipsIrRanges);
         }
     }
 }
