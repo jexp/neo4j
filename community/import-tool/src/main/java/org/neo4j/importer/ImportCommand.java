@@ -66,7 +66,7 @@ import org.neo4j.batchimport.api.BatchImporter.HardwareValidation;
 import org.neo4j.batchimport.api.Configuration;
 import org.neo4j.batchimport.api.IndexConfig;
 import org.neo4j.batchimport.api.Monitor;
-import org.neo4j.batchimport.api.ResumableStateWriter;
+import org.neo4j.batchimport.api.ResumableStateAccessor;
 import org.neo4j.batchimport.api.input.Collector;
 import org.neo4j.batchimport.api.input.FileGroup;
 import org.neo4j.batchimport.api.input.FileGroup.NumberedFile;
@@ -701,29 +701,29 @@ public class ImportCommand {
                             fileSystem, databaseConfig.get(GraphDatabaseSettings.db_format), databaseConfig);
 
                     final var importerBuilder = configureFileImporterBuilder(FileImporter.builder()
-                                    .withCsvConfig(csvConfiguration(fileSystem))
-                                    .withImportConfig(importConfiguration(databaseConfig, importContext.baseDir()))
-                                    .withDatabaseLayout(databaseLayout)
-                                    .withDatabaseConfig(databaseConfig)
-                                    .withFileSystem(fileSystem)
-                                    .withStdOut(ctx.out())
-                                    .withStdErr(ctx.err())
-                                    .withDefaultIdType(defaultIdType)
-                                    .withInputEncoding(inputEncoding)
-                                    .withIgnoreExtraColumns(ignoreExtraColumns)
-                                    .withBadTolerance(badTolerance)
-                                    .withSkipBadRelationships(skipBadRelationships)
-                                    .withSkipDuplicateNodes(skipDuplicateNodes)
-                                    .withSkipBadEntriesLogging(skipBadEntriesLogging)
-                                    .withSkipBadRelationships(skipBadRelationships)
-                                    .withNormalizeTypes(normalizeTypes)
-                                    .withVerbose(verbose)
-                                    .withAutoSkipHeaders(autoSkipHeaders)
-                                    .withSchemaCommands(parseSchemaCommands(fileSystem, databaseConfig))
-                                    .withReportChannel(importContext::collectorChannel)
-                                    .withLogProvider(importContext)
-                                    .withMonitor(decorateImportContext(importContext)))
-                            .withResumableStateWriter(importContext);
+                            .withCsvConfig(csvConfiguration(fileSystem))
+                            .withImportConfig(importConfiguration(databaseConfig, importContext.baseDir()))
+                            .withDatabaseLayout(databaseLayout)
+                            .withDatabaseConfig(databaseConfig)
+                            .withFileSystem(fileSystem)
+                            .withStdOut(ctx.out())
+                            .withStdErr(ctx.err())
+                            .withDefaultIdType(defaultIdType)
+                            .withInputEncoding(inputEncoding)
+                            .withIgnoreExtraColumns(ignoreExtraColumns)
+                            .withBadTolerance(badTolerance)
+                            .withSkipBadRelationships(skipBadRelationships)
+                            .withSkipDuplicateNodes(skipDuplicateNodes)
+                            .withSkipBadEntriesLogging(skipBadEntriesLogging)
+                            .withSkipBadRelationships(skipBadRelationships)
+                            .withNormalizeTypes(normalizeTypes)
+                            .withVerbose(verbose)
+                            .withAutoSkipHeaders(autoSkipHeaders)
+                            .withSchemaCommands(parseSchemaCommands(fileSystem, databaseConfig))
+                            .withReportChannel(importContext::collectorChannel)
+                            .withLogProvider(importContext)
+                            .withMonitor(decorateImportContext(importContext))
+                            .withResumableStateAccessor(importContext));
 
                     FileImporter importer;
                     if (isDistributedPropShard()) {
@@ -935,6 +935,10 @@ public class ImportCommand {
          * the destination, so without this a resumed run would immediately fail because the destination already
          * exists. Force an overwrite so '--resume' has a chance of completing until real resume is
          * implemented.
+         * <p>
+         * The overwrite this forces has to retain the import's temporary area, which holds the state being resumed
+         * from. {@link FileImporter#doImport(Base, boolean, boolean)} does that and should be cleaned up together with
+         * removing this.
          */
         protected void forceOverwriteDestinationForResume() {}
 
@@ -1168,7 +1172,7 @@ public class ImportCommand {
                 Supplier<IndexProvidersAccess> indexProvidersAccess,
                 ShardingArguments shardingArguments,
                 Monitor monitor,
-                ResumableStateWriter resumableStateWriter,
+                ResumableStateAccessor resumableStateAccessor,
                 boolean resume)
                 throws IOException;
 
@@ -1649,7 +1653,7 @@ public class ImportCommand {
                 Supplier<IndexProvidersAccess> indexProvidersAccess,
                 ShardingArguments shardingArguments,
                 Monitor monitor,
-                ResumableStateWriter resumableStateWriter,
+                ResumableStateAccessor resumableStateAccessor,
                 boolean resume)
                 throws IOException {
             storageEngineFactory
@@ -1678,7 +1682,7 @@ public class ImportCommand {
                             DatabaseCreationOptions.EMPTY_CREATION_OPTIONS,
                             HardwareValidation.WARNING)
                     // resume is not yet supported by the batch importer itself
-                    .doSkidbladnirImport(input, encoding, nodeFileGroupsByAdditionalLabels, resumableStateWriter);
+                    .doSkidbladnirImport(input, encoding, nodeFileGroupsByAdditionalLabels, resumableStateAccessor);
         }
 
         @Override

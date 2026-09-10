@@ -23,26 +23,88 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
 
-public record ResumableStateData(byte stepOrdinal, long badCollectedEntriesCount, long problemHandlerPosition) {
+public record ResumableStateData(
+        byte stepOrdinal,
+        long badCollectedEntriesCount,
+        long problemHandlerPosition,
+        List<RelationshipsIrRangeData> relationshipsIrRanges) {
+
+    public record RelationshipsIrRangeData(
+            Map<RelationshipsIRPhase, Boolean> hasRelationshipsInPhase,
+            boolean initialPassDone,
+            long nextIrPosition,
+            boolean hasRelationships) {
+        private void writeDataToOutputStream(DataOutputStream checkpointStream) throws IOException {
+            checkpointStream.writeInt(hasRelationshipsInPhase.size());
+            for (Map.Entry<RelationshipsIRPhase, Boolean> entry : hasRelationshipsInPhase.entrySet()) {
+                checkpointStream.writeByte(entry.getKey().ordinal());
+                checkpointStream.writeBoolean(entry.getValue());
+            }
+            checkpointStream.writeBoolean(initialPassDone);
+            checkpointStream.writeLong(nextIrPosition);
+            checkpointStream.writeBoolean(hasRelationships);
+        }
+
+        private static RelationshipsIrRangeData fromInputStream(DataInputStream inputStream) throws IOException {
+            int hasRelationshipsInPhaseSize = inputStream.readInt();
+            EnumMap<RelationshipsIRPhase, Boolean> hasRelationshipsInPhase = new EnumMap<>(RelationshipsIRPhase.class);
+            for (int i = 0; i < hasRelationshipsInPhaseSize; i++) {
+                RelationshipsIRPhase phase = RelationshipsIRPhase.values()[inputStream.readByte()];
+                hasRelationshipsInPhase.put(phase, inputStream.readBoolean());
+            }
+            boolean initialPassDone = inputStream.readBoolean();
+            long nextIrPosition = inputStream.readLong();
+            boolean hasRelationships = inputStream.readBoolean();
+            return new RelationshipsIrRangeData(
+                    Collections.unmodifiableMap(hasRelationshipsInPhase),
+                    initialPassDone,
+                    nextIrPosition,
+                    hasRelationships);
+        }
+    }
+
     public byte[] asByteArray() throws IOException {
         ByteArrayOutputStream checkpoint = new ByteArrayOutputStream();
         DataOutputStream checkpointStream = new DataOutputStream(checkpoint);
+        writeDataToOutputStream(checkpointStream);
+        return checkpoint.toByteArray();
+    }
+
+    private void writeDataToOutputStream(DataOutputStream checkpointStream) throws IOException {
         checkpointStream.writeByte(stepOrdinal);
         checkpointStream.writeLong(badCollectedEntriesCount);
         checkpointStream.writeLong(problemHandlerPosition);
-        return checkpoint.toByteArray();
+        checkpointStream.writeInt(relationshipsIrRanges.size());
+        for (RelationshipsIrRangeData relationshipsIrRange : relationshipsIrRanges) {
+            relationshipsIrRange.writeDataToOutputStream(checkpointStream);
+        }
     }
 
     public static ResumableStateData fromInputStream(DataInputStream inputStream) throws IOException {
         byte stepOrdinal = inputStream.readByte();
         long collectorBadEntries = inputStream.readLong();
         long problemHandlerPosition = inputStream.readLong();
-        return new ResumableStateData(stepOrdinal, collectorBadEntries, problemHandlerPosition);
+        int numRanges = inputStream.readInt();
+        List<RelationshipsIrRangeData> relationshipsIrRanges = new ArrayList<>(numRanges);
+        for (int i = 0; i < numRanges; i++) {
+            relationshipsIrRanges.add(RelationshipsIrRangeData.fromInputStream(inputStream));
+        }
+        return new ResumableStateData(
+                stepOrdinal,
+                collectorBadEntries,
+                problemHandlerPosition,
+                Collections.unmodifiableList(relationshipsIrRanges));
     }
 
     @SuppressWarnings("UnusedReturnValue")
     public static class ResumableStateDataBuilder {
+        private final List<RelationshipsIrRangeData> relationshipsIrRanges = new ArrayList<>();
         private byte stepOrdinal;
         private long badCollectedEntriesCount;
         private long problemHandlerPosition;
@@ -62,8 +124,17 @@ public record ResumableStateData(byte stepOrdinal, long badCollectedEntriesCount
             return this;
         }
 
+        public ResumableStateDataBuilder addRelationshipsIrRange(RelationshipsIrRangeData relationshipsIrRange) {
+            this.relationshipsIrRanges.add(relationshipsIrRange);
+            return this;
+        }
+
         public ResumableStateData build() {
-            return new ResumableStateData(stepOrdinal, badCollectedEntriesCount, problemHandlerPosition);
+            return new ResumableStateData(
+                    stepOrdinal,
+                    badCollectedEntriesCount,
+                    problemHandlerPosition,
+                    Collections.unmodifiableList(relationshipsIrRanges));
         }
     }
 }

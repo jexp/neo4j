@@ -52,11 +52,12 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.SequencedSet;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.neo4j.batchimport.api.Configuration;
 import org.neo4j.batchimport.api.ImportValidationException;
 import org.neo4j.batchimport.api.Monitor;
-import org.neo4j.batchimport.api.ResumableStateWriter;
+import org.neo4j.batchimport.api.ResumableStateAccessor;
 import org.neo4j.batchimport.api.UnsupportedFormatException;
 import org.neo4j.batchimport.api.input.Collector;
 import org.neo4j.batchimport.api.input.FileGroup;
@@ -83,6 +84,7 @@ import org.neo4j.internal.batchimport.input.parquet.ParquetMonitor;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.fs.StoreChannel;
+import org.neo4j.io.layout.CommonDatabaseStores;
 import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.locker.FileLockException;
 import org.neo4j.io.os.OsBeanUtil;
@@ -146,7 +148,7 @@ public class FileImporter {
     private final FileInputType fileInputType;
     private final ShardingArguments shardingArguments;
     private final Monitor monitor;
-    private final ResumableStateWriter resumableStateWriter;
+    private final ResumableStateAccessor resumableStateAccessor;
 
     private FileImporter(
             Builder b, Map<Set<String>, List<FileGroup>> nodeFiles, Map<String, List<FileGroup>> relationshipFiles) {
@@ -180,7 +182,7 @@ public class FileImporter {
         this.fileInputType = b.fileInputType;
         this.shardingArguments = b.shardingArguments;
         this.monitor = b.monitor;
-        this.resumableStateWriter = b.resumableStateWriter;
+        this.resumableStateAccessor = b.resumableStateAccessor;
     }
 
     public FileInputType fileInputType() {
@@ -255,10 +257,16 @@ public class FileImporter {
         }
     }
 
+    /**
+     * When {@link ImportCommand.Full#forceOverwriteDestinationForResume} is removed, the changes that came
+     * along with this comment need to be reverted.
+     */
     public void doImport(ImportCommand.Base type, boolean skidbladnir, boolean resume) throws IOException {
         if (force) {
+            Predicate<Path> preserved = resume ? preservedByResume() : path -> false;
             fileSystem.deleteRecursively(
-                    databaseLayout.databaseDirectory(), path -> !path.equals(databaseLayout.databaseLockFile()));
+                    databaseLayout.databaseDirectory(),
+                    path -> !path.equals(databaseLayout.databaseLockFile()) && !preserved.test(path));
             fileSystem.deleteRecursively(databaseLayout.getTransactionLogsDirectory());
         }
 
@@ -266,6 +274,49 @@ public class FileImporter {
                 var input = importInput()) {
             doImport(input, badCollector, type, skidbladnir, resume);
         }
+    }
+
+    /**
+     * Matches what a resumed import has to keep even though it overwrites the destination: the files that the steps
+     * before store writing left in the temporary area, and the token stores that the relationship IR refers to.
+     */
+    private Predicate<Path> preservedByResume() {
+        Path temporaryArea = importConfig.tempDirectory(databaseLayout.databaseDirectory());
+        DatabaseLayout formatSpecificLayout = storageEngineFactory.formatSpecificDatabaseLayout(databaseLayout);
+        Path relationshipTypeTokens = formatSpecificLayout
+                .pathForStore(CommonDatabaseStores.RELATIONSHIP_TYPE_TOKENS)
+                .baseSegment();
+        Path propertyKeyTokens = formatSpecificLayout
+                .pathForStore(CommonDatabaseStores.PROPERTY_KEY_TOKENS)
+                .baseSegment();
+        return path -> isKeptTemporaryAreaFile(temporaryArea, path)
+                || belongsToStore(path, relationshipTypeTokens)
+                || belongsToStore(path, propertyKeyTokens);
+    }
+
+    /**
+     * The temporary area files that a resume reuses: the relationship IR and the node markers. Both are written
+     * before the store writing step and are not rewritten by a resumed import, which still reads them.
+     * Named literally here because they belong to the block format importer, which this module cannot see
+     * and this method will be removed again soon (tm).
+     */
+    private static boolean isKeptTemporaryAreaFile(Path temporaryArea, Path path) {
+        if (!temporaryArea.equals(path.getParent())) {
+            return false;
+        }
+        String fileName = path.getFileName().toString();
+        return fileName.startsWith("rels-for-later") || fileName.startsWith("node-markers");
+    }
+
+    /**
+     * @return whether {@code path} is one of the store's segments or its id file, all of which are named after the
+     * store's base segment.
+     */
+    private static boolean belongsToStore(Path path, Path storeBaseSegment) {
+        return storeBaseSegment.getParent().equals(path.getParent())
+                && path.getFileName()
+                        .toString()
+                        .startsWith(storeBaseSegment.getFileName().toString());
     }
 
     private Input importInput() {
@@ -361,7 +412,7 @@ public class FileImporter {
                         indexProviders,
                         shardingArguments,
                         monitor,
-                        resumableStateWriter,
+                        resumableStateAccessor,
                         resume);
             } else {
                 type.doImport(
@@ -612,7 +663,7 @@ public class FileImporter {
         private FileInputType fileInputType = FileInputType.CSV;
         private ShardingArguments shardingArguments;
         private Monitor monitor = Monitor.NO_MONITOR;
-        private ResumableStateWriter resumableStateWriter = ResumableStateWriter.NOOP;
+        private ResumableStateAccessor resumableStateAccessor = ResumableStateAccessor.NOOP;
         private int globalFileIdCounter = 0;
 
         /**
@@ -805,8 +856,8 @@ public class FileImporter {
             return this;
         }
 
-        public Builder withResumableStateWriter(ResumableStateWriter resumableStateWriter) {
-            this.resumableStateWriter = resumableStateWriter;
+        public Builder withResumableStateAccessor(ResumableStateAccessor resumableStateAccessor) {
+            this.resumableStateAccessor = resumableStateAccessor;
             return this;
         }
 

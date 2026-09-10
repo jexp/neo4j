@@ -24,9 +24,9 @@ import java.io.IOException;
 import org.neo4j.batchimport.api.input.ResumableStateData;
 
 /**
- * Exposes methods to write the state of a resumable import to disk.
+ * Exposes methods to read and write the state of a resumable import from/to disk.
  */
-public interface ResumableStateWriter {
+public interface ResumableStateAccessor {
     long NO_PREVIOUS_NODES_PER_RANGE = -1L;
 
     /**
@@ -55,7 +55,7 @@ public interface ResumableStateWriter {
     /**
      * A no-op implementation.
      */
-    ResumableStateWriter NOOP = new ResumableStateWriter() {
+    ResumableStateAccessor NOOP = new ResumableStateAccessor() {
         @Override
         public void persistNodesPerRange(long nodesPerRange) {
             // no-op

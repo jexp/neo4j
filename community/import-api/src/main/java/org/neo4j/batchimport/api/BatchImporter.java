@@ -52,7 +52,7 @@ public interface BatchImporter extends Closeable {
             Input input,
             Charset encoding,
             Map<Set<String>, List<FileGroup>> nodeFileGroupsByAdditionalLabels,
-            ResumableStateWriter resumableStateWriter)
+            ResumableStateAccessor resumableStateAccessor)
             throws IOException {
         throw new UnsupportedOperationException("Skidbladnir import is not supported like this.");
     }

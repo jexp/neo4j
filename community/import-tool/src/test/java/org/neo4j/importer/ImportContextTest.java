@@ -1293,7 +1293,7 @@ class ImportContextTest {
     @Test
     void checkpointIsReadBackOnResume() throws IOException {
         Path baseDir;
-        ResumableStateData resumableStateData = new ResumableStateData((byte) 1, 2, 3);
+        ResumableStateData resumableStateData = new ResumableStateData((byte) 1, 2, 3, Collections.emptyList());
         try (var importContext = ImportContext.create(fs, DB, null, config, null, List.of(), false, true, false)) {
             baseDir = importContext.baseDir();
             importContext.writeCheckpoint(resumableStateData);
@@ -1309,8 +1309,8 @@ class ImportContextTest {
 
     @Test
     void checkpointReplacesThePreviousOne() throws IOException {
-        ResumableStateData resumableStateData1 = new ResumableStateData((byte) 1, 2, 3);
-        ResumableStateData resumableStateData2 = new ResumableStateData((byte) 4, 5, 6);
+        ResumableStateData resumableStateData1 = new ResumableStateData((byte) 1, 2, 3, Collections.emptyList());
+        ResumableStateData resumableStateData2 = new ResumableStateData((byte) 4, 5, 6, Collections.emptyList());
         try (var importContext = ImportContext.create(fs, DB, null, config, null, List.of(), false, true, false)) {
             importContext.writeCheckpoint(resumableStateData1);
             importContext.writeCheckpoint(resumableStateData2);
@@ -1327,8 +1327,8 @@ class ImportContextTest {
 
     @Test
     void checkpointOfThePreviousAttemptSurvivesAFailedReplacement() throws IOException {
-        ResumableStateData resumableStateData1 = new ResumableStateData((byte) 1, 2, 3);
-        ResumableStateData resumableStateData2 = new ResumableStateData((byte) 4, 5, 6);
+        ResumableStateData resumableStateData1 = new ResumableStateData((byte) 1, 2, 3, Collections.emptyList());
+        ResumableStateData resumableStateData2 = new ResumableStateData((byte) 4, 5, 6, Collections.emptyList());
 
         // when the replacement never gets written out in full
         var failing = new DelegatingFileSystemAbstraction(fs) {

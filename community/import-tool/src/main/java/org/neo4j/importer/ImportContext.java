@@ -77,7 +77,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.neo4j.batchimport.api.DetailedProgressReport;
 import org.neo4j.batchimport.api.Monitor;
-import org.neo4j.batchimport.api.ResumableStateWriter;
+import org.neo4j.batchimport.api.ResumableStateAccessor;
 import org.neo4j.batchimport.api.UnsupportedFormatException;
 import org.neo4j.batchimport.api.input.ResumableStateData;
 import org.neo4j.cli.CommandFailedException;
@@ -103,7 +103,7 @@ import org.neo4j.logging.log4j.LoggerTarget;
 import org.neo4j.memory.EmptyMemoryTracker;
 import picocli.CommandLine.ParameterException;
 
-public class ImportContext extends Monitor.Delegate implements InternalLogProvider, ResumableStateWriter {
+public class ImportContext extends Monitor.Delegate implements InternalLogProvider, ResumableStateAccessor {
 
     private static final DateTimeFormatter SPACELESS_DATE_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd.HH.mm.ss").withZone(ZoneId.systemDefault());
