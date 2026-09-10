@@ -72,6 +72,19 @@ public class CsvInputParser implements Closeable {
         this.endIdValueBuilder = new IdValueBuilder(delimitIds);
     }
 
+    /**
+     * Whether this column's value goes into one of the {@link IdValueBuilder}s.
+     */
+    private boolean isAggregatedIdColumn(Header.Entry entry) {
+        if (idType == IdType.ACTUAL) {
+            return false;
+        }
+        return switch (entry.type()) {
+            case ID, START_ID, END_ID -> true;
+            default -> false;
+        };
+    }
+
     boolean next(InputEntityVisitor visitor) throws IOException {
         lineNumber++;
         int i = 0;
@@ -134,7 +147,12 @@ public class CsvInputParser implements Closeable {
                     continue;
                 }
                 if (extractor.isEmpty(value)) {
-                    continue;
+                    if (!isAggregatedIdColumn(entry)) {
+                        continue;
+                    }
+                    // An empty id column is still fed to its IdValueBuilder, as a null part, so that an id combined
+                    // from multiple columns keys each part by its position regardless of which parts are empty.
+                    value = null;
                 }
 
                 doContinue = switch (entry.type()) {
