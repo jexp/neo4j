@@ -86,6 +86,6 @@ class FulltextIndexQueryAnalyzerTest extends FulltextProceduresTestSupport {
                         assertFalse(iterator.hasNext());
                     }
                 })
-                .hasMessageContaining("Could not create fulltext analyzer: hej. Could not find service provider");
+                .hasMessageContaining("No such full-text analyzer: 'hej'.");
     }
 }

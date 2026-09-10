@@ -19,7 +19,8 @@
  */
 package org.neo4j.kernel.api.impl.schema.fulltext;
 
-import static java.lang.String.format;
+import static org.neo4j.exceptions.InvalidArgumentException.noSuchFullTextAnalyzer;
+import static org.neo4j.kernel.api.impl.schema.fulltext.FulltextIndexProvider.listAvailableAnalyzers;
 import static org.neo4j.kernel.api.impl.schema.fulltext.FulltextIndexSettingsKeys.ANALYZER;
 
 import java.util.Objects;
@@ -52,9 +53,9 @@ public final class FulltextIndexAnalyzerLoader {
         if (provider == null) {
             provider = loadAll(analyzerName);
             if (provider == null) {
-                throw new RuntimeException(format(
-                        "Could not create fulltext analyzer: %s. Could not find service provider %s[%s]",
-                        analyzerName, AnalyzerProvider.class.getName(), analyzerName));
+                throw noSuchFullTextAnalyzer(
+                        analyzerName,
+                        listAvailableAnalyzers().map(AnalyzerProvider::getName).toList());
             }
         }
         Analyzer analyzer;

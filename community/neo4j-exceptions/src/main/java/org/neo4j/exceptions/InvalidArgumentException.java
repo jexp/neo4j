@@ -758,7 +758,7 @@ public class InvalidArgumentException extends Neo4jException {
         var gql = ErrorGqlStatusObjectImplementation.from(GqlStatusInfoCodes.STATUS_22G03)
                 .withCause(ErrorGqlStatusObjectImplementation.from(GqlStatusInfoCodes.STATUS_22N27)
                         .withParam(GqlParams.StringParam.input, analyzerName)
-                        .withParam(GqlParams.StringParam.context, "index setting")
+                        .withParam(GqlParams.StringParam.context, "analyzer name")
                         .withParam(GqlParams.ListParam.valueTypeList, expected)
                         .withParam(GqlParams.StringParam.hint, "")
                         .build())
