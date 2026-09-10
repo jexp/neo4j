@@ -311,6 +311,17 @@ public class IndexIdMapper implements IdMapper {
         return new Getter() {
             @Override
             public long get(Object inputId, Group group) {
+                var nodeId = queryNodeId(group, inputId);
+                if (nodeId != ID_NOT_FOUND) {
+                    return nodeId;
+                }
+                if (inputId instanceof Number) {
+                    return queryNodeId(group, inputId.toString());
+                }
+                return ID_NOT_FOUND;
+            }
+
+            private long queryNodeId(Group group, Object id) {
                 // TODO somehow reuse client/progressor per thread?
                 try (var client = new NodeValueIterator()) {
                     // TODO do we need a proper QueryContext?
@@ -320,8 +331,8 @@ public class IndexIdMapper implements IdMapper {
                             NULL_CONTEXT,
                             CursorContext.NULL_CONTEXT,
                             unconstrained(),
-                            exact(index.schemaDescriptor.getPropertyId(), inputId));
-                    return client.hasNext() ? client.next() : -1;
+                            exact(index.schemaDescriptor.getPropertyId(), id));
+                    return client.hasNext() ? client.next() : ID_NOT_FOUND;
                 } catch (IndexNotApplicableKernelException e) {
                     throw new RuntimeException(e);
                 }
