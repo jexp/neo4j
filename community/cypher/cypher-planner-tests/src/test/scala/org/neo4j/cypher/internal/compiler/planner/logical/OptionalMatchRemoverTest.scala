@@ -26,7 +26,6 @@ import org.neo4j.cypher.internal.ast.AstConstructionTestSupport.VariableStringIn
 import org.neo4j.cypher.internal.ast.Statement
 import org.neo4j.cypher.internal.ast.semantics.SemanticCheckContext
 import org.neo4j.cypher.internal.ast.semantics.SemanticChecker
-import org.neo4j.cypher.internal.ast.semantics.SemanticFeature
 import org.neo4j.cypher.internal.ast.semantics.SemanticState
 import org.neo4j.cypher.internal.compiler.CypherPlannerConfiguration
 import org.neo4j.cypher.internal.compiler.CypherPlannerTestSuite
@@ -56,8 +55,6 @@ import org.neo4j.cypher.internal.util.test_helpers.TestName
 class OptionalMatchRemoverTest extends CypherPlannerTestSuite with PlannerQueryRewriterTest
     with AstConstructionTestSupport
     with TestName {
-
-  override protected def additionalSemanticFeatures: Seq[SemanticFeature] = Seq(SemanticFeature.FulltextSearch)
 
   override def rewriter(anonymousVariableNameGenerator: AnonymousVariableNameGenerator): Rewriter = {
     val state = mock[LogicalPlanState]

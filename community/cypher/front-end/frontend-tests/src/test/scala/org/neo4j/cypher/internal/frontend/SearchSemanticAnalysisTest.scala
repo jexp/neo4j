@@ -48,7 +48,7 @@ class SearchSemanticAnalysisTest extends CypherFunSuite with NameBasedSemanticAn
       SemanticTypeCheck
 
   private def semanticFeatures(complexPatternAllowed: Boolean): Seq[SemanticFeature] = {
-    Seq(SemanticFeature.FulltextSearch) ++ Option.when(complexPatternAllowed)(VectorSearchWithComplexPattern)
+    Option.when(complexPatternAllowed)(VectorSearchWithComplexPattern).toSeq
   }
 
   private def runSearchWithRewriter(complexPatternAllowed: Boolean): AnalysisAssertions = {
@@ -1526,6 +1526,122 @@ class SearchSemanticAnalysisTest extends CypherFunSuite with NameBasedSemanticAn
       runSearch(complexPatternAllowed).hasNoErrors
     }
 
+    test(
+      s"""${maybeOptional}MATCH (actor)-[]->(movie: Movie)
+         |  SEARCH movie IN (
+         |    FULLTEXT INDEX moviePlots
+         |    FOR 'green witch'
+         |    LIMIT 5
+         |  )
+         |RETURN movie.title AS title
+         |// complexPatternAllowed = $complexPatternAllowed
+         |""".stripMargin
+    ) {
+      val result = runSearchWithRewriter(complexPatternAllowed)
+      if (complexPatternAllowed)
+        result.hasNoErrors
+      else
+        result.hasErrors(
+          SemanticError(
+            GqlHelper.getGql42001_42I70(7 + optionalLength, 1, 8 + optionalLength),
+            "In order to have a search clause, a MATCH statement can only have one bound variable.",
+            p(7 + optionalLength, 1, 8 + optionalLength)
+          )
+        )
+    }
+
+    test(
+      s"""${maybeOptional}MATCH (movie:Movie)-[r]->()
+         |  SEARCH r IN (
+         |    FULLTEXT INDEX relNotes
+         |    FOR 'green witch'
+         |    LIMIT 5
+         |  )
+         |RETURN movie.title AS title
+         |// complexPatternAllowed = $complexPatternAllowed
+         |""".stripMargin
+    ) {
+      val result = runSearchWithRewriter(complexPatternAllowed)
+      if (complexPatternAllowed)
+        result.hasNoErrors
+      else
+        result.hasErrors(
+          SemanticError(
+            GqlHelper.getGql42001_42I70(7 + optionalLength, 1, 8 + optionalLength),
+            "In order to have a search clause, a MATCH statement can only have one bound variable.",
+            p(7 + optionalLength, 1, 8 + optionalLength)
+          )
+        )
+    }
+
+    test(
+      s"""${maybeOptional}MATCH (movie:Movie)-->(:Actor)
+         |  SEARCH movie IN (
+         |    FULLTEXT INDEX moviePlots
+         |    FOR 'green witch'
+         |    LIMIT 5
+         |  )
+         |RETURN movie.title AS title
+         |// complexPatternAllowed = $complexPatternAllowed
+         |""".stripMargin
+    ) {
+      val result = runSearchWithRewriter(complexPatternAllowed)
+      if (complexPatternAllowed)
+        result.hasNoErrors
+      else
+        result.hasErrors(
+          SemanticError(
+            GqlHelper.getGql42001_42I71(24 + optionalLength, 1, 25 + optionalLength),
+            "In order to have a search clause, a MATCH statement can only have predicates on the bound variable.",
+            p(24 + optionalLength, 1, 25 + optionalLength)
+          )
+        )
+    }
+
+    test(
+      s"""${maybeOptional}MATCH (movie:Movie), ()
+         |  SEARCH movie IN (
+         |    FULLTEXT INDEX moviePlots
+         |    FOR 'green witch'
+         |    LIMIT 5
+         |  )
+         |RETURN movie.title AS title
+         |// complexPatternAllowed = $complexPatternAllowed
+         |""".stripMargin
+    ) {
+      val result = runSearchWithRewriter(complexPatternAllowed)
+      if (complexPatternAllowed)
+        result.hasNoErrors
+      else
+        result.hasErrors(
+          SemanticError(
+            GqlHelper.getGql42001_42I72(21 + optionalLength, 1, 22 + optionalLength),
+            "In order to have a search clause, a MATCH statement can only have a single node or relationship pattern and no selectors.",
+            p(21 + optionalLength, 1, 22 + optionalLength)
+          )
+        )
+    }
+
+    test(
+      s"""${maybeOptional}MATCH ANY SHORTEST ()-->(movie:Movie)
+         |  SEARCH movie IN (
+         |    FULLTEXT INDEX moviePlots
+         |    FOR 'green witch'
+         |    LIMIT 5
+         |  )
+         |RETURN movie.title AS title
+         |// complexPatternAllowed = $complexPatternAllowed
+         |""".stripMargin
+    ) {
+      runSearchWithRewriter(complexPatternAllowed).hasErrors(
+        SemanticError(
+          GqlHelper.getGql42001_42I72(6 + optionalLength, 1, 7 + optionalLength),
+          "In order to have a search clause, a MATCH statement can only have a single node or relationship pattern and no selectors.",
+          p(6 + optionalLength, 1, 7 + optionalLength)
+        )
+      )
+    }
+
     // Valid fulltext query expressions (string / string-typed property / parameter / null)
     val validFulltextQueries = Seq("'green witch'", "m.plot", "$queryString", "null")
     for { sq <- validFulltextQueries } yield {
@@ -1739,42 +1855,6 @@ class SearchSemanticAnalysisTest extends CypherFunSuite with NameBasedSemanticAn
     }
   }
 
-  // Fulltext SEARCH is gated behind the FulltextSearch feature flag (default off).
-  // These run without semanticFeatures, i.e. with FulltextSearch disabled.
-
-  test(
-    """MATCH (movie: Movie)
-      |  SEARCH movie IN (
-      |    FULLTEXT INDEX moviePlots
-      |    FOR 'green witch'
-      |    LIMIT 5
-      |  )
-      |RETURN movie.title AS title
-      |""".stripMargin
-  ) {
-    runWith(disabledCypherVersions = Set(CypherVersion.Cypher5)).hasErrors(
-      SemanticError(
-        GqlHelper.getGql42001_51N26("The `FULLTEXT SEARCH` clause", "the `FULLTEXT SEARCH` clause", 23, 2, 3),
-        "The `FULLTEXT SEARCH` clause is not supported.",
-        p(23, 2, 3)
-      )
-    )
-  }
-
-  test(
-    """MATCH (movie: Movie)
-      |  SEARCH movie IN (
-      |    VECTOR INDEX moviePlots
-      |    FOR [1, 2, 3]
-      |    LIMIT 5
-      |  )
-      |RETURN movie.title AS title
-      |// vector search is ungated
-      |""".stripMargin
-  ) {
-    runWith(disabledCypherVersions = Set(CypherVersion.Cypher5)).hasNoErrors
-  }
-
   // The index name shadows a variable in scope -> index-type-aware notification
 
   test(
@@ -1788,7 +1868,7 @@ class SearchSemanticAnalysisTest extends CypherFunSuite with NameBasedSemanticAn
       |RETURN movie.title AS title
       |""".stripMargin
   ) {
-    runWith(disabledCypherVersions = Set(CypherVersion.Cypher5), SemanticFeature.FulltextSearch).hasNotifications(
+    runWith(disabledCypherVersions = Set(CypherVersion.Cypher5)).hasNotifications(
       IdentifierShadowsVariableNotification(InputPosition.withLength(83, 4, 20, 10), "moviePlots", "FULLTEXT INDEX")
     )
   }

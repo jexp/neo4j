@@ -1976,21 +1976,6 @@ object SemanticError {
     )
   }
 
-  def fulltextSearchNotSupported(position: InputPosition): SemanticError = {
-    val gql = GqlHelper.getGql42001_51N26(
-      "The `FULLTEXT SEARCH` clause",
-      "the `FULLTEXT SEARCH` clause",
-      position.offset,
-      position.line,
-      position.column
-    )
-    SemanticError(
-      gql,
-      "The `FULLTEXT SEARCH` clause is not supported.",
-      position
-    )
-  }
-
   def unsupportedPathModeWithVarLength(
     varLengthRel: String,
     pathMode: String,

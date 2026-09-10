@@ -112,8 +112,7 @@ case class Search(
     extends ASTNode with SemanticCheckable with SemanticAnalysisTooling {
 
   def semanticCheck: SemanticCheck = {
-    checkFulltextEnabled() chain
-      checkBindingVariable() chain
+    checkBindingVariable() chain
       checkScore() chain
       checkIndexName() chain
       checkEmbedding() chain
@@ -122,13 +121,6 @@ case class Search(
       checkSkip() chain
       checkAnalyzer()
 
-  }
-
-  private def checkFulltextEnabled(): SemanticCheck = SemanticCheck.fromState { state =>
-    if (indexType != Search.Fulltext || state.features.contains(SemanticFeature.FulltextSearch))
-      SemanticCheck.success
-    else
-      SemanticCheck.error(SemanticError.fulltextSearchNotSupported(position))
   }
 
   private def checkIndexName(): SemanticCheck = {

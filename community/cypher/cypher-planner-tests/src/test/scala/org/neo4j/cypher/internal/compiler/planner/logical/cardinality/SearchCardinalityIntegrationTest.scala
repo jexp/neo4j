@@ -20,7 +20,6 @@
 package org.neo4j.cypher.internal.compiler.planner.logical.cardinality
 
 import org.neo4j.cypher.internal.CypherVersion
-import org.neo4j.cypher.internal.ast.semantics.SemanticFeature.FulltextSearch
 import org.neo4j.cypher.internal.ast.semantics.SemanticFeature.VectorSearchWithComplexPattern
 import org.neo4j.cypher.internal.compiler.CypherPlannerTestSuite
 import org.neo4j.cypher.internal.compiler.planner.LogicalPlanningAttributesTestSupport
@@ -41,7 +40,6 @@ class SearchCardinalityIntegrationTest extends CypherPlannerTestSuite with Cardi
   private val planner =
     plannerBuilder()
       .addSemanticFeature(VectorSearchWithComplexPattern)
-      .addSemanticFeature(FulltextSearch)
       .setAllNodesCardinality(allNodes)
       .setAllRelationshipsCardinality(allRels)
       .setLabelCardinality("Movie", `(:Movie)`)

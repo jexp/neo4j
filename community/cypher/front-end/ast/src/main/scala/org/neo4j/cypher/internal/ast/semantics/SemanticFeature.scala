@@ -69,10 +69,6 @@ object SemanticFeature {
     override def name: String = "vector search with complex pattern"
   }
 
-  case object FulltextSearch extends SemanticFeature with FeatureToString {
-    override def name: String = "fulltext search"
-  }
-
   case object GroupByClause extends SemanticFeature with FeatureToString {
     override def name: String = "Group By clause"
   }
@@ -141,7 +137,6 @@ object SemanticFeature {
     ExperimentalCypherVersions,
     RelationshipPropertyValueAccessRules,
     VectorSearchWithComplexPattern,
-    FulltextSearch,
     LocalCallables,
     ScopeQueries,
     EnableParsingOfObfuscatedLiterals,

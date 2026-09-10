@@ -438,7 +438,6 @@ abstract class FulltextSearchPlanningIntegrationTestBase extends CypherPlannerTe
 
   override protected def plannerBuilder(): StatisticsBackedLogicalPlanningConfigurationBuilder =
     super.plannerBuilder()
-      .addSemanticFeature(SemanticFeature.FulltextSearch)
       .setAllNodesCardinality(120)
       .setLabelCardinality("Movie", movieLabelCardinality)
       .setLabelCardinality("Actor", 40)
