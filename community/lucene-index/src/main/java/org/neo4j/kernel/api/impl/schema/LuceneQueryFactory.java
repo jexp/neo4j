@@ -126,16 +126,19 @@ public abstract class LuceneQueryFactory {
         private final VectorQuantizationType quantizationType;
         private final double defaultSearchExpansionFactor;
         private final int maxEfSearch;
+        private final boolean rescoreReadAdvice;
 
         public VectorQueryFactory(
                 VectorDocumentStructure documentStructure,
                 VectorQuantizationType quantizationType,
                 double defaultSearchExpansionFactor,
-                int maxEfSearch) {
+                int maxEfSearch,
+                boolean rescoreReadAdvice) {
             this.documentStructure = documentStructure;
             this.quantizationType = quantizationType;
             this.defaultSearchExpansionFactor = defaultSearchExpansionFactor;
             this.maxEfSearch = maxEfSearch;
+            this.rescoreReadAdvice = rescoreReadAdvice;
         }
 
         @Override
@@ -164,12 +167,18 @@ public abstract class LuceneQueryFactory {
                                         k,
                                         efSearch,
                                         rescore,
+                                        rescoreReadAdvice,
                                         extractEntityFilter(predicates),
                                         extractPropertyFilters(predicates));
                     } else {
                         yield searcher.newQueryContext()
                                 .approximateNearestNeighbors(
-                                        documentStructure, nearestNeighborsPredicate.query(), k, efSearch, rescore);
+                                        documentStructure,
+                                        nearestNeighborsPredicate.query(),
+                                        k,
+                                        efSearch,
+                                        rescore,
+                                        rescoreReadAdvice);
                     }
                 }
                 default -> throw invalidQuery(descriptor, predicate);

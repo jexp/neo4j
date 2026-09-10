@@ -70,6 +70,7 @@ public class VectorIndexReader extends AbstractLuceneIndexReader implements Enti
             VectorIndexConfig vectorIndexConfig,
             VectorDocumentStructure documentStructure,
             int maxEfSearch,
+            boolean rescoreReadAdvice,
             List<SearcherReference> searchers,
             IndexUsageTracking usageTracker,
             LogProvider logProvider) {
@@ -80,7 +81,8 @@ public class VectorIndexReader extends AbstractLuceneIndexReader implements Enti
                         documentStructure,
                         vectorIndexConfig.quantization(),
                         vectorIndexConfig.defaultSearchExpansionFactor(),
-                        maxEfSearch),
+                        maxEfSearch,
+                        rescoreReadAdvice),
                 logProvider);
         this.dimensions = vectorIndexConfig.dimensions();
         this.searchers = searchers;

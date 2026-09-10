@@ -140,7 +140,7 @@ class TextIndexCorruptionTest {
                 NullLogProvider.getInstance()) {
             @Override
             protected IndexStorageFactory buildIndexStorageFactory(
-                    FileSystemAbstraction fileSystem, DirectoryFactory directoryFactory) {
+                    FileSystemAbstraction fileSystem, DirectoryFactory directoryFactory, Config config) {
                 FaultyIndexStorageFactory storageFactory =
                         new FaultyIndexStorageFactory(faultyIndexId, error, directoryFactory, directoryStructure());
                 return storageFactory;

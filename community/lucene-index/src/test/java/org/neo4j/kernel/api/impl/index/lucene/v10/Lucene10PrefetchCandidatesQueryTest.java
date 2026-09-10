@@ -106,7 +106,11 @@ class Lucene10PrefetchCandidatesQueryTest {
                 IndexQueryConstraints constraints =
                         IndexQueryConstraints.unconstrained().limit(TOP_K);
                 LuceneQueryContext queryContext = new VectorQueryFactory(
-                                documentStructure(), VectorQuantizationType.BINARY, SEARCH_EXPANSION, MAX_EF_SEARCH)
+                                documentStructure(),
+                                VectorQuantizationType.BINARY,
+                                SEARCH_EXPANSION,
+                                MAX_EF_SEARCH,
+                                true)
                         .createQuery(
                                 indexSearcher,
                                 constraints,
@@ -140,6 +144,37 @@ class Lucene10PrefetchCandidatesQueryTest {
                     // reaches OffHeapFloatVectorValues.prefetch, which needs at least two ordinals
                     values.prefetch(new int[] {0, 1}, 2);
                 }
+            }
+        }
+    }
+
+    @Test
+    void shouldStillRescoreCorrectlyWithoutPrefetchingTheCandidates() throws Exception {
+        try (LuceneDirectory directory = binaryQuantizedIndex()) {
+            try (LuceneDirectoryReader indexReader = directory.open();
+                    LuceneIndexSearcher indexSearcher = indexReader.newDirectSearcher()) {
+
+                IndexQueryConstraints constraints =
+                        IndexQueryConstraints.unconstrained().limit(TOP_K);
+                LuceneQueryContext queryContext = new VectorQueryFactory(
+                                documentStructure(),
+                                VectorQuantizationType.BINARY,
+                                SEARCH_EXPANSION,
+                                MAX_EF_SEARCH,
+                                false)
+                        .createQuery(
+                                indexSearcher,
+                                constraints,
+                                IndexDescriptor.NO_INDEX,
+                                PropertyIndexQuery.nearestNeighbors(TOP_K, SEARCH_EXPANSION, queryEmbedding()));
+
+                List<Long> actual = new ArrayList<>();
+                ValuesIterator results = indexSearcher.searchVectors(queryContext, constraints);
+                while (results.hasNext()) {
+                    actual.add(results.next());
+                }
+
+                assertThat(actual).containsExactly(0L, 1L, 2L, 3L, 4L);
             }
         }
     }

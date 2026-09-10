@@ -49,6 +49,7 @@ import org.neo4j.kernel.api.impl.index.lucene.LuceneContext;
 import org.neo4j.kernel.api.impl.index.lucene.LuceneSettings;
 import org.neo4j.kernel.api.impl.index.lucene.codec.LuceneCodec;
 import org.neo4j.kernel.api.impl.index.storage.DirectoryFactory;
+import org.neo4j.kernel.api.impl.index.storage.IndexStorageFactory;
 import org.neo4j.kernel.api.impl.schema.AbstractLuceneIndexProvider;
 import org.neo4j.kernel.api.index.IndexAccessor;
 import org.neo4j.kernel.api.index.IndexDirectoryStructure.Factory;
@@ -105,6 +106,15 @@ public class VectorIndexProvider extends AbstractLuceneIndexProvider {
         this.fileSystem = fileSystem;
         this.scheduler = scheduler;
         this.indexMonitor = monitors.newMonitor(IndexMonitor.class);
+    }
+
+    /// Installs the raw vector read advice on every directory this provider opens, when
+    /// [LuceneSettings#vector_rescore_read_advice] asks for it.
+    @Override
+    protected IndexStorageFactory buildIndexStorageFactory(
+            FileSystemAbstraction fileSystem, DirectoryFactory directoryFactory, Config config) {
+        return super.buildIndexStorageFactory(
+                fileSystem, new RescoreReadAdviceDirectoryFactory(directoryFactory, config), config);
     }
 
     @Override

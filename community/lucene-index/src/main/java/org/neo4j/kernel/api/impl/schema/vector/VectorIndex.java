@@ -36,6 +36,7 @@ class VectorIndex extends AbstractLuceneIndex<VectorIndexReader> {
     private final VectorIndexConfig vectorIndexConfig;
     private final VectorDocumentStructure documentStructure;
     private final int maxEfSearch;
+    private final boolean rescoreReadAdvice;
 
     VectorIndex(
             PartitionedIndexStorage indexStorage,
@@ -49,6 +50,7 @@ class VectorIndex extends AbstractLuceneIndex<VectorIndexReader> {
         this.vectorIndexConfig = vectorIndexConfig;
         this.documentStructure = documentStructure;
         this.maxEfSearch = config.get(LuceneSettings.vector_hnsw_max_ef_search);
+        this.rescoreReadAdvice = config.get(LuceneSettings.vector_rescore_read_advice);
     }
 
     @Override
@@ -62,6 +64,13 @@ class VectorIndex extends AbstractLuceneIndex<VectorIndexReader> {
             List<AbstractIndexPartition> partitions, IndexUsageTracking usageTracker) throws IOException {
         List<SearcherReference> searchers = acquireSearchers(partitions);
         return new VectorIndexReader(
-                descriptor, vectorIndexConfig, documentStructure, maxEfSearch, searchers, usageTracker, logProvider);
+                descriptor,
+                vectorIndexConfig,
+                documentStructure,
+                maxEfSearch,
+                rescoreReadAdvice,
+                searchers,
+                usageTracker,
+                logProvider);
     }
 }

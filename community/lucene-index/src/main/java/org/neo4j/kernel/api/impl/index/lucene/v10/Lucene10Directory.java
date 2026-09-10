@@ -66,6 +66,10 @@ public class Lucene10Directory implements LuceneDirectory {
         this.directory = directory;
     }
 
+    public Directory directory() {
+        return directory;
+    }
+
     @Override
     public String[] listAll() throws IOException {
         return directory.listAll();

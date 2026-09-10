@@ -179,8 +179,13 @@ public class Lucene10QueryContext implements LuceneQueryContext {
 
     @Override
     public Lucene10QueryContext approximateNearestNeighbors(
-            VectorDocumentStructure documentStructure, float[] query, int k, int efSearch, boolean rescore) {
-        assignSingle(annQuery(documentStructure, query, k, efSearch, rescore, null));
+            VectorDocumentStructure documentStructure,
+            float[] query,
+            int k,
+            int efSearch,
+            boolean rescore,
+            boolean rescoreReadAdvice) {
+        assignSingle(annQuery(documentStructure, query, k, efSearch, rescore, rescoreReadAdvice, null));
         return this;
     }
 
@@ -191,10 +196,11 @@ public class Lucene10QueryContext implements LuceneQueryContext {
             int k,
             int efSearch,
             boolean rescore,
+            boolean rescoreReadAdvice,
             EntityFilterPredicate entityFilter,
             PropertyIndexQuery... filterQueries) {
         Query filters = Lucene10FilterQueryBuilder.build(documentStructure, entityFilter, filterQueries);
-        assignSingle(annQuery(documentStructure, query, k, efSearch, rescore, filters));
+        assignSingle(annQuery(documentStructure, query, k, efSearch, rescore, rescoreReadAdvice, filters));
         return this;
     }
 
@@ -204,11 +210,12 @@ public class Lucene10QueryContext implements LuceneQueryContext {
             int k,
             int efSearch,
             boolean rescore,
+            boolean rescoreReadAdvice,
             Query filter) {
         assert efSearch >= k : "efSearch must be >= k";
         String field = documentStructure.vectorValueKeyFor(query.length);
         Query vectorQuery = new KnnFloatVectorQuery(field, query, efSearch, filter);
-        return rescore ? new RescoreOrEmptyQuery(vectorQuery, query, field, k) : vectorQuery;
+        return rescore ? new RescoreOrEmptyQuery(vectorQuery, query, field, k, rescoreReadAdvice) : vectorQuery;
     }
 
     public Query build() {
@@ -451,12 +458,11 @@ public class Lucene10QueryContext implements LuceneQueryContext {
     private static class RescoreOrEmptyQuery extends Query {
         private final Query delegate;
 
-        RescoreOrEmptyQuery(Query vectorQuery, float[] query, String field, int n) {
+        RescoreOrEmptyQuery(Query vectorQuery, float[] query, String field, int n, boolean rescoreReadAdvice) {
+            Query candidates = rescoreReadAdvice ? new PrefetchCandidatesQuery(vectorQuery, field) : vectorQuery;
             // cannot use RescoreTopNQuery::createFullPrecisionRescorerQuery due to null VectorSimilarityFunction
-            this.delegate = new RescoreTopNQuery(
-                    new NonEmptyQuery(new PrefetchCandidatesQuery(vectorQuery, field)),
-                    new VectorValuesSource(query, field),
-                    n);
+            this.delegate =
+                    new RescoreTopNQuery(new NonEmptyQuery(candidates), new VectorValuesSource(query, field), n);
         }
 
         @Override

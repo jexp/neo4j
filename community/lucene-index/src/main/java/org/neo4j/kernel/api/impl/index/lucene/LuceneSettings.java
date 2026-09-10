@@ -244,6 +244,15 @@ public class LuceneSettings implements SettingsDeclaration {
             .build();
 
     @Internal
+    @Description("Controls whether the full-precision vector reads that binary-quantized rescoring performs "
+            + "are advised to the kernel: the rescore candidates are prefetched as coalesced "
+            + "posix_madvise(MADV_WILLNEED) ranges, and the raw vector data (.vec) is advised for random "
+            + "reads (MADV_RANDOM) so that rescore faults stop evicting the HNSW graph through fault-around.")
+    public static final Setting<Boolean> vector_rescore_read_advice = newBuilder(
+                    "internal.dbms.index.vector.rescore_read_advice", BOOL, TRUE)
+            .build();
+
+    @Internal
     @Description("Number of threads used to parallelize HNSW graph construction within a single segment merge "
             + "of a vector index. Maps to Lucene's numMergeWorkers / mergeExec on the HNSW vectors format. "
             + "Set to 1 to disable intra-merge parallelism; higher values trade more CPU for faster merges, "

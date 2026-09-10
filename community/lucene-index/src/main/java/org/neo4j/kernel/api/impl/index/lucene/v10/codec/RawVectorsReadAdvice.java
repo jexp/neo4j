@@ -27,7 +27,10 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FilterDirectory;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexInput;
+import org.apache.lucene.store.MMapDirectory;
 import org.apache.lucene.store.ReadAdvice;
+import org.neo4j.kernel.api.impl.index.lucene.LuceneDirectory;
+import org.neo4j.kernel.api.impl.index.lucene.v10.Lucene10Directory;
 
 /// Applies [ReadAdvice#RANDOM] to the raw float32 vectors (`.vec`) and to nothing else.
 ///
@@ -47,7 +50,9 @@ import org.apache.lucene.store.ReadAdvice;
 ///
 /// So the file is marked instead of matched. [#markRawVectors] wraps the directory a reader opens
 /// its files through and tags `.vec` -- and only `.vec` -- with a private hint; [#READ_ADVICE], which
-/// the directory factory installs, turns that hint into `RANDOM`. Both layouts then work through one
+/// the vector index provider installs on its mmap directories when
+/// [org.neo4j.kernel.api.impl.index.lucene.LuceneSettings#vector_rescore_read_advice] is enabled,
+/// turns that hint into `RANDOM`. Both layouts then work through one
 /// mechanism:
 ///
 ///   - plain segment: [MMapDirectory#openInput] evaluates [#READ_ADVICE] against the tagged context;
@@ -79,6 +84,22 @@ public final class RawVectorsReadAdvice {
     /// Wraps `directory` so that opening a `.vec` file through it carries the marker.
     public static Directory markRawVectors(Directory directory) {
         return new MarkingDirectory(directory);
+    }
+
+    /// Installs [#READ_ADVICE] on the mmap directory under `directory`, if there is one, so that
+    /// marked `.vec` opens resolve to [ReadAdvice#RANDOM]. Byte-buffer and NIO directories have no
+    /// advice to give, and non-v10 Neo4j directories none to advise, and both are left alone.
+    public static void adviseFor(LuceneDirectory directory) {
+        if (!(directory instanceof Lucene10Directory lucene10Directory)) {
+            return;
+        }
+        Directory delegate = lucene10Directory.directory();
+        while (delegate instanceof FilterDirectory filterDirectory) {
+            delegate = filterDirectory.getDelegate();
+        }
+        if (delegate instanceof MMapDirectory mmapDirectory) {
+            mmapDirectory.setReadAdvice(READ_ADVICE);
+        }
     }
 
     private static final class MarkingDirectory extends FilterDirectory {

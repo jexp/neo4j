@@ -38,6 +38,7 @@ import org.apache.lucene.search.MatchNoDocsQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.RescoreTopNQuery;
 import org.assertj.core.api.ObjectAssert;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.neo4j.configuration.Config;
@@ -180,7 +181,51 @@ public class Lucene10RescoringQueryTest {
     }
 
     private static VectorQueryFactory vectorQueryFactory(VectorQuantizationType quantizationType) {
-        return new VectorQueryFactory(DOCUMENT_STRUCTURE, quantizationType, DEFAULT_SEARCH_EXPANSION, MAX_EF_SEARCH);
+        return vectorQueryFactory(quantizationType, true);
+    }
+
+    private static VectorQueryFactory vectorQueryFactory(
+            VectorQuantizationType quantizationType, boolean rescoreReadAdvice) {
+        return new VectorQueryFactory(
+                DOCUMENT_STRUCTURE, quantizationType, DEFAULT_SEARCH_EXPANSION, MAX_EF_SEARCH, rescoreReadAdvice);
+    }
+
+    /// [org.neo4j.kernel.api.impl.index.lucene.LuceneSettings#vector_rescore_read_advice] turned
+    /// off leaves the rescore query without the candidate-collecting wrapper: the full-precision
+    /// rescore still runs, one raw vector read at a time.
+    @Test
+    void testAnnQueryWithoutRescoreReadAdvice() throws Exception {
+        float[] embedding = randomEmbedding();
+
+        try (DirectoryFactory directoryFactory = newInMemoryDirectoryFactory();
+                LuceneDirectory directory = directoryFactory.open(null)) {
+
+            // creates an empty index so that opening the indexReader doesn't crash
+            try (LuceneIndexWriter indexWriter = directory.newWriter(WRITER_CONFIG)) {
+                indexWriter.commit();
+            }
+
+            try (LuceneDirectoryReader indexReader = directory.open();
+                    LuceneIndexSearcher indexSearcher = indexReader.newDirectSearcher()) {
+
+                LuceneQueryContext queryContext = vectorQueryFactory(VectorQuantizationType.BINARY, false)
+                        .createQuery(
+                                indexSearcher,
+                                QUERY_CONSTRAINTS,
+                                IndexDescriptor.NO_INDEX,
+                                PropertyIndexQuery.nearestNeighbors(TOP_K, DEFAULT_SEARCH_EXPANSION, embedding));
+
+                ObjectAssert<RescoreTopNQuery> rescoreQueryAssert =
+                        assertThat(query(queryContext)).extracting("delegate", type(RescoreTopNQuery.class));
+                // NonEmptyQuery -> KnnFloatVectorQuery, with no PrefetchCandidatesQuery in between
+                assertKnnQuery(
+                        rescoreQueryAssert
+                                .extracting("query", type(Query.class))
+                                .extracting("delegate", type(KnnFloatVectorQuery.class)),
+                        (int) Math.ceil(DEFAULT_SEARCH_EXPANSION * TOP_K),
+                        embedding);
+            }
+        }
     }
 
     @ParameterizedTest

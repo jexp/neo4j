@@ -82,7 +82,7 @@ public abstract class AbstractLuceneIndexProvider extends IndexProvider {
         this.supportedIndexType = supportedIndexType;
         this.readOnlyChecker = readOnlyChecker;
         this.monitor = monitors.newMonitor(Monitor.class, descriptor.toString());
-        this.indexStorageFactory = buildIndexStorageFactory(fileSystem, directoryFactory);
+        this.indexStorageFactory = buildIndexStorageFactory(fileSystem, directoryFactory, config);
         this.config = config;
         this.fileSystem = fileSystem;
         this.logProvider = logProvider;
@@ -91,7 +91,7 @@ public abstract class AbstractLuceneIndexProvider extends IndexProvider {
 
     @VisibleForTesting
     protected IndexStorageFactory buildIndexStorageFactory(
-            FileSystemAbstraction fileSystem, DirectoryFactory directoryFactory) {
+            FileSystemAbstraction fileSystem, DirectoryFactory directoryFactory, Config config) {
         return new IndexStorageFactory(directoryFactory, fileSystem, directoryStructure());
     }
 

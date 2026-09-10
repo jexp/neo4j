@@ -159,7 +159,12 @@ public class Lucene9QueryContext implements LuceneQueryContext {
 
     @Override
     public Lucene9QueryContext approximateNearestNeighbors(
-            VectorDocumentStructure documentStructure, float[] query, int k, int efSearch, boolean rescore) {
+            VectorDocumentStructure documentStructure,
+            float[] query,
+            int k,
+            int efSearch,
+            boolean rescore,
+            boolean rescoreReadAdvice) {
         if (rescore) {
             throw InternalException.internalError(
                     getClass().getSimpleName(), "Rescoring is not supported in this index");
@@ -175,13 +180,14 @@ public class Lucene9QueryContext implements LuceneQueryContext {
             int k,
             int efSearch,
             boolean rescore,
+            boolean rescoreReadAdvice,
             EntityFilterPredicate entityFilter,
             PropertyIndexQuery... filterQueries) {
         if (entityFilter != EntityFilterPredicate.MatchAll.INSTANCE || filterQueries.length != 0) {
             throw InternalException.internalError(
                     getClass().getSimpleName(), "Single stage filter is not supported in this index");
         }
-        return approximateNearestNeighbors(documentStructure, query, k, efSearch, rescore);
+        return approximateNearestNeighbors(documentStructure, query, k, efSearch, rescore, rescoreReadAdvice);
     }
 
     public Query build() {
