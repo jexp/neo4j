@@ -19,6 +19,9 @@
  */
 package org.neo4j.genai;
 
+import java.net.http.HttpClient;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Supplier;
 import org.eclipse.collections.api.list.ImmutableList;
 import org.neo4j.annotations.service.ServiceProvider;
@@ -64,10 +67,18 @@ public class GenAiPluginExtension extends ExtensionFactory<GenAiPluginExtension.
     @Override
     public Lifecycle newInstance(ExtensionContext context, Dependencies dependencies) {
         return new LifecycleAdapter() {
+            private ExecutorService httpClientExecutor;
+            private HttpClient httpClient;
+
             @Override
             public void init() {
                 final var providers = providersSupplier.get();
-                final var httpService = new HttpServiceProvider();
+                httpClientExecutor = Executors.newVirtualThreadPerTaskExecutor();
+                httpClient = HttpClient.newBuilder()
+                        .followRedirects(HttpClient.Redirect.NORMAL)
+                        .executor(httpClientExecutor)
+                        .build();
+                final var httpService = new HttpServiceProvider(httpClient);
 
                 registerSafe(HttpService.class, httpService);
                 registerSafe(TextCompletion.Providers.class, TxtCompProv.from(httpService, providers));
@@ -80,6 +91,12 @@ public class GenAiPluginExtension extends ExtensionFactory<GenAiPluginExtension.
                 // This component is used by metrics, can't use context.
                 // It is registered without a context, so it can be accessed by the metrics module.
                 dependencies.procedures().registerComponent(GlobalProviders.class, (ctx) -> providers, false);
+            }
+
+            @Override
+            public void shutdown() {
+                httpClient.close();
+                httpClientExecutor.shutdown();
             }
 
             private <T> void registerSafe(Class<T> cls, ProcedureProvider<T> provider) {
@@ -106,9 +123,15 @@ final class ServiceLoadedGlobalProviders implements Supplier<GlobalProviders> {
 interface ProcedureProvider<T> extends ThrowingFunction<Context, T, ProcedureException> {}
 
 class HttpServiceProvider implements ProcedureProvider<HttpService> {
+    private final HttpClient httpClient;
+
+    HttpServiceProvider(HttpClient httpClient) {
+        this.httpClient = httpClient;
+    }
+
     @Override
     public HttpService apply(Context ctx) throws ProcedureException {
-        return new HttpService(ctx.urlAccessChecker());
+        return new HttpService(ctx.urlAccessChecker(), httpClient);
     }
 }
 

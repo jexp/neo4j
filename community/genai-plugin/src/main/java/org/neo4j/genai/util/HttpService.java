@@ -37,7 +37,6 @@ import java.net.http.HttpResponse.BodySubscriber;
 import java.net.http.HttpResponse.ResponseInfo;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.Executors;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -57,6 +56,7 @@ public final class HttpService {
     private static final ImmutableIntSet defaultAcceptableStatusCodes = IntSets.immutable.of(200);
 
     private final URLAccessChecker urlAccessChecker;
+    private final HttpClient httpClient;
 
     public static final Function<InputStream, Map<String, Object>> DEFAULT_RESPONSE_TO_MAP_TRANSFORMER =
             (inputStream -> {
@@ -67,8 +67,9 @@ public final class HttpService {
                 }
             });
 
-    public HttpService(URLAccessChecker urlAccessChecker) {
+    public HttpService(URLAccessChecker urlAccessChecker, HttpClient httpClient) {
         this.urlAccessChecker = urlAccessChecker;
+        this.httpClient = httpClient;
     }
 
     /**
@@ -188,10 +189,7 @@ public final class HttpService {
         } catch (MalformedURLException | URLAccessValidationError e) {
             throw new GenAIProcedureException("Request failed: " + e.getMessage(), e);
         }
-        try (var httpClient = HttpClient.newBuilder()
-                .followRedirects(HttpClient.Redirect.NORMAL)
-                .executor(Executors.newVirtualThreadPerTaskExecutor())
-                .build()) {
+        try {
             var request =
                     requestCustomizer.apply(HttpRequest.newBuilder().uri(target).header("User-Agent", USER_AGENT));
             var handler = new BodyAndErrorHandler<>(BodyHandlers.ofInputStream(), BodyHandlers.ofString());
