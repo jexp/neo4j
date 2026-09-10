@@ -6463,6 +6463,113 @@ class ExpandClausesTest extends CypherFunSuite with RewritePhaseTest with AstCon
     )
   }
 
+  test("expands a NEXT chain in a subquery expression of an anonymized ORDER BY") {
+    assertRewritten(
+      """UNWIND [1] AS x
+        |RETURN x
+        |NEXT
+        |USE neo4j
+        |RETURN x
+        |  ORDER BY COLLECT { { RETURN x AS z NEXT WITH * LIMIT 1 RETURN z AS w } }""".stripMargin,
+      """UNWIND [1] AS x
+        |WITH x AS x
+        |CALL (x) {
+        |  USE `neo4j`
+        |  RETURN x AS `  UNNAMED0`
+        |    ORDER BY COLLECT {
+        |      WITH `  UNNAMED0` AS z
+        |      WITH `  UNNAMED0` AS `  UNNAMED0`, z AS z
+        |        LIMIT 1
+        |      RETURN z AS w
+        |    } ASCENDING
+        |}
+        |RETURN `  UNNAMED0` AS x""".stripMargin,
+      additionalExpectedAstUpdates = withUpdate(),
+      additionalActualAstCleanup = withUpdate()
+    )
+  }
+
+  test("expands a NEXT chain in a subquery expression of an anonymized ORDER BY without USE") {
+    assertRewritten(
+      """UNWIND [1] AS x
+        |RETURN x
+        |NEXT
+        |RETURN x
+        |  ORDER BY COLLECT { { RETURN x AS z NEXT WITH * LIMIT 1 RETURN z AS w } }
+        |UNION
+        |RETURN 2 AS x""".stripMargin,
+      """UNWIND [1] AS x
+        |WITH x AS x
+        |WITH count(*) AS `  UNNAMED1`, collect([x]) AS `  UNNAMED0`
+        |CALL (`  UNNAMED0`,`  UNNAMED1`) {
+        |  UNWIND range(0, `  UNNAMED1` - 1) AS `  UNNAMED2`
+        |  WITH (`  UNNAMED0`[`  UNNAMED2`])[0] AS x
+        |  RETURN x AS `  UNNAMED3`
+        |    ORDER BY COLLECT {
+        |      WITH `  UNNAMED3` AS z
+        |      WITH `  UNNAMED3` AS `  UNNAMED3`, z AS z
+        |        LIMIT 1
+        |      RETURN z AS w
+        |    } ASCENDING
+        |  UNION
+        |  UNWIND range(0, `  UNNAMED1` - 1) AS `  UNNAMED2`
+        |  WITH (`  UNNAMED0`[`  UNNAMED2`])[0] AS x
+        |  RETURN 2 AS `  UNNAMED3`
+        |}
+        |RETURN `  UNNAMED3` AS x""".stripMargin,
+      additionalExpectedAstUpdates = withUpdate(),
+      additionalActualAstCleanup = withUpdate()
+    )
+  }
+
+  test("expands a WHEN query in a subquery expression of an anonymized ORDER BY without USE") {
+    assertRewritten(
+      """UNWIND [1] AS x
+        |RETURN x
+        |NEXT
+        |RETURN x
+        |  ORDER BY COLLECT { WHEN true THEN WITH * LIMIT 1 RETURN x AS z ELSE RETURN 2 AS z }
+        |UNION
+        |RETURN 2 AS x""".stripMargin,
+      """UNWIND [1] AS x
+        |WITH x AS x
+        |WITH count(*) AS `  UNNAMED1`, collect([x]) AS `  UNNAMED0`
+        |CALL (`  UNNAMED0`,`  UNNAMED1`) {
+        |  UNWIND range(0, `  UNNAMED1` - 1) AS `  UNNAMED2`
+        |  WITH (`  UNNAMED0`[`  UNNAMED2`])[0] AS x
+        |  RETURN x AS `  UNNAMED3`
+        |    ORDER BY COLLECT {
+        |      WITH `  UNNAMED3` AS `  UNNAMED3`, CASE WHEN true THEN 0 ELSE 1 END AS `  UNNAMED4`
+        |      CALL (`  UNNAMED3`, `  UNNAMED4`) {
+        |        WITH `  UNNAMED4` AS `  UNNAMED4`
+        |          WHERE `  UNNAMED4` = 0
+        |        CALL (`  UNNAMED3`) {
+        |          WITH `  UNNAMED3` AS `  UNNAMED3`
+        |            LIMIT 1
+        |          RETURN `  UNNAMED3` AS z
+        |        }
+        |        RETURN z AS z
+        |        UNION ALL
+        |        WITH `  UNNAMED4` AS `  UNNAMED4`
+        |          WHERE `  UNNAMED4` = 1
+        |        CALL () {
+        |          RETURN 2 AS z
+        |        }
+        |        RETURN z AS z
+        |      }
+        |      RETURN z AS z
+        |    } ASCENDING
+        |  UNION
+        |  UNWIND range(0, `  UNNAMED1` - 1) AS `  UNNAMED2`
+        |  WITH (`  UNNAMED0`[`  UNNAMED2`])[0] AS x
+        |  RETURN 2 AS `  UNNAMED3`
+        |}
+        |RETURN `  UNNAMED3` AS x""".stripMargin,
+      additionalExpectedAstUpdates = withUpdate(),
+      additionalActualAstCleanup = withUpdate()
+    )
+  }
+
   test("Aliases not correctly substituted in query after rewriting") {
     assertRewritten(
       """UNWIND [1] AS x

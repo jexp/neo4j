@@ -190,6 +190,13 @@ class GQL_42I80_InvalidGroupingElementTest extends VariableCheckingWithLocalCall
       ignoreBeforeCypher25(Exactly(E42I80Aggregation("s + a", "s"))),
       Seq("a", "s")
     ),
+    TestQuery(
+      """WITH 1 AS x, 2 AS b
+        |RETURN x AS a, sum(b) AS s
+        |  GROUP BY a, COLLECT { RETURN a AS z }""".stripMargin,
+      ignoreBeforeCypher25(Exactly(E42I80("COLLECT { RETURN a AS z }", "a"))),
+      Seq("a", "s")
+    ),
 
     // Positive tests
     TestQuery(
@@ -220,6 +227,13 @@ class GQL_42I80_InvalidGroupingElementTest extends VariableCheckingWithLocalCall
         |RETURN a, s""".stripMargin,
       ignoreBeforeCypher25(Passes),
       Seq("a", "s")
+    ),
+    TestQuery(
+      """WITH 1 AS x, 2 AS b
+        |RETURN x AS k, sum(b) AS s
+        |  GROUP BY x, COLLECT { RETURN x AS z }""".stripMargin,
+      ignoreBeforeCypher25(Passes),
+      Seq("k", "s")
     )
   )
 }

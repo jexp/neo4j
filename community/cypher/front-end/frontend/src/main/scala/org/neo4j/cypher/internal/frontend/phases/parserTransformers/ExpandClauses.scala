@@ -898,16 +898,27 @@ case object ExpandClauses extends StatementRewriter with StepSequencer.Step with
       }._2
     }
 
+    /**
+     * Expanding a nested NEXT/WHEN/top-level-braces query before the rename keeps its scope lookups on nodes the
+     * survey recorded; narrowed to just those three cases, unlike the full `rewriter`, so it doesn't reprocess a
+     * plain clause the enclosing top-down walk will reach anyway.
+     */
+    def expandNestedQueries[T <: ASTNode](subclause: T): T =
+      subclause.endoRewrite(topDown(Rewriter.lift(expandableQueryCases(Layout.empty))))
+
     def expandReturnItems(clause: ProjectionClause, returnItems: ReturnItems, layout: Layout): ProjectionClause = {
       val isReturn = clause.isInstanceOf[Return]
       val anonymizedItems = if (isReturn) returnItems.items.map(layout.anonymize) else returnItems.items
+      val renames = isReturn && layout.resultMapping.nonEmpty
+      val orderBy = if (renames) clause.orderBy.map(expandNestedQueries) else clause.orderBy
+      val groupBy = if (renames) clause.groupBy.map(expandNestedQueries) else clause.groupBy
       val anonymizedSortKeys =
         if (isReturn)
-          clause.orderBy.map(ob => ob.copy(sortItems = ob.sortItems.map(layout.anonymizeSortKey))(ob.position))
-        else clause.orderBy
+          orderBy.map(ob => ob.copy(sortItems = ob.sortItems.map(layout.anonymizeSortKey))(ob.position))
+        else orderBy
       val anonymizedGroupBy =
-        if (isReturn) clause.groupBy.map(layout.anonymizeGroupingKeys)
-        else clause.groupBy
+        if (isReturn) groupBy.map(layout.anonymizeGroupingKeys)
+        else groupBy
 
       clause.copyProjection(
         returnItems =
@@ -931,7 +942,17 @@ case object ExpandClauses extends StatementRewriter with StepSequencer.Step with
       case sq: SingleQuery     => sq.endoRewrite(rewriter(layout))
     }
 
-    def rewriter(layout: Layout): Rewriter = Rewriter.lift {
+    def expandableQueryCases(layout: Layout): PartialFunction[AnyRef, AnyRef] = {
+      case tlb: TopLevelBraces =>
+        removeTopLevelBraces(tlb, layout)
+      case wh: ConditionalQueryWhen =>
+        WhenExpansion.expand(wh, layout)
+      case ns @ NextStatement(queries) =>
+        val ingress = layout.use.toSeq.endoRewrite(ensureUniqueIds)
+        SingleQuery(ingress ++ rewriteNextQueries(queries, layout.copy(use = None)))(ns.position)
+    }
+
+    def rewriter(layout: Layout): Rewriter = Rewriter.lift(expandableQueryCases(layout).orElse {
       case clause @ With(_, returnItems, _, _, _, _, _, _) =>
         expandReturnItems(clause, returnItems, layout)
       case clause @ Return(_, returnItems, _, _, _, _, _, _, _) =>
@@ -950,19 +971,11 @@ case object ExpandClauses extends StatementRewriter with StepSequencer.Step with
           flattenQuery(lhs, updatedLayout),
           ensureNoTopLevelBracesSingleQuery(rhs, updatedLayout)
         )(u.position)
-      case tlb: TopLevelBraces =>
-        removeTopLevelBraces(tlb, layout)
       case sq: SingleQuery if sq.partitionedClauses.initialGraphSelection.isDefined =>
         layout.inSingleQuery.adapt(sq)
       case sq: SingleQuery =>
         layout.adapt(sq)
-      case wh: ConditionalQueryWhen =>
-        WhenExpansion.expand(wh, layout)
-      case ns @ NextStatement(queries) =>
-        // A NEXT chain flattens all operands into one SingleQuery.
-        val ingress = layout.use.toSeq.endoRewrite(ensureUniqueIds)
-        SingleQuery(ingress ++ rewriteNextQueries(queries, layout.copy(use = None)))(ns.position)
-    }
+    })
 
     // Cypher 5 requires a WITH clause between clauses in some cases so the query is not possible to fully cleanup.
     def cleanupCypher5: Rewriter = Rewriter.noop

@@ -1376,7 +1376,7 @@ final case class UnionAll(lhs: Query, rhs: PartQuery)(
 ) extends UnmappedUnion {
 
   override def mapEachSingleQuery(f: SingleQuery => SingleQuery): Query =
-    copy(lhs.mapEachSingleQuery(f), f(rhs.singleQuery))(position)
+    copy(lhs.mapEachSingleQuery(f), rhs.mapEachSingleQuery(f).asInstanceOf[PartQuery])(position)
 
   override def withoutImportingWithAndGraphSelection: Option[UnionAll] = {
     val lhsOpt = lhs.withoutImportingWithAndGraphSelection
@@ -1395,7 +1395,7 @@ final case class UnionDistinct(lhs: Query, rhs: PartQuery)(
 ) extends UnmappedUnion {
 
   override def mapEachSingleQuery(f: SingleQuery => SingleQuery): Query =
-    copy(lhs.mapEachSingleQuery(f), f(rhs.singleQuery))(position)
+    copy(lhs.mapEachSingleQuery(f), rhs.mapEachSingleQuery(f).asInstanceOf[PartQuery])(position)
 
   override def withoutImportingWithAndGraphSelection: Option[UnionDistinct] = {
     val lhsOpt = lhs.withoutImportingWithAndGraphSelection
@@ -1414,7 +1414,7 @@ final case class ProjectingUnionAll(lhs: Query, rhs: PartQuery, unionMappings: L
 ) extends ProjectingUnion {
 
   override def mapEachSingleQuery(f: SingleQuery => SingleQuery): Query =
-    copy(lhs.mapEachSingleQuery(f), f(rhs.singleQuery))(position)
+    copy(lhs.mapEachSingleQuery(f), rhs.mapEachSingleQuery(f).asInstanceOf[PartQuery])(position)
 
   override def withoutImportingWithAndGraphSelection: Option[ProjectingUnionAll] = {
     val lhsOpt = lhs.withoutImportingWithAndGraphSelection
@@ -1433,7 +1433,7 @@ final case class ProjectingUnionDistinct(lhs: Query, rhs: PartQuery, unionMappin
 ) extends ProjectingUnion {
 
   override def mapEachSingleQuery(f: SingleQuery => SingleQuery): Query =
-    copy(lhs.mapEachSingleQuery(f), f(rhs.singleQuery))(position)
+    copy(lhs.mapEachSingleQuery(f), rhs.mapEachSingleQuery(f).asInstanceOf[PartQuery])(position)
 
   override def withoutImportingWithAndGraphSelection: Option[ProjectingUnionDistinct] = {
     val lhsOpt = lhs.withoutImportingWithAndGraphSelection
