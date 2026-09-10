@@ -33,8 +33,8 @@ import org.neo4j.fabric.bookmark.BookmarkFormat;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.database.Database;
 import org.neo4j.notifications.NotificationCodeWithDescription;
-import org.neo4j.queryapi.QueryApiTestUtil;
 import org.neo4j.queryapi.QueryResponseJsonlAssertions;
+import org.neo4j.queryapi.test.QueryApiTestUtil;
 import org.neo4j.queryapi.test.annotation.QueryAPITestExtension;
 import org.neo4j.queryapi.test.assertions.Capture;
 import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
@@ -47,8 +47,7 @@ import org.neo4j.server.queryapi.tx.TransactionManager;
 @QueryAPITestExtension(
         contentType = QueryContentType.UNTYPED,
         acceptedContentTypes = {QueryContentType.UNTYPED_L},
-        bookmarkReadyTimeoutInSeconds = 1,
-        sleepProcedureEnabled = true)
+        bookmarkReadyTimeoutInSeconds = 1)
 class QueryResourceTxJsonlConfigIT {
 
     private final QueryAPITestClient testClient;

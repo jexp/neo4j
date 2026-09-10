@@ -20,14 +20,14 @@
 package org.neo4j.queryapi.test.annotation.support;
 
 import static java.time.Duration.ofSeconds;
-import static org.neo4j.queryapi.QueryApiTestUtil.resolveDependency;
-import static org.neo4j.queryapi.QueryApiTestUtil.setupLogging;
-import static org.neo4j.queryapi.QueryApiTestUtil.sleepProcedure;
+import static org.neo4j.queryapi.test.QueryApiTestUtil.resolveDependency;
+import static org.neo4j.queryapi.test.QueryApiTestUtil.setupLogging;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
@@ -45,11 +45,14 @@ import org.neo4j.configuration.connectors.ConnectorPortRegister;
 import org.neo4j.configuration.connectors.ConnectorType;
 import org.neo4j.configuration.connectors.HttpConnector;
 import org.neo4j.configuration.helpers.SocketAddress;
+import org.neo4j.dbms.api.DatabaseManagementService;
+import org.neo4j.internal.kernel.api.exceptions.ProcedureException;
 import org.neo4j.kernel.api.procedure.GlobalProcedures;
-import org.neo4j.queryapi.QueryApiTestUtil;
 import org.neo4j.queryapi.test.QueryAPITestRetryException;
+import org.neo4j.queryapi.test.QueryApiTestUtil;
 import org.neo4j.queryapi.test.annotation.BoltTransportType;
 import org.neo4j.queryapi.test.annotation.QueryAPITestExtension;
+import org.neo4j.queryapi.test.procedure.SleepQueryApiTestProcedure;
 import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
 import org.neo4j.server.configuration.ServerSettings;
 import org.neo4j.server.queryapi.tx.TransactionManager;
@@ -119,15 +122,29 @@ public class QueryAPITestSupportExtension
                     annotation.contentType(),
                     Arrays.asList(annotation.acceptedContentTypes()));
 
-            if (annotation.sleepProcedureEnabled()) {
-                resolveDependency(dbms, GlobalProcedures.class).register(sleepProcedure());
-            }
+            var maybeSleepQueryApiTestProcedure = setupSleepProcedure(annotation, dbms);
 
             var txManager = resolveDependency(dbms, TransactionManager.class);
 
-            invocationContexts.add(
-                    new QueryAPIClassTemplateInvocationContext(transportType, dbms, testClient, txManager));
+            invocationContexts.add(new QueryAPIClassTemplateInvocationContext(
+                    transportType,
+                    dbms,
+                    testClient,
+                    txManager,
+                    maybeSleepQueryApiTestProcedure
+                            .map(SleepQueryApiTestProcedure::controller)
+                            .orElse(null)));
         }
+    }
+
+    private static Optional<SleepQueryApiTestProcedure> setupSleepProcedure(
+            QueryAPITestExtension annotation, DatabaseManagementService dbms) throws ProcedureException {
+        if (annotation.sleepProcedureEnabled()) {
+            var sleepQueryApiTestProcedure = new SleepQueryApiTestProcedure();
+            resolveDependency(dbms, GlobalProcedures.class).register(sleepQueryApiTestProcedure.callableProcedure());
+            return Optional.of(sleepQueryApiTestProcedure);
+        }
+        return Optional.empty();
     }
 
     @Override

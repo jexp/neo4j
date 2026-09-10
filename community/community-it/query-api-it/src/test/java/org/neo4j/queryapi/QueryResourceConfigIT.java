@@ -39,6 +39,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.neo4j.dbms.api.DatabaseManagementService;
+import org.neo4j.queryapi.test.QueryApiTestUtil;
 import org.neo4j.queryapi.test.annotation.QueryAPITestExtension;
 import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
 import org.neo4j.test.TestDatabaseManagementServiceFactorySupplier;

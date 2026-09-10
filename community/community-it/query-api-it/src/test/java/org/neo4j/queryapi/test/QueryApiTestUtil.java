@@ -17,10 +17,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package org.neo4j.queryapi;
+package org.neo4j.queryapi.test;
 
 import static org.assertj.core.api.Fail.fail;
-import static org.neo4j.internal.kernel.api.procs.ProcedureSignature.procedureSignature;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -31,22 +30,11 @@ import java.net.http.HttpResponse;
 import java.util.Base64;
 import java.util.List;
 import java.util.stream.Stream;
-import org.neo4j.collection.ResourceRawIterator;
 import org.neo4j.dbms.api.DatabaseManagementService;
-import org.neo4j.internal.kernel.api.exceptions.ProcedureException;
-import org.neo4j.internal.kernel.api.procs.Neo4jTypes;
-import org.neo4j.internal.kernel.api.procs.ProcedureSignature;
-import org.neo4j.internal.kernel.api.procs.QualifiedName;
-import org.neo4j.kernel.api.ResourceMonitor;
-import org.neo4j.kernel.api.exceptions.Status;
-import org.neo4j.kernel.api.procedure.CallableProcedure;
-import org.neo4j.kernel.api.procedure.Context;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.logging.log4j.Log4jLogProvider;
 import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
 import org.neo4j.storageengine.api.TransactionIdStore;
-import org.neo4j.values.AnyValue;
-import org.neo4j.values.storable.IntegralValue;
 
 public final class QueryApiTestUtil {
 
@@ -124,24 +112,5 @@ public final class QueryApiTestUtil {
         } catch (Exception e) {
             fail(String.format("Failed to set up jetty logging bridge: %s", e));
         }
-    }
-
-    public static CallableProcedure.BasicProcedure sleepProcedure() {
-        return new CallableProcedure.BasicProcedure(procedureSignature(new QualifiedName("queryAPI", "nightnight"))
-                .in("data", Neo4jTypes.NTInteger)
-                .out(ProcedureSignature.VOID)
-                .build()) {
-            @Override
-            public ResourceRawIterator<AnyValue[], ProcedureException> apply(
-                    Context context, AnyValue[] objects, ResourceMonitor resourceMonitor) throws ProcedureException {
-                try {
-                    Thread.sleep(((IntegralValue) objects[0]).longValue());
-                } catch (InterruptedException e) {
-                    throw ProcedureException.internalError(
-                            this.getClass().getSimpleName(), "Interrupted", Status.General.UnknownError, e);
-                }
-                return ResourceRawIterator.empty();
-            }
-        };
     }
 }

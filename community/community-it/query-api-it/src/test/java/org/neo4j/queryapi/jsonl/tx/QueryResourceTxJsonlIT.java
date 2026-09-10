@@ -45,8 +45,7 @@ import org.neo4j.server.queryapi.tx.TransactionManager;
 
 @QueryAPITestExtension(
         contentType = QueryContentType.UNTYPED,
-        acceptedContentTypes = {QueryContentType.UNTYPED_L},
-        sleepProcedureEnabled = true)
+        acceptedContentTypes = {QueryContentType.UNTYPED_L})
 class QueryResourceTxJsonlIT {
 
     private final QueryAPITestClient testClient;

@@ -26,12 +26,14 @@ import static org.neo4j.queryapi.QueryResponseAssertions.assertThat;
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.queryapi.test.annotation.QueryAPITestExtension;
+import org.neo4j.queryapi.test.procedure.SleepQueryApiTestProcedure;
 import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
 import org.neo4j.queryapi.test.testclient.QueryApiTestClientException;
 import org.neo4j.queryapi.test.testclient.QueryRequest;
@@ -135,7 +137,8 @@ class QueryResourceTxErrorIT {
     }
 
     @Test
-    void shouldNotAllowConcurrentTxAccess() throws IOException, InterruptedException, QueryApiTestClientException {
+    void shouldNotAllowConcurrentTxAccess(SleepQueryApiTestProcedure.Controller sleepProcedureController)
+            throws IOException, InterruptedException, QueryApiTestClientException {
         var res = testClient.beginTx();
         var latch = new CountDownLatch(1);
 
@@ -153,7 +156,9 @@ class QueryResourceTxErrorIT {
                 }
             });
 
-            Thread.sleep(500);
+            Assertions.assertThat(sleepProcedureController.awaitProcedureStarts(5, TimeUnit.SECONDS))
+                    .as("long running query should have started executing inside the transaction")
+                    .isTrue();
 
             var concurrent = testClient.runInTx(res.body().txId());
             assertThat(concurrent).hasErrorStatus(400, TransactionAccessedConcurrently);

@@ -44,7 +44,7 @@ import org.neo4j.queryapi.test.testclient.QueryRequest;
 import org.neo4j.server.configuration.ServerSettings;
 import org.neo4j.server.queryapi.tx.TransactionManager;
 
-@QueryAPITestExtension(sleepProcedureEnabled = true)
+@QueryAPITestExtension
 class QueryResourceTxIT {
 
     private final QueryAPITestClient testClient;

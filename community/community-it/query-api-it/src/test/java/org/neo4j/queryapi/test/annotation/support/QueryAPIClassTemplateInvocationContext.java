@@ -24,6 +24,7 @@ import org.junit.jupiter.api.extension.ClassTemplateInvocationContext;
 import org.junit.jupiter.api.extension.Extension;
 import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.queryapi.test.annotation.BoltTransportType;
+import org.neo4j.queryapi.test.procedure.SleepQueryApiTestProcedure;
 import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
 import org.neo4j.server.queryapi.tx.TransactionManager;
 
@@ -31,7 +32,8 @@ public record QueryAPIClassTemplateInvocationContext(
         BoltTransportType transportType,
         DatabaseManagementService dbms,
         QueryAPITestClient testClient,
-        TransactionManager txManager)
+        TransactionManager txManager,
+        SleepQueryApiTestProcedure.Controller sleepProcedureController)
         implements ClassTemplateInvocationContext {
 
     @Override
@@ -41,6 +43,6 @@ public record QueryAPIClassTemplateInvocationContext(
 
     @Override
     public List<Extension> getAdditionalExtensions() {
-        return List.of(new QueryAPIParameterResolver(dbms, testClient, txManager));
+        return List.of(new QueryAPIParameterResolver(dbms, testClient, txManager, sleepProcedureController));
     }
 }

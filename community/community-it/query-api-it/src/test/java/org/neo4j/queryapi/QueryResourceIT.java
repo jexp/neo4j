@@ -37,6 +37,7 @@ import org.neo4j.fabric.bolt.QueryRouterBookmark;
 import org.neo4j.fabric.bookmark.BookmarkFormat;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.database.Database;
+import org.neo4j.queryapi.test.QueryApiTestUtil;
 import org.neo4j.queryapi.test.annotation.QueryAPITestExtension;
 import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
 import org.neo4j.queryapi.test.testclient.QueryRequest;

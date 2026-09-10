@@ -19,23 +19,30 @@
  */
 package org.neo4j.queryapi.test.annotation.support;
 
+import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.junit.jupiter.api.extension.ParameterResolver;
 import org.neo4j.dbms.api.DatabaseManagementService;
+import org.neo4j.queryapi.test.procedure.SleepQueryApiTestProcedure;
 import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
 import org.neo4j.server.queryapi.tx.TransactionManager;
 
 public record QueryAPIParameterResolver(
-        DatabaseManagementService dbms, QueryAPITestClient testClient, TransactionManager txManager)
-        implements ParameterResolver {
+        DatabaseManagementService dbms,
+        QueryAPITestClient testClient,
+        TransactionManager txManager,
+        SleepQueryApiTestProcedure.Controller sleepProcedureController)
+        implements ParameterResolver, BeforeEachCallback {
     @Override
     public boolean supportsParameter(ParameterContext parameterContext, ExtensionContext extensionContext)
             throws ParameterResolutionException {
         return parameterContext.getParameter().getType() == DatabaseManagementService.class
                 || parameterContext.getParameter().getType() == QueryAPITestClient.class
-                || parameterContext.getParameter().getType() == TransactionManager.class;
+                || parameterContext.getParameter().getType() == TransactionManager.class
+                || parameterContext.getParameter().getType() == SleepQueryApiTestProcedure.Controller.class
+                        && sleepProcedureController != null;
     }
 
     @Override
@@ -47,8 +54,17 @@ public record QueryAPIParameterResolver(
             return testClient;
         } else if (parameterContext.getParameter().getType() == TransactionManager.class) {
             return txManager;
+        } else if (parameterContext.getParameter().getType() == SleepQueryApiTestProcedure.Controller.class) {
+            return sleepProcedureController;
         }
         throw new ParameterResolutionException("Parameter type not supported: "
                 + parameterContext.getParameter().getType());
+    }
+
+    @Override
+    public void beforeEach(ExtensionContext context) throws Exception {
+        if (sleepProcedureController != null) {
+            sleepProcedureController.resetAwaiter();
+        }
     }
 }

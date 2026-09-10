@@ -37,6 +37,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.neo4j.kernel.api.exceptions.Status;
+import org.neo4j.queryapi.test.QueryApiTestUtil;
 import org.neo4j.queryapi.test.annotation.QueryAPITestExtension;
 import org.neo4j.queryapi.test.testclient.QueryAPITestClient;
 import org.neo4j.server.queryapi.QueryMimeTypes;

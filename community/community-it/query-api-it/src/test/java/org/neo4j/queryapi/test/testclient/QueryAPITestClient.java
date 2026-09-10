@@ -19,7 +19,7 @@
  */
 package org.neo4j.queryapi.test.testclient;
 
-import static org.neo4j.queryapi.QueryApiTestUtil.encodedCredentials;
+import static org.neo4j.queryapi.test.QueryApiTestUtil.encodedCredentials;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;

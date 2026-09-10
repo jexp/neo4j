@@ -63,7 +63,11 @@ public @interface QueryAPITestExtension {
     boolean authEnabled() default false;
 
     /**
-     * When true, enables a sleep procedure on the dbms for testing proposes
+     * When true, enables a sleep procedure on the dbms for testing proposes.
+     * <p/>
+     * The {@link org.neo4j.queryapi.test.procedure.SleepQueryApiTestProcedure.Controller} will
+     * available to received as parameters when this procedure is available.
+     * THe controller object is used for awaiting on the procedure start.
      */
     boolean sleepProcedureEnabled() default false;
 
