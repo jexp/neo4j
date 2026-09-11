@@ -83,7 +83,7 @@
     <apache.directory.server.version>2.0.0.AM27</apache.directory.server.version>
     <asm.version>9.10.1</asm.version>
     <awaitility.version>4.3.0</awaitility.version>
-    <awssdk.version>2.53.0</awssdk.version>
+    <awssdk.version>2.54.15</awssdk.version>
     <bouncycastle.version>1.85</bouncycastle.version>
     <build-helper-maven-plugin.version>3.6.1</build-helper-maven-plugin.version>
     <build-resources.version>2026.07.1</build-resources.version>
@@ -91,10 +91,10 @@
 
     <!-- Bump the cucumber dependencies together. -->
     <cucumber.scala.version>8.39.1</cucumber.scala.version>
-    <cucumber.version>7.34.4</cucumber.version>
+    <cucumber.version>7.34.8</cucumber.version>
 
     <cursor.counters.check>true</cursor.counters.check>
-    <cypherdsl.version>2025.3.0</cypherdsl.version>
+    <cypherdsl.version>2025.3.2</cypherdsl.version>
     <default.jupiter.test.mode>same_thread</default.jupiter.test.mode>
     <default.jupiter.test.timeout>20m</default.jupiter.test.timeout>
     <dependency.analyze.failOnWarning>true</dependency.analyze.failOnWarning>
@@ -106,20 +106,20 @@
     <excludedTestGroups />
     <forkCounts>1</forkCounts>
     <generate-config-docs-phase>prepare-package</generate-config-docs-phase>
-    <grpc.version>1.83.1</grpc.version>
+    <grpc.version>1.84.0</grpc.version>
     <gson.version>2.14.0</gson.version>
-    <guava.version>33.6.0-jre</guava.version>
+    <guava.version>33.7.1-jre</guava.version>
     <!-- The property vm.target.version is used by CI to set the base JDK in which to run maven -->
     <hadoop-common.version>3.5.0</hadoop-common.version>
     <!-- no more patch releases for jackson-annotations so different versioning from jackson -->
     <jackson.annotations.version>2.22</jackson.annotations.version>
-    <jackson.version>2.22.1</jackson.version>
+    <jackson.version>2.22.2</jackson.version>
     <jakarta.activation-api.version>1.2.2</jakarta.activation-api.version>
     <jakarta.inject.version>2.0.1</jakarta.inject.version>
     <jakarta.ws.rs-api.version>2.1.6</jakarta.ws.rs-api.version>
 
     <jamm.version>0.4.0</jamm.version>
-    <java-jwt.version>4.6.0</java-jwt.version>
+    <java-jwt.version>4.6.1</java-jwt.version>
     <javapoet.version>1.13.0</javapoet.version>
     <jdk.custom.options>--add-opens=java.base/java.nio=ALL-UNNAMED
       --add-opens=java.base/java.io=ALL-UNNAMED
@@ -150,7 +150,7 @@
     <lz4.version>1.11.2</lz4.version>
     <maven.build.timestamp.format>yyMMddHHmmssSSS</maven.build.timestamp.format>
     <maven.compiler.release>${vm.target.version}</maven.compiler.release>
-    <metrics.version>4.2.39</metrics.version>
+    <metrics.version>4.2.40</metrics.version>
     <!--
       It is strongly preferred that a module should NOT contain both Java and Scala sources.
       The preference is for new modules to split the languages into separate modules.
@@ -164,17 +164,17 @@
      - Please note that when updating this dependency (i.e. due to a security vulnerability or bug) that the corresponding driver dependency also
      - needs updating.
      -->
-    <netty.version>4.2.17.Final</netty.version>
+    <netty.version>4.2.18.Final</netty.version>
     <opencypher.version>1.0.0-M23</opencypher.version>
-    <oshi-common.version>7.4.4</oshi-common.version>
+    <oshi-common.version>7.6.1</oshi-common.version>
     <parallel.tests>false</parallel.tests>
-    <parquet-floor.version>2.1</parquet-floor.version>
-    <parquet.version>1.18.0</parquet.version>
+    <parquet-floor.version>2.3</parquet-floor.version>
+    <parquet.version>1.18.1</parquet.version>
     <picocli.version>4.7.7</picocli.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <protobuf.version>4.35.1</protobuf.version>
+    <protobuf.version>4.36.1</protobuf.version>
     <required.maven.version>3.9.11</required.maven.version>
-    <s3mock.version>5.1.0</s3mock.version>
+    <s3mock.version>5.2.0</s3mock.version>
     <scala-maven-plugin.version>4.9.9</scala-maven-plugin.version>
     <scala.binary.version>3</scala.binary.version>
     <scala.plugin.recompileMode>all</scala.plugin.recompileMode>
@@ -186,10 +186,10 @@
     <scala.wunused.conf.default />
     <scala.wunused.conf.strict>-Wunused:imports,privates,locals</scala.wunused.conf.strict>
     <scala3.version>3.7.4</scala3.version>
-    <shiro.version>3.0.0</shiro.version>
+    <shiro.version>3.0.1</shiro.version>
     <skip-scalastyle>false</skip-scalastyle>
     <slf4j.version>2.0.17</slf4j.version>
-    <sqlite-jdbc.version>3.53.2.1</sqlite-jdbc.version>
+    <sqlite-jdbc.version>3.53.4.0</sqlite-jdbc.version>
     <teavm.version>0.15.0</teavm.version>
     <test.runner.jamm.agent>-javaagent:${settings.localRepository}/com/github/jbellis/jamm/${jamm.version}/jamm-${jamm.version}.jar</test.runner.jamm.agent>
     <test.runner.jvm />
@@ -279,7 +279,7 @@
       <dependency>
         <groupId>io.projectreactor</groupId>
         <artifactId>reactor-bom</artifactId>
-        <version>2025.0.6</version>
+        <version>2025.0.7</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -367,7 +367,7 @@
       <dependency>
         <groupId>com.github.luben</groupId>
         <artifactId>zstd-jni</artifactId>
-        <version>1.5.7-13</version>
+        <version>1.5.7-16</version>
       </dependency>
       <dependency>
         <groupId>com.github.seancfoley</groupId>
@@ -649,7 +649,7 @@
       <dependency>
         <groupId>net.bytebuddy</groupId>
         <artifactId>byte-buddy</artifactId>
-        <version>1.18.11</version>
+        <version>1.18.13</version>
       </dependency>
       <dependency>
         <groupId>net.java.dev.jna</groupId>
@@ -911,7 +911,7 @@
       <dependency>
         <groupId>org.bitbucket.b_c</groupId>
         <artifactId>jose4j</artifactId>
-        <version>0.9.6</version>
+        <version>0.9.7</version>
       </dependency>
       <dependency>
         <groupId>org.bouncycastle</groupId>
@@ -1079,7 +1079,7 @@
       <dependency>
         <groupId>org.jctools</groupId>
         <artifactId>jctools-core</artifactId>
-        <version>4.0.6</version>
+        <version>4.0.7</version>
       </dependency>
       <dependency>
         <groupId>org.jprocesses</groupId>
