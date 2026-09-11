@@ -41,7 +41,7 @@ public class QueryAggregationMeta {
     public long maxTimestamp = 0;
 
     private long sumElapsedMs;
-    private long sumWaitTimeMs;
+    private long sumWaitTimeMicros;
     private long sumPageHits;
     private long sumPageFaults;
     private long sumAllocatedBytes;
@@ -61,7 +61,6 @@ public class QueryAggregationMeta {
     public void addFromExecutingQuery(ExecutingQuery query) {
         var snapshot = query.snapshot();
         long elapsedMs = query.elapsedMillis();
-        long waitTimeMs = snapshot.waitTimeMicros() / 1000; // snapshot returns micros
         long pageHits = snapshot.pageHits();
         long pageFaults = snapshot.pageFaults();
         long allocatedBytes = snapshot.allocatedBytes();
@@ -77,7 +76,7 @@ public class QueryAggregationMeta {
         maxTimestamp = Math.max(maxTimestamp, now);
 
         sumElapsedMs += elapsedMs;
-        sumWaitTimeMs += waitTimeMs;
+        sumWaitTimeMicros += snapshot.waitTimeMicros();
         sumPageHits += pageHits;
         sumPageFaults += pageFaults;
         sumAllocatedBytes += allocatedBytes;
@@ -112,7 +111,7 @@ public class QueryAggregationMeta {
     @JsonProperty("avgWaitTimeMs")
     @JsonPropertyDescription("The average wait time")
     public double getAvgWaitTimeMs() {
-        return calculateAverage(sumWaitTimeMs);
+        return calculateAverage(sumWaitTimeMicros) / 1000;
     }
 
     @JsonProperty("avgPageHits")
