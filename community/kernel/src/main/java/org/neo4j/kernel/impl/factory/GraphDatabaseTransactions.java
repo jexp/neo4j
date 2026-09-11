@@ -22,6 +22,8 @@ package org.neo4j.kernel.impl.factory;
 import static java.util.Collections.emptyMap;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.neo4j.configuration.GraphDatabaseInternalSettings.snapshot_query_retries;
+import static org.neo4j.configuration.GraphDatabaseInternalSettings.system_snapshot_query_retries;
 import static org.neo4j.configuration.GraphDatabaseSettings.transaction_timeout;
 import static org.neo4j.graphdb.ResultTransformer.EMPTY_TRANSFORMER;
 import static org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo.EMBEDDED_CONNECTION;
@@ -30,6 +32,7 @@ import static org.neo4j.internal.kernel.api.security.LoginContext.AUTH_DISABLED;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 import org.neo4j.configuration.Config;
 import org.neo4j.graphdb.QueryExecutionException;
 import org.neo4j.graphdb.ResultTransformer;
@@ -37,8 +40,11 @@ import org.neo4j.graphdb.Transaction;
 import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
 import org.neo4j.internal.kernel.api.security.LoginContext;
 import org.neo4j.kernel.api.KernelTransaction;
+import org.neo4j.kernel.database.DatabaseId;
 import org.neo4j.kernel.impl.coreapi.InternalTransaction;
+import org.neo4j.kernel.impl.transaction.TransactionConflictRetries;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.time.SystemNanoClock;
 
 /**
  * Implements all special versions of "begin" (beginTx, beginTransaction, executeTransactionally)
@@ -46,9 +52,18 @@ import org.neo4j.kernel.internal.GraphDatabaseAPI;
  */
 public abstract class GraphDatabaseTransactions implements GraphDatabaseAPI {
     private final Config config;
+    private final TransactionConflictRetries retries;
+    private final BooleanSupplier multiVersioned;
+    private final int multiVersionRetries;
 
-    protected GraphDatabaseTransactions(Config config) {
+    protected GraphDatabaseTransactions(
+            Config config, SystemNanoClock clock, DatabaseId databaseId, BooleanSupplier multiVersioned) {
         this.config = requireNonNull(config);
+        this.multiVersioned = requireNonNull(multiVersioned);
+        this.retries = new TransactionConflictRetries(clock);
+        this.multiVersionRetries = databaseId.isSystemDatabase()
+                ? config.get(system_snapshot_query_retries)
+                : config.get(snapshot_query_retries);
     }
 
     @Override
@@ -72,19 +87,17 @@ public abstract class GraphDatabaseTransactions implements GraphDatabaseAPI {
     public <T> T executeTransactionally(
             String query, Map<String, Object> parameters, ResultTransformer<T> resultTransformer, Duration timeout)
             throws QueryExecutionException {
-        T transformedResult;
-        try (var internalTransaction = beginTransaction(
-                KernelTransaction.Type.IMPLICIT,
-                AUTH_DISABLED,
-                EMBEDDED_CONNECTION,
-                timeout.toMillis(),
-                MILLISECONDS)) {
-            try (var result = internalTransaction.execute(query, parameters)) {
-                transformedResult = resultTransformer.apply(result);
+        return retries.retry(maxRetries(), timeout, timeoutMillis -> {
+            try (var internalTransaction = beginTransaction(
+                    KernelTransaction.Type.IMPLICIT, AUTH_DISABLED, EMBEDDED_CONNECTION, timeoutMillis, MILLISECONDS)) {
+                T transformedResult;
+                try (var result = internalTransaction.execute(query, parameters)) {
+                    transformedResult = resultTransformer.apply(result);
+                }
+                internalTransaction.commit();
+                return transformedResult;
             }
-            internalTransaction.commit();
-        }
-        return transformedResult;
+        });
     }
 
     @Override
@@ -119,5 +132,9 @@ public abstract class GraphDatabaseTransactions implements GraphDatabaseAPI {
 
     protected Duration defaultTransactionTimeout() {
         return config.get(transaction_timeout);
+    }
+
+    private int maxRetries() {
+        return multiVersioned.getAsBoolean() ? multiVersionRetries : 0;
     }
 }

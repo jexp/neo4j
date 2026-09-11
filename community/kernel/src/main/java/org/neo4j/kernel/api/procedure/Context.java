@@ -169,4 +169,11 @@ public interface Context {
      * @return the procedure call context of this context
      */
     ProcedureCallContext procedureCallContext();
+
+    /**
+     * Returns whether the store of the database this context belongs to is multi versioned.
+     *
+     * @return {@code true} if the store is multi versioned, {@code false} otherwise.
+     */
+    boolean multiVersioned();
 }

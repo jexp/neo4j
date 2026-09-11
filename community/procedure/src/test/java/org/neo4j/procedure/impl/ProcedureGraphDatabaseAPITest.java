@@ -30,6 +30,7 @@ import static org.neo4j.internal.kernel.api.security.LoginContext.AUTH_DISABLED;
 import static org.neo4j.kernel.api.KernelTransaction.Type.EXPLICIT;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.function.Consumer;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -37,8 +38,10 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.neo4j.configuration.Config;
 import org.neo4j.internal.kernel.api.security.LoginContext;
+import org.neo4j.kernel.database.DatabaseIdFactory;
 import org.neo4j.kernel.impl.coreapi.InternalTransaction;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.time.Clocks;
 
 class ProcedureGraphDatabaseAPITest {
 
@@ -46,14 +49,15 @@ class ProcedureGraphDatabaseAPITest {
     @MethodSource("beginTxCalls")
     void allTransactionsGetLoginContextTransformed(String name, Consumer<GraphDatabaseAPI> call) {
         var graphDatabaseAPI = mock(GraphDatabaseAPI.class);
+        when(graphDatabaseAPI.databaseId()).thenReturn(DatabaseIdFactory.from("neo4j", UUID.randomUUID()));
         var loginContextCaptor = ArgumentCaptor.forClass(LoginContext.class);
         var internalTransaction = mock(InternalTransaction.class);
         when(graphDatabaseAPI.beginTransaction(any(), loginContextCaptor.capture(), any(), anyLong(), any()))
                 .thenReturn(internalTransaction);
 
         var transformedLoginContext = mock(LoginContext.class);
-        var procedureGraphDatabaseService =
-                new ProcedureGraphDatabaseAPI(graphDatabaseAPI, ctx -> transformedLoginContext, Config.defaults());
+        var procedureGraphDatabaseService = new ProcedureGraphDatabaseAPI(
+                graphDatabaseAPI, ctx -> transformedLoginContext, Config.defaults(), Clocks.nanoClock(), false);
 
         call.accept(procedureGraphDatabaseService);
 

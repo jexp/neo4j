@@ -141,6 +141,12 @@ public class BasicContext implements Context {
         return procedureCallContext;
     }
 
+    @Override
+    public boolean multiVersioned() {
+        return kernelTransaction != null
+                && kernelTransaction.storageEngineCharacteristics().isMultiVersioned();
+    }
+
     public static ContextBuilder buildContext(DependencyResolver dependencyResolver, ValueMapper<Object> valueMapper) {
         return new ContextBuilder(dependencyResolver, valueMapper);
     }

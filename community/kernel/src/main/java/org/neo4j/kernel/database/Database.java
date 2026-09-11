@@ -342,10 +342,6 @@ public class Database extends AbstractDatabase {
         this.commitProcessFactory = context.getCommitProcessFactory();
         this.globalPageCache = context.getPageCache();
         this.storageEngineFactorySupplier = context.getStorageEngineFactorySupplier();
-        TransactionsFactory transactionsFactory = context.getTransactionsFactory();
-        this.databaseFacade = new GraphDatabaseFacade(
-                this, databaseConfig, dbmsInfo, mode, transactionsFactory.mode(), databaseAvailabilityGuard);
-        this.kernelTransactionFactory = new FacadeKernelTransactionFactory(databaseConfig, databaseFacade);
         this.tracers = context.getTracers();
         this.fileLockerService = context.getFileLockerService();
         this.leaseService = context.getLeaseService();
@@ -353,6 +349,7 @@ public class Database extends AbstractDatabase {
         this.readOnlyDatabaseChecker = context.getDbmsReadOnlyChecker().forDatabase(namedDatabaseId);
         this.externalIdReuseConditionProvider = context.externalIdReuseConditionProvider();
         this.commandCommitListeners = context.getCommandCommitListeners();
+        TransactionsFactory transactionsFactory = context.getTransactionsFactory();
         this.kernelTransactionsFactory = transactionsFactory.kernelTransactionsFactory();
         this.pagePrefetcher = context.getPagePrefetcher();
         this.vectorStoreCreator = context.getVectorStoreCreator();
@@ -361,6 +358,16 @@ public class Database extends AbstractDatabase {
         this.chunkedTransactionTracker = new ChunkedTransactionTracker();
         this.raftTriggersUpgrade = context.raftTriggersUpgrade();
         this.mergedLogs = context.mergedLogs();
+        this.databaseFacade = new GraphDatabaseFacade(
+                this,
+                databaseConfig,
+                dbmsInfo,
+                mode,
+                transactionsFactory.mode(),
+                databaseAvailabilityGuard,
+                clock,
+                this::isCurrentStoreMultiVersioned);
+        this.kernelTransactionFactory = new FacadeKernelTransactionFactory(databaseConfig, databaseFacade);
     }
 
     /**
@@ -772,6 +779,11 @@ public class Database extends AbstractDatabase {
     @Override
     protected void specificShutdown() {
         // no specific actions
+    }
+
+    private boolean isCurrentStoreMultiVersioned() {
+        var sef = storageEngineFactory;
+        return sef != null && sef.multiVersioned();
     }
 
     private void initialiseContextFactory(

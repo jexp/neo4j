@@ -227,5 +227,10 @@ public class FabricProcedures implements Procedures {
         public ProcedureCallContext procedureCallContext() {
             return notAvailable();
         }
+
+        @Override
+        public boolean multiVersioned() {
+            return notAvailable();
+        }
     }
 }

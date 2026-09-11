@@ -40,6 +40,7 @@ import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.availability.DatabaseAvailabilityGuard;
 import org.neo4j.kernel.database.Database;
 import org.neo4j.kernel.impl.query.TransactionalContext;
+import org.neo4j.time.Clocks;
 
 class GraphDatabaseFacadeTest {
     private GraphDatabaseFacade graphDatabaseFacade;
@@ -65,7 +66,9 @@ class GraphDatabaseFacadeTest {
                 DbmsInfo.COMMUNITY,
                 HostedOnMode.SINGLE,
                 TransactionalContext.DatabaseMode.SINGLE,
-                mock(DatabaseAvailabilityGuard.class));
+                mock(DatabaseAvailabilityGuard.class),
+                Clocks.nanoClock(),
+                () -> false);
     }
 
     @Test

@@ -25,6 +25,7 @@ import static org.neo4j.kernel.impl.coreapi.DefaultTransactionExceptionMapper.IN
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import org.neo4j.common.DependencyResolver;
 import org.neo4j.configuration.Config;
@@ -51,6 +52,7 @@ import org.neo4j.kernel.impl.query.Neo4jTransactionalContextFactory;
 import org.neo4j.kernel.impl.query.TransactionalContext;
 import org.neo4j.kernel.impl.query.TransactionalContextFactory;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.time.SystemNanoClock;
 
 /**
  * Default implementation of the GraphDatabaseService interface.
@@ -68,9 +70,11 @@ public class GraphDatabaseFacade extends GraphDatabaseTransactions implements Gr
             DbmsInfo dbmsInfo,
             HostedOnMode mode,
             TransactionalContext.DatabaseMode databaseMode,
-            DatabaseAvailabilityGuard availabilityGuard) {
-        super(config);
-        this.database = requireNonNull(database);
+            DatabaseAvailabilityGuard availabilityGuard,
+            SystemNanoClock clock,
+            BooleanSupplier multiVersioned) {
+        super(config, clock, requireNonNull(database).getNamedDatabaseId().databaseId(), multiVersioned);
+        this.database = database;
         this.availabilityGuard = requireNonNull(availabilityGuard);
         this.dbmsInfo = requireNonNull(dbmsInfo);
         this.mode = requireNonNull(mode);

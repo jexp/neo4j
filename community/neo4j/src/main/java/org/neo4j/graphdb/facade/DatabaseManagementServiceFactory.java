@@ -405,7 +405,9 @@ public class DatabaseManagementServiceFactory {
                         ctx -> new ProcedureGraphDatabaseAPI(
                                 ctx.graphDatabaseAPI(),
                                 new ProcedureLoginContextTransformer(ctx),
-                                ctx.dependencyResolver().resolveDependency(Config.class)),
+                                ctx.dependencyResolver().resolveDependency(Config.class),
+                                globalModule.getGlobalClock(),
+                                ctx.multiVersioned()),
                         true);
                 registry.registerComponent(ValueMapper.class, Context::valueMapper, true);
                 registry.registerComponent(ProcedureMemory.class, new ProcedureMemoryProvider(), true);

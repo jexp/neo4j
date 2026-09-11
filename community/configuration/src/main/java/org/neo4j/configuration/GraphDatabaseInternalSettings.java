@@ -885,6 +885,14 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration {
             .build();
 
     @Internal
+    @Description(
+            "Specifies number or retries that system database will try to execute system db query based on stable accessed snapshot before giving up.")
+    public static final Setting<Integer> system_snapshot_query_retries = newBuilder(
+                    "internal.dbms.system.query.snapshot.retries", INT, 100)
+            .addConstraint(range(1, Integer.MAX_VALUE))
+            .build();
+
+    @Internal
     @Description("Cypher keeps a cache of the conversion from logical plans to execution plans. "
             + "This cache is mainly meant to avoid generating code multiple times if different queries use the same logical plan. "
             + "Items are only evicted from the cache when all query caches are cleared, e.g. by calling `db.clearQueryCaches()`. "

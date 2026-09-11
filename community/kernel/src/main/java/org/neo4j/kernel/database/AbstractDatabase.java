@@ -258,6 +258,10 @@ public abstract class AbstractDatabase extends LifecycleAdapter implements Lifec
         return namedDatabaseId;
     }
 
+    public SystemNanoClock getClock() {
+        return clock;
+    }
+
     public ExceptionHandlerService getExceptionHandlerService() {
         return exceptionHandlerService;
     }

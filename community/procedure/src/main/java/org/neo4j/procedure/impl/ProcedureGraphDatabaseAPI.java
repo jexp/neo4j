@@ -40,6 +40,7 @@ import org.neo4j.kernel.impl.coreapi.TransactionExceptionMapper;
 import org.neo4j.kernel.impl.factory.DbmsInfo;
 import org.neo4j.kernel.impl.factory.GraphDatabaseTransactions;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.time.SystemNanoClock;
 
 /**
  * Implementation of {@link org.neo4j.graphdb.GraphDatabaseService} (and {@link GraphDatabaseAPI}) for injection
@@ -51,9 +52,13 @@ public class ProcedureGraphDatabaseAPI extends GraphDatabaseTransactions impleme
     private final Function<LoginContext, LoginContext> loginContextTransformer;
 
     public ProcedureGraphDatabaseAPI(
-            GraphDatabaseAPI delegate, Function<LoginContext, LoginContext> loginContextTransformer, Config config) {
-        super(config);
-        this.delegate = requireNonNull(delegate);
+            GraphDatabaseAPI delegate,
+            Function<LoginContext, LoginContext> loginContextTransformer,
+            Config config,
+            SystemNanoClock clock,
+            boolean multiVersioned) {
+        super(config, clock, requireNonNull(delegate).databaseId().databaseId(), () -> multiVersioned);
+        this.delegate = delegate;
         this.loginContextTransformer = requireNonNull(loginContextTransformer);
     }
 
