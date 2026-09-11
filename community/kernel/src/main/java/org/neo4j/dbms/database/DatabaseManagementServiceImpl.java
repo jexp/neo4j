@@ -36,11 +36,7 @@ import org.neo4j.graphdb.QueryExecutionException;
 import org.neo4j.graphdb.config.Configuration;
 import org.neo4j.graphdb.event.DatabaseEventListener;
 import org.neo4j.graphdb.event.TransactionEventListener;
-import org.neo4j.internal.kernel.api.security.LoginContext;
-import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.database.NamedDatabaseId;
-import org.neo4j.kernel.impl.coreapi.InternalTransaction;
-import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.kernel.internal.event.GlobalTransactionEventListeners;
 import org.neo4j.kernel.lifecycle.Lifecycle;
 import org.neo4j.kernel.monitoring.DatabaseEventListeners;
@@ -164,12 +160,7 @@ public class DatabaseManagementServiceImpl implements DatabaseManagementService 
 
     private void systemDatabaseExecute(String query, Map<String, Object> parameters) {
         try {
-            GraphDatabaseAPI database = (GraphDatabaseAPI) database(SYSTEM_DATABASE_NAME);
-            try (InternalTransaction transaction =
-                    database.beginTransaction(KernelTransaction.Type.EXPLICIT, LoginContext.AUTH_DISABLED)) {
-                transaction.execute(query, parameters);
-                transaction.commit();
-            }
+            database(SYSTEM_DATABASE_NAME).executeTransactionally(query, parameters);
         } catch (QueryExecutionException e) {
             throw DatabaseManagementHelper.wrapError(e);
         }

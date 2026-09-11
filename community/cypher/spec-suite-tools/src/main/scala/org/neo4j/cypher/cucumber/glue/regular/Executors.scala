@@ -42,6 +42,7 @@ import org.neo4j.graphdb.Result
 import org.neo4j.io.fs.FileUtils
 import org.neo4j.kernel.internal.GraphDatabaseAPI
 import org.neo4j.test.TestDatabaseManagementServiceBuilder
+import org.neo4j.test.multiversion.Retries.onTransient
 import org.neo4j.util.Preconditions.checkState
 
 import java.nio.file.Files
@@ -275,17 +276,19 @@ trait ExecutorPool extends Executors {
   }
 
   private def setupSecurity(dbms: DatabaseManagementService): Unit = {
-    Using.resource(dbms.database(SYSTEM_DATABASE_NAME).beginTx()) { tx =>
-      // Close each Result so its statement is released before commit; otherwise the open
-      // statements are flagged by track_tx_statement_close when the committed tx is closed.
-      def exec(query: String): Unit = Using.resource(tx.execute(query))(_ => ())
-      exec("ALTER USER neo4j SET PASSWORD CHANGE NOT REQUIRED")
-      if (conf.useEnterprise) {
-        exec("CREATE USER readonly SET PASSWORD 'readonly' CHANGE NOT REQUIRED")
-        exec("GRANT ROLE reader to readonly")
+    onTransient(() => {
+      Using.resource(dbms.database(SYSTEM_DATABASE_NAME).beginTx()) { tx =>
+        // Close each Result so its statement is released before commit; otherwise the open
+        // statements are flagged by track_tx_statement_close when the committed tx is closed.
+        def exec(query: String): Unit = Using.resource(tx.execute(query))(_ => ())
+        exec("ALTER USER neo4j SET PASSWORD CHANGE NOT REQUIRED")
+        if (conf.useEnterprise) {
+          exec("CREATE USER readonly SET PASSWORD 'readonly' CHANGE NOT REQUIRED")
+          exec("GRANT ROLE reader to readonly")
+        }
+        tx.commit()
       }
-      tx.commit()
-    }
+    })
   }
 
   private def extraSettingsFor(scenario: Scenario): Settings = {

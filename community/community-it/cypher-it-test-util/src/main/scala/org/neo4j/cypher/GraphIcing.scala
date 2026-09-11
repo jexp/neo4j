@@ -40,6 +40,7 @@ import org.neo4j.internal.schema.IndexProviderDescriptor
 import org.neo4j.kernel.GraphDatabaseQueryService
 import org.neo4j.kernel.api.KernelTransaction.Type
 import org.neo4j.kernel.api.schema.vector.VectorTestUtils.VectorIndexSettings
+import org.neo4j.kernel.database.NamedDatabaseId
 import org.neo4j.kernel.impl.coreapi.InternalTransaction
 import org.neo4j.kernel.impl.coreapi.schema.IndexDefinitionImpl
 import org.neo4j.kernel.impl.coreapi.schema.NodePropertyTypeConstraintDefinition
@@ -51,6 +52,7 @@ import org.neo4j.kernel.impl.query.TransactionalContext
 import org.neo4j.kernel.impl.query.TransactionalContext.DatabaseMode
 import org.neo4j.kernel.impl.transaction.stats.DatabaseTransactionStats
 import org.neo4j.kernel.impl.util.ValueUtils
+import org.neo4j.test.multiversion.Retries
 import org.neo4j.values.storable.Values
 import org.neo4j.values.utils.PrettyPrinter
 
@@ -874,27 +876,38 @@ trait GraphIcing {
       txType: Type = Type.IMPLICIT,
       loginContext: LoginContext = AUTH_DISABLED
     ): T = {
-      val tx = graphService.beginTransaction(txType, loginContext)
-      try {
-        val result = f(tx)
-        // HACK: A lot of tests do not close the result but relies on implicit closing
-        result match {
-          case Some(rew: RewindableExecutionResult) =>
-            rew.close()
-          case rew: RewindableExecutionResult =>
-            rew.close()
-          case r: Result =>
-            r.close()
-          case _ =>
+      def attempt(): T = {
+        val tx = graphService.beginTransaction(txType, loginContext)
+        try {
+          val result = f(tx)
+          // HACK: A lot of tests do not close the result but relies on implicit closing
+          result match {
+            case Some(rew: RewindableExecutionResult) =>
+              rew.close()
+            case rew: RewindableExecutionResult =>
+              rew.close()
+            case r: Result =>
+              r.close()
+            case _ =>
+          }
+          if (tx.isOpen && tx.terminationReason.isEmpty) {
+            tx.commit()
+          }
+          result
+        } finally {
+          tx.close()
         }
-        if (tx.isOpen && tx.terminationReason.isEmpty) {
-          tx.commit()
-        }
-        result
-      } finally {
-        tx.close()
       }
+      if (isSystemDatabase) retryOnTransientFailure(attempt()) else attempt()
+    }
 
+    private def isSystemDatabase: Boolean =
+      graphService.getDependencyResolver.resolveDependency(classOf[NamedDatabaseId]).isSystemDatabase
+
+    private def retryOnTransientFailure[T](block: => T): T = {
+      var result: Option[T] = None
+      Retries.onTransient(() => result = Some(block))
+      result.get
     }
 
     def rollback[T](f: InternalTransaction => T, loginContext: LoginContext = AUTH_DISABLED): T = {
