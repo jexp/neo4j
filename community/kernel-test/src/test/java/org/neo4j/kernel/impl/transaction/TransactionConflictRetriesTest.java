@@ -21,6 +21,7 @@ package org.neo4j.kernel.impl.transaction;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.neo4j.kernel.impl.transaction.TransactionConflictRetries.retry;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -34,13 +35,12 @@ import org.neo4j.time.FakeClock;
 
 class TransactionConflictRetriesTest {
     private final FakeClock clock = Clocks.fakeClock();
-    private final TransactionConflictRetries retries = new TransactionConflictRetries(clock);
 
     @Test
     void returnResultWithoutRetryOnSuccess() {
         var attempts = new AtomicInteger();
 
-        var result = retries.retry(5, Duration.ZERO, timeoutMillis -> {
+        var result = retry(clock, 5, Duration.ZERO, timeoutMillis -> {
             attempts.incrementAndGet();
             return "done";
         });
@@ -53,7 +53,7 @@ class TransactionConflictRetriesTest {
     void retryUntilSuccess() {
         var attempts = new AtomicInteger();
 
-        var result = retries.retry(5, Duration.ZERO, timeoutMillis -> {
+        var result = retry(clock, 5, Duration.ZERO, timeoutMillis -> {
             if (attempts.incrementAndGet() < 4) {
                 throw conflict();
             }
@@ -69,7 +69,7 @@ class TransactionConflictRetriesTest {
         var attempts = new AtomicInteger();
         var lastFailure = new AtomicReference<TransactionConflictException>();
 
-        assertThatThrownBy(() -> retries.retry(3, Duration.ZERO, timeoutMillis -> {
+        assertThatThrownBy(() -> retry(clock, 3, Duration.ZERO, timeoutMillis -> {
                     attempts.incrementAndGet();
                     var failure = conflict();
                     lastFailure.set(failure);
@@ -84,7 +84,7 @@ class TransactionConflictRetriesTest {
     void noRetryWithZeroMaxRetries() {
         var attempts = new AtomicInteger();
 
-        assertThatThrownBy(() -> retries.retry(0, Duration.ZERO, timeoutMillis -> {
+        assertThatThrownBy(() -> retry(clock, 0, Duration.ZERO, timeoutMillis -> {
                     attempts.incrementAndGet();
                     throw conflict();
                 }))
@@ -97,7 +97,7 @@ class TransactionConflictRetriesTest {
     void failNonConflictTransientFailureImmediately() {
         var attempts = new AtomicInteger();
 
-        assertThatThrownBy(() -> retries.retry(5, Duration.ZERO, timeoutMillis -> {
+        assertThatThrownBy(() -> retry(clock, 5, Duration.ZERO, timeoutMillis -> {
                     attempts.incrementAndGet();
                     throw TransientTransactionFailureException.outdatedRead();
                 }))
@@ -110,7 +110,7 @@ class TransactionConflictRetriesTest {
     void failNonTransientFailureImmediately() {
         var attempts = new AtomicInteger();
 
-        assertThatThrownBy(() -> retries.retry(5, Duration.ZERO, timeoutMillis -> {
+        assertThatThrownBy(() -> retry(clock, 5, Duration.ZERO, timeoutMillis -> {
                     attempts.incrementAndGet();
                     throw new IllegalStateException("not transient");
                 }))
@@ -123,7 +123,7 @@ class TransactionConflictRetriesTest {
     void handRemainingTimeoutToRetriedAttempts() {
         var timeouts = new ArrayList<Long>();
 
-        assertThatThrownBy(() -> retries.retry(10, Duration.ofSeconds(10), timeoutMillis -> {
+        assertThatThrownBy(() -> retry(clock, 10, Duration.ofSeconds(10), timeoutMillis -> {
                     timeouts.add(timeoutMillis);
                     clock.forward(Duration.ofSeconds(4));
                     throw conflict();
@@ -139,7 +139,7 @@ class TransactionConflictRetriesTest {
         var attempts = new AtomicInteger();
         var timeouts = new ArrayList<Long>();
 
-        var result = retries.retry(2, Duration.ZERO, timeoutMillis -> {
+        var result = retry(clock, 2, Duration.ZERO, timeoutMillis -> {
             timeouts.add(timeoutMillis);
             clock.forward(Duration.ofDays(1));
             if (attempts.incrementAndGet() < 3) {

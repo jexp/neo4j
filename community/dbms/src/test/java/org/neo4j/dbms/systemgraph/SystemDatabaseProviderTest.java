@@ -19,8 +19,10 @@
  */
 package org.neo4j.dbms.systemgraph;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
@@ -36,12 +38,15 @@ import java.util.function.Function;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.neo4j.collection.Dependencies;
+import org.neo4j.configuration.Config;
+import org.neo4j.dbms.systemgraph.SystemDatabaseProvider.SystemDatabaseContext;
 import org.neo4j.dbms.systemgraph.SystemDatabaseProvider.SystemDatabasePanickedException;
 import org.neo4j.dbms.systemgraph.SystemDatabaseProvider.SystemDatabaseUnavailableException;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.monitoring.DatabaseHealth;
 import org.neo4j.storageengine.api.TransactionIdStore;
+import org.neo4j.time.Clocks;
 
 class SystemDatabaseProviderTest {
     private int queryCount;
@@ -59,13 +64,15 @@ class SystemDatabaseProviderTest {
     private final GraphDatabaseAPI database = mock(GraphDatabaseAPI.class);
     private final DatabaseHealth health = mock(DatabaseHealth.class);
     private final Transaction transaction = mock(Transaction.class);
+    private final SystemDatabaseProvider.SystemDatabaseContext systemDatabaseContext =
+            new SystemDatabaseContext(database, Config.defaults(), Clocks.nanoClock());
     private SystemDatabaseProvider provider;
 
     @BeforeEach
     void setup() {
-        when(database.beginTx()).thenReturn(transaction);
+        when(database.beginTx(anyLong(), any())).thenReturn(transaction);
         when(database.getDependencyResolver()).thenReturn(Dependencies.dependenciesOf(health));
-        provider = () -> Optional.of(database);
+        provider = () -> Optional.of(systemDatabaseContext);
     }
 
     @Test
@@ -74,7 +81,7 @@ class SystemDatabaseProviderTest {
         provider = Optional::empty;
 
         // then
-        assertThat(provider.optionalDatabase()).isEmpty();
+        assertThat(provider.optionalDatabaseContext()).isEmpty();
         assertThatThrownBy(provider::database).isInstanceOf(SystemDatabaseUnavailableException.class);
         assertThatThrownBy(() -> provider.query(query)).isInstanceOf(SystemDatabaseUnavailableException.class);
         assertThatThrownBy(() -> provider.execute(execute)).isInstanceOf(SystemDatabaseUnavailableException.class);
@@ -94,7 +101,7 @@ class SystemDatabaseProviderTest {
         when(health.hasNoPanic()).thenReturn(true);
 
         // then - optionalDatabase/database
-        assertThat(provider.optionalDatabase()).hasValue(database);
+        assertThat(provider.optionalDatabaseContext()).hasValue(systemDatabaseContext);
         assertThat(provider.database()).isSameAs(database);
 
         verifyNoInteractions(database, health, transaction);
@@ -136,7 +143,7 @@ class SystemDatabaseProviderTest {
         when(health.hasNoPanic()).thenReturn(false);
 
         // then - optionalDatabase/database
-        assertThat(provider.optionalDatabase()).hasValue(database);
+        assertThat(provider.optionalDatabaseContext()).hasValue(systemDatabaseContext);
         assertThat(provider.database()).isSameAs(database);
 
         verifyNoInteractions(database, health, transaction);
@@ -177,7 +184,7 @@ class SystemDatabaseProviderTest {
         when(database.isAvailable(anyLong())).thenReturn(true);
 
         // then - optionalDatabase/database
-        assertThat(provider.optionalDatabase()).hasValue(database);
+        assertThat(provider.optionalDatabaseContext()).hasValue(systemDatabaseContext);
         assertThat(provider.database()).isSameAs(database);
 
         verifyNoInteractions(database, health, transaction);
@@ -187,7 +194,7 @@ class SystemDatabaseProviderTest {
         provider.execute(execute);
 
         verify(database, times(2)).isAvailable(1000);
-        verify(database, times(2)).beginTx();
+        verify(database, times(2)).beginTx(0, MILLISECONDS);
         verify(transaction, times(2)).commit();
         verify(transaction, times(2)).close();
         verifyNoMoreInteractions(database, transaction);
@@ -198,7 +205,7 @@ class SystemDatabaseProviderTest {
         assertThat(provider.queryIfAvailable(query)).hasValue(queryResult);
 
         verify(database).isAvailable(0);
-        verify(database).beginTx();
+        verify(database).beginTx(0, MILLISECONDS);
         verify(transaction).commit();
         verify(transaction).close();
         verifyNoMoreInteractions(database, transaction);
@@ -242,7 +249,7 @@ class SystemDatabaseProviderTest {
 
         verify(database, times(2)).isAvailable(1000);
         verify(database, times(1)).isAvailable(0);
-        verify(database, times(3)).beginTx();
+        verify(database, times(3)).beginTx(0, MILLISECONDS);
         verify(transaction, times(3)).close();
         verifyNoMoreInteractions(database, transaction);
         verifyNoInteractions(health);

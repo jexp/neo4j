@@ -35,13 +35,16 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.neo4j.collection.Dependencies;
+import org.neo4j.configuration.Config;
 import org.neo4j.dbms.database.DatabaseContext;
 import org.neo4j.dbms.database.DatabaseContextProvider;
+import org.neo4j.kernel.database.Database;
 import org.neo4j.kernel.database.NamedDatabaseId;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.kernel.monitoring.DatabaseEventListeners;
 import org.neo4j.logging.NullLog;
 import org.neo4j.storageengine.api.TransactionIdStore;
+import org.neo4j.time.Clocks;
 
 class ContextBasedSystemDatabaseProviderTest {
     private DatabaseContext context;
@@ -56,6 +59,10 @@ class ContextBasedSystemDatabaseProviderTest {
         database = mock(GraphDatabaseAPI.class);
         when(context.dependencies()).thenReturn(Dependencies.dependenciesOf(database));
 
+        var kernelDatabase = mock(Database.class);
+        when(kernelDatabase.getConfig()).thenReturn(Config.defaults());
+        when(kernelDatabase.getClock()).thenReturn(Clocks.nanoClock());
+        when(context.database()).thenReturn(kernelDatabase);
         when(context.databaseFacade()).thenReturn(database);
         contextProvider = mock(DatabaseContextProvider.class);
         when(contextProvider.getDatabaseContext(any(NamedDatabaseId.class))).thenReturn(Optional.of(context));
@@ -91,6 +98,7 @@ class ContextBasedSystemDatabaseProviderTest {
         // then
         verify(contextProvider, times(1)).getDatabaseContext(NAMED_SYSTEM_DATABASE_ID);
         verify(context, times(1)).databaseFacade();
+        verify(context, times(2)).database();
         verifyNoMoreInteractions(context, contextProvider);
         clearInvocations(context, contextProvider);
 
@@ -111,6 +119,7 @@ class ContextBasedSystemDatabaseProviderTest {
         // then
         verify(contextProvider, times(1)).getDatabaseContext(NAMED_SYSTEM_DATABASE_ID);
         verify(context, times(1)).databaseFacade();
+        verify(context, times(2)).database();
         verifyNoMoreInteractions(context, contextProvider);
     }
 }

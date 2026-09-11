@@ -19,7 +19,6 @@
  */
 package org.neo4j.kernel.impl.transaction;
 
-import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import java.time.Duration;
@@ -27,13 +26,9 @@ import org.neo4j.storageengine.api.txstate.validation.TransactionConflictExcepti
 import org.neo4j.time.SystemNanoClock;
 
 public final class TransactionConflictRetries {
-    private final SystemNanoClock clock;
+    private TransactionConflictRetries() {}
 
-    public TransactionConflictRetries(SystemNanoClock clock) {
-        this.clock = requireNonNull(clock);
-    }
-
-    public <T> T retry(int maxRetries, Duration timeout, Operation<T> operation) {
+    public static <T> T retry(SystemNanoClock clock, int maxRetries, Duration timeout, Operation<T> operation) {
         long timeoutNanos = timeout.toNanos();
         long deadline = timeoutNanos <= 0 ? 0 : clock.nanos() + timeoutNanos;
         long timeoutMillis = timeout.toMillis();

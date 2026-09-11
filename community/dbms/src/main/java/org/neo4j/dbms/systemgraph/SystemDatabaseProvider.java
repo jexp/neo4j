@@ -19,12 +19,19 @@
  */
 package org.neo4j.dbms.systemgraph;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.neo4j.configuration.GraphDatabaseInternalSettings.system_snapshot_query_retries;
+import static org.neo4j.configuration.GraphDatabaseSettings.transaction_timeout;
+import static org.neo4j.kernel.impl.transaction.TransactionConflictRetries.retry;
+
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import org.neo4j.configuration.Config;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.monitoring.DatabaseHealth;
+import org.neo4j.time.SystemNanoClock;
 
 @FunctionalInterface
 public interface SystemDatabaseProvider {
@@ -33,10 +40,12 @@ public interface SystemDatabaseProvider {
     class SystemDatabasePanickedException extends SystemDatabaseUnavailableException {}
 
     default GraphDatabaseAPI database() throws SystemDatabaseUnavailableException {
-        return optionalDatabase().orElseThrow(SystemDatabaseUnavailableException::new);
+        return optionalDatabaseContext()
+                .orElseThrow(SystemDatabaseUnavailableException::new)
+                .databaseAPI();
     }
 
-    Optional<GraphDatabaseAPI> optionalDatabase();
+    Optional<SystemDatabaseContext> optionalDatabaseContext();
 
     default void execute(Consumer<Transaction> consumer) throws SystemDatabaseUnavailableException {
         query(tx -> {
@@ -46,32 +55,36 @@ public interface SystemDatabaseProvider {
     }
 
     default <T> T query(Function<Transaction, T> function) throws SystemDatabaseUnavailableException {
-        return query(optionalDatabase(), function, true).orElseThrow();
+        return query(optionalDatabaseContext(), function, true).orElseThrow();
     }
 
     default <T> Optional<T> queryIfAvailable(Function<Transaction, T> function) {
-        return query(optionalDatabase(), function, false);
+        return query(optionalDatabaseContext(), function, false);
     }
 
     default <T> Optional<T> dependency(Class<T> type) {
-        return optionalDatabase().flatMap(dep -> dep.getDependencyResolver().resolveOptionalDependency(type));
+        return optionalDatabaseContext()
+                .flatMap(systemDb ->
+                        systemDb.databaseAPI().getDependencyResolver().resolveOptionalDependency(type));
     }
 
     private static <T> Optional<T> query(
-            @SuppressWarnings("OptionalUsedAsFieldOrParameterType") Optional<GraphDatabaseAPI> optionalDatabase,
+            @SuppressWarnings("OptionalUsedAsFieldOrParameterType") Optional<SystemDatabaseContext> databaseContext,
             Function<Transaction, T> function,
             boolean failOnUnavailable)
             throws SystemDatabaseUnavailableException {
-        if (optionalDatabase.isEmpty()) {
+        if (databaseContext.isEmpty()) {
             if (failOnUnavailable) {
                 throw new SystemDatabaseUnavailableException();
             }
             return Optional.empty();
         }
-        var database = optionalDatabase.get();
+        var systemDbContext = databaseContext.get();
+        var systemDatabaseApi = systemDbContext.databaseAPI();
         if (failOnUnavailable) {
-            if (!database.isAvailable(1000)) {
-                if (!database.getDependencyResolver()
+            if (!systemDatabaseApi.isAvailable(1000)) {
+                if (!systemDatabaseApi
+                        .getDependencyResolver()
                         .resolveOptionalDependency(DatabaseHealth.class)
                         .map(DatabaseHealth::hasNoPanic)
                         .orElse(true)) {
@@ -79,13 +92,22 @@ public interface SystemDatabaseProvider {
                 }
                 throw new SystemDatabaseUnavailableException();
             }
-        } else if (!database.isAvailable(0)) {
+        } else if (!systemDatabaseApi.isAvailable(0)) {
             return Optional.empty();
         }
-        try (var tx = database.beginTx()) {
-            var result = function.apply(tx);
-            tx.commit();
-            return Optional.of(result);
-        }
+        var config = systemDbContext.config();
+        return Optional.of(retry(
+                systemDbContext.clock(),
+                config.get(system_snapshot_query_retries),
+                config.get(transaction_timeout),
+                timeoutMillis -> {
+                    try (var tx = systemDatabaseApi.beginTx(timeoutMillis, MILLISECONDS)) {
+                        var result = function.apply(tx);
+                        tx.commit();
+                        return result;
+                    }
+                }));
     }
+
+    record SystemDatabaseContext(GraphDatabaseAPI databaseAPI, Config config, SystemNanoClock clock) {}
 }

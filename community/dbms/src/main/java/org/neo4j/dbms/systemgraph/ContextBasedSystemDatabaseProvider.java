@@ -26,7 +26,6 @@ import org.neo4j.function.Suppliers;
 import org.neo4j.graphdb.event.DatabaseEventContext;
 import org.neo4j.graphdb.event.DatabaseEventListenerAdapter;
 import org.neo4j.kernel.database.NamedDatabaseId;
-import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.kernel.monitoring.DatabaseEventListeners;
 
 public class ContextBasedSystemDatabaseProvider extends DatabaseEventListenerAdapter implements SystemDatabaseProvider {
@@ -43,8 +42,8 @@ public class ContextBasedSystemDatabaseProvider extends DatabaseEventListenerAda
     }
 
     @Override
-    public Optional<GraphDatabaseAPI> optionalDatabase() {
-        return cache.get().map(Cache::db);
+    public Optional<SystemDatabaseContext> optionalDatabaseContext() {
+        return cache.get().map(Cache::systemDatabaseContext);
     }
 
     @Override
@@ -69,8 +68,13 @@ public class ContextBasedSystemDatabaseProvider extends DatabaseEventListenerAda
     private Optional<Cache> fetch() {
         return databaseContextProvider
                 .getDatabaseContext(NamedDatabaseId.NAMED_SYSTEM_DATABASE_ID)
-                .map(ctx -> new Cache(ctx, ctx.databaseFacade()));
+                .map(ctx -> new Cache(
+                        ctx,
+                        new SystemDatabaseContext(
+                                ctx.databaseFacade(),
+                                ctx.database().getConfig(),
+                                ctx.database().getClock())));
     }
 
-    private record Cache(DatabaseContext context, GraphDatabaseAPI db) {}
+    private record Cache(DatabaseContext context, SystemDatabaseContext systemDatabaseContext) {}
 }

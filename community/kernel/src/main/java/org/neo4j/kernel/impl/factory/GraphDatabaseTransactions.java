@@ -28,6 +28,7 @@ import static org.neo4j.configuration.GraphDatabaseSettings.transaction_timeout;
 import static org.neo4j.graphdb.ResultTransformer.EMPTY_TRANSFORMER;
 import static org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo.EMBEDDED_CONNECTION;
 import static org.neo4j.internal.kernel.api.security.LoginContext.AUTH_DISABLED;
+import static org.neo4j.kernel.impl.transaction.TransactionConflictRetries.retry;
 
 import java.time.Duration;
 import java.util.Map;
@@ -42,7 +43,6 @@ import org.neo4j.internal.kernel.api.security.LoginContext;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.database.DatabaseId;
 import org.neo4j.kernel.impl.coreapi.InternalTransaction;
-import org.neo4j.kernel.impl.transaction.TransactionConflictRetries;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.time.SystemNanoClock;
 
@@ -52,7 +52,7 @@ import org.neo4j.time.SystemNanoClock;
  */
 public abstract class GraphDatabaseTransactions implements GraphDatabaseAPI {
     private final Config config;
-    private final TransactionConflictRetries retries;
+    private final SystemNanoClock clock;
     private final BooleanSupplier multiVersioned;
     private final int multiVersionRetries;
 
@@ -60,7 +60,7 @@ public abstract class GraphDatabaseTransactions implements GraphDatabaseAPI {
             Config config, SystemNanoClock clock, DatabaseId databaseId, BooleanSupplier multiVersioned) {
         this.config = requireNonNull(config);
         this.multiVersioned = requireNonNull(multiVersioned);
-        this.retries = new TransactionConflictRetries(clock);
+        this.clock = requireNonNull(clock);
         this.multiVersionRetries = databaseId.isSystemDatabase()
                 ? config.get(system_snapshot_query_retries)
                 : config.get(snapshot_query_retries);
@@ -87,7 +87,7 @@ public abstract class GraphDatabaseTransactions implements GraphDatabaseAPI {
     public <T> T executeTransactionally(
             String query, Map<String, Object> parameters, ResultTransformer<T> resultTransformer, Duration timeout)
             throws QueryExecutionException {
-        return retries.retry(maxRetries(), timeout, timeoutMillis -> {
+        return retry(clock, maxRetries(), timeout, timeoutMillis -> {
             try (var internalTransaction = beginTransaction(
                     KernelTransaction.Type.IMPLICIT, AUTH_DISABLED, EMBEDDED_CONNECTION, timeoutMillis, MILLISECONDS)) {
                 T transformedResult;
