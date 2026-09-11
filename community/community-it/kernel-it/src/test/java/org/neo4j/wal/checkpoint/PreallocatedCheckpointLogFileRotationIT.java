@@ -20,6 +20,7 @@
 package org.neo4j.wal.checkpoint;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.neo4j.storageengine.api.TransactionIdStore.UNKNOWN_CONSENSUS_INDEX;
 import static org.neo4j.test.LatestVersions.LATEST_KERNEL_VERSION;
 import static org.neo4j.wal.checkpoint.CheckpointLogSerializationHelper.ACTUAL_ROTATION_THRESHOLD;
 import static org.neo4j.wal.checkpoint.CheckpointLogSerializationHelper.fillWithCheckpointsWithCallback;
@@ -61,6 +62,7 @@ class PreallocatedCheckpointLogFileRotationIT extends CheckpointLogFileRotationI
                     NULL,
                     transactionId,
                     transactionId.id() + 7,
+                    UNKNOWN_CONSENSUS_INDEX,
                     LatestVersions.LATEST_KERNEL_VERSION,
                     logPosition,
                     logPosition,

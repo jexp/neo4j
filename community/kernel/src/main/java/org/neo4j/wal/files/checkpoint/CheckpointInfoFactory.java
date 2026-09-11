@@ -40,6 +40,7 @@ import org.neo4j.wal.entry.LogEntryCommit;
 import org.neo4j.wal.entry.LogEntryStart;
 import org.neo4j.wal.entry.VersionAwareLogEntryReader;
 import org.neo4j.wal.entry.v202608.LogEntryDetachedCheckpointV2026_08;
+import org.neo4j.wal.entry.v202610.LogEntryDetachedCheckpointV2026_10;
 import org.neo4j.wal.entry.v42.LogEntryDetachedCheckpointV4_2;
 import org.neo4j.wal.entry.v50.LogEntryDetachedCheckpointV5_0;
 import org.neo4j.wal.entry.v520.LogEntryDetachedCheckpointV5_20;
@@ -65,6 +66,22 @@ public final class CheckpointInfoFactory {
             TransactionLogFilesContext context,
             LogFile logFile) {
         switch (entry) {
+            case LogEntryDetachedCheckpointV2026_10 checkpointV202610 -> {
+                return new CheckpointInfo(
+                        checkpointV202610.getOldestNotCompletedPosition(),
+                        checkpointV202610.getCheckpointedLogPosition(),
+                        checkpointV202610.getStoreId(),
+                        checkpointEntryPosition,
+                        channelPositionAfterCheckpoint,
+                        checkpointFilePostReadPosition,
+                        checkpointV202610.kernelVersion(),
+                        checkpointV202610.kernelVersion().version(),
+                        checkpointV202610.getTransactionId(),
+                        checkpointV202610.getLastAppendIndex(),
+                        checkpointV202610.getConsensusIndex(),
+                        checkpointV202610.getReason(),
+                        true);
+            }
             case LogEntryDetachedCheckpointV2026_08 checkpointV202608 -> {
                 return new CheckpointInfo(
                         checkpointV202608.getOldestNotCompletedPosition(),
@@ -77,6 +94,7 @@ public final class CheckpointInfoFactory {
                         checkpointV202608.kernelVersion().version(),
                         checkpointV202608.getTransactionId(),
                         checkpointV202608.getLastAppendIndex(),
+                        UNKNOWN_CONSENSUS_INDEX,
                         checkpointV202608.getReason(),
                         checkpointV202608.consensusIndexInCheckpoint());
             }
@@ -92,6 +110,7 @@ public final class CheckpointInfoFactory {
                         checkpoint522.kernelVersion().version(),
                         checkpoint522.getTransactionId(),
                         checkpoint522.getLastAppendIndex(),
+                        UNKNOWN_CONSENSUS_INDEX,
                         checkpoint522.getReason(),
                         checkpoint522.consensusIndexInCheckpoint());
             }
@@ -107,6 +126,7 @@ public final class CheckpointInfoFactory {
                         checkpoint520.kernelVersion().version(),
                         checkpoint520.getTransactionId(),
                         checkpoint520.getLastAppendIndex(),
+                        UNKNOWN_CONSENSUS_INDEX,
                         checkpoint520.getReason(),
                         checkpoint520.consensusIndexInCheckpoint());
             }
@@ -122,6 +142,7 @@ public final class CheckpointInfoFactory {
                         checkpoint50.kernelVersion().version(),
                         checkpoint50.getTransactionId(),
                         checkpoint50.getTransactionId().id(),
+                        UNKNOWN_CONSENSUS_INDEX,
                         checkpoint50.getReason(),
                         checkpoint50.consensusIndexInCheckpoint());
             }

@@ -23,11 +23,13 @@ import org.neo4j.kernel.KernelVersion;
 import org.neo4j.util.concurrent.OutOfOrderSequence;
 import org.neo4j.wal.LogPosition;
 
-public record ClosedBatchMetadata(long appendIndex, KernelVersion kernelVersion, LogPosition logPosition) {
+public record ClosedBatchMetadata(
+        long appendIndex, KernelVersion kernelVersion, LogPosition logPosition, long consensusIndex) {
     public ClosedBatchMetadata(OutOfOrderSequence.NumberWithMeta metadata) {
         this(
                 metadata.number(),
                 KernelVersion.getForVersion(metadata.meta().kernelVersion()),
-                new LogPosition(metadata.meta().logVersion(), metadata.meta().byteOffset()));
+                new LogPosition(metadata.meta().logVersion(), metadata.meta().byteOffset()),
+                metadata.meta().consensusIndex());
     }
 }

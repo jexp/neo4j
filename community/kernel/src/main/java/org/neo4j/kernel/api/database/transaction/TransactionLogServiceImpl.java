@@ -20,6 +20,7 @@
 package org.neo4j.kernel.api.database.transaction;
 
 import static java.util.Objects.requireNonNull;
+import static org.neo4j.storageengine.api.TransactionIdStore.UNKNOWN_CONSENSUS_INDEX;
 import static org.neo4j.storageengine.api.TransactionIdStore.UNKNOWN_TX_CHECKSUM;
 import static org.neo4j.util.Preconditions.checkState;
 import static org.neo4j.util.Preconditions.requirePositive;
@@ -43,6 +44,7 @@ import org.neo4j.storageengine.api.CommandReaderFactory;
 import org.neo4j.storageengine.api.LogMetadataProvider;
 import org.neo4j.storageengine.api.TransactionId;
 import org.neo4j.wal.AppendBatchInfo;
+import org.neo4j.wal.AppendedChunkConsensusIndexLocator;
 import org.neo4j.wal.AppendedChunkLogVersionLocator;
 import org.neo4j.wal.AppendedChunkPositionLocator;
 import org.neo4j.wal.CommandBatchCursor;
@@ -148,13 +150,29 @@ public class TransactionLogServiceImpl implements TransactionLogService {
                 transactionPositionLocator,
                 versionLocator.getOptionalLogPosition().orElse(lastHeaderPosition));
         var position = transactionPositionLocator.getLogPositionOrThrow();
+        var consensusIndex = lookupConsensusIndex(appendIndex, logEntryReader);
 
         log.info(
-                "Writing checkpoint to force recovery from append index:`%d` from specific position:`%s` with transaction id:'%s'.",
-                appendIndex, position, transactionId);
+                "Writing checkpoint to force recovery from append index:`%d` from specific position:`%s` with transaction id:'%s' and consensus index:`%d`.",
+                appendIndex, position, transactionId, consensusIndex);
 
-        // Write checkpoint at the end of txId
-        checkPointer.forceCheckPoint(transactionId, appendIndex, position, new SimpleTriggerInfo(reason));
+        checkPointer.forceCheckPoint(
+                transactionId, appendIndex, consensusIndex, position, new SimpleTriggerInfo(reason));
+    }
+
+    private long lookupConsensusIndex(long appendIndex, VersionAwareLogEntryReader logEntryReader) throws IOException {
+        var versionLocator = new AppendedChunkLogVersionLocator(appendIndex);
+        logFile.accept(versionLocator);
+        var startPosition = versionLocator.getOptionalLogPosition();
+        if (startPosition.isEmpty()) {
+            // The batch isn't in the logs, which is expected when catching up from a member on an older version.
+            // Consensus index of the last checkpointed batch is used for mvcc databases.
+            // For normal databases, we'll use another consensus index, so it can safely be UNKNOWN_CONSENSUS_INDEX.
+            return UNKNOWN_CONSENSUS_INDEX;
+        }
+        var consensusIndexLocator = new AppendedChunkConsensusIndexLocator(appendIndex, logEntryReader);
+        logFile.accept(consensusIndexLocator, startPosition.get());
+        return consensusIndexLocator.getConsensusIndex();
     }
 
     private AppendBatchInfo getLastAppendBatch() throws IOException {
@@ -241,7 +259,8 @@ public class TransactionLogServiceImpl implements TransactionLogService {
     private AppendBatchInfo getAppendBatchInfo(long appendIndex) throws IOException {
         try (CommandBatchCursor commandBatchCursor = transactionStore.getCommandBatches(appendIndex)) {
             commandBatchCursor.next();
-            return new AppendBatchInfo(appendIndex, commandBatchCursor.position());
+            long consensusIndex = commandBatchCursor.get().commandBatch().consensusIndex();
+            return new AppendBatchInfo(appendIndex, commandBatchCursor.position(), consensusIndex);
         } catch (NoSuchLogEntryException e) {
             throw new IllegalArgumentException("Append index " + appendIndex + " not found in transaction logs.", e);
         }

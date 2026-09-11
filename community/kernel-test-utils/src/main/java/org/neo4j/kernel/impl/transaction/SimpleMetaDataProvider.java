@@ -163,6 +163,7 @@ public class SimpleMetaDataProvider implements MetadataProvider, LogMetadataProv
             long byteOffset,
             long logVersion,
             long appendIndex,
+            long lastClosedBatchConsensusIndex,
             OpenTransactionMetadata earliestOpenTransactionMetadata,
             OutOfOrderSequence.NumberWithMeta lastClosedTxIdInfo) {
         transactionIdStore.setLastCommittedAndClosedTransactionId(
@@ -177,10 +178,11 @@ public class SimpleMetaDataProvider implements MetadataProvider, LogMetadataProv
                 byteOffset,
                 logVersion,
                 appendIndex,
+                lastClosedBatchConsensusIndex,
                 earliestOpenTransactionMetadata,
                 lastClosedTxIdInfo);
         appendIndexProvider.setAppendIndex(appendIndex);
-        this.appendBatchInfo.set(appendIndex, LogPosition.UNSPECIFIED);
+        this.appendBatchInfo.set(appendIndex, LogPosition.UNSPECIFIED, lastClosedBatchConsensusIndex);
     }
 
     @Override
@@ -193,7 +195,8 @@ public class SimpleMetaDataProvider implements MetadataProvider, LogMetadataProv
             long consensusIndex,
             long byteOffset,
             long logVersion,
-            long appendIndex) {
+            long appendIndex,
+            long lastClosedBatchConsensusIndex) {
         transactionIdStore.setLastCommittedAndClosedTransactionId(
                 transactionId,
                 transactionAppendIndex,
@@ -203,9 +206,10 @@ public class SimpleMetaDataProvider implements MetadataProvider, LogMetadataProv
                 consensusIndex,
                 byteOffset,
                 logVersion,
-                appendIndex);
+                appendIndex,
+                lastClosedBatchConsensusIndex);
         appendIndexProvider.setAppendIndex(appendIndex);
-        this.appendBatchInfo.set(appendIndex, LogPosition.UNSPECIFIED);
+        this.appendBatchInfo.set(appendIndex, LogPosition.UNSPECIFIED, lastClosedBatchConsensusIndex);
     }
 
     @Override
@@ -236,9 +240,10 @@ public class SimpleMetaDataProvider implements MetadataProvider, LogMetadataProv
             boolean firstBatch,
             boolean lastBatch,
             KernelVersion kernelVersion,
-            LogPosition logPositionAfter) {
+            LogPosition logPositionAfter,
+            long consensusIndex) {
         transactionIdStore.batchClosed(
-                transactionId, appendIndex, firstBatch, lastBatch, kernelVersion, logPositionAfter);
+                transactionId, appendIndex, firstBatch, lastBatch, kernelVersion, logPositionAfter, consensusIndex);
     }
 
     @Override
@@ -269,8 +274,9 @@ public class SimpleMetaDataProvider implements MetadataProvider, LogMetadataProv
             boolean firstBatch,
             boolean lastBatch,
             LogPosition logPositionBefore,
-            LogPosition logPositionAfter) {
-        appendBatchInfo.offer(appendIndex, logPositionAfter);
+            LogPosition logPositionAfter,
+            long consensusIndex) {
+        appendBatchInfo.offer(appendIndex, logPositionAfter, consensusIndex);
     }
 
     @Override

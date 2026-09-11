@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.io.ByteUnit.kibiBytes;
 import static org.neo4j.io.fs.ChannelNativeAccessor.EMPTY_ACCESSOR;
 import static org.neo4j.kernel.KernelVersion.VERSION_APPEND_INDEX_INTRODUCED;
+import static org.neo4j.kernel.KernelVersion.VERSION_CHECKPOINT_CONSENSUS_INDEX_INTRODUCED;
 import static org.neo4j.kernel.KernelVersion.VERSION_CHECKPOINT_NOT_COMPLETED_POSITION_INTRODUCED;
 import static org.neo4j.kernel.KernelVersion.VERSION_CHECKPOINT_POWER_OF_2_IN_ENVELOPES;
 import static org.neo4j.memory.EmptyMemoryTracker.INSTANCE;
@@ -67,6 +68,8 @@ import org.neo4j.wal.ReadAheadLogChannel;
 import org.neo4j.wal.ReadableLogPositionAwareChannel;
 import org.neo4j.wal.entry.v202608.DetachedCheckpointLogEntrySerializerV2026_08;
 import org.neo4j.wal.entry.v202608.LogEntryDetachedCheckpointV2026_08;
+import org.neo4j.wal.entry.v202610.DetachedCheckpointLogEntrySerializerV2026_10;
+import org.neo4j.wal.entry.v202610.LogEntryDetachedCheckpointV2026_10;
 import org.neo4j.wal.entry.v50.LogEntryDetachedCheckpointV5_0;
 import org.neo4j.wal.entry.v520.LogEntryDetachedCheckpointV5_20;
 import org.neo4j.wal.entry.v522.LogEntryDetachedCheckpointV5_22;
@@ -166,6 +169,9 @@ class DetachedCheckpointLogEntrySerializerTest {
     }
 
     private static int expectedRecordLength(KernelVersion kernelVersion) {
+        if (kernelVersion.isAtLeast(VERSION_CHECKPOINT_CONSENSUS_INDEX_INTRODUCED)) {
+            return DetachedCheckpointLogEntrySerializerV2026_10.RECORD_LENGTH_BYTES;
+        }
         return kernelVersion.isAtLeast(VERSION_CHECKPOINT_POWER_OF_2_IN_ENVELOPES)
                 ? DetachedCheckpointLogEntrySerializerV2026_08.RECORD_LENGTH_BYTES
                 : RECORD_LENGTH_BYTES;
@@ -226,7 +232,9 @@ class DetachedCheckpointLogEntrySerializerTest {
                             fs.read(path), 0, LATEST_LOG_FORMAT, path, EMPTY_ACCESSOR, DatabaseTracer.NULL),
                     NO_MORE_CHANNELS,
                     INSTANCE)) {
-                if (kernelVersion.isAtLeast(VERSION_CHECKPOINT_POWER_OF_2_IN_ENVELOPES)) {
+                if (kernelVersion.isAtLeast(VERSION_CHECKPOINT_CONSENSUS_INDEX_INTRODUCED)) {
+                    verifyCheckpoint2026_10(entryReader, readChannel, kernelVersion);
+                } else if (kernelVersion.isAtLeast(VERSION_CHECKPOINT_POWER_OF_2_IN_ENVELOPES)) {
                     verifyCheckpoint2026_08(entryReader, readChannel, kernelVersion);
                 } else if (kernelVersion.isAtLeast(VERSION_CHECKPOINT_NOT_COMPLETED_POSITION_INTRODUCED)) {
                     verifyCheckpoint5_22(entryReader, readChannel, kernelVersion);
@@ -250,7 +258,18 @@ class DetachedCheckpointLogEntrySerializerTest {
 
     private static AbstractVersionAwareLogEntry checkpointEntry(
             KernelVersion kernelVersion, String reason, TransactionId transactionId, LogPosition logPosition) {
-        if (kernelVersion.isAtLeast(VERSION_CHECKPOINT_POWER_OF_2_IN_ENVELOPES)) {
+        if (kernelVersion.isAtLeast(VERSION_CHECKPOINT_CONSENSUS_INDEX_INTRODUCED)) {
+            return new LogEntryDetachedCheckpointV2026_10(
+                    kernelVersion,
+                    transactionId,
+                    transactionId.appendIndex(),
+                    transactionId.consensusIndex(),
+                    logPosition,
+                    logPosition,
+                    1,
+                    TEST_STORE_ID,
+                    reason);
+        } else if (kernelVersion.isAtLeast(VERSION_CHECKPOINT_POWER_OF_2_IN_ENVELOPES)) {
             return new LogEntryDetachedCheckpointV2026_08(
                     kernelVersion,
                     transactionId,
@@ -286,6 +305,23 @@ class DetachedCheckpointLogEntrySerializerTest {
     private LogEntryDetachedCheckpointV5_0 readCheckpoint(
             VersionAwareLogEntryReader entryReader, ReadableLogPositionAwareChannel readChannel) throws IOException {
         return (LogEntryDetachedCheckpointV5_0) entryReader.readLogEntry(readChannel);
+    }
+
+    private void verifyCheckpoint2026_10(
+            VersionAwareLogEntryReader entryReader,
+            ReadableLogPositionAwareChannel readChannel,
+            KernelVersion kernelVersion)
+            throws IOException {
+        LogEntryDetachedCheckpointV2026_10 checkpoint =
+                (LogEntryDetachedCheckpointV2026_10) entryReader.readLogEntry(readChannel);
+
+        assertEquals(DETACHED_CHECK_POINT_V5_0, checkpoint.getType());
+        assertEquals(kernelVersion, checkpoint.kernelVersion());
+        assertEquals(new LogPosition(100, 200), checkpoint.getCheckpointedLogPosition());
+        assertEquals(new LogPosition(100, 200), checkpoint.getOldestNotCompletedPosition());
+        assertEquals(TEST_STORE_ID, checkpoint.getStoreId());
+        assertEquals(new TransactionId(70, 70, kernelVersion, 80, 90, 10), checkpoint.getTransactionId());
+        assertEquals(10, checkpoint.getConsensusIndex());
     }
 
     private void verifyCheckpoint2026_08(

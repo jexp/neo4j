@@ -85,7 +85,11 @@ public class ReadOnlyTransactionIdStore implements TransactionIdStore {
 
     @Override
     public ClosedBatchMetadata getLastClosedBatch() {
-        return new ClosedBatchMetadata(lastBatch.appendIndex(), lastCommittedTransaction.kernelVersion(), logPosition);
+        return new ClosedBatchMetadata(
+                lastBatch.appendIndex(),
+                lastCommittedTransaction.kernelVersion(),
+                logPosition,
+                lastBatch.consensusIndex());
     }
 
     @Override
@@ -101,6 +105,7 @@ public class ReadOnlyTransactionIdStore implements TransactionIdStore {
             long logByteOffset,
             long logVersion,
             long appendIndex,
+            long lastClosedBatchConsensusIndex,
             OpenTransactionMetadata earliestOpenTransactionMetadata,
             OutOfOrderSequence.NumberWithMeta lastClosedTxIdInfo) {
         throw new UnsupportedOperationException("Read-only transaction ID store");
@@ -126,7 +131,8 @@ public class ReadOnlyTransactionIdStore implements TransactionIdStore {
             boolean firstBatch,
             boolean lastBatch,
             KernelVersion kernelVersion,
-            LogPosition logPositionAfter) {
+            LogPosition logPositionAfter,
+            long consensusIndex) {
         throw new UnsupportedOperationException("Read-only transaction ID store");
     }
 
@@ -140,7 +146,8 @@ public class ReadOnlyTransactionIdStore implements TransactionIdStore {
             long consensusIndex,
             long byteOffset,
             long logVersion,
-            long logsAppendIndex) {
+            long logsAppendIndex,
+            long lastClosedBatchConsensusIndex) {
         throw new UnsupportedOperationException("Read-only transaction ID store");
     }
 
@@ -164,7 +171,8 @@ public class ReadOnlyTransactionIdStore implements TransactionIdStore {
             boolean firstBatch,
             boolean lastBatch,
             LogPosition logPositionBefore,
-            LogPosition logPositionAfter) {}
+            LogPosition logPositionAfter,
+            long consensusIndex) {}
 
     @Override
     public AppendBatchInfo getLastCommittedBatch() {

@@ -20,6 +20,7 @@
 package org.neo4j.storageengine.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.neo4j.storageengine.api.TransactionIdStore.UNKNOWN_CONSENSUS_INDEX;
 
 import org.junit.jupiter.api.Test;
 import org.neo4j.test.Race;
@@ -38,19 +39,21 @@ class HighestAppendBatchTest {
     @Test
     void shouldHardSetHighest() {
         // GIVEN
-        HighestAppendBatch highest = new HighestAppendBatch(new AppendBatchInfo(12, LogPosition.UNSPECIFIED));
+        HighestAppendBatch highest =
+                new HighestAppendBatch(new AppendBatchInfo(12, LogPosition.UNSPECIFIED, UNKNOWN_CONSENSUS_INDEX));
 
         // WHEN
-        highest.set(1, new LogPosition(1, 28));
+        highest.set(1, new LogPosition(1, 28), UNKNOWN_CONSENSUS_INDEX);
 
         // THEN
-        assertThat(highest.get()).isEqualTo(new AppendBatchInfo(1, new LogPosition(1, 28)));
+        assertThat(highest.get()).isEqualTo(new AppendBatchInfo(1, new LogPosition(1, 28), UNKNOWN_CONSENSUS_INDEX));
     }
 
     @Test
     void shouldOnlyKeepTheHighestOffered() {
         // GIVEN
-        HighestAppendBatch highest = new HighestAppendBatch(new AppendBatchInfo(-1, LogPosition.UNSPECIFIED));
+        HighestAppendBatch highest =
+                new HighestAppendBatch(new AppendBatchInfo(-1, LogPosition.UNSPECIFIED, UNKNOWN_CONSENSUS_INDEX));
 
         // WHEN/THEN
         assertAccepted(highest, 2);
@@ -62,13 +65,14 @@ class HighestAppendBatchTest {
 
     @Test
     void shouldKeepHighestDuringConcurrentOfferings() throws Throwable {
-        HighestAppendBatch highestAppendBatch = new HighestAppendBatch(new AppendBatchInfo(1, LogPosition.UNSPECIFIED));
+        HighestAppendBatch highestAppendBatch =
+                new HighestAppendBatch(new AppendBatchInfo(1, LogPosition.UNSPECIFIED, UNKNOWN_CONSENSUS_INDEX));
         Race race = new Race();
 
         race.addContestants(100, () -> {
             for (int i = 0; i < 100000; i++) {
                 var update = randomSupport.random().nextLong();
-                highestAppendBatch.offer(update, LogPosition.UNSPECIFIED);
+                highestAppendBatch.offer(update, LogPosition.UNSPECIFIED, UNKNOWN_CONSENSUS_INDEX);
                 assertThat(highestAppendBatch.get().appendIndex()).isGreaterThanOrEqualTo(update);
             }
         });
@@ -78,14 +82,14 @@ class HighestAppendBatchTest {
 
     private static void assertAccepted(HighestAppendBatch highest, long appendIndex) {
         AppendBatchInfo current = highest.get();
-        highest.offer(appendIndex, LogPosition.UNSPECIFIED);
+        highest.offer(appendIndex, LogPosition.UNSPECIFIED, UNKNOWN_CONSENSUS_INDEX);
         assertThat(highest.get().appendIndex()).isEqualTo(appendIndex);
         assertThat(appendIndex).isGreaterThan(current.appendIndex());
     }
 
     private static void assertRejected(HighestAppendBatch highest, long txId) {
         AppendBatchInfo current = highest.get();
-        highest.offer(txId, LogPosition.UNSPECIFIED);
+        highest.offer(txId, LogPosition.UNSPECIFIED, UNKNOWN_CONSENSUS_INDEX);
         assertThat(highest.get()).isEqualTo(current);
     }
 }

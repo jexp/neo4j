@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.configuration.GraphDatabaseInternalSettings.checkpoint_logical_log_keep_threshold;
 import static org.neo4j.configuration.GraphDatabaseInternalSettings.checkpoint_logical_log_rotation_threshold;
+import static org.neo4j.storageengine.api.TransactionIdStore.UNKNOWN_CONSENSUS_INDEX;
 import static org.neo4j.test.LatestVersions.LATEST_KERNEL_VERSION;
 import static org.neo4j.wal.checkpoint.CheckpointLogSerializationHelper.CHECKPOINT_REASON;
 import static org.neo4j.wal.checkpoint.CheckpointLogSerializationHelper.CONFIG_ROTATION_THRESHOLD;
@@ -91,6 +92,7 @@ public class CheckpointLogFileRotationIT {
                 NULL,
                 TRANSACTION_ID,
                 TRANSACTION_ID.id() + 77,
+                UNKNOWN_CONSENSUS_INDEX,
                 LATEST_KERNEL_VERSION,
                 LOG_POSITION,
                 LOG_POSITION,

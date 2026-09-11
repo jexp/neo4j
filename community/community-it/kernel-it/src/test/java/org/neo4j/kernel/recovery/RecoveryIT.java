@@ -57,6 +57,7 @@ import static org.neo4j.kernel.recovery.RecoveryHelpers.removeLastCheckpointReco
 import static org.neo4j.kernel.recovery.facade.RecoveryCriteria.ALL;
 import static org.neo4j.logging.LogAssertions.assertThat;
 import static org.neo4j.memory.EmptyMemoryTracker.INSTANCE;
+import static org.neo4j.storageengine.api.TransactionIdStore.UNKNOWN_CONSENSUS_INDEX;
 import static org.neo4j.storageengine.api.TransactionIdStore.UNKNOWN_TX_SEQUENCE_NUMBER;
 import static org.neo4j.test.LatestVersions.LATEST_KERNEL_VERSION;
 import static org.neo4j.test.LatestVersions.LATEST_KERNEL_VERSION_PROVIDER;
@@ -2082,6 +2083,7 @@ class RecoveryIT {
                 LogCheckPointEvent.NULL,
                 transactionId,
                 transactionId.id() + 1,
+                UNKNOWN_CONSENSUS_INDEX,
                 LatestVersions.LATEST_KERNEL_VERSION,
                 new LogPosition(0, LATEST_LOG_FORMAT.getHeaderSize()),
                 new LogPosition(0, LATEST_LOG_FORMAT.getHeaderSize()),
@@ -2092,6 +2094,7 @@ class RecoveryIT {
                 LogCheckPointEvent.NULL,
                 transactionId,
                 transactionId.id() + 1,
+                UNKNOWN_CONSENSUS_INDEX,
                 LatestVersions.LATEST_KERNEL_VERSION,
                 new LogPosition(0, LATEST_LOG_FORMAT.getHeaderSize()),
                 new LogPosition(0, LATEST_LOG_FORMAT.getHeaderSize()),
@@ -2102,6 +2105,7 @@ class RecoveryIT {
                 LogCheckPointEvent.NULL,
                 transactionId,
                 transactionId.id() + 1,
+                UNKNOWN_CONSENSUS_INDEX,
                 LatestVersions.LATEST_KERNEL_VERSION,
                 new LogPosition(0, LATEST_LOG_FORMAT.getHeaderSize()),
                 new LogPosition(0, LATEST_LOG_FORMAT.getHeaderSize()),

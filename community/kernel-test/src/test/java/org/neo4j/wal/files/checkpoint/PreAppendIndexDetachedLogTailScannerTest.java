@@ -129,6 +129,7 @@ class PreAppendIndexDetachedLogTailScannerTest {
                         LogCheckPointEvent.NULL,
                         transactionId,
                         transactionId.id() + 7,
+                        UNKNOWN_CONSENSUS_INDEX,
                         kernelVersion,
                         logPosition,
                         logPosition,

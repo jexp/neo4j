@@ -216,6 +216,7 @@ public class TransactionLogInitializer {
                 new TransactionId(
                         upgradeTransactionId, appendIndex, kernelVersion, checksum, timestamp, consensusIndex),
                 appendIndex,
+                consensusIndex,
                 kernelVersion);
         logMetadataProvider.transactionCommitted(
                 upgradeTransactionId, appendIndex, kernelVersion, checksum, timestamp, consensusIndex);
@@ -242,6 +243,7 @@ public class TransactionLogInitializer {
             LogPosition position,
             TransactionId transactionId,
             long appendIndex,
+            long consensusIndex,
             KernelVersion version)
             throws IOException {
         var checkpointAppender = logFiles.getCheckpointFile().getCheckpointAppender();
@@ -249,6 +251,7 @@ public class TransactionLogInitializer {
                 LogCheckPointEvent.NULL,
                 transactionId,
                 appendIndex,
+                consensusIndex,
                 version,
                 position,
                 position,

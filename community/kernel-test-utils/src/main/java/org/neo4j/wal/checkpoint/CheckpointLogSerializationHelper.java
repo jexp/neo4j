@@ -20,8 +20,10 @@
 package org.neo4j.wal.checkpoint;
 
 import static org.neo4j.io.ByteUnit.kibiBytes;
+import static org.neo4j.kernel.KernelVersion.VERSION_CHECKPOINT_CONSENSUS_INDEX_INTRODUCED;
 import static org.neo4j.kernel.KernelVersion.VERSION_CHECKPOINT_NOT_COMPLETED_POSITION_INTRODUCED;
 import static org.neo4j.kernel.KernelVersion.VERSION_CHECKPOINT_POWER_OF_2_IN_ENVELOPES;
+import static org.neo4j.storageengine.api.TransactionIdStore.UNKNOWN_CONSENSUS_INDEX;
 import static org.neo4j.test.LatestVersions.LATEST_KERNEL_VERSION;
 import static org.neo4j.test.LatestVersions.LATEST_LOG_FORMAT;
 import static org.neo4j.wal.checkpoint.LogCheckPointEvent.NULL;
@@ -34,6 +36,7 @@ import org.neo4j.wal.LogPosition;
 import org.neo4j.wal.entry.LogEnvelopeHeader;
 import org.neo4j.wal.entry.LogSegments;
 import org.neo4j.wal.entry.v202608.DetachedCheckpointLogEntrySerializerV2026_08;
+import org.neo4j.wal.entry.v202610.DetachedCheckpointLogEntrySerializerV2026_10;
 import org.neo4j.wal.entry.v520.DetachedCheckpointLogEntrySerializerV5_20;
 import org.neo4j.wal.entry.v522.DetachedCheckpointLogEntrySerializerV5_22;
 
@@ -49,7 +52,10 @@ public class CheckpointLogSerializationHelper {
     static final TransactionId TRANSACTION_ID = new TransactionId(100, 101, LATEST_KERNEL_VERSION, 101, 102, 103);
 
     public static int getCheckpointRecordLengthBytes() {
-        if (LATEST_KERNEL_VERSION.isAtLeast(VERSION_CHECKPOINT_POWER_OF_2_IN_ENVELOPES)) {
+        if (LATEST_KERNEL_VERSION.isAtLeast(VERSION_CHECKPOINT_CONSENSUS_INDEX_INTRODUCED)) {
+            return DetachedCheckpointLogEntrySerializerV2026_10.checkPointRecordSizeDependingOnVersion(
+                    LATEST_LOG_FORMAT.usesSegments());
+        } else if (LATEST_KERNEL_VERSION.isAtLeast(VERSION_CHECKPOINT_POWER_OF_2_IN_ENVELOPES)) {
             return DetachedCheckpointLogEntrySerializerV2026_08.checkPointRecordSizeDependingOnVersion(
                     LATEST_LOG_FORMAT.usesSegments());
         } else if (LATEST_KERNEL_VERSION.isAtLeast(VERSION_CHECKPOINT_NOT_COMPLETED_POSITION_INTRODUCED)) {
@@ -89,6 +95,7 @@ public class CheckpointLogSerializationHelper {
                         NULL,
                         TRANSACTION_ID,
                         TRANSACTION_ID.id() + 77,
+                        UNKNOWN_CONSENSUS_INDEX,
                         LATEST_KERNEL_VERSION,
                         LOG_POSITION,
                         LOG_POSITION,

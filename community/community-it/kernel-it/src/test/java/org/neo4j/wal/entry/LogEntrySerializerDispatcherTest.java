@@ -232,6 +232,7 @@ class LogEntrySerializerDispatcherTest {
         expectedChecksums.put(KernelVersion.V2026_06, -1346396497);
         expectedChecksums.put(KernelVersion.V2026_07, -262454544);
         expectedChecksums.put(KernelVersion.V2026_08, -1356078792);
+        expectedChecksums.put(KernelVersion.V2026_10, -254853785);
 
         final LogEntryCommit commit = newCommitEntry(version, 42, 21, expectedChecksums.get(version));
         final InMemoryClosableChannel channel = new InMemoryClosableChannel();

@@ -708,7 +708,8 @@ public class ImportLogic implements Closeable {
                 UNKNOWN_CONSENSUS_INDEX,
                 additionalInitialIds.lastCommittedTransactionLogByteOffset(),
                 additionalInitialIds.lastCommittedTransactionLogVersion(),
-                additionalInitialIds.lastAppendIndex());
+                additionalInitialIds.lastAppendIndex(),
+                UNKNOWN_CONSENSUS_INDEX);
         logMetadataProvider.setCheckpointLogVersion(additionalInitialIds.checkpointLogVersion());
         return BatchingNeoStores.batchingNeoStores(
                 fileSystem,

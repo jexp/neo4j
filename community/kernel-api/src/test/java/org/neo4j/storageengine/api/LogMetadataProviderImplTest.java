@@ -24,6 +24,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.neo4j.kernel.KernelVersion.DEFAULT_BOOTSTRAP_VERSION;
 import static org.neo4j.storageengine.api.TransactionIdStore.BASE_TX_COMMIT_TIMESTAMP;
+import static org.neo4j.storageengine.api.TransactionIdStore.UNKNOWN_CONSENSUS_INDEX;
 import static org.neo4j.test.Race.throwing;
 
 import java.util.concurrent.atomic.AtomicLong;
@@ -259,7 +260,8 @@ class LogMetadataProviderImplTest {
                 7,
                 LogFormat.V9.getHeaderSize(),
                 0,
-                44);
+                44,
+                UNKNOWN_CONSENSUS_INDEX);
 
         // WHEN
         metadataProvider.transactionCommitted(42, 43, DEFAULT_BOOTSTRAP_VERSION, 6666, BASE_TX_COMMIT_TIMESTAMP, 8);
@@ -286,7 +288,8 @@ class LogMetadataProviderImplTest {
                 8,
                 LogFormat.V9.getHeaderSize(),
                 0,
-                44);
+                44,
+                UNKNOWN_CONSENSUS_INDEX);
 
         // WHEN
         metadataProvider.transactionCommitted(39, 40, DEFAULT_BOOTSTRAP_VERSION, 3333, BASE_TX_COMMIT_TIMESTAMP, 9);

@@ -84,7 +84,8 @@ public class SimpleTransactionIdStore implements TransactionIdStore {
                 previousConsensusIndex,
                 previouslyCommittedTxLogByteOffset,
                 previouslyCommittedTxLogVersion,
-                appendIndex);
+                appendIndex,
+                previousConsensusIndex);
     }
 
     @Override
@@ -150,12 +151,13 @@ public class SimpleTransactionIdStore implements TransactionIdStore {
             long byteOffset,
             long logVersion,
             long logsAppendIndex,
+            long lastClosedBatchConsensusIndex,
             OpenTransactionMetadata earliestOpenTransactionMetadata,
             OutOfOrderSequence.NumberWithMeta lastClosedTxIdInfo) {
         committingTransactionId.set(lastCommitedTxId);
         committedTransactionId.set(new TransactionId(
                 lastCommitedTxId, transactionAppendIndex, kernelVersion, checksum, commitTimestamp, consensusIndex));
-        var meta = new Meta(
+        var txMeta = new Meta(
                 logVersion,
                 byteOffset,
                 kernelVersion.version(),
@@ -163,9 +165,17 @@ public class SimpleTransactionIdStore implements TransactionIdStore {
                 commitTimestamp,
                 consensusIndex,
                 transactionAppendIndex);
-        lastClosedBatch.set(logsAppendIndex, meta);
-        closedTransactionId.set(lastCommitedTxId, meta);
-        appendBatchInfo.set(logsAppendIndex, LogPosition.UNSPECIFIED);
+        var batchMeta = new Meta(
+                logVersion,
+                byteOffset,
+                kernelVersion.version(),
+                UNKNOWN_TX_CHECKSUM,
+                UNKNOWN_TX_COMMIT_TIMESTAMP,
+                lastClosedBatchConsensusIndex,
+                logsAppendIndex);
+        lastClosedBatch.set(logsAppendIndex, batchMeta);
+        closedTransactionId.set(lastCommitedTxId, txMeta);
+        appendBatchInfo.set(logsAppendIndex, LogPosition.UNSPECIFIED, lastClosedBatchConsensusIndex);
     }
 
     @Override
@@ -178,11 +188,12 @@ public class SimpleTransactionIdStore implements TransactionIdStore {
             long consensusIndex,
             long byteOffset,
             long logVersion,
-            long appendIndex) {
+            long appendIndex,
+            long lastClosedBatchConsensusIndex) {
         committingTransactionId.set(transactionId);
         committedTransactionId.set(new TransactionId(
                 transactionId, transactionAppendIndex, kernelVersion, checksum, commitTimestamp, consensusIndex));
-        var meta = new Meta(
+        var txMeta = new Meta(
                 logVersion,
                 byteOffset,
                 kernelVersion.version(),
@@ -190,9 +201,17 @@ public class SimpleTransactionIdStore implements TransactionIdStore {
                 commitTimestamp,
                 consensusIndex,
                 transactionAppendIndex);
-        lastClosedBatch.set(appendIndex, meta);
-        closedTransactionId.set(transactionId, meta);
-        appendBatchInfo.set(appendIndex, LogPosition.UNSPECIFIED);
+        var batchMeta = new Meta(
+                logVersion,
+                byteOffset,
+                kernelVersion.version(),
+                UNKNOWN_TX_CHECKSUM,
+                UNKNOWN_TX_COMMIT_TIMESTAMP,
+                lastClosedBatchConsensusIndex,
+                appendIndex);
+        lastClosedBatch.set(appendIndex, batchMeta);
+        closedTransactionId.set(transactionId, txMeta);
+        appendBatchInfo.set(appendIndex, LogPosition.UNSPECIFIED, lastClosedBatchConsensusIndex);
     }
 
     @Override
@@ -224,7 +243,8 @@ public class SimpleTransactionIdStore implements TransactionIdStore {
             boolean firstBatch,
             boolean lastBatch,
             KernelVersion kernelVersion,
-            LogPosition logPositionAfter) {
+            LogPosition logPositionAfter,
+            long consensusIndex) {
         lastClosedBatch.offer(
                 appendIndex,
                 new Meta(
@@ -233,7 +253,7 @@ public class SimpleTransactionIdStore implements TransactionIdStore {
                         kernelVersion.version(),
                         UNKNOWN_TX_CHECKSUM,
                         UNKNOWN_TX_COMMIT_TIMESTAMP,
-                        UNKNOWN_CONSENSUS_INDEX,
+                        consensusIndex,
                         appendIndex));
     }
 
@@ -266,8 +286,9 @@ public class SimpleTransactionIdStore implements TransactionIdStore {
             boolean firstBatch,
             boolean lastBatch,
             LogPosition logPositionBefore,
-            LogPosition logPositionAfter) {
-        appendBatchInfo.offer(appendIndex, logPositionAfter);
+            LogPosition logPositionAfter,
+            long consensusIndex) {
+        appendBatchInfo.offer(appendIndex, logPositionAfter, consensusIndex);
     }
 
     @Override

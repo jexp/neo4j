@@ -163,6 +163,7 @@ public class DefaultRecoveryService implements RecoveryService {
     @Override
     public void transactionsRecovered(
             BatchInformation highestTransactionRecoveredBatch,
+            BatchInformation lastRecoveredBatch,
             AppendIndexProvider recoverAppendIndexProvider,
             LogPosition lastRecoveredTransactionPosition,
             LogPosition positionAfterLastRecoveredTransaction,
@@ -179,7 +180,8 @@ public class DefaultRecoveryService implements RecoveryService {
                         highestTransactionRecoveredBatch.consensusIndex(),
                         lastRecoveredTransactionPosition.getByteOffset(),
                         lastRecoveredTransactionPosition.getLogVersion(),
-                        recoverAppendIndexProvider.getLastAppendIndex());
+                        recoverAppendIndexProvider.getLastAppendIndex(),
+                        lastRecoveredBatch.consensusIndex());
                 var lastRecoveredTxId = highestTransactionRecoveredBatch.txId();
                 // if there will be index population after that, it will have proper visibility
                 contextFactory.init(() -> new TransactionIdSnapshot(lastRecoveredTxId), () -> lastRecoveredTxId);
@@ -196,6 +198,7 @@ public class DefaultRecoveryService implements RecoveryService {
                         lastRecoveredTransactionPosition.getByteOffset(),
                         lastRecoveredTransactionPosition.getLogVersion(),
                         recoverAppendIndexProvider.getLastAppendIndex(),
+                        lastRecoveredBatch.consensusIndex(),
                         recoveryOutcome.earliestOpenTransaction(),
                         recoveryOutcome.lastClosedGapFree());
                 // if there will be index population after that, it will have proper visibility

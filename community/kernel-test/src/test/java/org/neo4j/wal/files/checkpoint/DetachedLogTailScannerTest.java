@@ -1133,6 +1133,7 @@ class DetachedLogTailScannerTest {
                         LogCheckPointEvent.NULL,
                         transactionId,
                         transactionId.appendIndex(),
+                        UNKNOWN_CONSENSUS_INDEX,
                         kernelVersion,
                         logPosition,
                         logPosition,

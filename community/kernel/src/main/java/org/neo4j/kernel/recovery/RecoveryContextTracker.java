@@ -21,6 +21,7 @@ package org.neo4j.kernel.recovery;
 
 import static org.neo4j.kernel.recovery.IncompleteTransactionAction.APPLY;
 import static org.neo4j.storageengine.AppendIndexProvider.UNKNOWN_APPEND_INDEX;
+import static org.neo4j.storageengine.api.TransactionIdStore.UNKNOWN_CONSENSUS_INDEX;
 import static org.neo4j.storageengine.api.TransactionIdStore.UNKNOWN_TX_ID;
 
 import org.eclipse.collections.api.map.primitive.MutableLongLongMap;
@@ -84,8 +85,25 @@ class RecoveryContextTracker {
         var checkpointTransactionId = checkpointInfo.transactionId();
         var checkpointBatchInfo = new BatchInformation(checkpointTransactionId, checkpointTransactionId.appendIndex());
 
-        lastBatchInfo = new BatchInformation(checkpointTransactionId, checkpointInfo.appendIndex());
+        lastBatchInfo = new BatchInformation(
+                checkpointTransactionId.id(),
+                checkpointTransactionId.kernelVersion(),
+                checkpointTransactionId.checksum(),
+                checkpointTransactionId.commitTimestamp(),
+                lastClosedBatchConsensusIndex(checkpointInfo),
+                checkpointInfo.appendIndex());
         lastHighestTransactionBatchInfo = checkpointBatchInfo;
+    }
+
+    /**
+     * Checkpoints written before {@link org.neo4j.kernel.KernelVersion#VERSION_CHECKPOINT_CONSENSUS_INDEX_INTRODUCED}
+     * only carry the last committed transaction's consensus index. Falling back to it can only underestimate the last
+     * closed batch, which is the safe direction.
+     */
+    private static long lastClosedBatchConsensusIndex(CheckpointInfo checkpointInfo) {
+        return checkpointInfo.consensusIndex() != UNKNOWN_CONSENSUS_INDEX
+                ? checkpointInfo.consensusIndex()
+                : checkpointInfo.transactionId().consensusIndex();
     }
 
     void commitedBatch(CommittedCommandBatchRepresentation nextCommandBatch, LogPosition position) {
@@ -131,6 +149,7 @@ class RecoveryContextTracker {
 
     void rollbackBatch(RollbackTransactionInfo rollbackTransactionInfo, LogPosition position) {
         updateHighestBatchInfoIfNeeded(rollbackTransactionInfo.batchInfo());
+        lastBatchInfo = rollbackTransactionInfo.batchInfo();
         updatePositions(position);
     }
 

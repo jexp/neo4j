@@ -33,6 +33,9 @@ public interface CheckpointAppender {
      * @param logCheckPointEvent a trace event for the given check point operation.
      * @param transactionId last closed transaction id at time of checkpoint
      * @param appendIndex checkpointed append index
+     * @param consensusIndex consensus index of the last closed batch at time of checkpoint, which may differ
+     * from {@code transactionId}'s consensus index if the last closed batch was a rollback or a not-yet-committed
+     * chunk of a bigger transaction
      * @param kernelVersion kernel version of checkpoint
      * @param oldestNotCompletedPosition the log position of oldest not completed transactional chunk
      * @param checkpointedLogPosition the log position contained in the written check point
@@ -45,6 +48,7 @@ public interface CheckpointAppender {
             LogCheckPointEvent logCheckPointEvent,
             TransactionId transactionId,
             long appendIndex,
+            long consensusIndex,
             KernelVersion kernelVersion,
             LogPosition oldestNotCompletedPosition,
             LogPosition checkpointedLogPosition,

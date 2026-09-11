@@ -53,6 +53,7 @@ import org.neo4j.wal.entry.LogEnvelopeHeader;
 import org.neo4j.wal.entry.LogFormat;
 import org.neo4j.wal.entry.LogSegments;
 import org.neo4j.wal.entry.v202608.DetachedCheckpointLogEntrySerializerV2026_08;
+import org.neo4j.wal.entry.v202610.DetachedCheckpointLogEntrySerializerV2026_10;
 import org.neo4j.wal.entry.v522.DetachedCheckpointLogEntrySerializerV5_22;
 import org.neo4j.wal.files.LogFilesBuilder;
 
@@ -97,6 +98,7 @@ class EnvelopedCheckpointLogFileTest {
                     NULL,
                     new TransactionId(i, i, KernelVersion.V2026_07, i, 3, 4),
                     i,
+                    UNKNOWN_CONSENSUS_INDEX,
                     KernelVersion.V2026_07,
                     new LogPosition(1, i),
                     new LogPosition(1, i),
@@ -142,6 +144,23 @@ class EnvelopedCheckpointLogFileTest {
     void envelopedCheckpointsShouldFitPerfectlyInSegmentFrom2026_08() {
         int checkpointRecordSize =
                 DetachedCheckpointLogEntrySerializerV2026_08.checkPointRecordSizeDependingOnVersion(true);
+        assertThat(checkpointRecordSize)
+                .withFailMessage(
+                        "Enveloped Checkpoints of size %d bytes cannot be larger than the %d segment size",
+                        checkpointRecordSize, LogSegments.DEFAULT_LOG_SEGMENT_SIZE)
+                .isLessThan(LogSegments.DEFAULT_LOG_SEGMENT_SIZE);
+        int residualBytesAtEndOfSegment = LogSegments.DEFAULT_LOG_SEGMENT_SIZE % checkpointRecordSize;
+        assertThat(residualBytesAtEndOfSegment)
+                .withFailMessage(
+                        "Enveloped Checkpoints of size %d bytes written to segments of size %d will leave padding that we don't want to deal with",
+                        checkpointRecordSize, LogSegments.DEFAULT_LOG_SEGMENT_SIZE)
+                .isZero();
+    }
+
+    @Test
+    void envelopedCheckpointsShouldFitPerfectlyInSegmentFrom2026_10() {
+        int checkpointRecordSize =
+                DetachedCheckpointLogEntrySerializerV2026_10.checkPointRecordSizeDependingOnVersion(true);
         assertThat(checkpointRecordSize)
                 .withFailMessage(
                         "Enveloped Checkpoints of size %d bytes cannot be larger than the %d segment size",

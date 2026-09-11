@@ -38,13 +38,13 @@ public class HighestAppendBatch {
      * Offers an append index. Will be accepted if this is higher than the current highest.
      * This method is thread-safe.
      */
-    public void offer(long appendIndex, LogPosition logPositionAfter) {
+    public void offer(long appendIndex, LogPosition logPositionAfter, long consensusIndex) {
         AppendBatchInfo high = highest.getAcquire();
         if (appendIndex < high.appendIndex()) { // a higher appendIndex has already been offered
             return;
         }
 
-        AppendBatchInfo update = new AppendBatchInfo(appendIndex, logPositionAfter);
+        AppendBatchInfo update = new AppendBatchInfo(appendIndex, logPositionAfter, consensusIndex);
         while (!highest.weakCompareAndSetRelease(high, update)) {
             high = highest.getAcquire();
             // Someone else set a higher appendIndex while we were trying to set this appendIndex
@@ -57,8 +57,8 @@ public class HighestAppendBatch {
     /**
      * Overrides the highest {@link AppendBatchInfo} value, no matter what it currently is. Used for initialization purposes.
      */
-    public final void set(long appendIndex, LogPosition logPositionAfter) {
-        highest.set(new AppendBatchInfo(appendIndex, logPositionAfter));
+    public final void set(long appendIndex, LogPosition logPositionAfter, long consensusIndex) {
+        highest.set(new AppendBatchInfo(appendIndex, logPositionAfter, consensusIndex));
     }
 
     /**

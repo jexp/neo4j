@@ -194,6 +194,7 @@ public class EnvelopedDetachedLogTailScannerTest {
                             LogCheckPointEvent.NULL,
                             checkpointedTx,
                             checkpointedTx.appendIndex(),
+                            UNKNOWN_CONSENSUS_INDEX,
                             kernelVersion,
                             boundary,
                             boundary,
@@ -281,6 +282,7 @@ public class EnvelopedDetachedLogTailScannerTest {
                                 new TransactionId(
                                         txId, appendIndex, kernelVersion, previousChecksum, 0, UNKNOWN_CONSENSUS_INDEX),
                                 appendIndex,
+                                UNKNOWN_CONSENSUS_INDEX,
                                 kernelVersion,
                                 postCommitPosition,
                                 postCommitPosition,

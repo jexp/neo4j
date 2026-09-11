@@ -188,6 +188,7 @@ public class TransactionLogsRecovery extends LifecycleAdapter {
 
             recoveryService.transactionsRecovered(
                     recoveryContextTracker.getLastHighestTransactionBatchInfo(),
+                    recoveryContextTracker.getLastBatchInfo(),
                     appendIndexProvider,
                     recoveryContextTracker.getLastTransactionPosition(),
                     recoveryContextTracker.getRecoveryToPosition(),

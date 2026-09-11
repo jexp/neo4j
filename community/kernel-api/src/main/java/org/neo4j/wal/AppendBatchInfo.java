@@ -19,4 +19,4 @@
  */
 package org.neo4j.wal;
 
-public record AppendBatchInfo(long appendIndex, LogPosition logPositionAfter) {}
+public record AppendBatchInfo(long appendIndex, LogPosition logPositionAfter, long consensusIndex) {}

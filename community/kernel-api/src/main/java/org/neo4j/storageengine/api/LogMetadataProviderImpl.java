@@ -70,13 +70,14 @@ public class LogMetadataProviderImpl implements LogMetadataProvider {
         this.appendIndex = new AtomicLong(lastBatch.appendIndex());
         this.currentTerm = new AtomicLong(logTailMetadata.getCurrentTerm());
 
+        var logPosition = logTailMetadata.getLastTransactionLogPosition();
+        var batchPosition = resolvedBatchPosition(lastBatch, logPosition);
         if (recoveryOutcome.isEmpty()) {
             var lastCommittedTx = logTailMetadata.getLastCommittedTransaction();
             highestCommittedTransaction = new HighestTransactionId(lastCommittedTx);
             highestClosedTransaction = new HighestTransactionId(lastCommittedTx);
             lastCommittingTx = new AtomicLong(lastCommittedTx.id());
-            var logPosition = logTailMetadata.getLastTransactionLogPosition();
-            var initialMeta = new Meta(
+            var txMeta = new Meta(
                     logPosition.getLogVersion(),
                     logPosition.getByteOffset(),
                     lastCommittedTx.kernelVersion().version(),
@@ -84,8 +85,16 @@ public class LogMetadataProviderImpl implements LogMetadataProvider {
                     lastCommittedTx.commitTimestamp(),
                     lastCommittedTx.consensusIndex(),
                     lastCommittedTx.appendIndex());
-            lastClosedTx = new ArrayQueueOutOfOrderSequence(lastCommittedTx.id(), 128, initialMeta);
-            lastClosedBatch = new ArrayQueueOutOfOrderSequence(lastBatch.appendIndex(), 128, initialMeta);
+            lastClosedTx = new ArrayQueueOutOfOrderSequence(lastCommittedTx.id(), 128, txMeta);
+            var batchMeta = new Meta(
+                    batchPosition.getLogVersion(),
+                    batchPosition.getByteOffset(),
+                    kernelVersion.version(),
+                    UNKNOWN_TX_CHECKSUM,
+                    UNKNOWN_TX_COMMIT_TIMESTAMP,
+                    lastBatch.consensusIndex(),
+                    lastBatch.appendIndex());
+            lastClosedBatch = new ArrayQueueOutOfOrderSequence(lastBatch.appendIndex(), 128, batchMeta);
             return;
         }
 
@@ -97,12 +106,12 @@ public class LogMetadataProviderImpl implements LogMetadataProvider {
                 lastBatch.appendIndex(),
                 128,
                 new Meta(
-                        lastBatch.logPositionAfter().getLogVersion(),
-                        lastBatch.logPositionAfter().getByteOffset(),
+                        batchPosition.getLogVersion(),
+                        batchPosition.getByteOffset(),
                         kernelVersion.version(),
                         UNKNOWN_TX_CHECKSUM,
                         UNKNOWN_TX_COMMIT_TIMESTAMP,
-                        UNKNOWN_CONSENSUS_INDEX,
+                        lastBatch.consensusIndex(),
                         lastBatch.appendIndex()));
 
         long[] notClosedTransactionIds = recoveryOutcome.notClosedTransactionIds();
@@ -123,6 +132,11 @@ public class LogMetadataProviderImpl implements LogMetadataProvider {
     public LogMetadataProviderImpl(
             LogTailLogVersionsMetadata logTailMetadata, LogFormat logFormat, KernelVersion kernelVersion) {
         this(logTailMetadata, logFormat, kernelVersion, EMPTY_OUTCOME);
+    }
+
+    private static LogPosition resolvedBatchPosition(AppendBatchInfo lastBatch, LogPosition fallback) {
+        var position = lastBatch.logPositionAfter();
+        return position == LogPosition.UNSPECIFIED ? fallback : position;
     }
 
     public LogMetadataProviderImpl(LogTailMetadata logTailMetadata, RecoveryOutcome recoveryOutcome) {
@@ -171,10 +185,11 @@ public class LogMetadataProviderImpl implements LogMetadataProvider {
             long byteOffset,
             long logVersion,
             long appendIndex,
+            long lastClosedBatchConsensusIndex,
             OpenTransactionMetadata earliestOpenTransactionMetadata,
             OutOfOrderSequence.NumberWithMeta lastClosedTxIdInfo) {
         this.lastCommittingTx.set(lastCommitedTxId);
-        var meta = new Meta(
+        var txMeta = new Meta(
                 logVersion,
                 byteOffset,
                 kernelVersion.version(),
@@ -182,20 +197,28 @@ public class LogMetadataProviderImpl implements LogMetadataProvider {
                 commitTimestamp,
                 consensusIndex,
                 transactionAppendIndex);
-        lastClosedBatch.set(appendIndex, meta);
+        var batchMeta = new Meta(
+                logVersion,
+                byteOffset,
+                kernelVersion.version(),
+                UNKNOWN_TX_CHECKSUM,
+                UNKNOWN_TX_COMMIT_TIMESTAMP,
+                lastClosedBatchConsensusIndex,
+                appendIndex);
+        lastClosedBatch.set(appendIndex, batchMeta);
 
         if (lastClosedTxIdInfo != null) {
-            Meta txMeta = lastClosedTxIdInfo.meta();
-            lastClosedTx.set(lastClosedTxIdInfo.number(), txMeta, notClosedTransactions);
+            Meta txIdInfoMeta = lastClosedTxIdInfo.meta();
+            lastClosedTx.set(lastClosedTxIdInfo.number(), txIdInfoMeta, notClosedTransactions);
             highestClosedTransaction.set(
                     lastClosedTxIdInfo.number(),
-                    txMeta.appendIndex(),
-                    KernelVersion.getForVersion(txMeta.kernelVersion()),
-                    txMeta.checksum(),
-                    txMeta.commitTimestamp(),
-                    txMeta.consensusIndex());
+                    txIdInfoMeta.appendIndex(),
+                    KernelVersion.getForVersion(txIdInfoMeta.kernelVersion()),
+                    txIdInfoMeta.checksum(),
+                    txIdInfoMeta.commitTimestamp(),
+                    txIdInfoMeta.consensusIndex());
         } else {
-            lastClosedTx.set(appendIndex, meta);
+            lastClosedTx.set(appendIndex, txMeta);
             highestClosedTransaction.set(
                     lastClosedTxId, transactionAppendIndex, kernelVersion, checksum, commitTimestamp, consensusIndex);
         }
@@ -203,7 +226,7 @@ public class LogMetadataProviderImpl implements LogMetadataProvider {
         highestCommittedTransaction.set(
                 lastClosedTxId, transactionAppendIndex, kernelVersion, checksum, commitTimestamp, consensusIndex);
         this.appendIndex.set(appendIndex);
-        this.lastCommittedBatch.set(appendIndex, LogPosition.UNSPECIFIED);
+        this.lastCommittedBatch.set(appendIndex, LogPosition.UNSPECIFIED, lastClosedBatchConsensusIndex);
         if (earliestOpenTransactionMetadata != null) {
             this.chunkedTransactionRegistry.registerTransaction(
                     earliestOpenTransactionMetadata.txId(),
@@ -222,9 +245,10 @@ public class LogMetadataProviderImpl implements LogMetadataProvider {
             long consensusIndex,
             long byteOffset,
             long logVersion,
-            long appendIndex) {
+            long appendIndex,
+            long lastClosedBatchConsensusIndex) {
         lastCommittingTx.set(transactionId);
-        var meta = new Meta(
+        var txMeta = new Meta(
                 logVersion,
                 byteOffset,
                 kernelVersion.version(),
@@ -232,14 +256,22 @@ public class LogMetadataProviderImpl implements LogMetadataProvider {
                 commitTimestamp,
                 consensusIndex,
                 transactionAppendIndex);
-        lastClosedBatch.set(appendIndex, meta);
-        lastClosedTx.set(transactionId, meta);
+        var batchMeta = new Meta(
+                logVersion,
+                byteOffset,
+                kernelVersion.version(),
+                UNKNOWN_TX_CHECKSUM,
+                UNKNOWN_TX_COMMIT_TIMESTAMP,
+                lastClosedBatchConsensusIndex,
+                appendIndex);
+        lastClosedBatch.set(appendIndex, batchMeta);
+        lastClosedTx.set(transactionId, txMeta);
         highestClosedTransaction.set(
                 transactionId, transactionAppendIndex, kernelVersion, checksum, commitTimestamp, consensusIndex);
         highestCommittedTransaction.set(
                 transactionId, transactionAppendIndex, kernelVersion, checksum, commitTimestamp, consensusIndex);
         this.appendIndex.set(appendIndex);
-        this.lastCommittedBatch.set(appendIndex, LogPosition.UNSPECIFIED);
+        this.lastCommittedBatch.set(appendIndex, LogPosition.UNSPECIFIED, lastClosedBatchConsensusIndex);
     }
 
     @Override
@@ -335,7 +367,8 @@ public class LogMetadataProviderImpl implements LogMetadataProvider {
             boolean firstBatch,
             boolean lastBatch,
             KernelVersion kernelVersion,
-            LogPosition logPositionAfter) {
+            LogPosition logPositionAfter,
+            long consensusIndex) {
         lastClosedBatch.offer(
                 appendIndex,
                 new Meta(
@@ -344,7 +377,7 @@ public class LogMetadataProviderImpl implements LogMetadataProvider {
                         kernelVersion.version(),
                         UNKNOWN_TX_CHECKSUM,
                         UNKNOWN_TX_COMMIT_TIMESTAMP,
-                        UNKNOWN_CONSENSUS_INDEX,
+                        consensusIndex,
                         appendIndex));
         // only remove transaction if this is the last batch in multi batch transaction
         if (lastBatch && !firstBatch) {
@@ -381,8 +414,9 @@ public class LogMetadataProviderImpl implements LogMetadataProvider {
             boolean firstBatch,
             boolean lastBatch,
             LogPosition logPositionBefore,
-            LogPosition logPositionAfter) {
-        this.lastCommittedBatch.offer(appendIndex, logPositionAfter);
+            LogPosition logPositionAfter,
+            long consensusIndex) {
+        this.lastCommittedBatch.offer(appendIndex, logPositionAfter, consensusIndex);
 
         // this is the first and last batch, no need to register in progress transaction
         if (firstBatch && lastBatch) {

@@ -21,6 +21,7 @@ package org.neo4j.wal.checkpoint;
 
 import static java.util.Objects.requireNonNull;
 import static org.neo4j.kernel.KernelVersion.VERSION_APPEND_INDEX_INTRODUCED;
+import static org.neo4j.kernel.KernelVersion.VERSION_CHECKPOINT_CONSENSUS_INDEX_INTRODUCED;
 import static org.neo4j.kernel.KernelVersion.VERSION_CHECKPOINT_NOT_COMPLETED_POSITION_INTRODUCED;
 import static org.neo4j.kernel.KernelVersion.VERSION_CHECKPOINT_POWER_OF_2_IN_ENVELOPES;
 import static org.neo4j.kernel.KernelVersionProviders.fixed;
@@ -55,6 +56,7 @@ import org.neo4j.wal.entry.AbstractVersionAwareLogEntry;
 import org.neo4j.wal.entry.LogEntryTypeCodes;
 import org.neo4j.wal.entry.LogHeader;
 import org.neo4j.wal.entry.v202608.LogEntryDetachedCheckpointV2026_08;
+import org.neo4j.wal.entry.v202610.LogEntryDetachedCheckpointV2026_10;
 import org.neo4j.wal.entry.v50.LogEntryDetachedCheckpointV5_0;
 import org.neo4j.wal.entry.v520.LogEntryDetachedCheckpointV5_20;
 import org.neo4j.wal.entry.v522.LogEntryDetachedCheckpointV5_22;
@@ -190,6 +192,7 @@ public class DetachedCheckpointAppender extends LifecycleAdapter implements Chec
             LogCheckPointEvent logCheckPointEvent,
             TransactionId transactionId,
             long appendIndex,
+            long consensusIndex,
             KernelVersion kernelVersion,
             LogPosition oldestNotCompletedPosition,
             LogPosition checkpointedLogPosition,
@@ -213,6 +216,7 @@ public class DetachedCheckpointAppender extends LifecycleAdapter implements Chec
                                 createCheckpointEntry(
                                         transactionId,
                                         appendIndex,
+                                        consensusIndex,
                                         kernelVersion,
                                         oldestNotCompletedPosition,
                                         checkpointedLogPosition,
@@ -306,13 +310,25 @@ public class DetachedCheckpointAppender extends LifecycleAdapter implements Chec
     private static AbstractVersionAwareLogEntry createCheckpointEntry(
             TransactionId transactionId,
             long appendIndex,
+            long consensusIndex,
             KernelVersion kernelVersion,
             LogPosition oldestNotCompletedPosition,
             LogPosition checkpoinedLogPosition,
             Instant checkpointTime,
             String reason,
             StoreId storeId) {
-        if (kernelVersion.isAtLeast(VERSION_CHECKPOINT_POWER_OF_2_IN_ENVELOPES)) {
+        if (kernelVersion.isAtLeast(VERSION_CHECKPOINT_CONSENSUS_INDEX_INTRODUCED)) {
+            return new LogEntryDetachedCheckpointV2026_10(
+                    kernelVersion,
+                    transactionId,
+                    appendIndex,
+                    consensusIndex,
+                    oldestNotCompletedPosition,
+                    checkpoinedLogPosition,
+                    checkpointTime.toEpochMilli(),
+                    storeId,
+                    reason);
+        } else if (kernelVersion.isAtLeast(VERSION_CHECKPOINT_POWER_OF_2_IN_ENVELOPES)) {
             return new LogEntryDetachedCheckpointV2026_08(
                     kernelVersion,
                     transactionId,

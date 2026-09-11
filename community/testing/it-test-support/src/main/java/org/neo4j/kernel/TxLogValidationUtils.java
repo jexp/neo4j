@@ -55,7 +55,7 @@ import org.neo4j.wal.entry.LogFormat;
 import org.neo4j.wal.entry.LogHeader;
 import org.neo4j.wal.entry.LogHeaderReader;
 import org.neo4j.wal.entry.VersionAwareLogEntryReader;
-import org.neo4j.wal.entry.v202608.LogEntryDetachedCheckpointV2026_08;
+import org.neo4j.wal.entry.v202610.LogEntryDetachedCheckpointV2026_10;
 
 public class TxLogValidationUtils {
     private TxLogValidationUtils() {}
@@ -295,8 +295,8 @@ public class TxLogValidationUtils {
                     EmptyMemoryTracker.INSTANCE);
             LogEntry entry;
             while ((entry = entryReader.readLogEntry(reader)) != null) {
-                LogEntryDetachedCheckpointV2026_08 logEntry =
-                        assertInstanceOf(LogEntryDetachedCheckpointV2026_08.class, entry);
+                LogEntryDetachedCheckpointV2026_10 logEntry =
+                        assertInstanceOf(LogEntryDetachedCheckpointV2026_10.class, entry);
                 if (expectedKernelVersion != null) {
                     assertThat(logEntry.kernelVersion()).isEqualTo(expectedKernelVersion);
                 }

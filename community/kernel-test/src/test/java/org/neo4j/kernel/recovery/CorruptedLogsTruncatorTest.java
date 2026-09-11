@@ -26,11 +26,12 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.kernel.recovery.CorruptedLogsTruncator.CORRUPTED_TX_LOGS_BASE_NAME;
 import static org.neo4j.memory.EmptyMemoryTracker.INSTANCE;
+import static org.neo4j.storageengine.api.TransactionIdStore.UNKNOWN_CONSENSUS_INDEX;
 import static org.neo4j.test.LatestVersions.LATEST_KERNEL_VERSION;
 import static org.neo4j.test.LatestVersions.LATEST_KERNEL_VERSION_PROVIDER;
 import static org.neo4j.test.LatestVersions.LATEST_LOG_FORMAT;
 import static org.neo4j.test.LatestVersions.LATEST_LOG_FORMAT_PROVIDER;
-import static org.neo4j.wal.entry.v202608.DetachedCheckpointLogEntrySerializerV2026_08.RECORD_LENGTH_BYTES;
+import static org.neo4j.wal.entry.v202610.DetachedCheckpointLogEntrySerializerV2026_10.RECORD_LENGTH_BYTES;
 
 import java.io.File;
 import java.io.IOException;
@@ -282,6 +283,7 @@ class CorruptedLogsTruncatorTest {
                             LogCheckPointEvent.NULL,
                             transactionId,
                             transactionId.id() + 7,
+                            UNKNOWN_CONSENSUS_INDEX,
                             LATEST_KERNEL_VERSION,
                             new LogPosition(highestCorrectLogFileIndex, byteOffset + 1),
                             new LogPosition(highestCorrectLogFileIndex, byteOffset + 1),

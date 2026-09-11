@@ -525,6 +525,7 @@ class PhysicalLogicalTransactionStoreTest {
         @Override
         public void transactionsRecovered(
                 BatchInformation highestTransactionHeadCommandBatch,
+                BatchInformation lastRecoveredBatch,
                 AppendIndexProvider appendIndexProvider,
                 LogPosition lastTransactionPosition,
                 LogPosition positionAfterLastRecoveredTransaction,

@@ -98,7 +98,8 @@ public class TransactionCommitment implements Commitment {
                 firstBatch,
                 lastBatch,
                 logPositionBeforeCommit,
-                logPositionAfterCommit);
+                logPositionAfterCommit,
+                consensusIndex);
     }
 
     @Override
@@ -123,7 +124,8 @@ public class TransactionCommitment implements Commitment {
                     firstBatch,
                     lastBatch,
                     kernelVersion,
-                    logPositionAfterCommit);
+                    logPositionAfterCommit,
+                    consensusIndex);
             lastClosedAppendIndex = currentBatchAppendIndex;
         }
         if (committed) {

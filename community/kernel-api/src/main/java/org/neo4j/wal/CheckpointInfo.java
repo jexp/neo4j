@@ -19,6 +19,8 @@
  */
 package org.neo4j.wal;
 
+import static org.neo4j.storageengine.api.TransactionIdStore.UNKNOWN_CONSENSUS_INDEX;
+
 import org.neo4j.kernel.KernelVersion;
 import org.neo4j.kernel.KernelVersionProvider;
 import org.neo4j.storageengine.api.StoreId;
@@ -39,6 +41,9 @@ public record CheckpointInfo(
         byte kernelVersionByte,
         TransactionId transactionId,
         long appendIndex,
+        // consensus index of the last closed batch at the time of this checkpoint, which may differ from
+        // transactionId's consensus index if the last closed batch was a rollback or a not-yet-committed chunk
+        long consensusIndex,
         String reason,
         boolean consensusIndexInCheckpoint)
         implements KernelVersionProvider {
@@ -65,6 +70,7 @@ public record CheckpointInfo(
                 kernelVersionByte,
                 transactionId,
                 appendIndex,
+                UNKNOWN_CONSENSUS_INDEX,
                 reason,
                 true);
     }

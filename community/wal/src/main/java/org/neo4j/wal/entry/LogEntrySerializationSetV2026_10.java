@@ -20,13 +20,16 @@
 package org.neo4j.wal.entry;
 
 import org.neo4j.kernel.KernelVersion;
+import org.neo4j.wal.entry.v202610.DetachedCheckpointLogEntrySerializerV2026_10;
 
-public class LogEntrySerializationSetVGloriousFuture extends LogEntrySerializationSetV2026_10 {
-    LogEntrySerializationSetVGloriousFuture() {
-        this(KernelVersion.GLORIOUS_FUTURE);
+class LogEntrySerializationSetV2026_10 extends LogEntrySerializationSetV2026_08 {
+    LogEntrySerializationSetV2026_10() {
+        this(KernelVersion.V2026_10);
     }
 
-    LogEntrySerializationSetVGloriousFuture(KernelVersion kernelVersion) {
+    LogEntrySerializationSetV2026_10(KernelVersion kernelVersion) {
         super(kernelVersion);
+
+        register(new DetachedCheckpointLogEntrySerializerV2026_10(), true);
     }
 }

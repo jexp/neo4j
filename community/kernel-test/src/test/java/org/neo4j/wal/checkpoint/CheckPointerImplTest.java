@@ -143,6 +143,7 @@ class CheckPointerImplTest {
                         any(LogCheckPointEvent.class),
                         any(TransactionId.class),
                         anyLong(),
+                        anyLong(),
                         any(KernelVersion.class),
                         eq(logPosition),
                         eq(logPosition),
@@ -178,6 +179,7 @@ class CheckPointerImplTest {
                         any(LogCheckPointEvent.class),
                         any(TransactionId.class),
                         anyLong(),
+                        anyLong(),
                         any(KernelVersion.class),
                         eq(logPosition),
                         eq(logPosition),
@@ -211,6 +213,7 @@ class CheckPointerImplTest {
                 .checkPoint(
                         any(LogCheckPointEvent.class),
                         any(TransactionId.class),
+                        anyLong(),
                         anyLong(),
                         any(KernelVersion.class),
                         eq(logPosition),
@@ -246,6 +249,7 @@ class CheckPointerImplTest {
                         any(LogCheckPointEvent.class),
                         any(TransactionId.class),
                         anyLong(),
+                        anyLong(),
                         any(KernelVersion.class),
                         eq(logPosition),
                         eq(logPosition),
@@ -279,6 +283,7 @@ class CheckPointerImplTest {
                 .checkPoint(
                         any(LogCheckPointEvent.class),
                         any(TransactionId.class),
+                        anyLong(),
                         anyLong(),
                         any(KernelVersion.class),
                         eq(logPosition),
@@ -359,6 +364,7 @@ class CheckPointerImplTest {
                         any(LogCheckPointEvent.class),
                         any(TransactionId.class),
                         anyLong(),
+                        anyLong(),
                         any(KernelVersion.class),
                         eq(logPosition),
                         eq(logPosition),
@@ -400,6 +406,7 @@ class CheckPointerImplTest {
                 .checkPoint(
                         any(LogCheckPointEvent.class),
                         any(TransactionId.class),
+                        anyLong(),
                         anyLong(),
                         any(KernelVersion.class),
                         eq(logPosition),
@@ -481,12 +488,14 @@ class CheckPointerImplTest {
         when(logMetadataProvider.getHighestGapFreeClosedTransactionId())
                 .thenReturn(initialAppendIndex, transactionId, transactionId);
         when(logMetadataProvider.getLastCommittedBatch())
-                .thenReturn(new AppendBatchInfo(TRANSACTION_APPEND_INDEX, logPosition));
+                .thenReturn(new AppendBatchInfo(TRANSACTION_APPEND_INDEX, logPosition, UNKNOWN_CONSENSUS_INDEX));
         when(logMetadataProvider.getHighestEverClosedTransaction()).thenReturn(otherCommitted);
         when(logMetadataProvider.getLastClosedBatch())
                 .thenReturn(
-                        new ClosedBatchMetadata(initialAppendIndex, LATEST_KERNEL_VERSION, logPosition),
-                        new ClosedBatchMetadata(TRANSACTION_APPEND_INDEX, LATEST_KERNEL_VERSION, logPosition));
+                        new ClosedBatchMetadata(
+                                initialAppendIndex, LATEST_KERNEL_VERSION, logPosition, UNKNOWN_CONSENSUS_INDEX),
+                        new ClosedBatchMetadata(
+                                TRANSACTION_APPEND_INDEX, LATEST_KERNEL_VERSION, logPosition, UNKNOWN_CONSENSUS_INDEX));
     }
 
     private class CheckpointCountingLock extends ReentrantLock {
@@ -501,6 +510,7 @@ class CheckPointerImplTest {
                         .checkPoint(
                                 any(LogCheckPointEvent.class),
                                 any(TransactionId.class),
+                                anyLong(),
                                 anyLong(),
                                 any(KernelVersion.class),
                                 any(LogPosition.class),

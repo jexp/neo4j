@@ -26,6 +26,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.neo4j.collection.Dependencies.dependenciesOf;
 import static org.neo4j.dbms.database.DatabaseDetailsExtras.EMPTY;
+import static org.neo4j.storageengine.api.TransactionIdStore.UNKNOWN_CONSENSUS_INDEX;
 
 import java.util.Optional;
 import java.util.OptionalLong;
@@ -63,7 +64,7 @@ class DefaultDatabaseDetailsExtrasProviderTest {
         when(metadataProvider.getExternalStoreId()).thenReturn(externalStoreId);
         when(logMetadataProvider.getLastCommittedTransactionId()).thenReturn(lastCommittedTxId);
         when(logMetadataProvider.getLastCommittedBatch())
-                .thenReturn(new AppendBatchInfo(lastAppendIndex, new LogPosition(5, 512)));
+                .thenReturn(new AppendBatchInfo(lastAppendIndex, new LogPosition(5, 512), UNKNOWN_CONSENSUS_INDEX));
 
         var dependencies = dependenciesOf(metadataProvider, logMetadataProvider);
         var database = mock(Database.class);

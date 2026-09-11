@@ -47,8 +47,15 @@ public interface RecoveryService {
 
     void missingLogs();
 
+    /**
+     * @param highestTransactionRecoveredBatch information about the highest recovered transaction.
+     * @param lastRecoveredBatch information about the actual last recovered batch, which may differ from
+     * {@code highestTransactionRecoveredBatch} if the last batch was a rollback or a not-yet-committed chunk of a
+     * bigger transaction.
+     */
     void transactionsRecovered(
             BatchInformation highestTransactionRecoveredBatch,
+            BatchInformation lastRecoveredBatch,
             AppendIndexProvider recoverAppendIndexProvider,
             LogPosition lastTransactionPosition,
             LogPosition positionAfterLastRecoveredTransaction,

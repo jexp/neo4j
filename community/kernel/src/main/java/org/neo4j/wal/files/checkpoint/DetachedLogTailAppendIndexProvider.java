@@ -21,6 +21,8 @@ package org.neo4j.wal.files.checkpoint;
 
 import static org.neo4j.kernel.KernelVersion.VERSION_APPEND_INDEX_INTRODUCED;
 import static org.neo4j.storageengine.AppendIndexProvider.UNKNOWN_APPEND_INDEX;
+import static org.neo4j.storageengine.api.TransactionIdStore.UNKNOWN_CONSENSUS_INDEX;
+import static org.neo4j.wal.LogIndexEncoding.decodeLogIndex;
 
 import java.io.IOException;
 import org.neo4j.kernel.BinarySupportedKernelVersions;
@@ -53,6 +55,7 @@ public class DetachedLogTailAppendIndexProvider implements LastAppendBatchInfoPr
     private final CommandReaderFactory commandReaderFactory;
     private final MemoryTracker memoryTracker;
     private final LogPosition maxPosition;
+    private final long startingConsensusIndex;
     private final boolean failOnUnsupportedLogVersion;
 
     public DetachedLogTailAppendIndexProvider(
@@ -61,6 +64,7 @@ public class DetachedLogTailAppendIndexProvider implements LastAppendBatchInfoPr
             LogFile logFile,
             KernelVersion kernelVersion,
             long startingAppendIndex,
+            long startingConsensusIndex,
             LogPosition logPosition,
             MemoryTracker memoryTracker,
             LogPosition maxPosition,
@@ -68,6 +72,7 @@ public class DetachedLogTailAppendIndexProvider implements LastAppendBatchInfoPr
         this.logFile = logFile;
         this.kernelVersion = kernelVersion;
         this.startingAppendIndex = startingAppendIndex;
+        this.startingConsensusIndex = startingConsensusIndex;
         if (logPosition != LogPosition.UNSPECIFIED
                 && maxPosition != LogPosition.UNSPECIFIED
                 && maxPosition.isBefore(logPosition)) {
@@ -85,15 +90,16 @@ public class DetachedLogTailAppendIndexProvider implements LastAppendBatchInfoPr
     @Override
     public AppendBatchInfo get() {
         if (logPosition == null || logPosition == LogPosition.UNSPECIFIED) {
-            return new AppendBatchInfo(startingAppendIndex, LogPosition.UNSPECIFIED);
+            return new AppendBatchInfo(startingAppendIndex, LogPosition.UNSPECIFIED, startingConsensusIndex);
         }
         long logVersion = logPosition.getLogVersion();
         boolean checkCommitEntries = kernelVersion.isLessThan(VERSION_APPEND_INDEX_INTRODUCED);
         long appendIndex = startingAppendIndex;
+        long consensusIndex = startingConsensusIndex;
         LogPosition postLogPosition = logPosition;
         try {
             if (!logFile.versionExists(logVersion)) {
-                return new AppendBatchInfo(appendIndex, postLogPosition);
+                return new AppendBatchInfo(appendIndex, postLogPosition, consensusIndex);
             }
             var logEntryReader =
                     new VersionAwareLogEntryReader(commandReaderFactory, binarySupportedKernelVersions, memoryTracker);
@@ -104,6 +110,7 @@ public class DetachedLogTailAppendIndexProvider implements LastAppendBatchInfoPr
 
             while (currentFileVersion >= logVersion) {
                 long currentAppendIndex = UNKNOWN_APPEND_INDEX;
+                long currentConsensusIndex = UNKNOWN_CONSENSUS_INDEX;
                 boolean infoFound = false;
                 LogPosition logFileStartPosition = getLogFileStartPosition(currentFileVersion, logVersion);
                 // if file does not even have header lets switch to the previous one
@@ -136,10 +143,13 @@ public class DetachedLogTailAppendIndexProvider implements LastAppendBatchInfoPr
                                 var entry = cursor.get();
                                 if (entry instanceof LogEntryStart startEntry) {
                                     currentAppendIndex = startEntry.getAppendIndex();
+                                    currentConsensusIndex = decodeLogIndexOrUnknown(startEntry.getAdditionalHeader());
                                 } else if (entry instanceof LogEntryChunkStart chunkStart) {
                                     currentAppendIndex = chunkStart.getAppendIndex();
+                                    currentConsensusIndex = decodeLogIndexOrUnknown(chunkStart.getAdditionalHeader());
                                 } else if (entry instanceof LogEntryRollback rollback) {
                                     appendIndex = rollback.getAppendIndex();
+                                    consensusIndex = rollback.getConsensusIndex();
                                     postLogPosition = reader.getCurrentLogPosition();
                                     infoFound = true;
                                 } else if (entry instanceof LogEntryChunkEnd || (entry instanceof LogEntryCommit)) {
@@ -147,11 +157,14 @@ public class DetachedLogTailAppendIndexProvider implements LastAppendBatchInfoPr
                                         currentAppendIndex = commit.getTxId();
                                     }
                                     appendIndex = currentAppendIndex;
+                                    consensusIndex = currentConsensusIndex;
                                     postLogPosition = reader.getCurrentLogPosition();
                                     currentAppendIndex = UNKNOWN_APPEND_INDEX;
+                                    currentConsensusIndex = UNKNOWN_CONSENSUS_INDEX;
                                     infoFound = true;
                                 } else if (entry instanceof LogEntryEmpty empty) {
                                     appendIndex = empty.getAppendIndex();
+                                    consensusIndex = UNKNOWN_CONSENSUS_INDEX;
                                     postLogPosition = reader.getCurrentLogPosition();
                                     infoFound = true;
                                 }
@@ -161,26 +174,34 @@ public class DetachedLogTailAppendIndexProvider implements LastAppendBatchInfoPr
                                 }
                             }
                             if (infoFound) {
-                                return new AppendBatchInfo(appendIndex, postLogPosition);
+                                return new AppendBatchInfo(appendIndex, postLogPosition, consensusIndex);
                             }
                         }
                     } catch (UnsupportedLogVersionException e) {
                         if (failOnUnsupportedLogVersion) {
                             throw e;
                         }
-                        return new AppendBatchInfo(appendIndex, postLogPosition);
+                        return new AppendBatchInfo(appendIndex, postLogPosition, consensusIndex);
                     } catch (IOException | IllegalStateException e) {
                         // error on reading log file returning last known existing
-                        return new AppendBatchInfo(appendIndex, postLogPosition);
+                        return new AppendBatchInfo(appendIndex, postLogPosition, consensusIndex);
                     }
                 }
                 currentFileVersion--;
             }
-            return new AppendBatchInfo(appendIndex, postLogPosition);
+            return new AppendBatchInfo(appendIndex, postLogPosition, consensusIndex);
         } catch (UnsupportedLogVersionException e) {
             throw e;
         } catch (Throwable t) {
             throw new RuntimeException("Unable to retrieve last append index", t);
+        }
+    }
+
+    private static long decodeLogIndexOrUnknown(byte[] additionalHeader) {
+        try {
+            return decodeLogIndex(additionalHeader);
+        } catch (IllegalArgumentException e) {
+            return UNKNOWN_CONSENSUS_INDEX;
         }
     }
 

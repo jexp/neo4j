@@ -103,12 +103,19 @@ public interface CheckPointer {
      *
      * @param transactionId transaction id to checkpoint.
      * @param appendIndex append index to checkpoint
+     * @param consensusIndex consensus index of the last closed batch to checkpoint, or
+     * {@link org.neo4j.storageengine.api.TransactionIdStore#UNKNOWN_CONSENSUS_INDEX} if not known
      * @param position position of provided transaction id to checkpoint.
      * @param triggerInfo the info describing why check pointing has been triggered.
      * @return the append index used for the check pointing
      * @throws IOException if writing the check point fails
      */
-    long forceCheckPoint(TransactionId transactionId, long appendIndex, LogPosition position, TriggerInfo triggerInfo)
+    long forceCheckPoint(
+            TransactionId transactionId,
+            long appendIndex,
+            long consensusIndex,
+            LogPosition position,
+            TriggerInfo triggerInfo)
             throws IOException;
 
     /**

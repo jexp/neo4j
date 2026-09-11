@@ -23,6 +23,7 @@ import static org.neo4j.io.fs.ReadableChannel.BASE_TERM;
 import static org.neo4j.storageengine.AppendIndexProvider.BASE_APPEND_INDEX;
 import static org.neo4j.storageengine.api.LogVersionRepository.BASE_TX_LOG_BYTE_OFFSET;
 import static org.neo4j.storageengine.api.LogVersionRepository.INITIAL_LOG_VERSION;
+import static org.neo4j.storageengine.api.TransactionIdStore.UNKNOWN_CONSENSUS_INDEX;
 import static org.neo4j.storageengine.api.TransactionIdStore.emptyVersionedTransaction;
 
 import java.util.Optional;
@@ -35,7 +36,7 @@ import org.neo4j.wal.entry.LogFormat;
 public class EmptyLogTailMetadata implements LogTailMetadata {
     static final LogPosition START_POSITION = new LogPosition(INITIAL_LOG_VERSION, BASE_TX_LOG_BYTE_OFFSET);
     public static final AppendBatchInfo EMPTY_APPEND_BATCH_INFO =
-            new AppendBatchInfo(BASE_APPEND_INDEX, START_POSITION);
+            new AppendBatchInfo(BASE_APPEND_INDEX, START_POSITION, UNKNOWN_CONSENSUS_INDEX);
     private final KernelVersion kernelVersion;
     private final Config config;
 

@@ -100,6 +100,7 @@ public enum DbmsRuntimeVersion implements ComponentVersion, KernelVersionProvide
     V2026_06(31, DBMS_RUNTIME_COMPONENT, Neo4jVersions.VERSION_202606, KernelVersion.V2026_06),
     V2026_07(32, DBMS_RUNTIME_COMPONENT, Neo4jVersions.VERSION_202607, KernelVersion.V2026_07),
     V2026_08(33, DBMS_RUNTIME_COMPONENT, Neo4jVersions.VERSION_202608, KernelVersion.V2026_08),
+    V2026_10(34, DBMS_RUNTIME_COMPONENT, Neo4jVersions.VERSION_202610, KernelVersion.V2026_10),
 
     /**
      * Glorious future version to be used for testing coming versions.

@@ -144,11 +144,15 @@ public class CheckPointerImpl extends LifecycleAdapter implements CheckPointer {
 
     @Override
     public long forceCheckPoint(
-            TransactionId transactionId, long appendIndex, LogPosition position, TriggerInfo triggerInfo)
+            TransactionId transactionId,
+            long appendIndex,
+            long consensusIndex,
+            LogPosition position,
+            TriggerInfo triggerInfo)
             throws IOException {
         try (Resource lock = mutex.checkPoint()) {
             return checkpointByExternalParams(
-                    transactionId, appendIndex, position, position, appendIndex, triggerInfo, false);
+                    transactionId, appendIndex, position, position, appendIndex, consensusIndex, triggerInfo, false);
         }
     }
 
@@ -221,6 +225,7 @@ public class CheckPointerImpl extends LifecycleAdapter implements CheckPointer {
                 oldestNotVisibleTransactionInfo.logPosition(),
                 lastClosedBatch.logPosition(),
                 lastClosedBatch.appendIndex(),
+                lastClosedBatch.consensusIndex(),
                 triggerInfo,
                 skipLogPruning);
     }
@@ -231,6 +236,7 @@ public class CheckPointerImpl extends LifecycleAdapter implements CheckPointer {
             LogPosition oldestNotCompletedPosition,
             LogPosition checkpointedLogPosition,
             long appendIndex,
+            long consensusIndex,
             TriggerInfo triggerInfo,
             boolean skipLogPruning)
             throws IOException {
@@ -241,6 +247,7 @@ public class CheckPointerImpl extends LifecycleAdapter implements CheckPointer {
         return doCheckpoint(
                 transactionId,
                 appendIndex,
+                consensusIndex,
                 oldestNotVisibleAppendIndex,
                 oldestNotCompletedPosition,
                 checkpointedLogPosition,
@@ -264,6 +271,7 @@ public class CheckPointerImpl extends LifecycleAdapter implements CheckPointer {
     private long doCheckpoint(
             TransactionId transactionId,
             long appendIndex,
+            long consensusIndex,
             long oldestNotVisibleAppendIndex,
             LogPosition oldestNotCompletedPosition,
             LogPosition checkpointedLogPosition,
@@ -315,6 +323,7 @@ public class CheckPointerImpl extends LifecycleAdapter implements CheckPointer {
                             checkPointEvent,
                             transactionId,
                             appendIndex,
+                            consensusIndex,
                             kernelVersion,
                             oldestNotCompletedPosition,
                             checkpointedLogPosition,

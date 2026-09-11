@@ -180,6 +180,7 @@ public interface TransactionIdStore {
      * @param lastBatch is the batch last for particular transaction
      * @param kernelVersion the closed batch kernel version
      * @param logPositionAfter log position after closed batch
+     * @param consensusIndex consensus index of the closed batch, or {@link #UNKNOWN_CONSENSUS_INDEX} if not known
      */
     void batchClosed(
             long transactionId,
@@ -187,7 +188,8 @@ public interface TransactionIdStore {
             boolean firstBatch,
             boolean lastBatch,
             KernelVersion kernelVersion,
-            LogPosition logPositionAfter);
+            LogPosition logPositionAfter,
+            long consensusIndex);
 
     /**
      * Used by recovery, where last committed/closed transaction ids are set.
@@ -200,6 +202,9 @@ public interface TransactionIdStore {
      * @param consensusIndex consensus index of the transaction.
      * @param byteOffset offset in the log file where the committed entry has been written.
      * @param logVersion version of log the committed entry has been written into.
+     * @param lastClosedBatchConsensusIndex consensus index of the last closed batch, which may differ from
+     * {@code consensusIndex} if the last closed batch was a rollback or a not-yet-committed chunk of a bigger
+     * transaction.
      */
     void setLastCommittedAndClosedTransactionId(
             long transactionId,
@@ -210,7 +215,8 @@ public interface TransactionIdStore {
             long consensusIndex,
             long byteOffset,
             long logVersion,
-            long logsAppendIndex);
+            long logsAppendIndex,
+            long lastClosedBatchConsensusIndex);
 
     /**
      * Used by recovery, where last committed/closed transaction ids are set.
@@ -226,6 +232,9 @@ public interface TransactionIdStore {
      * @param logVersion                      version of log the committed entry has been written into.
      * @param earliestOpenTransactionMetadata metadata about earliest still open transaction if any
      * @param lastClosedTxIdInfo              last closed tx id info
+     * @param lastClosedBatchConsensusIndex   consensus index of the last closed batch, which may differ from
+     * {@code consensusIndex} if the last closed batch was a rollback or a not-yet-committed chunk of a bigger
+     * transaction.
      */
     void setLastCommittedAndClosedTransactionId(
             long lastCommitedTxId,
@@ -239,6 +248,7 @@ public interface TransactionIdStore {
             long byteOffset,
             long logVersion,
             long logsAppendIndex,
+            long lastClosedBatchConsensusIndex,
             OpenTransactionMetadata earliestOpenTransactionMetadata,
             OutOfOrderSequence.NumberWithMeta lastClosedTxIdInfo);
 
@@ -297,6 +307,7 @@ public interface TransactionIdStore {
      * @param lastBatch is the batch last for particular transaction
      * @param logPositionBefore log position before entry with provided appendIndex
      * @param logPositionAfter log position after entry with provided appendIndex
+     * @param consensusIndex consensus index of the batch, or {@link #UNKNOWN_CONSENSUS_INDEX} if not known
      */
     void appendBatch(
             long transactionId,
@@ -304,7 +315,8 @@ public interface TransactionIdStore {
             boolean firstBatch,
             boolean lastBatch,
             LogPosition logPositionBefore,
-            LogPosition logPositionAfter);
+            LogPosition logPositionAfter,
+            long consensusIndex);
 
     /**
      * Returns information about last encountered appended registered batch.

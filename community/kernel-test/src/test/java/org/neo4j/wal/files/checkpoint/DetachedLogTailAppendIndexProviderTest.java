@@ -26,6 +26,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.neo4j.storageengine.api.TransactionIdStore.UNKNOWN_CONSENSUS_INDEX;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -83,6 +84,7 @@ class DetachedLogTailAppendIndexProviderTest {
                 logFile,
                 KernelVersion.getLatestVersion(config),
                 LAST_KNOWN_APPEND_INDEX,
+                UNKNOWN_CONSENSUS_INDEX,
                 LAST_KNOWN_POSITION,
                 EmptyMemoryTracker.INSTANCE,
                 LogPosition.UNSPECIFIED,
