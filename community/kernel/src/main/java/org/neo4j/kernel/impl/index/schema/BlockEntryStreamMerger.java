@@ -42,6 +42,7 @@ import org.neo4j.util.Preconditions;
  */
 class BlockEntryStreamMerger<KEY, VALUE> implements BlockEntryCursor<KEY, VALUE>, Callable<Void> {
     static final int QUEUE_SIZE = 10;
+    private static final int BATCHES_PER_CHUNK = 512;
 
     private final List<BlockEntryCursor<KEY, VALUE>> input;
     private final Layout<KEY, VALUE> layout;
@@ -76,21 +77,33 @@ class BlockEntryStreamMerger<KEY, VALUE> implements BlockEntryCursor<KEY, VALUE>
         try {
             MergingBlockEntryReader<KEY, VALUE> mergingReader = new MergingBlockEntryReader<>(layout);
             input.forEach(mergingReader::addSource);
-            List<BlockEntry<KEY, VALUE>> merged = new ArrayList<>(batchSize);
-            while (alive() && mergingReader.next()) {
-                merged.add(new BlockEntry<>(mergingReader.key(), mergingReader.value()));
-                if (merged.size() == batchSize) {
-                    offer(merged);
-                    merged = new ArrayList<>(batchSize);
-                }
-            }
-            if (!merged.isEmpty()) {
-                offer(merged);
-            }
+            //noinspection StatementWithEmptyBody
+            while (mergeChunk(mergingReader)) {}
             return null;
         } finally {
             halted = true;
         }
+    }
+
+    /**
+     * @return {@code true} if there may be more entries to merge, or {@code false} if the end of the stream has been
+     * reached or merging was stopped.
+     */
+    private boolean mergeChunk(MergingBlockEntryReader<KEY, VALUE> mergingReader) throws IOException {
+        for (int batch = 0; batch < BATCHES_PER_CHUNK; batch++) {
+            List<BlockEntry<KEY, VALUE>> merged = new ArrayList<>(batchSize);
+            while (merged.size() < batchSize) {
+                if (!alive() || !mergingReader.next()) {
+                    if (!merged.isEmpty()) {
+                        offer(merged);
+                    }
+                    return false;
+                }
+                merged.add(new BlockEntry<>(mergingReader.key(), mergingReader.value()));
+            }
+            offer(merged);
+        }
+        return true;
     }
 
     /**
