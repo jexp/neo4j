@@ -1018,6 +1018,11 @@ public class ImportCommand {
                             "ERROR: Skidbladnir import is not supported with multibyte delimiters "
                                     + "(--accept-multibyte-delimiter)");
                 }
+                if (String.valueOf(quote).getBytes(StandardCharsets.UTF_8).length > 1) {
+                    throw new ParameterException(
+                            spec.commandLine(),
+                            "ERROR: Skidbladnir import is not supported with multibyte quote characters");
+                }
                 if (defaultIdType == IdType.ACTUAL) {
                     throw new CommandFailedException(
                             "ERROR: Skidbladnir import is not supported with '--id-type=actual'.");
